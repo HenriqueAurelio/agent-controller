@@ -1,0 +1,290 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { app, dialog, type BrowserWindow } from 'electron';
+import { buildLaunchCommand, detectAgent, findOnPath, getProfile, PROFILES } from '@core/agents';
+import type { LaunchCommand } from '@core/agents';
+import { ChangesService } from '@core/git/ChangesService';
+import { MetricsSampler } from '@core/metrics/MetricsSampler';
+import { PtyManager } from '@core/pty/PtyManager';
+import { NotificationPolicy } from '@core/sessions/NotificationPolicy';
+import { SessionManager } from '@core/sessions/SessionManager';
+import { installAgentctl } from '@core/signals/agentctlInstall';
+import { createSocketPath, HookServer } from '@core/signals/HookServer';
+import { createAppStore, type AppData } from '@core/store/appStore';
+import {
+  chooseGpuMode,
+  confirmHealthy,
+  reportGpuFailure,
+  type GpuMode,
+} from '@core/store/gpuGuard';
+import type { AgentAvailability } from '@shared/agents';
+import type { Session } from '@shared/session';
+import { registerIpc, type IpcContext } from './ipc';
+import { showNotification } from './notifications';
+import { createMainWindow, saveWindowState } from './window';
+
+const TEST_SHELL = process.env.AGENT_CONTROLLER_TEST_SHELL === '1';
+
+function resourcesPath(...parts: string[]): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, ...parts)
+    : path.join(app.getAppPath(), 'resources', ...parts);
+}
+
+/** In test mode every session runs a plain shell: no account, no credits, same plumbing. */
+function testShell(session: Session, socketPath: string): LaunchCommand {
+  const env = { AGENTCTL_SESSION_ID: session.id, AGENTCTL_SOCKET: socketPath };
+  if (process.platform === 'win32') {
+    return { file: process.env.ComSpec || 'cmd.exe', args: [], env };
+  }
+  return { file: 'bash', args: ['--noprofile', '--norc'], env: { ...env, PS1: '$ ' } };
+}
+
+export async function startApp(): Promise<void> {
+  // Tests and measurements run against a throwaway profile.
+  const userDataOverride = process.env.AGENT_CONTROLLER_USER_DATA;
+  if (userDataOverride) app.setPath('userData', userDataOverride);
+
+  if (!app.requestSingleInstanceLock()) {
+    app.quit();
+    return;
+  }
+  app.setAppUserModelId('dev.agentcontroller.app');
+  // The GPU work runs inside the main process instead of a process of its own: about 40 MB
+  // less, which is what keeps the app under its memory ceiling (ADR 0009). The price is that a
+  // crash of the video driver takes the whole app down, so a start that did not end well is
+  // followed by safe ones: GPU in its own process, no hardware acceleration.
+  const gpuMode: GpuMode =
+    process.env.AGENT_CONTROLLER_GPU === 'safe'
+      ? 'safe'
+      : chooseGpuMode(app.getPath('userData'), app.getVersion());
+  if (gpuMode === 'fast') app.commandLine.appendSwitch('in-process-gpu');
+  else app.disableHardwareAcceleration();
+
+  await app.whenReady();
+
+  const userData = app.getPath('userData');
+  const store = createAppStore(userData);
+  const data: AppData = store.load();
+
+  const agentctl = installAgentctl({
+    sourceScript: resourcesPath('agentctl', 'agentctl.cjs'),
+    directory: process.env.AGENT_CONTROLLER_AGENTCTL_DIR || undefined,
+    runtime: process.execPath,
+    windowsNotify: app.isPackaged
+      ? [process.execPath, '--agentctl']
+      : [process.execPath, app.getAppPath(), '--agentctl'],
+  });
+
+  const ptys = new PtyManager();
+  const hookServer = new HookServer({
+    socketPath: createSocketPath(),
+    isKnownSession: (id) => manager.has(id),
+  });
+
+  const resolveLaunch = (session: Session): LaunchCommand => {
+    if (TEST_SHELL) return testShell(session, hookServer.socketPath);
+    const profile = getProfile(session.profile);
+    const executablePath = findOnPath(profile.executable);
+    if (!executablePath) {
+      throw new Error(`${profile.displayName} não foi encontrado no PATH. ${profile.installHint}`);
+    }
+    return buildLaunchCommand(profile, session, {
+      agentctl,
+      dataDirectory: userData,
+      socketPath: hookServer.socketPath,
+      executablePath,
+    });
+  };
+
+  const persist = (sessions: Session[], selectedSessionId: string | null) => {
+    data.sessions = sessions;
+    data.selectedSessionId = selectedSessionId;
+    try {
+      store.save(data);
+    } catch (err) {
+      console.error('Falha ao salvar as sessões:', err);
+    }
+  };
+
+  const manager = new SessionManager({
+    ptys,
+    sessions: data.sessions,
+    selectedId: data.selectedSessionId,
+    prefs: data.prefs,
+    resolveLaunch,
+    persist,
+  });
+  hookServer.on('message', (message) => manager.handleHook(message));
+  await hookServer.listen();
+
+  let window: BrowserWindow | null = null;
+  const send: IpcContext['send'] = (channel, ...args) => {
+    if (window && !window.isDestroyed() && !window.webContents.isDestroyed()) {
+      window.webContents.send(channel, ...args);
+    }
+  };
+
+  const changes = new ChangesService({
+    workDirectory: path.join(userData, 'snapshots'),
+    onChange: (sessionId) => send('git:changed', sessionId),
+  });
+  // Snapshots of a previous run are useless: sessions always come back stopped.
+  fs.rmSync(path.join(userData, 'snapshots'), { recursive: true, force: true });
+
+  const metrics = new MetricsSampler({
+    roots: () => {
+      const roots = new Map<string, number>();
+      for (const session of manager.runningSessions()) {
+        const pid = manager.pidOf(session.id);
+        if (pid) roots.set(session.id, pid);
+      }
+      return roots;
+    },
+    onSample: (sample) => send('metrics:update', sample),
+  });
+
+  const notifications = new NotificationPolicy();
+
+  manager.on('sessions', () =>
+    send('sessions:changed', { sessions: manager.list(), selectedId: manager.selected }),
+  );
+  manager.on('data', (id, chunk) => send('terminal:data', id, chunk));
+  manager.on('reset', (id) => send('terminal:reset', id));
+  manager.on('started', (session) => void changes.sessionStarted(session.id, session.cwd));
+  manager.on('removed', (id) => {
+    notifications.forget(id);
+    void changes.sessionClosed(id);
+  });
+  manager.on('transition', ({ session, previous }) => {
+    const request = notifications.evaluate(session, previous, {
+      focused: manager.isFocused(session.id),
+      prefs: data.prefs,
+    });
+    if (!request) return;
+    showNotification(request, () => {
+      if (!window || window.isDestroyed()) return;
+      if (window.isMinimized()) window.restore();
+      window.show();
+      window.focus();
+      manager.select(request.sessionId);
+      send('app:focusSession', request.sessionId);
+    });
+  });
+
+  let agentsCache: Promise<AgentAvailability[]> | null = null;
+  const detectAgents = (refresh: boolean): Promise<AgentAvailability[]> => {
+    if (TEST_SHELL) {
+      return Promise.resolve(
+        Object.values(PROFILES).map((profile) => ({
+          profile: profile.id,
+          displayName: profile.displayName,
+          status: 'ok' as const,
+          usable: true,
+          minVersion: profile.minVersion,
+          lastTestedVersion: profile.lastTestedVersion,
+        })),
+      );
+    }
+    if (refresh || !agentsCache) {
+      agentsCache = Promise.all(Object.values(PROFILES).map((profile) => detectAgent(profile)));
+    }
+    return agentsCache;
+  };
+
+  registerIpc({
+    manager,
+    changes,
+    data,
+    send,
+    testMode: TEST_SHELL,
+    gpuMode,
+    detectAgents,
+    getWindow: () => window,
+    savePrefs: (prefs) => {
+      data.prefs = prefs;
+      manager.setPreferences(prefs);
+      manager.flushPersist();
+      send('prefs:changed', prefs);
+    },
+  });
+
+  let closing = false;
+  const shutdown = async () => {
+    closing = true;
+    metrics.stop();
+    changes.dispose();
+    if (window && !window.isDestroyed()) saveWindowState(window, data.window);
+    // Every agent, and whatever it started, ends with the app (ADR 0006).
+    await manager.dispose();
+    await hookServer.close();
+    try {
+      store.save(data);
+    } catch {
+      // Nothing left to do with the error at this point.
+    }
+    app.exit(0);
+  };
+
+  const openWindow = () => {
+    window = createMainWindow(data.window);
+    window.on('focus', () => manager.setWindowFocused(true));
+    window.on('blur', () => manager.setWindowFocused(false));
+    manager.setWindowFocused(window.isFocused());
+    window.on('close', (event) => {
+      if (closing) return;
+      event.preventDefault();
+      const running = manager.runningSessions();
+      if (running.length > 0 && !TEST_SHELL) {
+        const choice = dialog.showMessageBoxSync(window!, {
+          type: 'warning',
+          buttons: ['Encerrar e fechar', 'Cancelar'],
+          defaultId: 1,
+          cancelId: 1,
+          title: 'Fechar o Agent Controller',
+          message:
+            running.length === 1
+              ? 'Há 1 agente rodando. Fechar o app vai encerrá-lo.'
+              : `Há ${running.length} agentes rodando. Fechar o app vai encerrá-los.`,
+          detail: running
+            .map((s) => `• ${s.name} (${getProfile(s.profile).displayName})`)
+            .join('\n'),
+        });
+        if (choice !== 0) return;
+      }
+      window?.hide();
+      void shutdown();
+    });
+  };
+
+  openWindow();
+  metrics.start();
+
+  // Fast mode counts as working once the window has been up for a while.
+  window!.webContents.once('did-finish-load', () => {
+    setTimeout(() => {
+      if (!closing && gpuMode === 'fast') confirmHealthy(userData);
+    }, 5000).unref();
+  });
+  app.on('child-process-gone', (_event, details) => {
+    if (details.type === 'GPU' && details.reason !== 'clean-exit' && details.reason !== 'killed') {
+      reportGpuFailure(userData, app.getVersion());
+    }
+  });
+  window!.webContents.on('render-process-gone', (_event, details) => {
+    // With the GPU in the main process, a renderer lost to a graphics fault is the warning.
+    if (gpuMode === 'fast' && details.reason === 'crashed') {
+      reportGpuFailure(userData, app.getVersion());
+    }
+  });
+
+  app.on('second-instance', () => {
+    if (!window || window.isDestroyed()) return;
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+  });
+  app.on('window-all-closed', () => {
+    if (!closing) void shutdown();
+  });
+}

@@ -1,0 +1,122 @@
+{
+  "agent": "claude-code",
+  "version": "2.1.296",
+  "platform": "win32",
+  "date": "2026-10-13T02:01:23.773Z",
+  "hooks": "active",
+  "ok": true,
+  "scenarios": [
+    {
+      "name": "fim de turno normal",
+      "ok": true,
+      "states": [
+        {
+          "t": 3.77,
+          "state": "trabalhando",
+          "origin": "titulo",
+          "confirmed": true
+        },
+        {
+          "t": 4.8,
+          "state": "terminou",
+          "origin": "hook",
+          "confirmed": true
+        }
+      ]
+    },
+    {
+      "name": "pedido de permissão",
+      "ok": true,
+      "states": [
+        {
+          "t": 11.4,
+          "state": "trabalhando",
+          "origin": "titulo",
+          "confirmed": true
+        },
+        {
+          "t": 13.03,
+          "state": "aguardando",
+          "origin": "hook",
+          "confirmed": true,
+          "detail": "Write"
+        },
+        {
+          "t": 17.14,
+          "state": "trabalhando",
+          "origin": "titulo",
+          "confirmed": true
+        },
+        {
+          "t": 18.63,
+          "state": "terminou",
+          "origin": "hook",
+          "confirmed": true
+        }
+      ]
+    },
+    {
+      "name": "cancelamento",
+      "ok": true,
+      "states": [
+        {
+          "t": 19.21,
+          "state": "trabalhando",
+          "origin": "titulo",
+          "confirmed": true
+        },
+        {
+          "t": 24.36,
+          "state": "terminou",
+          "origin": "titulo",
+          "confirmed": true,
+          "detail": "sem confirmação do agente"
+        }
+      ]
+    }
+  ],
+  "hookEvents": [
+    {
+      "t": 1.5,
+      "source": "claude-hook",
+      "event": "SessionStart"
+    },
+    {
+      "t": 4.8,
+      "source": "claude-hook",
+      "event": "Stop"
+    },
+    {
+      "t": 13.03,
+      "source": "claude-hook",
+      "event": "PermissionRequest"
+    },
+    {
+      "t": 18.63,
+      "source": "claude-hook",
+      "event": "Stop"
+    }
+  ],
+  "titles": [
+    "C:\\Users\\Henrique Aurelio\\.local\\bin\\claude.exe",
+    "claude",
+    "✳ Claude Code",
+    "◐ Claude Code",
+    "◐ Resposta ok sem ferramentas",
+    "◑ Resposta ok sem ferramentas",
+    "✳ Resposta ok sem ferramentas",
+    "◑ Resposta ok sem ferramentas",
+    "◐ Resposta ok sem ferramentas",
+    "✳ Resposta ok sem ferramentas",
+    "◐ Resposta ok sem ferramentas",
+    "◑ Resposta ok sem ferramentas",
+    "✳ Resposta ok sem ferramentas",
+    "◑ Resposta ok sem ferramentas",
+    "◐ Resposta ok sem ferramentas",
+    "◑ Resposta ok sem ferramentas",
+    "◐ Resposta ok sem ferramentas",
+    "✳ Resposta ok sem ferramentas",
+    ""
+  ],
+  "orphans": []
+}

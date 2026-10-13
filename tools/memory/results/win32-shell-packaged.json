@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-13T11:51:37.633Z",
+  "platform": "win32",
+  "profile": "shell",
+  "packaged": true,
+  "ceilingMb": 450,
+  "rows": [
+    {
+      "label": "app vazio",
+      "processes": 3,
+      "workingSetMb": 255,
+      "privateMb": 152,
+      "byTypeMb": {
+        "Browser": 128,
+        "Utility": 45,
+        "Tab": 82
+      },
+      "mountedTerminals": 0
+    },
+    {
+      "label": "1 sessão",
+      "processes": 3,
+      "workingSetMb": 298,
+      "privateMb": 238,
+      "byTypeMb": {
+        "Browser": 152,
+        "Utility": 45,
+        "Tab": 101
+      },
+      "mountedTerminals": 1
+    },
+    {
+      "label": "5 sessões",
+      "processes": 3,
+      "workingSetMb": 350,
+      "privateMb": 364,
+      "byTypeMb": {
+        "Browser": 191,
+        "Utility": 45,
+        "Tab": 113
+      },
+      "mountedTerminals": 3
+    },
+    {
+      "label": "10 sessões",
+      "processes": 3,
+      "workingSetMb": 396,
+      "privateMb": 507,
+      "byTypeMb": {
+        "Browser": 237,
+        "Utility": 45,
+        "Tab": 114
+      },
+      "mountedTerminals": 3
+    },
+    {
+      "label": "10 sessões + painel de diff",
+      "processes": 3,
+      "workingSetMb": 426,
+      "privateMb": 485,
+      "byTypeMb": {
+        "Browser": 236,
+        "Utility": 45,
+        "Tab": 145
+      },
+      "mountedTerminals": 3
+    },
+    {
+      "label": "10 sessões, painel fechado",
+      "processes": 3,
+      "workingSetMb": 423,
+      "privateMb": 455,
+      "byTypeMb": {
+        "Browser": 232,
+        "Utility": 45,
+        "Tab": 146
+      },
+      "mountedTerminals": 3
+    },
+    {
+      "label": "10 sessões, fechado (após GC)",
+      "processes": 3,
+      "workingSetMb": 408,
+      "privateMb": 420,
+      "byTypeMb": {
+        "Browser": 228,
+        "Utility": 45,
+        "Tab": 135
+      },
+      "mountedTerminals": 3
+    }
+  ]
+}

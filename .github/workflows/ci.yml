@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  # Every branch, so work in progress is checked before there is a pull request.
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # node-pty ships no Linux binary: `npm ci` compiles it, which needs a toolchain.
+      - name: Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential python3 xvfb libfuse2
+
+      - run: npm ci
+
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      - name: Package
+        run: npx electron-builder --publish never
+        env:
+          # Without a certificate electron-builder must not look for one.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: E2E on the packaged app (Windows)
+        if: runner.os == 'Windows'
+        run: npm run test:e2e
+        env:
+          AGENT_CONTROLLER_EXE: ${{ github.workspace }}\dist\win-unpacked\Agent Controller.exe
+
+      - name: E2E on the packaged app (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:e2e
+        env:
+          AGENT_CONTROLLER_EXE: ${{ github.workspace }}/dist/linux-unpacked/agent-controller
+
+      - name: Memory baseline (Windows)
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        run: npm run measure
+        env:
+          AGENT_CONTROLLER_EXE: ${{ github.workspace }}\dist\win-unpacked\Agent Controller.exe
+
+      - name: Memory baseline (Linux)
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        run: xvfb-run -a npm run measure
+        env:
+          AGENT_CONTROLLER_EXE: ${{ github.workspace }}/dist/linux-unpacked/agent-controller
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-controller-${{ runner.os }}
+          if-no-files-found: error
+          path: |
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.deb
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reports-${{ runner.os }}
+          if-no-files-found: ignore
+          path: |
+            playwright-report/
+            test-results/
+            tools/memory/results/
+
+  core-docker:
+    name: core tests in Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --target core -t agent-controller-core .
+      - run: docker run --rm agent-controller-core

@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-13T02:20:30.273Z",
+  "platform": "win32",
+  "profile": "shell",
+  "packaged": false,
+  "ceilingMb": 450,
+  "rows": [
+    {
+      "label": "app vazio",
+      "processes": 4,
+      "workingSetMb": 306,
+      "privateMb": 171,
+      "byTypeMb": {
+        "Browser": 93,
+        "GPU": 83,
+        "Utility": 43,
+        "Tab": 86
+      },
+      "mountedTerminals": 0
+    },
+    {
+      "label": "1 sessão",
+      "processes": 4,
+      "workingSetMb": 350,
+      "privateMb": 255,
+      "byTypeMb": {
+        "Browser": 110,
+        "GPU": 91,
+        "Utility": 44,
+        "Tab": 105
+      },
+      "mountedTerminals": 1
+    },
+    {
+      "label": "5 sessões",
+      "processes": 4,
+      "workingSetMb": 403,
+      "privateMb": 381,
+      "byTypeMb": {
+        "Browser": 146,
+        "GPU": 96,
+        "Utility": 44,
+        "Tab": 118
+      },
+      "mountedTerminals": 3
+    },
+    {
+      "label": "10 sessões",
+      "processes": 4,
+      "workingSetMb": 446,
+      "privateMb": 517,
+      "byTypeMb": {
+        "Browser": 184,
+        "GPU": 101,
+        "Utility": 43,
+        "Tab": 119
+      },
+      "mountedTerminals": 3
+    },
+    {
+      "label": "10 sessões + painel de diff",
+      "processes": 4,
+      "workingSetMb": 480,
+      "privateMb": 503,
+      "byTypeMb": {
+        "Browser": 184,
+        "GPU": 102,
+        "Utility": 43,
+        "Tab": 150
+      },
+      "mountedTerminals": 3
+    },
+    {
+      "label": "10 sessões, painel fechado",
+      "processes": 4,
+      "workingSetMb": 471,
+      "privateMb": 457,
+      "byTypeMb": {
+        "Browser": 179,
+        "GPU": 102,
+        "Utility": 43,
+        "Tab": 147
+      },
+      "mountedTerminals": 3
+    },
+    {
+      "label": "10 sessões, fechado (após GC)",
+      "processes": 4,
+      "workingSetMb": 463,
+      "privateMb": 434,
+      "byTypeMb": {
+        "Browser": 178,
+        "GPU": 101,
+        "Utility": 43,
+        "Tab": 141
+      },
+      "mountedTerminals": 3
+    }
+  ]
+}

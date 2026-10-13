@@ -1,0 +1,60 @@
+name: Release
+
+# Builds the installers for every tag `v*` and attaches them to a draft release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  installers:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential python3 xvfb libfuse2
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+      - name: Package
+        run: npx electron-builder --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: E2E on the packaged app (Windows)
+        if: runner.os == 'Windows'
+        run: npm run test:e2e
+        env:
+          AGENT_CONTROLLER_EXE: ${{ github.workspace }}\dist\win-unpacked\Agent Controller.exe
+
+      - name: E2E on the packaged app (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:e2e
+        env:
+          AGENT_CONTROLLER_EXE: ${{ github.workspace }}/dist/linux-unpacked/agent-controller
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.deb

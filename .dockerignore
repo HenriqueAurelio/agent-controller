@@ -1,0 +1,9 @@
+node_modules
+out
+dist
+.git
+test-results
+playwright-report
+*.log
+*.stackdump
+tools/agent-probe/sandbox

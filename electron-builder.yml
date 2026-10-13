@@ -1,0 +1,57 @@
+appId: dev.agentcontroller.app
+productName: Agent Controller
+copyright: Copyright © 2026 Henrique
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - out/**
+  - package.json
+  - '!node_modules/node-pty/{src,deps,third_party,scripts,typings,binding.gyp}'
+  - '!node_modules/node-pty/build/{deps,Release/obj,Release/.deps}'
+  - '!node_modules/node-pty/**/*.{pdb,map,md,ts}'
+  - '!node_modules/node-pty/prebuilds/{darwin-arm64,darwin-x64,win32-arm64}'
+  - '!node_modules/@xterm/**/*.{map,md}'
+
+# node-pty is a native module: its binaries and helper executables cannot run from inside the
+# archive.
+asarUnpack:
+  - node_modules/node-pty/**
+
+# agentctl is copied to its fixed per-user folder when the app starts (see agentctlInstall.ts).
+extraResources:
+  - from: resources/agentctl
+    to: agentctl
+
+# node-pty 1.1 is an N-API addon: the binary shipped in the package (Windows) or compiled by
+# `npm ci` (Linux) already works in Electron, so nothing is rebuilt here. See ADR 0010.
+npmRebuild: false
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+
+nsis:
+  oneClick: true
+  perMachine: false
+  artifactName: agent-controller-${version}-setup.${ext}
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  icon: build/icon.png
+  category: Development
+  executableName: agent-controller
+  maintainer: Henrique <HenriqueAurelio@users.noreply.github.com>
+  synopsis: Sessões de Claude Code e Codex em uma janela só
+  artifactName: agent-controller-${version}.${ext}
+
+# Out of the v1: auto-update and code signing.
+publish: null
