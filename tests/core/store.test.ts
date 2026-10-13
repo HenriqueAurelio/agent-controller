@@ -3,6 +3,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createAppStore, defaultAppData } from '@core/store/appStore';
 import { JsonStore } from '@core/store/JsonStore';
+import { RECENT_FOLDERS_LIMIT, rememberFolder } from '@core/store/recentFolders';
 import { removeDir, tempDir } from './helpers';
 
 let dir: string;
@@ -112,6 +113,48 @@ describe('appStore', () => {
     expect(loaded.version).toBe(1);
     expect(loaded.sessions).toHaveLength(1);
     expect(loaded.prefs.scrollback).toBeGreaterThan(0);
+  });
+});
+
+describe('recent folders', () => {
+  it('keeps the latest folder first, one entry per folder, up to a limit', () => {
+    const a = path.join(dir, 'a');
+    const b = path.join(dir, 'b');
+    let recent = rememberFolder([], a);
+    recent = rememberFolder(recent, b);
+    expect(recent).toEqual([b, a]);
+    // The same folder with a trailing separator is the same entry, in its newest spelling.
+    recent = rememberFolder(recent, a + path.sep);
+    expect(recent).toEqual([a + path.sep, b]);
+
+    for (let i = 0; i < RECENT_FOLDERS_LIMIT + 3; i++) {
+      recent = rememberFolder(recent, path.join(dir, `p${i}`));
+    }
+    expect(recent).toHaveLength(RECENT_FOLDERS_LIMIT);
+    expect(recent[0]).toBe(path.join(dir, `p${RECENT_FOLDERS_LIMIT + 2}`));
+    expect(recent).not.toContain(b);
+  });
+
+  it.runIf(process.platform === 'win32')('ignores letter case on Windows', () => {
+    expect(rememberFolder(['C:\\Projetos\\App'], 'c:\\projetos\\app')).toEqual([
+      'c:\\projetos\\app',
+    ]);
+  });
+
+  it('is saved with the sessions, and survives a file that has garbage in it', () => {
+    const store = createAppStore(dir);
+    const a = path.join(dir, 'a');
+    const b = path.join(dir, 'b');
+    store.save({ ...defaultAppData(), recentFolders: [a, b] });
+    expect(createAppStore(dir).load().recentFolders).toEqual([a, b]);
+
+    fs.writeFileSync(
+      store.file,
+      JSON.stringify({ version: 1, sessions: [], recentFolders: [a, 7, '', null, b, a] }),
+    );
+    expect(store.load().recentFolders).toEqual([a, b]);
+    fs.writeFileSync(store.file, JSON.stringify({ version: 1, sessions: [], recentFolders: 'x' }));
+    expect(store.load().recentFolders).toEqual([]);
   });
 });
 

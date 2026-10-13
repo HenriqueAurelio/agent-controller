@@ -3,6 +3,8 @@ out/
 dist/
 coverage/
 test-results/
+# Telas de evidência: são anexadas ao pull request, não entram no repositório.
+evidences/
 playwright-report/
 *.log
 *.stackdump

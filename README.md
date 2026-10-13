@@ -39,11 +39,19 @@ Não há atualização automática no v1: para atualizar, instale a versão nova
 ### Criar uma sessão
 
 1. Clique em **+ Nova sessão** (ou `Ctrl+Shift+N`).
-2. Escolha a **pasta** onde o agente vai trabalhar e dê um **nome** à sessão.
+2. Escolha a **pasta** onde o agente vai trabalhar e dê um **nome** à sessão. O campo já vem com a pasta da última sessão, e as **recentes** ficam logo abaixo, a um clique. Em **Preferências → Sessões** dá para fixar uma pasta inicial.
+
+   A **☆** ao lado do campo guarda a pasta nos **favoritos**; elas aparecem primeiro, acima das recentes, toda vez que você cria uma sessão ou troca a pasta de uma. A lista também é editada em **Preferências → Sessões**.
 3. Escolha o **agente**: Claude Code ou Codex. Um agente que não está instalado aparece desabilitado, com a instrução de instalação.
 4. **Criar e iniciar** abre o agente no terminal da sessão.
 
 Daí em diante é o agente de sempre: digite o prompt no terminal.
+
+Outros caminhos para o mesmo lugar:
+
+- **Arrastar uma pasta** do gerenciador de arquivos para a janela abre **Nova sessão** já com ela preenchida. Um arquivo solto vale pela pasta em que está.
+- **Duplicar** (o botão **⧉** na sessão, ou a paleta de comandos) abre outra sessão na mesma pasta, com o mesmo agente.
+- **Trocar a pasta** de uma sessão que já existe: clique no caminho no topo da sessão, ou use a paleta de comandos. O agente trabalha na pasta em que foi aberto; se estiver rodando, o app avisa, encerra e abre de novo na nova pasta, e a conversa em andamento não continua.
 
 ### O que cada estado significa
 
@@ -77,18 +85,53 @@ Em **Preferências** (`Ctrl+,`) dá para desligar cada tipo de aviso e o som.
 - **Edição:** o lado direito é o arquivo como está na pasta. Dá para digitar nele e salvar com `Ctrl+S` ou o botão **Salvar**; a seta entre os dois lados desfaz um trecho. Se o agente escrever no mesmo arquivo enquanto você edita, o app não grava por cima: avisa e deixa você escolher entre recarregar e sobrescrever.
 - **Comparar com**: o último commit, ou o início da sessão (só o que mudou desde que o agente foi aberto).
 - A lista se atualiza sozinha enquanto o painel está aberto.
+- **Vários repositórios:** se a pasta da sessão guarda mais de um repositório (lado a lado numa pasta comum, ou um dentro do outro), a lista ganha um cabeçalho por repositório, com a branch e a contagem de cada um, e o contador do botão soma todos. Com um repositório só, nada muda.
+
+### Ver todos os arquivos da pasta
+
+**Arquivos** (botão no topo da sessão, `Ctrl+Shift+E`, ou o botão **Todos os arquivos** dentro do painel) troca a lista de mudanças por uma árvore com tudo o que há na pasta, a partir da raiz do repositório. Funciona também em pastas sem git.
+
+- As pastas abrem no lugar, e só são lidas quando abertas. Com o teclado: setas para andar, `→` e `←` para abrir e fechar, `Enter` para abrir o arquivo.
+- O arquivo escolhido abre no mesmo editor do painel de mudanças, e pode ser editado e salvo do mesmo jeito.
+- **Ocultos** (caixa no painel, `Ctrl+Shift+H`, ou em Preferências) mostra também o que normalmente fica de fora: arquivos e pastas que começam com ponto (`.env`, `.github`, a própria `.git`) e o que o `.gitignore` cobre (`node_modules`, saídas de build). Eles aparecem esmaecidos. A escolha fica guardada.
+- Os arquivos que mudaram continuam marcados com a mesma letra da lista de mudanças.
+
+### Layout
+
+Em **Preferências → Layout** você escolhe onde fica cada parte da janela. As três escolhas são independentes e combinam entre si, e uma miniatura mostra o resultado antes de fechar:
+
+| Parte | Onde pode ficar |
+|---|---|
+| **Sessões** | À esquerda, à direita, em cima ou embaixo. Em cima e embaixo a lista corre de lado, e as setas `←` / `→` andam por ela |
+| **Painel de mudanças e arquivos** | Por cima do terminal (o padrão) ou ao lado dele: à esquerda, à direita, em cima ou embaixo. Ao lado, o terminal continua à vista e usável |
+| **Lista de arquivos do painel** | À esquerda, à direita, em cima ou embaixo do texto do arquivo |
+
+A mudança vale na hora e fica guardada. **Restaurar padrão** volta ao arranjo de fábrica.
+
+### Exportar e importar as configurações
+
+Em **Preferências → Geral → Configurações**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: avisos, terminal, pasta inicial, pastas favoritas, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
+
+As sessões não vão no arquivo. Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir.
 
 ### Atalhos
 
 | Atalho | Ação |
 |---|---|
 | `Ctrl+Shift+N` | Nova sessão |
-| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Próxima sessão / sessão anterior |
-| `Ctrl+1` … `Ctrl+9` | Ir para a sessão N |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Próxima sessão / sessão anterior (também `Ctrl+PageDown` / `Ctrl+PageUp`) |
+| `Ctrl+1` … `Ctrl+9` | Ir para a sessão N (fixo) |
+| `Ctrl+0` | Ir para a lista de sessões |
+| `Ctrl+Shift+T` | Ir para o terminal |
 | `Ctrl+Shift+G` | Abrir ou fechar o painel de mudanças |
+| `Ctrl+Shift+E` | Abrir ou fechar todos os arquivos da pasta |
+| `Ctrl+Shift+H` | Mostrar ou esconder arquivos ocultos |
 | `Ctrl+Shift+P` | Paleta de comandos |
 | `Ctrl+,` | Preferências |
+| sem atalho de fábrica | Próxima sessão aguardando você; fechar a sessão atual |
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copiar / colar no terminal. No Windows, `Ctrl+C` com texto selecionado e `Ctrl+V` também |
+
+Esses são os atalhos de fábrica. Em **Preferências → Atalhos** cada ação pode ter os seus: clique em **+**, pressione as teclas e pronto; o **×** ao lado de um atalho o remove, e **Restaurar padrões** desfaz tudo. Uma ação aceita até quatro atalhos. Se a combinação já era de outra ação, ela muda de dono. Para não atrapalhar o que você digita no terminal, um atalho precisa de `Ctrl`, `Alt` ou de uma tecla de função, e não pode ser um dos que o terminal e o editor usam (`Ctrl+C`, `Ctrl+V`, `Ctrl+S`, `F2`, `F12`).
 
 Na barra lateral, com uma sessão focada: `F2` renomeia, `Delete` fecha, `Alt+↑` / `Alt+↓` reordena. Também dá para arrastar.
 

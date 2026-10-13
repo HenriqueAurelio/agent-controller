@@ -114,7 +114,12 @@ export function parseStatus(output: string): FileChange[] {
     } else if (type === '1') {
       // 1 XY sub mH mI mW hH hI path
       const parts = record.split(' ');
-      changes.push({ path: parts.slice(8).join(' '), kind: kindFromXY(parts[1]!) });
+      const file = parts.slice(8).join(' ');
+      // A submodule with work in progress is told apart like a repository inside another is
+      // when untracked: by a path that ends with a slash.
+      const sub = parts[2]!;
+      const dirty = sub[0] === 'S' && (sub[2] === 'M' || sub[3] === 'U');
+      changes.push({ path: dirty ? `${file}/` : file, kind: kindFromXY(parts[1]!) });
     } else if (type === '2') {
       // 2 XY sub mH mI mW hH hI Xscore path, then the original path as the next record.
       const parts = record.split(' ');
@@ -220,7 +225,8 @@ export async function saveWorkingTreeFile(
   if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
     throw new Error('O arquivo está fora do repositório');
   }
-  if (relative.split(path.sep)[0]!.toLowerCase() === '.git') {
+  // The repository may be the root, or a folder anywhere below it.
+  if (relative.split(path.sep).some((part) => part.toLowerCase() === '.git')) {
     throw new Error('Arquivos internos do git não podem ser editados');
   }
   let stat: fs.Stats | null = null;
@@ -245,7 +251,8 @@ export async function saveWorkingTreeFile(
 export async function workingTreeContent(root: string, file: string): Promise<SideContent> {
   const absolute = path.resolve(root, file);
   // A path from git never leaves the repository; refuse anything else.
-  if (path.relative(root, absolute).startsWith('..')) return { kind: 'missing' };
+  const relative = path.relative(root, absolute);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return { kind: 'missing' };
   let stat: fs.Stats;
   try {
     stat = await fs.promises.lstat(absolute);
@@ -284,6 +291,12 @@ export async function fileDiff(
   const modified: SideContent =
     change.kind === 'removed' ? { kind: 'missing' } : await workingTreeContent(root, change.path);
   return { path: change.path, original, modified };
+}
+
+/** Name of the branch that is checked out; null with a detached HEAD. */
+export async function currentBranch(root: string): Promise<string | null> {
+  const result = await runGit(root, ['symbolic-ref', '--short', '-q', 'HEAD']);
+  return result.code === 0 ? result.stdout.toString('utf8').trim() || null : null;
 }
 
 export async function hasHead(root: string): Promise<boolean> {

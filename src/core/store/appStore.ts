@@ -2,6 +2,7 @@ import path from 'node:path';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
 import { AGENT_PROFILE_IDS, type AgentProfileId, type Session } from '@shared/session';
 import { JsonStore, type Migration } from './JsonStore';
+import { sanitizeRecentFolders } from './recentFolders';
 
 export interface WindowState {
   x?: number;
@@ -15,6 +16,8 @@ export interface AppData {
   version: number;
   sessions: Session[];
   selectedSessionId: string | null;
+  /** Folders of the latest sessions, most recent first: offered when a folder is asked for. */
+  recentFolders: string[];
   window: WindowState;
   prefs: Preferences;
 }
@@ -28,6 +31,7 @@ export function defaultAppData(): AppData {
     version: APP_DATA_VERSION,
     sessions: [],
     selectedSessionId: null,
+    recentFolders: [],
     window: { ...DEFAULT_WINDOW },
     prefs: sanitizePreferences(undefined),
   };
@@ -70,6 +74,7 @@ function validate(raw: unknown): AppData {
       typeof data.selectedSessionId === 'string' && seen.has(data.selectedSessionId)
         ? data.selectedSessionId
         : null,
+    recentFolders: sanitizeRecentFolders(data.recentFolders),
     window: {
       x: num(w.x),
       y: num(w.y),

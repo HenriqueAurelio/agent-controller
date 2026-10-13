@@ -111,6 +111,67 @@ describe('SessionManager', () => {
       ).toThrow(/não existe/);
     });
 
+    it('duplicates a session right below it, in the same folder and with the same agent', () => {
+      const a = create('API', 'codex');
+      const b = create('Web');
+      const copy = manager.duplicate(a.id);
+      const again = manager.duplicate(copy.id);
+      expect(manager.list().map((s) => [s.name, s.profile, s.cwd])).toEqual([
+        ['API', 'codex', dir],
+        ['API (2)', 'codex', dir],
+        ['API (3)', 'codex', dir],
+        ['Web', 'claude-code', dir],
+      ]);
+      expect(new Set([a.id, b.id, copy.id, again.id]).size).toBe(4);
+      expect(manager.selected).toBe(again.id);
+      expect(copy).toMatchObject({ running: false, status: { state: 'parada' } });
+      manager.flushPersist();
+      expect(persisted.at(-1)!.sessions.map((s) => [s.name, s.order])).toEqual([
+        ['API', 0],
+        ['API (2)', 1],
+        ['API (3)', 2],
+        ['Web', 3],
+      ]);
+    });
+
+    it('moves a session to another folder, ending the agent that was running in the old one', async () => {
+      const other = tempDir();
+      try {
+        const s = create();
+        await expect(manager.setCwd(s.id, path.join(dir, 'nao-existe'))).rejects.toThrow(
+          /não existe/,
+        );
+        await expect(manager.setCwd(s.id, FAKE_AGENT)).rejects.toThrow(/Não é uma pasta/);
+        expect(manager.get(s.id)!.cwd).toBe(dir);
+
+        expect(await manager.setCwd(s.id, other)).toBe(false);
+        expect(manager.list()[0]!.cwd).toBe(other);
+        manager.flushPersist();
+        expect(persisted.at(-1)!.sessions[0]!.cwd).toBe(other);
+
+        const cwds: string[] = [];
+        launch = (session) => {
+          cwds.push(session.cwd);
+          return { file: process.execPath, args: [FAKE_AGENT] };
+        };
+        manager.start(s.id, SIZE);
+        await until(s.id, 'aguardando');
+        expect(cwds).toEqual([other]);
+
+        // A folder that cannot be used leaves the running agent alone.
+        await expect(manager.setCwd(s.id, path.join(dir, 'nao-existe'))).rejects.toThrow();
+        expect(await manager.setCwd(s.id, other)).toBe(false);
+        expect(manager.isRunning(s.id)).toBe(true);
+
+        expect(await manager.setCwd(s.id, dir)).toBe(true);
+        expect(manager.list()[0]).toMatchObject({ cwd: dir, running: false });
+        expect(state(s.id)).toBe('parada');
+      } finally {
+        await manager.stopAll(0);
+        removeDir(other);
+      }
+    });
+
     it('restores saved sessions as stopped, with the last selection', async () => {
       await manager.dispose(0);
       const saved: Session[] = [

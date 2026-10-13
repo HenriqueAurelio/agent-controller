@@ -3,6 +3,7 @@ import type { DiffBase, FileDiff, SideContent } from '@shared/git';
 import type { ThemeName } from '@shared/prefs';
 import type { FrameMessage, ParentMessage } from '../lib/diffProtocol';
 import { errorMessage, formatBytes } from '../lib/format';
+import { useAppState } from '../lib/store';
 
 interface Props {
   sessionId: string;
@@ -13,6 +14,8 @@ interface Props {
   revision: number;
   theme: ThemeName;
   fontSize: number;
+  /** The folder has no git: there is no "before" to call the file new against. */
+  plain?: boolean;
   /** Tells the panel whether the open file has edits that were not saved. */
   onDirtyChange(dirty: boolean): void;
 }
@@ -40,8 +43,10 @@ export function DiffView({
   revision,
   theme,
   fontSize,
+  plain,
   onDirtyChange,
 }: Props) {
+  const shortcuts = useAppState((s) => s.prefs.shortcuts);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [diff, setDiff] = useState<FileDiff | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +56,8 @@ export function DiffView({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reloads, setReloads] = useState(0);
   const discardNext = useRef(false);
+  // The theme the frame opens in; a change of theme later reaches it with the file.
+  const [frameSrc] = useState(() => `diff.html?theme=${theme}`);
 
   const send = useCallback((message: ParentMessage) => {
     frameRef.current?.contentWindow?.postMessage(message, '*');
@@ -104,15 +111,19 @@ export function DiffView({
       else if (message?.type === 'save') void save(message.path, message.content, message.expected);
       else if (message?.type === 'key') {
         // Replayed here so Esc and the global shortcuts behave the same everywhere.
-        const { key, ctrlKey, shiftKey, altKey } = message;
+        const { key, ctrlKey, shiftKey, altKey, metaKey } = message;
         frameRef.current?.dispatchEvent(
-          new KeyboardEvent('keydown', { key, ctrlKey, shiftKey, altKey, bubbles: true }),
+          new KeyboardEvent('keydown', { key, ctrlKey, shiftKey, altKey, metaKey, bubbles: true }),
         );
       }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
   }, [save]);
+
+  useEffect(() => {
+    if (ready) send({ type: 'shortcuts', bindings: Object.values(shortcuts).flat() });
+  }, [ready, shortcuts, send]);
 
   const blocked = diff ? (unavailable(diff.modified) ?? unavailable(diff.original)) : null;
   const removed = diff?.modified.kind === 'missing';
@@ -147,7 +158,9 @@ export function DiffView({
           <span className="diff-path" title={path}>
             {path}
           </span>
-          {diff.original.kind === 'missing' && <span className="diff-note">Arquivo novo</span>}
+          {diff.original.kind === 'missing' && !plain && (
+            <span className="diff-note">Arquivo novo</span>
+          )}
           {removed && <span className="diff-note">Arquivo removido</span>}
           {dirty && <span className="diff-note unsaved">Edições não salvas</span>}
           <span className="spacer" />
@@ -192,11 +205,11 @@ export function DiffView({
       {!error && blocked && <div className="panel-message">{blocked}</div>}
       <iframe
         ref={frameRef}
-        src="diff.html"
+        src={frameSrc}
         title="Comparação do arquivo"
         className="diff-editor"
         data-testid="diff-frame"
-        style={{ visibility: error || blocked ? 'hidden' : 'visible' }}
+        style={{ visibility: error || blocked || !ready ? 'hidden' : 'visible' }}
       />
     </div>
   );

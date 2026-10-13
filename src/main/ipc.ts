@@ -1,7 +1,15 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { app, clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'electron';
 import type { ChangesService } from '@core/git/ChangesService';
 import type { SessionManager } from '@core/sessions/SessionManager';
 import type { AppData } from '@core/store/appStore';
+import {
+  parsePreferencesFile,
+  PREFS_FILE_MAX_BYTES,
+  serializePreferences,
+} from '@core/store/prefsFile';
+import { rememberFolder } from '@core/store/recentFolders';
 import type { AgentAvailability } from '@shared/agents';
 import type { CommandChannel, EventChannel, IpcCommands, IpcEvents } from '@shared/ipc';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
@@ -59,6 +67,15 @@ export function registerIpc(context: IpcContext): void {
     if (!found) throw new Error('Sessão não encontrada');
     return found;
   };
+  const isFolder = (folder: string) =>
+    fs.promises.stat(folder).then(
+      (stat) => stat.isDirectory(),
+      () => false,
+    );
+  // Saved along with the sessions, which every change of folder already persists.
+  const remember = (folder: string) => {
+    context.data.recentFolders = rememberFolder(context.data.recentFolders, folder);
+  };
 
   handle('app:ping', (message) => `pong: ${str(message, 'mensagem', 200)}`);
   handle('app:info', () => ({
@@ -79,6 +96,46 @@ export function registerIpc(context: IpcContext): void {
     return prefs;
   });
 
+  // In test mode nobody can answer a native dialog: the file comes from the environment.
+  const testFile = () =>
+    context.testMode ? (process.env.AGENT_CONTROLLER_TEST_PREFS_FILE ?? null) : undefined;
+  const filters = [{ name: 'Configurações do Agent Controller', extensions: ['json'] }];
+  handle('prefs:export', async () => {
+    const window = context.getWindow();
+    let file = testFile();
+    if (file === undefined) {
+      if (!window) return null;
+      const result = await dialog.showSaveDialog(window, {
+        title: 'Exportar configurações',
+        defaultPath: path.join(app.getPath('documents'), 'agent-controller-configuracoes.json'),
+        filters,
+      });
+      file = result.canceled ? null : (result.filePath ?? null);
+    }
+    if (!file) return null;
+    await fs.promises.writeFile(file, serializePreferences(context.data.prefs), 'utf8');
+    return file;
+  });
+  handle('prefs:import', async () => {
+    const window = context.getWindow();
+    let file = testFile();
+    if (file === undefined) {
+      if (!window) return null;
+      const result = await dialog.showOpenDialog(window, {
+        title: 'Importar configurações',
+        filters,
+        properties: ['openFile'],
+      });
+      file = result.canceled ? null : (result.filePaths[0] ?? null);
+    }
+    if (!file) return null;
+    const { size } = await fs.promises.stat(file);
+    if (size > PREFS_FILE_MAX_BYTES) throw new Error('O arquivo é grande demais.');
+    const prefs = parsePreferencesFile(await fs.promises.readFile(file, 'utf8'));
+    context.savePrefs(prefs);
+    return prefs;
+  });
+
   handle('agents:detect', (refresh) => context.detectAgents(refresh === true));
 
   handle('dialog:pickFolder', async (defaultPath) => {
@@ -90,6 +147,17 @@ export function registerIpc(context: IpcContext): void {
       properties: ['openDirectory', 'createDirectory'],
     });
     return result.canceled ? null : (result.filePaths[0] ?? null);
+  });
+  handle('folders:recent', async () => {
+    const recent = context.data.recentFolders;
+    const exists = await Promise.all(recent.map(isFolder));
+    return recent.filter((_, index) => exists[index]);
+  });
+  handle('folders:resolve', async (dropped) => {
+    const target = path.resolve(str(dropped, 'caminho'));
+    if (await isFolder(target)) return target;
+    const parent = path.dirname(target);
+    return fs.existsSync(target) && (await isFolder(parent)) ? parent : null;
   });
 
   handle('clipboard:read', () => clipboard.readText());
@@ -104,11 +172,25 @@ export function registerIpc(context: IpcContext): void {
   handle('sessions:create', (input) => {
     const profile = input?.profile;
     if (!AGENT_PROFILE_IDS.includes(profile)) throw new Error('Perfil desconhecido');
-    return manager.create({
+    const created = manager.create({
       name: str(input.name, 'nome', 200),
       cwd: str(input.cwd, 'pasta'),
       profile,
     });
+    remember(created.cwd);
+    return created;
+  });
+  handle('sessions:setCwd', async (id, cwd) => {
+    const { id: sessionId } = session(id);
+    const ended = await manager.setCwd(sessionId, str(cwd, 'pasta'));
+    const moved = manager.get(sessionId);
+    if (moved) remember(moved.cwd);
+    return ended;
+  });
+  handle('sessions:duplicate', (id) => {
+    const copy = manager.duplicate(session(id).id);
+    remember(copy.cwd);
+    return copy;
   });
   handle('sessions:rename', (id, name) => manager.rename(session(id).id, str(name, 'nome', 200)));
   handle('sessions:remove', (id) => manager.remove(session(id).id));
@@ -162,5 +244,9 @@ export function registerIpc(context: IpcContext): void {
   handle('git:count', (id) => {
     const s = session(id);
     return changes.count(s.id, s.cwd);
+  });
+  handle('files:list', (id, dir, showHidden) => {
+    const s = session(id);
+    return changes.list(s.id, s.cwd, str(dir, 'pasta'), showHidden === true);
   });
 }

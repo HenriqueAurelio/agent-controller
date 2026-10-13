@@ -191,19 +191,13 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   create(input: NewSessionInput): SessionView {
     const name = input.name.trim();
     if (!name) throw new Error('Dê um nome à sessão.');
-    let stat: fs.Stats;
-    try {
-      stat = fs.statSync(input.cwd);
-    } catch {
-      throw new Error(`A pasta não existe: ${input.cwd}`);
-    }
-    if (!stat.isDirectory()) throw new Error(`Não é uma pasta: ${input.cwd}`);
+    const cwd = this.folder(input.cwd);
     getProfile(input.profile); // Throws on an unknown profile.
 
     const session: Session = {
       id: randomUUID(),
       name,
-      cwd: toLongPath(input.cwd),
+      cwd,
       profile: input.profile,
       order: this.order.length,
     };
@@ -213,6 +207,59 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.selectedId = session.id;
     this.changed(true);
     return this.view(entry);
+  }
+
+  /** The folder as a session keeps it. Throws with a message for the user when it cannot be one. */
+  private folder(cwd: string): string {
+    let stat: fs.Stats;
+    try {
+      stat = fs.statSync(cwd);
+    } catch {
+      throw new Error(`A pasta não existe: ${cwd}`);
+    }
+    if (!stat.isDirectory()) throw new Error(`Não é uma pasta: ${cwd}`);
+    return toLongPath(cwd);
+  }
+
+  /** The same folder and agent in a new session, listed right below the original. */
+  duplicate(id: string): SessionView {
+    const source = this.entries.get(id)?.session;
+    if (!source) throw new Error('Sessão não encontrada');
+    const names = new Set([...this.entries.values()].map((e) => e.session.name));
+    const base = source.name.replace(/ \(\d+\)$/, '');
+    let copy = 2;
+    while (names.has(`${base} (${copy})`)) copy++;
+
+    const position = this.order.indexOf(id) + 1;
+    const session: Session = {
+      ...source,
+      id: randomUUID(),
+      name: `${base} (${copy})`,
+      order: position,
+    };
+    const entry = this.newEntry(session);
+    this.entries.set(session.id, entry);
+    this.order.splice(position, 0, session.id);
+    this.selectedId = session.id;
+    this.changed(true);
+    return this.view(entry);
+  }
+
+  /**
+   * Moves a session to another folder. An agent works where it was opened, so a running one is
+   * ended first: resolves to whether that happened. A folder that cannot be used ends nothing.
+   */
+  async setCwd(id: string, cwd: string): Promise<boolean> {
+    const entry = this.entries.get(id);
+    if (!entry) return false;
+    const folder = this.folder(cwd);
+    if (folder === entry.session.cwd) return false;
+    const wasRunning = entry.runtime?.running ?? false;
+    await this.stop(id);
+    if (this.entries.get(id) !== entry) return false; // Closed in the meantime.
+    entry.session = { ...entry.session, cwd: folder };
+    this.changed(true);
+    return wasRunning;
   }
 
   rename(id: string, name: string): void {

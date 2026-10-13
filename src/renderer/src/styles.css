@@ -143,6 +143,7 @@ kbd {
 .main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -150,6 +151,85 @@ kbd {
   flex: 1;
   min-height: 0;
   position: relative;
+}
+
+/* The list of sessions goes to the side the preferences say; on top or at the bottom it runs
+   sideways. */
+.app[data-sessions='right'] {
+  flex-direction: row-reverse;
+}
+.app[data-sessions='top'] {
+  flex-direction: column;
+}
+.app[data-sessions='bottom'] {
+  flex-direction: column-reverse;
+}
+.app[data-sessions='right'] .sidebar {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+.app[data-sessions='top'] .sidebar,
+.app[data-sessions='bottom'] .sidebar {
+  width: auto;
+  flex-direction: row;
+  align-items: center;
+  border-right: none;
+}
+.app[data-sessions='top'] .sidebar {
+  border-bottom: 1px solid var(--border);
+}
+.app[data-sessions='bottom'] .sidebar {
+  border-top: 1px solid var(--border);
+}
+.app:is([data-sessions='top'], [data-sessions='bottom']) .sidebar-header {
+  gap: 6px;
+}
+.app:is([data-sessions='top'], [data-sessions='bottom']) .session-list {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.app:is([data-sessions='top'], [data-sessions='bottom']) .session-item {
+  flex: 0 0 210px;
+  min-width: 0;
+}
+.app:is([data-sessions='top'], [data-sessions='bottom']) .session-item.drop-target {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.app:is([data-sessions='top'], [data-sessions='bottom']) .new-session-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* The panel beside the terminal instead of over it. */
+.content[data-panel='right'] .terminal-area {
+  right: 55%;
+}
+.content[data-panel='right'] .changes-panel {
+  left: 45%;
+  border-left: 1px solid var(--border);
+}
+.content[data-panel='left'] .terminal-area {
+  left: 55%;
+}
+.content[data-panel='left'] .changes-panel {
+  right: 45%;
+  border-right: 1px solid var(--border);
+}
+.content[data-panel='bottom'] .terminal-area {
+  bottom: 55%;
+}
+.content[data-panel='bottom'] .changes-panel {
+  top: 45%;
+  border-top: 1px solid var(--border);
+}
+.content[data-panel='top'] .terminal-area {
+  top: 55%;
+}
+.content[data-panel='top'] .changes-panel {
+  bottom: 45%;
+  border-bottom: 1px solid var(--border);
 }
 
 /* Sidebar */
@@ -245,12 +325,13 @@ kbd {
   width: 100%;
   padding: 1px 4px;
 }
-.close-button {
+.item-button {
   visibility: hidden;
+  padding: 2px 3px;
 }
-.session-item:hover .close-button,
-.session-item:focus-within .close-button,
-.session-item.selected .close-button {
+.session-item:hover .item-button,
+.session-item:focus-within .item-button,
+.session-item.selected .item-button {
   visibility: visible;
 }
 .badge {
@@ -317,6 +398,10 @@ kbd {
   border-bottom: 1px solid var(--border);
   background: var(--bg-raised);
 }
+.session-header > button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .session-header .state-dot {
   margin-top: 0;
 }
@@ -333,6 +418,29 @@ kbd {
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 11px;
+}
+button.path {
+  padding: 0 4px;
+  background: transparent;
+  border-color: transparent;
+}
+button.path:hover:not(:disabled) {
+  border-color: var(--border);
+}
+
+/* A folder dragged over the window. */
+.drop-hint {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border: 2px dashed var(--accent);
+  font-size: 15px;
+  font-weight: 600;
+  pointer-events: none;
 }
 .banner {
   padding: 6px 12px;
@@ -386,6 +494,10 @@ kbd {
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+.dialog:not(.palette) {
+  max-height: 84vh;
+  overflow-y: auto;
 }
 .dialog-title {
   margin: 0 0 12px;
@@ -487,6 +599,77 @@ kbd {
   color: var(--danger);
   user-select: text;
 }
+.form-note {
+  margin: 0;
+  color: var(--waiting);
+}
+.recent-folders {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.recent-folder.chosen {
+  color: var(--text);
+}
+.recent-mark {
+  display: inline-block;
+  width: 16px;
+}
+.favorite-toggle {
+  padding: 4px 8px;
+  color: var(--muted);
+}
+.favorite-toggle.on {
+  color: var(--waiting);
+}
+.form-note.done {
+  color: var(--done);
+  user-select: text;
+}
+.favorite-folders {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+.favorite-list {
+  max-height: 132px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+.favorite-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 0;
+}
+.favorite-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.settings-transfer {
+  margin-top: 4px;
+}
+.recent-folder {
+  width: 100%;
+  padding: 2px 6px;
+  background: transparent;
+  border-color: transparent;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* Command palette */
 .dialog.palette {
@@ -517,11 +700,166 @@ kbd {
   background: var(--bg-selected);
 }
 
+/* Tabs of the preferences */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.tab {
+  padding: 5px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+}
+.tab:hover {
+  color: var(--text);
+}
+.tab.selected {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+/* The same height in every tab, so the dialog does not jump when switching. */
+.dialog.prefs .tab-panel {
+  min-height: 400px;
+}
+
+/* Layout in the preferences: the choices and a miniature of the window they give. */
+.layout-option > span {
+  flex: 1;
+}
+.layout-option select {
+  width: 210px;
+}
+.layout-preview,
+.layout-main,
+.layout-panel {
+  display: flex;
+  gap: 3px;
+}
+.layout-preview {
+  height: 170px;
+  margin-top: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 11px;
+}
+.layout-part {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--bg-hover);
+  color: var(--muted);
+}
+.layout-main,
+.layout-terminal,
+.layout-text {
+  flex: 1;
+}
+.layout-main,
+.layout-panel {
+  min-width: 0;
+  min-height: 0;
+}
+.layout-panel {
+  flex: 1.2;
+}
+.layout-sessions {
+  flex: 0 0 18%;
+  background: var(--bg-selected);
+  color: var(--text);
+}
+.layout-files {
+  flex: 0 0 30%;
+  background: color-mix(in srgb, var(--accent) 30%, var(--bg-hover));
+  color: var(--text);
+}
+.layout-preview:is([data-sessions='top'], [data-sessions='bottom']) .layout-sessions {
+  flex-basis: 16%;
+}
+.layout-preview[data-sessions='right'],
+.layout-main[data-panel='left'],
+.layout-panel[data-files='right'] {
+  flex-direction: row-reverse;
+}
+.layout-preview[data-sessions='top'],
+.layout-main[data-panel='bottom'],
+.layout-panel[data-files='top'] {
+  flex-direction: column;
+}
+.layout-preview[data-sessions='bottom'],
+.layout-main[data-panel='top'],
+.layout-panel[data-files='bottom'] {
+  flex-direction: column-reverse;
+}
+.layout-main[data-panel='cover'] .layout-terminal {
+  display: none;
+}
+
+/* Shortcuts in the preferences */
+.shortcut-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.shortcut-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+}
+.shortcut-keys {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.shortcut-keys kbd {
+  white-space: nowrap;
+}
+.shortcut-keys button {
+  padding: 1px 7px;
+}
+.shortcut-remove {
+  margin-left: 4px;
+  padding: 0 2px !important;
+  border: none;
+  background: none;
+  color: var(--muted);
+}
+.shortcut-remove:hover {
+  color: var(--danger);
+}
+.shortcut-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+}
+.shortcut-note {
+  font-size: 12px;
+  color: var(--waiting);
+}
+
 /* Changes panel */
 .changes-panel:focus {
   outline: none;
 }
 .changes-panel {
+  container-type: inline-size;
   position: absolute;
   inset: 0;
   z-index: 10;
@@ -531,10 +869,18 @@ kbd {
 }
 .changes-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 6px 10px;
   padding: 6px 12px;
   border-bottom: 1px solid var(--border);
+}
+/* Beside the terminal the panel is narrow: the header keeps to one line. */
+@container (max-width: 760px) {
+  .changes-header .field-inline > span,
+  .changes-header .readonly-tag {
+    display: none;
+  }
 }
 .changes-header h2 {
   margin: 0;
@@ -564,10 +910,67 @@ kbd {
   overflow-y: auto;
   border-right: 1px solid var(--border);
 }
+/* The list of files on another side of the text. */
+.changes-panel[data-files='right'] .changes-body {
+  flex-direction: row-reverse;
+}
+.changes-panel[data-files='right'] .changes-list {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+.changes-panel[data-files='top'] .changes-body {
+  flex-direction: column;
+}
+.changes-panel[data-files='bottom'] .changes-body {
+  flex-direction: column-reverse;
+}
+.changes-panel:is([data-files='top'], [data-files='bottom']) .changes-list {
+  width: auto;
+  height: 32%;
+  min-height: 90px;
+  border-right: none;
+}
+.changes-panel[data-files='top'] .changes-list {
+  border-bottom: 1px solid var(--border);
+}
+.changes-panel[data-files='bottom'] .changes-list {
+  border-top: 1px solid var(--border);
+}
 .changes-list ul {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+/* More than one repository in the session: each one heads its own files. */
+.changes-repo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 5px 10px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+  white-space: nowrap;
+}
+.changes-list > li:first-child > .changes-repo {
+  margin-top: -4px;
+  border-top: none;
+}
+.changes-repo-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.changes-repo .muted {
+  font-size: 11px;
+}
+.changes-untouched {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
 }
 .changes-folder {
   padding: 6px 10px 2px;
@@ -615,9 +1018,80 @@ kbd {
 .change-item[data-kind='removed'] .change-name {
   text-decoration: line-through;
 }
+.changes-header .check {
+  margin: 0;
+}
+.changes-body > .panel-message {
+  flex: 1;
+}
+.file-item {
+  justify-content: flex-start;
+  gap: 4px;
+}
+.file-item .change-name {
+  flex: 1;
+}
+.file-item.active {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+/* The folder of a repository, when the session has more than one: a band like the one that
+   heads its changes, so the tree is visibly split by repository. */
+.file-item.repo-row {
+  align-items: baseline;
+  margin-top: 8px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+.file-item.after-repo {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.file-item.repo-row:hover {
+  background: var(--bg-hover);
+}
+.file-item.repo-row.selected {
+  background: var(--bg-selected);
+}
+.file-tree > .file-item.repo-row:first-child {
+  margin-top: -4px;
+  border-top: none;
+}
+.file-item.repo-row .change-name {
+  flex: 0 1 auto;
+  font-weight: 600;
+}
+.file-item.repo-row .repo-branch {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.file-tree > .changes-repo {
+  margin-top: -4px;
+  border-top: none;
+}
+.file-item.hidden-entry .change-name {
+  opacity: 0.6;
+}
+.file-twist {
+  flex-shrink: 0;
+  width: 12px;
+  color: var(--muted);
+}
+.file-tree-note {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.file-tree-note.error {
+  color: var(--danger);
+}
 .diff-view {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   position: relative;
   display: flex;
   flex-direction: column;

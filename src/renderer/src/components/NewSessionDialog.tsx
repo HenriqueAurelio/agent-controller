@@ -3,18 +3,25 @@ import type { AgentProfileId, SessionView } from '@shared/session';
 import { baseName, errorMessage } from '../lib/format';
 import { store, useAppState } from '../lib/store';
 import { Dialog } from './Dialog';
+import { FolderField } from './FolderField';
 
 interface Props {
+  /** The folder the dialog opens with, when it was asked for one (a folder dropped on the app). */
+  initialCwd?: string;
   onClose(): void;
   onCreated(session: SessionView): void;
 }
 
-export function NewSessionDialog({ onClose, onCreated }: Props) {
+export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
   const agents = useAppState((s) => s.agents);
-  const testMode = useAppState((s) => s.info.testMode);
-  const [name, setName] = useState('');
+  const defaultFolder = useAppState((s) => s.prefs.defaultFolder);
+  // With no folder asked for and none set as the initial one, the latest one used is offered.
+  const [suggested] = useState(
+    () => initialCwd || defaultFolder || (store.get().recentFolders[0] ?? ''),
+  );
+  const [name, setName] = useState(baseName(suggested));
   const [nameEdited, setNameEdited] = useState(false);
-  const [cwd, setCwd] = useState('');
+  const [cwd, setCwd] = useState(suggested);
   const [profile, setProfile] = useState<AgentProfileId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,9 +32,7 @@ export function NewSessionDialog({ onClose, onCreated }: Props) {
   const usable = agents.filter((a) => a.usable);
   const chosen = profile ?? usable[0]?.profile ?? null;
 
-  const pickFolder = async () => {
-    const folder = await window.api.invoke('dialog:pickFolder', cwd || undefined);
-    if (!folder) return;
+  const applyFolder = (folder: string) => {
     setCwd(folder);
     if (!nameEdited) setName(baseName(folder));
   };
@@ -53,27 +58,11 @@ export function NewSessionDialog({ onClose, onCreated }: Props) {
   return (
     <Dialog title="Nova sessão" onClose={onClose}>
       <form onSubmit={submit} className="form">
-        <label className="field">
-          <span>Pasta</span>
-          <div className="field-row">
-            <input
-              data-autofocus
-              aria-label="Pasta"
-              value={cwd}
-              placeholder="Pasta onde o agente vai trabalhar"
-              onChange={(e) => {
-                setCwd(e.target.value);
-                if (!nameEdited) setName(baseName(e.target.value));
-              }}
-            />
-            {/* In test mode the native folder dialog cannot be driven; the path is typed. */}
-            {!testMode && (
-              <button type="button" onClick={pickFolder}>
-                Escolher…
-              </button>
-            )}
-          </div>
-        </label>
+        <FolderField
+          value={cwd}
+          placeholder="Pasta onde o agente vai trabalhar"
+          onChange={applyFolder}
+        />
 
         <label className="field">
           <span>Nome</span>

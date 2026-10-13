@@ -44,7 +44,7 @@ test('the renderer has no access to Node, and the IPC contract answers', async (
     require: 'undefined',
     process: 'undefined',
     module: 'undefined',
-    api: ['invoke', 'on'],
+    api: ['invoke', 'on', 'pathForFile'],
   });
   expect(await page.evaluate(() => window.api.invoke('app:ping', 'olá'))).toBe('pong: olá');
   // A channel outside the contract is refused by the preload.

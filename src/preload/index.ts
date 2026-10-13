@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron';
 import {
   COMMAND_CHANNELS,
   EVENT_CHANNELS,
@@ -23,6 +23,7 @@ const api: RendererApi = {
     ipcRenderer.on(channel, wrapped);
     return () => ipcRenderer.removeListener(channel, wrapped);
   },
+  pathForFile: (file: File) => webUtils.getPathForFile(file),
 } as RendererApi;
 
 contextBridge.exposeInMainWorld('api', api);

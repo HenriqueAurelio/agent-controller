@@ -1,7 +1,7 @@
 // IPC contract shared by main, preload and renderer.
 // This is the meeting point of the core and interface fronts: change it only together.
 import type { AgentAvailability } from './agents';
-import type { DiffBase, FileDiff, GitOverview } from './git';
+import type { DiffBase, FileDiff, FileListing, GitOverview } from './git';
 import type { Preferences } from './prefs';
 import type { NewSessionInput, SessionView, TerminalSize } from './session';
 
@@ -42,8 +42,16 @@ export interface IpcCommands {
   'app:setUnsaved': (file: string | null) => void;
   'prefs:get': () => Preferences;
   'prefs:set': (patch: Partial<Preferences>) => Preferences;
+  /** Writes the preferences to a file the user picks. Resolves to it, or null when given up. */
+  'prefs:export': () => string | null;
+  /** Replaces the preferences by the ones of a file the user picks. Null when given up. */
+  'prefs:import': () => Preferences | null;
   'agents:detect': (refresh: boolean) => AgentAvailability[];
   'dialog:pickFolder': (defaultPath?: string) => string | null;
+  /** Folders of the latest sessions that still exist, most recent first. */
+  'folders:recent': () => string[];
+  /** The folder a dropped path stands for: itself, or the one that holds the file. */
+  'folders:resolve': (path: string) => string | null;
   'clipboard:read': () => string;
   'clipboard:write': (text: string) => void;
   'shell:openExternal': (url: string) => void;
@@ -51,6 +59,10 @@ export interface IpcCommands {
   'sessions:list': () => SessionsSnapshot;
   'sessions:create': (input: NewSessionInput) => SessionView;
   'sessions:rename': (id: string, name: string) => void;
+  /** Another folder for a session. A running agent is ended for it: true when that happened. */
+  'sessions:setCwd': (id: string, cwd: string) => boolean;
+  /** A new session in the same folder, with the same agent, right below the original. */
+  'sessions:duplicate': (id: string) => SessionView;
   'sessions:remove': (id: string) => void;
   'sessions:reorder': (orderedIds: string[]) => void;
   'sessions:select': (id: string | null) => void;
@@ -77,6 +89,8 @@ export interface IpcCommands {
     expected: string | null,
   ) => { saved: boolean };
   'git:count': (sessionId: string) => number | null;
+  /** One folder of the session, relative to its root (the repository, or the session folder). */
+  'files:list': (sessionId: string, dir: string, showHidden: boolean) => FileListing;
 }
 
 /** Main → renderer, one way. */
@@ -99,14 +113,20 @@ export const COMMAND_CHANNELS = [
   'app:setUnsaved',
   'prefs:get',
   'prefs:set',
+  'prefs:export',
+  'prefs:import',
   'agents:detect',
   'dialog:pickFolder',
+  'folders:recent',
+  'folders:resolve',
   'clipboard:read',
   'clipboard:write',
   'shell:openExternal',
   'sessions:list',
   'sessions:create',
   'sessions:rename',
+  'sessions:setCwd',
+  'sessions:duplicate',
   'sessions:remove',
   'sessions:reorder',
   'sessions:select',
@@ -125,6 +145,7 @@ export const COMMAND_CHANNELS = [
   'git:diff',
   'git:save',
   'git:count',
+  'files:list',
 ] as const satisfies readonly CommandChannel[];
 
 export const EVENT_CHANNELS = [
@@ -155,4 +176,6 @@ export interface RendererApi {
     ...args: Parameters<IpcCommands[K]>
   ): Promise<ReturnType<IpcCommands[K]>>;
   on<K extends EventChannel>(channel: K, listener: IpcEvents[K]): () => void;
+  /** Where a file dropped on the window is on disk. Empty when it is not a file of the disk. */
+  pathForFile(file: File): string;
 }
