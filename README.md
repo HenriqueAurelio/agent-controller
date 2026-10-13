@@ -189,6 +189,8 @@ git clone https://github.com/HenriqueAurelio/agent-controller ~/src/agent-contro
 cd ~/src/agent-controller && npm ci && npm run dev
 ```
 
+O script `tools/wsl-setup.sh` faz essa preparação de uma vez, incluindo o Claude Code e o Codex: `sudo bash tools/wsl-setup.sh system` e depois `bash tools/wsl-setup.sh user`. O login nos dois agentes fica com você (`claude` e `codex`, uma vez cada).
+
 A janela abre pelo WSLg. Notificações do sistema e foco de janela não são confiáveis no WSLg: esses dois pontos são validados em uma máquina Linux de verdade (tarefa 6.3).
 
 ## Licença
