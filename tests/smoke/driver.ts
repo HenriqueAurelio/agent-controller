@@ -233,7 +233,15 @@ export class AgentDriver {
         );
         if (/Hooks need review/i.test(await this.screen())) this.send(ENTER);
       } else if (/Yes, I trust this folder/i.test(screen)) {
-        await answer('trust-claude', 'confiança na pasta (Claude Code) → sim', [DOWN, ENTER]);
+        // "No, exit" is selected by default, and the menu takes a moment to accept keys: move
+        // down, and confirm only once the cursor is really on "Yes".
+        if (/❯\s*Yes, I trust this folder/.test(screen)) {
+          await answer('trust-claude', 'confiança na pasta (Claude Code) → sim', [ENTER]);
+        } else if (/Enter to confirm/i.test(screen)) {
+          await sleep(600);
+          this.send(DOWN);
+          quietSince = Date.now();
+        }
       } else if (/trust the (contents|files) (of|in) this (directory|folder)/i.test(screen)) {
         await answer('trust-codex', 'confiança na pasta (Codex) → sim', ['1', ENTER]);
       } else if (this.state === 'aguardando' && Date.now() - quietSince > 3000) {
