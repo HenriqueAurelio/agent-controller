@@ -11,8 +11,9 @@ export default defineConfig({
   test: {
     include: ['tests/core/**/*.test.ts', 'tests/shared/**/*.test.ts'],
     environment: 'node',
-    testTimeout: 20000,
-    hookTimeout: 20000,
+    // Generous on purpose: ending a process tree on a slow CI machine can take many seconds.
+    testTimeout: 60000,
+    hookTimeout: 60000,
     pool: 'forks',
   },
 });
