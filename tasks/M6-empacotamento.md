@@ -9,7 +9,7 @@
 ## [~] 6.1 Instaladores
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** 0.3
-- **Situação em 2026-10-13:** Os três instaladores foram gerados e testados localmente (NSIS no Windows; `.deb` e AppImage em Docker), com ícone, nome e versão. O workflow de release (`.github/workflows/release.yml`) roda a cada tag `v*`, mas **nenhuma tag foi criada ainda** e o resultado do CI não foi conferido (ver 0.5). Falta também instalar em uma máquina limpa.
+- **Situação em 2026-10-13:** Os três instaladores foram gerados e testados localmente (NSIS no Windows; `.deb` e AppImage em Docker), com ícone, nome e versão. O workflow de release (`.github/workflows/release.yml`) roda a cada tag `v*`, mas **nenhuma tag foi criada ainda** e o resultado do CI não foi conferido (ver 0.5). Falta também instalar em uma máquina limpa. Passo a passo em [`docs/pendencias/primeira-release.md`](../docs/pendencias/primeira-release.md).
 
 **O que fazer**
 
@@ -46,7 +46,7 @@
 ## [ ] 6.3 Validação no Linux real
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 6.1
-- **Situação em 2026-10-13:** **Não executada: bloqueada.** Precisa da máquina Linux real. Os instaladores para levar até ela estão em `dist-linux/`; o roteiro é: instalar, `npm run test:smoke`, `npm run test:smoke:app`, conferir notificação e clique, e `npm run measure`.
+- **Situação em 2026-10-13:** **Não executada: bloqueada.** Precisa da máquina Linux real. Os instaladores para levar até ela estão em `dist-linux/`; o roteiro é: instalar, `npm run test:smoke`, `npm run test:smoke:app`, conferir notificação e clique, e `npm run measure`. Passo a passo em [`docs/pendencias/validacao-no-linux-real.md`](../docs/pendencias/validacao-no-linux-real.md).
 
 **O que fazer**
 

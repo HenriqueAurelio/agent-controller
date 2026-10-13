@@ -64,7 +64,7 @@
 ## [~] 0.4 Prova: Claude Code e Codex no Linux
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** nada (precisa dos dois agentes instalados e logados no Linux)
-- **Situação em 2026-10-13:** **Em andamento, esperando o login.** O Ubuntu do WSL foi preparado com `tools/wsl-setup.sh` (Node 22, Claude Code 2.1.296, Codex 0.162.1) e o repositório está em `~/src/agent-controller`, com os 221 testes do core passando. O roteiro com o Claude Code real já abre o agente e passa da pergunta de confiança na pasta, mas para em "Login expired"; o Codex não está logado. Falta: logar os dois no WSL (`claude` e depois `/login`; `codex login`) e rodar `npm run test:smoke`. O Codex do WSL é mais novo que a versão testada (0.158.0), o que também exercita o aviso de versão.
+- **Situação em 2026-10-13:** **Em andamento, esperando o login.** O Ubuntu do WSL foi preparado com `tools/wsl-setup.sh` (Node 22, Claude Code 2.1.296, Codex 0.162.1) e o repositório está em `~/src/agent-controller`, com os 221 testes do core passando. O roteiro com o Claude Code real já abre o agente e passa da pergunta de confiança na pasta, mas para em "Login expired"; o Codex não está logado. Falta: logar os dois no WSL (`claude` e depois `/login`; `codex login`) e rodar `npm run test:smoke`. O Codex do WSL é mais novo que a versão testada (0.158.0), o que também exercita o aviso de versão. Passo a passo em [`docs/pendencias/agentes-reais-no-linux.md`](../docs/pendencias/agentes-reais-no-linux.md).
 
 **O que fazer**
 

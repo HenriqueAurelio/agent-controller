@@ -247,8 +247,11 @@ Nenhuma delas impede o início do M0.
 
 ### Pendências depois da implementação (2026-10-13)
 
-| Pendência | Fecha | Onde |
-|---|---|---|
-| Enviar o código ao GitHub, para o CI rodar pela primeira vez | 0.5 e 6.1 | `.github/workflows/` |
-| Rodar os roteiros com os agentes reais em um Linux, e validar notificações e instaladores nele | 0.4 e 6.3 | `npm run test:smoke`, instaladores em `dist-linux/` |
-| Confirmar a prioridade dos sinais do Codex | Nada: já funciona com a opção recomendada | `DECISOES-E-RISCOS.md`, item 1.1 |
+O que falta depende de ações fora do código, e cada uma tem o passo a passo em [`docs/pendencias/`](docs/pendencias/README.md):
+
+| Pendência | Fecha |
+|---|---|
+| Logar o Claude Code e o Codex no WSL e rodar os roteiros com os agentes reais | 0.4 |
+| Validar notificações, instaladores e memória na máquina Linux real | 6.3 |
+| Criar a primeira tag, para os instaladores saírem do CI | 6.1 |
+| Confirmar a prioridade dos sinais do Codex (já funciona com a opção recomendada) | Item 1.1 de `DECISOES-E-RISCOS.md` |
