@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { app, BrowserWindow, screen, session, shell } from 'electron';
+import { app, BrowserWindow, screen, session } from 'electron';
 import type { WindowState } from '@core/store/appStore';
 
 function isOnScreen(state: WindowState): boolean {
@@ -59,10 +59,9 @@ export function createMainWindow(state: WindowState): BrowserWindow {
   webContents.on('will-navigate', (event, url) => {
     if (!isAppUrl(url)) event.preventDefault();
   });
-  webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
-    return { action: 'deny' };
-  });
+  // Links in the terminal are opened through the `shell:openExternal` command, on a click;
+  // nothing in the page gets to open a window, here or in the browser.
+  webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   webContents.on('will-attach-webview', (event) => event.preventDefault());
   session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) =>
     callback(false),

@@ -254,6 +254,8 @@ test('state follows the agent, and a session out of focus notifies, shows a badg
     const shown: { title: string; body: string }[] = [];
     const g = globalThis as unknown as Record<string, unknown>;
     g.__shown = shown;
+    // A CI machine has no notification service; what is tested here is the app's decision.
+    Notification.isSupported = () => true;
     Notification.prototype.show = function (this: Electron.Notification) {
       shown.push({ title: this.title, body: this.body });
       g.__last = this;
