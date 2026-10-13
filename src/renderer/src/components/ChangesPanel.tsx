@@ -67,7 +67,7 @@ function Unavailable({ overview }: { overview: Extract<GitOverview, { ok: false 
   );
 }
 
-/** "See changes": what the agent changed, read-only. */
+/** "See changes": what the agent changed, with the working-tree side open for editing. */
 export function ChangesPanel({ session, onClose, onCount }: Props) {
   const prefs = useAppState((s) => s.prefs);
   const [overview, setOverview] = useState<GitOverview | null>(null);
@@ -76,6 +76,7 @@ export function ChangesPanel({ session, onClose, onCount }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [inline, setInline] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [dirty, setDirty] = useState(false);
   const listRef = useRef<HTMLUListElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const sessionId = session.id;
@@ -125,10 +126,21 @@ export function ChangesPanel({ session, onClose, onCount }: Props) {
   // is no list to focus (no git, no changes).
   useEffect(() => (listRef.current ?? panelRef.current)?.focus(), [overview?.ok, changes.length]);
 
+  /** Leaving the open file (another file, another base, closing) would lose unsaved edits. */
+  const mayLeave = () =>
+    !dirty || window.confirm(`Há edições não salvas em ${selected}. Descartar?`);
+  const select = (path: string) => {
+    if (path !== selected && mayLeave()) setSelected(path);
+  };
+  const close = () => {
+    if (mayLeave()) onClose();
+  };
+
   const moveSelection = (delta: number) => {
     if (flat.length === 0) return;
     const index = flat.findIndex((c) => c.path === selected);
     const next = flat[Math.max(0, Math.min(flat.length - 1, index + delta))]!;
+    if (next.path === selected || !mayLeave()) return;
     setSelected(next.path);
     document.getElementById(`change-${flat.indexOf(next)}`)?.scrollIntoView({ block: 'nearest' });
   };
@@ -142,7 +154,7 @@ export function ChangesPanel({ session, onClose, onCount }: Props) {
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation();
-          onClose();
+          close();
         }
       }}
     >
@@ -152,9 +164,9 @@ export function ChangesPanel({ session, onClose, onCount }: Props) {
         </h2>
         <span
           className="readonly-tag"
-          title="O painel só mostra. Para desfazer algo, use o git ou peça ao agente."
+          title="O lado direito é o arquivo na pasta: edite e salve com Ctrl+S. A seta entre os dois lados desfaz um trecho."
         >
-          Somente leitura
+          Editável
         </span>
         <span className="spacer" />
         {overview?.ok && (
@@ -164,7 +176,9 @@ export function ChangesPanel({ session, onClose, onCount }: Props) {
               <select
                 aria-label="Comparar com"
                 value={overview.base}
-                onChange={(e) => setBase(e.target.value === 'session' ? 'session' : 'head')}
+                onChange={(e) => {
+                  if (mayLeave()) setBase(e.target.value === 'session' ? 'session' : 'head');
+                }}
               >
                 <option value="head">Último commit</option>
                 <option value="session" disabled={!overview.hasSessionBase}>
@@ -182,7 +196,7 @@ export function ChangesPanel({ session, onClose, onCount }: Props) {
             </button>
           </>
         )}
-        <button onClick={onClose} title="Fechar (Esc)" aria-label="Fechar o painel de mudanças">
+        <button onClick={close} title="Fechar (Esc)" aria-label="Fechar o painel de mudanças">
           ×
         </button>
       </header>
@@ -242,7 +256,7 @@ export function ChangesPanel({ session, onClose, onCount }: Props) {
                           ? `${CHANGE_LABEL[change.kind]}: ${change.origPath} → ${change.path}`
                           : `${CHANGE_LABEL[change.kind]}: ${change.path}`
                       }
-                      onClick={() => setSelected(change.path)}
+                      onClick={() => select(change.path)}
                     >
                       <span className="change-name">{fileName(change.path)}</span>
                       <span className={`change-kind kind-${change.kind}`}>
@@ -263,6 +277,7 @@ export function ChangesPanel({ session, onClose, onCount }: Props) {
               revision={revision}
               theme={prefs.theme}
               fontSize={prefs.fontSize}
+              onDirtyChange={setDirty}
             />
           )}
         </div>

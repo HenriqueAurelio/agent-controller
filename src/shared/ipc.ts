@@ -67,6 +67,13 @@ export interface IpcCommands {
   'git:refresh': (sessionId: string, base: DiffBase) => GitOverview;
   'git:close': (sessionId: string) => void;
   'git:diff': (sessionId: string, path: string, base: DiffBase) => FileDiff;
+  /** Writes an edit to the working tree. `expected` null overwrites whatever is on disk. */
+  'git:save': (
+    sessionId: string,
+    path: string,
+    content: string,
+    expected: string | null,
+  ) => { saved: boolean };
   'git:count': (sessionId: string) => number | null;
 }
 
@@ -113,6 +120,7 @@ export const COMMAND_CHANNELS = [
   'git:refresh',
   'git:close',
   'git:diff',
+  'git:save',
   'git:count',
 ] as const satisfies readonly CommandChannel[];
 

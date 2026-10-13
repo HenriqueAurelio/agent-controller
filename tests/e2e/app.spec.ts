@@ -356,7 +356,7 @@ test.describe('see changes', () => {
 
     await page.getByRole('button', { name: /See changes/ }).click();
     const panel = page.getByRole('region', { name: 'Mudanças' });
-    await expect(panel.getByText('Somente leitura')).toBeVisible();
+    await expect(panel.getByText('Editável')).toBeVisible();
     await expect(panel.locator('.changes-header .count')).toHaveText('5');
     await expect
       .poll(() => changes(page))
@@ -402,7 +402,7 @@ test.describe('see changes', () => {
     // The selection was kept.
     await expect(panel.locator('.change-item.selected')).toHaveAttribute('data-path', 'criado.txt');
 
-    // The panel never changed the repository.
+    // Looking at changes never changes the repository.
     expect(git(repo, 'stash', 'list')).toBe('');
     expect(git(repo, 'status', '--porcelain').split('\n').filter(Boolean)).toHaveLength(6);
 
@@ -411,6 +411,61 @@ test.describe('see changes', () => {
     await expect(page.getByRole('button', { name: /See changes/ }).locator('.count')).toHaveText(
       '6',
     );
+  });
+
+  test('edits a file in the diff, saves it, and does not lose edits to a refresh', async () => {
+    const { page } = await open();
+    await createSession(page, 'Repo', repo);
+    const file = path.join(repo, 'editado.ts');
+    fs.writeFileSync(file, 'export const valor = 2;\n');
+
+    await page.keyboard.press('Control+Shift+G');
+    const panel = page.getByRole('region', { name: 'Mudanças' });
+    await panel.locator('.change-item[data-path="editado.ts"]').click();
+    const frame = page.frameLocator('[data-testid="diff-frame"]');
+    await expect(frame.locator('.editor.modified')).toContainText('valor = 2');
+    const save = panel.getByRole('button', { name: 'Salvar' });
+    await expect(save).toBeDisabled();
+
+    // Type at the top of the working-tree side.
+    await frame.locator('.editor.modified .view-lines').click();
+    await page.keyboard.press('Control+Home');
+    await page.keyboard.type('// revisado por mim');
+    await page.keyboard.press('Enter');
+    await expect(panel.getByText('Edições não salvas')).toBeVisible();
+    await expect(save).toBeEnabled();
+    expect(fs.readFileSync(file, 'utf8')).toBe('export const valor = 2;\n');
+
+    // Ctrl+S inside the editor saves to the file, and nothing else in the repository moves.
+    await page.keyboard.press('Control+s');
+    await expect(panel.getByText('Edições não salvas')).toBeHidden();
+    expect(fs.readFileSync(file, 'utf8')).toBe('// revisado por mim\nexport const valor = 2;\n');
+    expect(git(repo, 'diff', '--cached', '--name-only')).toBe('');
+    expect(git(repo, 'stash', 'list')).toBe('');
+
+    // The left side is what git has: it cannot be typed into.
+    await frame.locator('.editor.original .view-lines').click();
+    await page.keyboard.type('zzz');
+    await expect(frame.locator('.editor.original')).not.toContainText('zzz');
+
+    // The agent writes to the file while there are unsaved edits: nothing is overwritten.
+    await frame.locator('.editor.modified .view-lines').click();
+    await page.keyboard.press('Control+End');
+    await page.keyboard.type('// minha segunda edicao');
+    await expect(save).toBeEnabled();
+    fs.writeFileSync(file, 'export const valor = 99; // do agente\n');
+    await page.waitForTimeout(1500);
+    await expect(frame.locator('.editor.modified')).toContainText('minha segunda edicao');
+    await save.click();
+    await expect(panel.getByRole('alert')).toContainText('O arquivo mudou no disco');
+    expect(fs.readFileSync(file, 'utf8')).toBe('export const valor = 99; // do agente\n');
+
+    // Reloading takes the agent's version; the edit is gone because the user said so.
+    await panel.getByRole('button', { name: 'Recarregar do disco' }).click();
+    await expect(frame.locator('.editor.modified')).toContainText('do agente');
+    await expect(frame.locator('.editor.modified')).not.toContainText('minha segunda edicao');
+    await expect(panel.getByRole('alert')).toHaveCount(0);
+    await expect(save).toBeDisabled();
   });
 
   test('compares with the start of the session', async () => {

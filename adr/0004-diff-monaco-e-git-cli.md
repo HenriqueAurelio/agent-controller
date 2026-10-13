@@ -2,6 +2,7 @@
 
 - **Status:** Aceita
 - **Data:** 2026-10-12
+- **Emendada por:** [ADR 0012](0012-see-changes-permite-editar.md), de 2026-10-13: o painel deixou de ser somente leitura e passou a permitir editar e salvar o arquivo. O que esta ADR diz sobre "somente leitura" não vale mais; o restante vale.
 
 ## Contexto
 

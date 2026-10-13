@@ -9,6 +9,8 @@ import {
   hasHead,
   MIN_GIT_VERSION,
   repositoryRoot,
+  saveWorkingTreeFile,
+  type SaveResult,
   snapshotTree,
   statusChanges,
   treeChanges,
@@ -155,6 +157,18 @@ export class ChangesService {
     };
     if (base === 'session' && entry.baseTree) return fileDiff(entry.root, change, entry.baseTree);
     return fileDiff(entry.root, change, (await hasHead(entry.root)) ? 'HEAD' : null);
+  }
+
+  /** Saves an edit made in the panel to the file in the working tree. */
+  async save(
+    sessionId: string,
+    file: string,
+    content: string,
+    expected: string | null,
+  ): Promise<SaveResult> {
+    const entry = this.sessions.get(sessionId);
+    if (!entry?.root) throw new Error('Painel de mudanças não está aberto para esta sessão');
+    return saveWorkingTreeFile(entry.root, file, content, expected);
   }
 
   /** Stops watching; the snapshot of the session start is kept. */

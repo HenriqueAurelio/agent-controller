@@ -53,13 +53,19 @@ Os agentes rodam "dentro" do app. Se você fechar a janela, todos param, mesmo n
 
 **Proteção prevista.** O app pede confirmação antes de fechar se houver agente rodando. Detalhes: [ADR 0006](adr/0006-persistencia-json-sem-daemon.md).
 
-### 2.2 "See changes" só mostra, não desfaz
+### 2.2 "See changes" mostra e deixa editar, mas não mexe no git
 
-- [ ] Concordo
+- [x] Revista por você em 2026-10-13
 
-O painel lista os arquivos alterados e mostra o antes e depois. Ele não tem botão de reverter nem de aceitar trechos. Para desfazer algo, o usuário usa o git ou pede ao agente.
+A versão original desta decisão era "só mostra, não desfaz". Você pediu que a pessoa também possa editar, e ela foi revista:
 
-**Por quê.** Reverter é uma ação que apaga trabalho; fazer isso com segurança pede mais cuidado do que cabe no prazo. Detalhes: [ADR 0004](adr/0004-diff-monaco-e-git-cli.md).
+- O painel lista os arquivos alterados e mostra o antes e depois.
+- O lado direito, que é o arquivo como está na pasta, **pode ser editado e salvo** (`Ctrl+S`). Uma seta entre os dois lados desfaz um trecho.
+- O painel continua **sem operações de git**: não tem "stage", "commit" nem "descartar tudo". Ele só grava o arquivo que você editou.
+
+**O cuidado que veio junto.** Você e o agente podem escrever no mesmo arquivo. Se o arquivo mudar no disco enquanto você edita, o app não grava por cima: avisa e pergunta se você quer recarregar ou sobrescrever. Edições não salvas não se perdem em silêncio ao trocar de arquivo ou fechar o painel.
+
+Detalhes: [ADR 0012](adr/0012-see-changes-permite-editar.md), que emenda a [ADR 0004](adr/0004-diff-monaco-e-git-cli.md).
 
 ### 2.3 "See changes" só funciona em pastas com git
 
@@ -79,7 +85,7 @@ Se o agente estiver trabalhando em uma pasta que não é um repositório git, o 
 - Dividir a tela em vários terminais lado a lado
 - Um agente coordenando outros
 - Sessões que continuam após fechar o app (item 2.1)
-- Reverter mudanças (item 2.2)
+- Operações de git no painel de mudanças: stage, commit, descartar tudo (item 2.2)
 
 Se algum destes for indispensável para você, o prazo muda. Detalhes: [ADR 0007](adr/0007-escopo-do-v1.md).
 

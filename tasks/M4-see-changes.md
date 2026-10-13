@@ -2,6 +2,8 @@
 
 **Objetivo:** ver o que o agente alterou, em uma interface parecida com a do VS Code. O painel só mostra; não reverte nem aceita trechos.
 
+**Revisão de 2026-10-13:** o painel deixou de ser somente leitura. O lado direito do diff pode ser editado e salvo, com proteção contra sobrescrever o que o agente escreveu ([ADR 0012](../adr/0012-see-changes-permite-editar.md)). Onde as tarefas abaixo dizem "somente leitura", vale a ADR 0012.
+
 **Marco pronto quando:** depois de um agente editar, criar e apagar arquivos, o painel lista os três casos e o diff bate com `git diff`; o painel se atualiza sozinho; pasta sem git mostra o aviso.
 
 **Independente do M3:** pode ser feito em paralelo.

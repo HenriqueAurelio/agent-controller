@@ -143,6 +143,15 @@ export function registerIpc(context: IpcContext): void {
   handle('git:diff', (id, file, diffBase) =>
     changes.diff(session(id).id, str(file, 'arquivo'), base(diffBase)),
   );
+  handle('git:save', async (id, file, content, expected) => {
+    const result = await changes.save(
+      session(id).id,
+      str(file, 'arquivo'),
+      str(content, 'conteúdo', 4 * 1024 * 1024),
+      expected === null ? null : str(expected, 'conteúdo esperado', 4 * 1024 * 1024),
+    );
+    return { saved: result.saved };
+  });
   handle('git:count', (id) => {
     const s = session(id);
     return changes.count(s.id, s.cwd);

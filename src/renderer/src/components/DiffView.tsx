@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DiffBase, FileDiff, SideContent } from '@shared/git';
 import type { ThemeName } from '@shared/prefs';
-import type { FrameMessage, ShowDiffMessage } from '../lib/diffProtocol';
+import type { FrameMessage, ParentMessage } from '../lib/diffProtocol';
 import { errorMessage, formatBytes } from '../lib/format';
 
 interface Props {
@@ -13,6 +13,8 @@ interface Props {
   revision: number;
   theme: ThemeName;
   fontSize: number;
+  /** Tells the panel whether the open file has edits that were not saved. */
+  onDirtyChange(dirty: boolean): void;
 }
 
 function unavailable(side: SideContent): string | null {
@@ -27,12 +29,32 @@ const textOf = (side: SideContent) => (side.kind === 'text' ? side.text : '');
 /**
  * The Monaco diff editor, inside an iframe. The iframe only exists while the panel is open:
  * Monaco is loaded on demand and, when the panel closes, its memory is really given back.
+ *
+ * The right side is the file in the working tree and can be edited and saved.
  */
-export function DiffView({ sessionId, path, base, inline, revision, theme, fontSize }: Props) {
+export function DiffView({
+  sessionId,
+  path,
+  base,
+  inline,
+  revision,
+  theme,
+  fontSize,
+  onDirtyChange,
+}: Props) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [diff, setDiff] = useState<FileDiff | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [conflict, setConflict] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [reloads, setReloads] = useState(0);
+  const discardNext = useRef(false);
+
+  const send = useCallback((message: ParentMessage) => {
+    frameRef.current?.contentWindow?.postMessage(message, '*');
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,15 +69,41 @@ export function DiffView({ sessionId, path, base, inline, revision, theme, fontS
     return () => {
       cancelled = true;
     };
-  }, [sessionId, path, base, revision]);
+  }, [sessionId, path, base, revision, reloads]);
+
+  // Another file: whatever was pending about the previous one is gone.
+  useEffect(() => {
+    setDirty(false);
+    setConflict(false);
+    setSaveError(null);
+  }, [sessionId, path]);
+
+  useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+
+  const save = useCallback(
+    async (file: string, content: string, expected: string | null) => {
+      try {
+        const { saved } = await window.api.invoke('git:save', sessionId, file, content, expected);
+        setSaveError(null);
+        setConflict(!saved);
+        if (saved) send({ type: 'saved', path: file, content });
+      } catch (err) {
+        setSaveError(errorMessage(err));
+      }
+    },
+    [sessionId, send],
+  );
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<FrameMessage>) => {
       if (event.source !== frameRef.current?.contentWindow) return;
-      if (event.data?.type === 'ready') setReady(true);
-      if (event.data?.type === 'key') {
+      const message = event.data;
+      if (message?.type === 'ready') setReady(true);
+      else if (message?.type === 'dirty') setDirty(message.dirty);
+      else if (message?.type === 'save') void save(message.path, message.content, message.expected);
+      else if (message?.type === 'key') {
         // Replayed here so Esc and the global shortcuts behave the same everywhere.
-        const { key, ctrlKey, shiftKey, altKey } = event.data;
+        const { key, ctrlKey, shiftKey, altKey } = message;
         frameRef.current?.dispatchEvent(
           new KeyboardEvent('keydown', { key, ctrlKey, shiftKey, altKey, bubbles: true }),
         );
@@ -63,34 +111,84 @@ export function DiffView({ sessionId, path, base, inline, revision, theme, fontS
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, []);
+  }, [save]);
 
   const blocked = diff ? (unavailable(diff.modified) ?? unavailable(diff.original)) : null;
+  const removed = diff?.modified.kind === 'missing';
 
   useEffect(() => {
     if (!ready || !diff || diff.path !== path || blocked) return;
-    const message: ShowDiffMessage = {
+    send({
       type: 'show',
       path,
       original: textOf(diff.original),
       modified: textOf(diff.modified),
+      editable: diff.modified.kind === 'text',
       inline,
       theme,
       fontSize,
-    };
-    frameRef.current?.contentWindow?.postMessage(message, '*');
-  }, [ready, diff, path, blocked, inline, theme, fontSize]);
+      discardEdits: discardNext.current,
+    });
+    discardNext.current = false;
+  }, [ready, diff, path, blocked, inline, theme, fontSize, send]);
+
+  const discard = () => {
+    discardNext.current = true;
+    setConflict(false);
+    setSaveError(null);
+    setReloads((n) => n + 1);
+  };
 
   return (
     <div className="diff-view">
+      {!error && !blocked && diff && (
+        <div className="diff-toolbar">
+          <span className="diff-path" title={path}>
+            {path}
+          </span>
+          {diff.original.kind === 'missing' && <span className="diff-note">Arquivo novo</span>}
+          {removed && <span className="diff-note">Arquivo removido</span>}
+          {dirty && <span className="diff-note unsaved">Edições não salvas</span>}
+          <span className="spacer" />
+          {dirty && (
+            <button onClick={discard} title="Voltar ao que está no disco">
+              Descartar edições
+            </button>
+          )}
+          {!removed && (
+            <button
+              className="primary"
+              disabled={!dirty}
+              onClick={() => send({ type: 'request-save', overwrite: false })}
+              title="Salvar no arquivo (Ctrl+S)"
+            >
+              Salvar
+            </button>
+          )}
+        </div>
+      )}
+      {conflict && (
+        <div className="diff-conflict" role="alert">
+          <span>
+            O arquivo mudou no disco desde que você começou a editar (o agente pode ter escrito
+            nele). Nada foi salvo.
+          </span>
+          <button onClick={discard}>Recarregar do disco</button>
+          <button
+            className="danger"
+            onClick={() => send({ type: 'request-save', overwrite: true })}
+          >
+            Sobrescrever com a minha versão
+          </button>
+        </div>
+      )}
+      {saveError && (
+        <div className="diff-conflict" role="alert">
+          Não foi possível salvar: {saveError}
+        </div>
+      )}
       {error && <div className="panel-message error">{error}</div>}
       {!error && blocked && <div className="panel-message">{blocked}</div>}
-      {!error && !blocked && diff?.original.kind === 'missing' && (
-        <div className="diff-note">Arquivo novo</div>
-      )}
-      {!error && !blocked && diff?.modified.kind === 'missing' && (
-        <div className="diff-note">Arquivo removido</div>
-      )}
       <iframe
         ref={frameRef}
         src="diff.html"

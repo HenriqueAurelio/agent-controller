@@ -72,6 +72,7 @@ Em **Preferências** (`Ctrl+,`) dá para desligar cada tipo de aviso e o som.
 
 - A lista dos arquivos adicionados, modificados, removidos, renomeados e não rastreados, agrupados por pasta.
 - O antes e depois do arquivo selecionado, lado a lado ou em linha.
+- **Edição:** o lado direito é o arquivo como está na pasta. Dá para digitar nele e salvar com `Ctrl+S` ou o botão **Salvar**; a seta entre os dois lados desfaz um trecho. Se o agente escrever no mesmo arquivo enquanto você edita, o app não grava por cima: avisa e deixa você escolher entre recarregar e sobrescrever.
 - **Comparar com**: o último commit, ou o início da sessão (só o que mudou desde que o agente foi aberto).
 - A lista se atualiza sozinha enquanto o painel está aberto.
 
@@ -115,7 +116,7 @@ O Claude Code não tem essa tela: os avisos funcionam sem você fazer nada. Os d
 ## Limitações do v1
 
 - **Fechar o app encerra todos os agentes**, mesmo no meio de uma tarefa. O app pede confirmação antes, listando as sessões que serão encerradas. Ao reabrir, as sessões voltam com nome, pasta e agente, paradas.
-- **O painel de mudanças é somente leitura.** Ele não reverte nem aceita trechos; para desfazer algo, use o git ou peça ao agente.
+- **O painel de mudanças edita arquivos, mas não opera o git.** Não há "stage", "commit" nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar com o agente parado.
 - **O painel de mudanças exige git**, instalado e com a pasta da sessão dentro de um repositório. Sem isso, ele explica o que falta.
 - **"Aguardando você" não é infalível.** Ver "Possivelmente aguardando" acima.
 - **Só Claude Code e Codex.** Sem comando personalizado, outras IAs, shell puro, SSH, divisão de tela ou macOS.

@@ -10,6 +10,7 @@ import {
   parseNameStatus,
   parseStatus,
   repositoryRoot,
+  saveWorkingTreeFile,
   snapshotTree,
   statusChanges,
   treeChanges,
@@ -257,6 +258,102 @@ describe('GitService', () => {
       'removed d.txt',
       'renamed velho.txt -> novo.txt',
     ]);
+  });
+});
+
+describe('saving an edit made in the panel', () => {
+  const read = (file: string) => fs.readFileSync(path.join(root, file), 'utf8');
+  const repoState = () => ({
+    head: git('rev-parse', 'HEAD'),
+    staged: git('diff', '--cached', '--name-only'),
+    stash: git('stash', 'list'),
+  });
+
+  it('writes the file, and only the file: index, HEAD and stash stay as they were', async () => {
+    commitBase();
+    const before = repoState();
+    const result = await saveWorkingTreeFile(
+      root,
+      'editado.ts',
+      'const a = 42;\n',
+      'const a = 1;\n',
+    );
+    expect(result).toEqual({ saved: true });
+    expect(read('editado.ts')).toBe('const a = 42;\n');
+    expect(repoState()).toEqual(before);
+    expect(summary(await statusChanges(root))).toEqual(['modified editado.ts']);
+  });
+
+  it('keeps accents and Windows line endings exactly as given', async () => {
+    commitBase();
+    const content = 'linha um\r\nação: é\r\n';
+    await saveWorkingTreeFile(root, 'src/ação/módulo.ts', content, 'export const x = 1;\n');
+    expect(fs.readFileSync(path.join(root, 'src/ação/módulo.ts'))).toEqual(
+      Buffer.from(content, 'utf8'),
+    );
+  });
+
+  it('refuses to save over a file the agent changed in the meantime', async () => {
+    commitBase();
+    write('editado.ts', 'escrito pelo agente\n');
+    const result = await saveWorkingTreeFile(
+      root,
+      'editado.ts',
+      'minha edição\n',
+      'const a = 1;\n',
+    );
+    expect(result).toEqual({ saved: false, reason: 'conflict' });
+    expect(read('editado.ts')).toBe('escrito pelo agente\n');
+  });
+
+  it('overwrites when the user says so', async () => {
+    commitBase();
+    write('editado.ts', 'escrito pelo agente\n');
+    expect(await saveWorkingTreeFile(root, 'editado.ts', 'minha edição\n', null)).toEqual({
+      saved: true,
+    });
+    expect(read('editado.ts')).toBe('minha edição\n');
+  });
+
+  it('a file removed meanwhile is a conflict too, and can be brought back on purpose', async () => {
+    commitBase();
+    fs.rmSync(path.join(root, 'editado.ts'));
+    expect(await saveWorkingTreeFile(root, 'editado.ts', 'x\n', 'const a = 1;\n')).toEqual({
+      saved: false,
+      reason: 'conflict',
+    });
+    expect(await saveWorkingTreeFile(root, 'editado.ts', 'x\n', null)).toEqual({ saved: true });
+  });
+
+  it('never writes outside the repository nor inside .git', async () => {
+    commitBase();
+    const outside = path.join(path.dirname(root), 'fora-do-repo.txt');
+    await expect(saveWorkingTreeFile(root, '../fora-do-repo.txt', 'x', null)).rejects.toThrow(
+      /fora/,
+    );
+    await expect(saveWorkingTreeFile(root, outside, 'x', null)).rejects.toThrow(/fora/);
+    await expect(saveWorkingTreeFile(root, '.git/config', 'x', null)).rejects.toThrow(/internos/);
+    await expect(saveWorkingTreeFile(root, '.GIT/hooks/pre-commit', 'x', null)).rejects.toThrow(
+      /internos/,
+    );
+    await expect(saveWorkingTreeFile(root, 'src', 'x', null)).rejects.toThrow(/arquivos comuns/);
+    expect(fs.existsSync(outside)).toBe(false);
+  });
+
+  it('goes through the service of the open panel', async () => {
+    commitBase();
+    const service = new ChangesService({ workDirectory: work, onChange: () => {} });
+    try {
+      await expect(service.save('s', 'editado.ts', 'x', null)).rejects.toThrow(/não está aberto/);
+      await service.overview('s', root, 'head');
+      expect(await service.save('s', 'editado.ts', 'const a = 7;\n', 'const a = 1;\n')).toEqual({
+        saved: true,
+      });
+      const diff = await service.diff('s', 'editado.ts', 'head');
+      expect(diff.modified).toEqual({ kind: 'text', text: 'const a = 7;\n' });
+    } finally {
+      service.dispose();
+    }
   });
 });
 

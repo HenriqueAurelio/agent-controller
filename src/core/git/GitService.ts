@@ -21,7 +21,7 @@ export class GitMissingError extends Error {
 }
 
 /**
- * Runs the git binary in a child process. Every call is read-only for the user's repository:
+ * Runs the git binary in a child process. Every git call is read-only for the user's repository:
  * `--no-optional-locks` keeps even `status` from refreshing the index.
  */
 export function runGit(
@@ -195,6 +195,51 @@ export async function blobContent(
   const blob = await runGit(root, ['cat-file', 'blob', spec]);
   if (blob.code !== 0) return { kind: 'missing' };
   return toSideContent(blob.stdout);
+}
+
+export type SaveResult =
+  | { saved: true }
+  /** The file is no longer what the editor loaded: someone (the agent) wrote to it meanwhile. */
+  | { saved: false; reason: 'conflict' };
+
+/**
+ * Writes an edit made in the changes panel to the working tree. This is the only thing the
+ * panel changes, and it goes through the file system: git's index, HEAD and refs are untouched.
+ *
+ * `expected` is the text the editor started from. When the file on disk is different by now,
+ * nothing is written, unless `expected` is null (the user chose to overwrite).
+ */
+export async function saveWorkingTreeFile(
+  root: string,
+  file: string,
+  content: string,
+  expected: string | null,
+): Promise<SaveResult> {
+  const absolute = path.resolve(root, file);
+  const relative = path.relative(root, absolute);
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('O arquivo está fora do repositório');
+  }
+  if (relative.split(path.sep)[0]!.toLowerCase() === '.git') {
+    throw new Error('Arquivos internos do git não podem ser editados');
+  }
+  let stat: fs.Stats | null = null;
+  try {
+    stat = await fs.promises.lstat(absolute);
+  } catch {
+    // The file was removed in the meantime; saving brings it back, if that is what was asked.
+  }
+  if (stat && !stat.isFile()) throw new Error('Só arquivos comuns podem ser editados');
+  if (Buffer.byteLength(content, 'utf8') > MAX_TEXT_BYTES) {
+    throw new Error('O arquivo ficou grande demais para ser salvo pelo painel');
+  }
+  if (expected !== null) {
+    const current = stat ? await fs.promises.readFile(absolute, 'utf8') : null;
+    if (current !== expected) return { saved: false, reason: 'conflict' };
+  }
+  await fs.promises.mkdir(path.dirname(absolute), { recursive: true });
+  await fs.promises.writeFile(absolute, content, 'utf8');
+  return { saved: true };
 }
 
 export async function workingTreeContent(root: string, file: string): Promise<SideContent> {
