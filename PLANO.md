@@ -5,7 +5,7 @@ Plano de trabalho do agent-controller: um app desktop que reúne sessões de Cla
 - Decisões de arquitetura: [`adr/`](adr/README.md)
 - Decisões e riscos em linguagem direta: [`DECISOES-E-RISCOS.md`](DECISOES-E-RISCOS.md)
 - Tarefas detalhadas, um arquivo por marco: [`tasks/`](tasks/README.md)
-- Estado em 2026-10-13: v1 implementado. Das 38 tarefas, 35 estão prontas e 3 esperam uma ação fora do código: 0.4 (logar os agentes no WSL), 6.1 (criar a primeira tag) e 6.3 (a máquina Linux real). O passo a passo de cada uma está em [`docs/pendencias/`](docs/pendencias/README.md). A situação de cada uma está em [`tasks/`](tasks/README.md).
+- Estado em 2026-10-13: v1 implementado. Das 38 tarefas, 35 estão prontas e 3 esperam uma ação fora do código: 0.4 (logar os agentes no WSL), 6.1 (instalar a release `v0.1.0`, já gerada em rascunho, em máquina limpa) e 6.3 (a máquina Linux real). O passo a passo de cada uma está em [`docs/pendencias/`](docs/pendencias/README.md). A situação de cada uma está em [`tasks/`](tasks/README.md).
 
 ## 1. O que já está decidido
 
@@ -253,5 +253,5 @@ O que falta depende de ações fora do código, e cada uma tem o passo a passo e
 |---|---|
 | Logar o Claude Code e o Codex no WSL e rodar os roteiros com os agentes reais | 0.4 |
 | Validar notificações, instaladores e memória na máquina Linux real | 6.3 |
-| Criar a primeira tag, para os instaladores saírem do CI | 6.1 |
+| Instalar os instaladores da release `v0.1.0` em máquina limpa e publicar o rascunho | 6.1 |
 | Confirmar a prioridade dos sinais do Codex (já funciona com a opção recomendada) | Item 1.1 de `DECISOES-E-RISCOS.md` |

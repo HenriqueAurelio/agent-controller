@@ -1,26 +1,22 @@
-# Primeira release pelo CI
+# Primeira release: instalar em máquina limpa e publicar
 
-Fecha a **tarefa 6.1**: os três instaladores (NSIS, AppImage e `.deb`) saindo do CI a cada tag.
+Fecha a **tarefa 6.1**.
 
 ## Como está
 
-- Os três instaladores já foram gerados e testados localmente: o do Windows nesta máquina, os do Linux em Docker.
-- O workflow `.github/workflows/release.yml` gera os instaladores a cada tag `v*`, roda os testes neles e anexa tudo a uma release em rascunho. **Ele nunca rodou**, porque nenhuma tag foi criada.
-- O workflow `ci.yml`, que roda em todo push, também empacota e publica os instaladores como artefatos da execução. Ele já passou na branch `v1`, nos dois sistemas.
+- A tag `v0.1.0` foi criada em 2026-10-13 a partir da branch `v1`. O workflow `.github/workflows/release.yml` rodou com sucesso no Windows e no Ubuntu: testes do core, empacotamento e os e2e no app empacotado.
+- Ele criou uma release **em rascunho** com os três instaladores: `agent-controller-0.1.0-setup.exe`, `agent-controller-0.1.0.AppImage` e `agent-controller-0.1.0.deb`.
+- O `.deb` já foi instalado e testado em Docker; o instalador do Windows foi gerado e o app dele testado nesta máquina, que não é uma máquina limpa.
 
-## O que fazer
+## O que falta
 
-O CI da branch `v1` já está verde. Com o código na `main`:
+1. Em `github.com/HenriqueAurelio/agent-controller/releases`, baixar os instaladores do rascunho.
+2. **Windows limpo** (sem Node nem o repositório): rodar o `setup.exe`, passar pelo aviso de aplicativo não reconhecido, abrir o app, criar uma sessão e ver o terminal do agente.
+3. **Linux limpo:** o mesmo com o `.deb` e com o AppImage. Coincide com os passos 1 e 2 de [`validacao-no-linux-real.md`](validacao-no-linux-real.md).
+4. Se tudo abrir, publicar o rascunho. Se a branch `v1` ainda não estiver na `main`, fazer o merge antes.
 
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-Depois, em `github.com/HenriqueAurelio/agent-controller/releases`, conferir que a release em rascunho tem os três arquivos, baixar e instalar em uma máquina limpa de cada sistema.
-
-Para acompanhar pelo terminal, sem o `gh`: `bash tools/ci-status.sh` mostra as últimas execuções e os passos que falharam, usando a credencial que o git já tem.
+Para acompanhar execuções pelo terminal, sem o `gh`: `bash tools/ci-status.sh <branch ou tag>`.
 
 ## Feito quando
 
-Os três instaladores saem do CI, instalam em máquina limpa e abrem um terminal, e a tarefa 6.1 está marcada em `tasks/M6-empacotamento.md`.
+Os três instaladores da release instalam em máquina limpa e abrem um terminal, e a tarefa 6.1 está marcada em `tasks/M6-empacotamento.md`.

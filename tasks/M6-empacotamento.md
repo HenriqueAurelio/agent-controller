@@ -9,7 +9,7 @@
 ## [~] 6.1 Instaladores
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** 0.3
-- **Situação em 2026-10-13:** Os três instaladores saem do CI a cada push, como artefatos (Windows 108 MB; Linux, `.deb` e AppImage juntos, 217 MB), e os e2e passam neles. **Falta:** criar a primeira tag `v*`, que é o que dispara o workflow de release (`.github/workflows/release.yml`, nunca executado), e instalar em uma máquina limpa de cada sistema. Passo a passo em [`docs/pendencias/primeira-release.md`](../docs/pendencias/primeira-release.md).
+- **Situação em 2026-10-13:** Os três instaladores saem do CI a cada tag: a tag `v0.1.0` rodou o workflow de release com sucesso nos dois runners e criou uma release **em rascunho** com `agent-controller-0.1.0-setup.exe` (108 MB), `.AppImage` (121 MB) e `.deb` (96 MB). Os e2e passam no app empacotado nos dois sistemas, e o `.deb` foi instalado e testado em Docker. **Falta só:** instalar os instaladores da release em uma máquina limpa de cada sistema, e publicar o rascunho. Passo a passo em [`docs/pendencias/primeira-release.md`](../docs/pendencias/primeira-release.md).
 
 **O que fazer**
 
