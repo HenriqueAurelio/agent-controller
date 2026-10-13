@@ -29,7 +29,10 @@ test('the language chosen in the preferences is the one of every text', async ()
   let { page } = await open();
   await createSession(page, 'Loja', folder);
   await expect(page.locator('html')).toHaveAttribute('lang', 'pt-BR');
-  await expect(page.locator('.session-item .session-state')).toHaveText(/Aguardando você/);
+  // Which state the shell of the tests reaches depends on the system: cmd.exe sets a title.
+  await expect(page.locator('.session-item .session-state')).toHaveText(
+    /Aguardando você|Iniciando/,
+  );
 
   await page.keyboard.press('Control+,');
   await page
@@ -44,7 +47,7 @@ test('the language chosen in the preferences is the one of every text', async ()
   await expect(prefs.getByText('Notify when an agent is waiting for you')).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expect(page.locator('.sidebar-title')).toHaveText('Sessions');
-  await expect(page.locator('.session-item .session-state')).toHaveText(/Waiting for you/);
+  await expect(page.locator('.session-item .session-state')).toHaveText(/Waiting for you|Starting/);
   await expect(page.getByRole('button', { name: '+ New session' })).toBeVisible();
   await expect(page.locator('.session-header').getByRole('button', { name: 'Stop' })).toBeVisible();
 
