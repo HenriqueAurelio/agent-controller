@@ -9,7 +9,7 @@
 ## [~] 6.1 Instaladores
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** 0.3
-- **Situação em 2026-10-13:** Os três instaladores foram gerados e testados localmente (NSIS no Windows; `.deb` e AppImage em Docker), com ícone, nome e versão. O workflow de release (`.github/workflows/release.yml`) roda a cada tag `v*`, mas **nenhuma tag foi criada ainda** e o resultado do CI não foi conferido (ver 0.5). Falta também instalar em uma máquina limpa. Passo a passo em [`docs/pendencias/primeira-release.md`](../docs/pendencias/primeira-release.md).
+- **Situação em 2026-10-13:** Os três instaladores saem do CI a cada push, como artefatos (Windows 108 MB; Linux, `.deb` e AppImage juntos, 217 MB), e os e2e passam neles. **Falta:** criar a primeira tag `v*`, que é o que dispara o workflow de release (`.github/workflows/release.yml`, nunca executado), e instalar em uma máquina limpa de cada sistema. Passo a passo em [`docs/pendencias/primeira-release.md`](../docs/pendencias/primeira-release.md).
 
 **O que fazer**
 

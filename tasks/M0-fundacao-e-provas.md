@@ -78,10 +78,10 @@
 
 ---
 
-## [~] 0.5 CI e ambiente Linux
+## [x] 0.5 CI e ambiente Linux
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** 0.1
-- **Situação em 2026-10-13:** Enviada ao GitHub (branch `v1`), **resultado do CI ainda não conferido**: o repositório é privado e a conta do `gh` desta máquina não o enxerga, então não deu para ler a execução daqui. O workflow roda em todo push. O que foi verificado localmente: o Dockerfile (`npm run test:core:docker`) e, no mesmo Docker, o empacotamento e os e2e no Linux. O guia do WSL2 está no README.
+- **Situação em 2026-10-13:** Pronta. O CI roda em todo push e passou na branch `v1`, nos dois runners: lint, formatação, typecheck, testes do core, build, empacotamento e os e2e no app empacotado (com xvfb no Ubuntu), mais os testes do core em Docker. Os instaladores saem como artefatos da execução. A primeira execução falhou no Ubuntu por dois motivos que só o runner mostrou (o teste de `window.open` abria um navegador de verdade; o runner não tem serviço de notificações); os dois foram corrigidos. Para acompanhar sem o `gh`: `bash tools/ci-status.sh`. O guia do WSL2 está no README.
 
 **O que fazer**
 

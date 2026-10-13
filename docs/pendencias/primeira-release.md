@@ -6,11 +6,11 @@ Fecha a **tarefa 6.1**: os três instaladores (NSIS, AppImage e `.deb`) saindo d
 
 - Os três instaladores já foram gerados e testados localmente: o do Windows nesta máquina, os do Linux em Docker.
 - O workflow `.github/workflows/release.yml` gera os instaladores a cada tag `v*`, roda os testes neles e anexa tudo a uma release em rascunho. **Ele nunca rodou**, porque nenhuma tag foi criada.
-- O workflow `ci.yml`, que roda em todo push, também empacota e publica os instaladores como artefatos da execução.
+- O workflow `ci.yml`, que roda em todo push, também empacota e publica os instaladores como artefatos da execução. Ele já passou na branch `v1`, nos dois sistemas.
 
 ## O que fazer
 
-Com o CI da branch verde e o código na `main`:
+O CI da branch `v1` já está verde. Com o código na `main`:
 
 ```bash
 git tag v0.1.0

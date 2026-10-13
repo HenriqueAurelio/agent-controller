@@ -5,7 +5,7 @@ Plano de trabalho do agent-controller: um app desktop que reúne sessões de Cla
 - Decisões de arquitetura: [`adr/`](adr/README.md)
 - Decisões e riscos em linguagem direta: [`DECISOES-E-RISCOS.md`](DECISOES-E-RISCOS.md)
 - Tarefas detalhadas, um arquivo por marco: [`tasks/`](tasks/README.md)
-- Estado em 2026-10-13: v1 implementado. Das 38 tarefas, 34 estão prontas, 2 dependem do CI rodar no GitHub para fechar (0.5 e 6.1) e 2 não puderam ser executadas (0.4 e 6.3: precisam de um Linux com os agentes logados). A situação de cada uma está em [`tasks/`](tasks/README.md).
+- Estado em 2026-10-13: v1 implementado. Das 38 tarefas, 35 estão prontas e 3 esperam uma ação fora do código: 0.4 (logar os agentes no WSL), 6.1 (criar a primeira tag) e 6.3 (a máquina Linux real). O passo a passo de cada uma está em [`docs/pendencias/`](docs/pendencias/README.md). A situação de cada uma está em [`tasks/`](tasks/README.md).
 
 ## 1. O que já está decidido
 
