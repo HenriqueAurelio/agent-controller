@@ -61,10 +61,10 @@
 
 ---
 
-## [ ] 0.4 Prova: Claude Code e Codex no Linux
+## [~] 0.4 Prova: Claude Code e Codex no Linux
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** nada (precisa dos dois agentes instalados e logados no Linux)
-- **Situação em 2026-10-13:** **Não executada: bloqueada.** Precisa do Claude Code e do Codex instalados e logados em um Linux, o que não existe nesta máquina (o WSL não tem Node nem os agentes). O roteiro está pronto e automatizado: `npm run test:smoke` no Linux preenche a coluna e grava o resultado em `tools/agent-probe/results/`. O que já se sabe do Linux, com agente simulado, está na ADR 0011.
+- **Situação em 2026-10-13:** **Em andamento, esperando o login.** O Ubuntu do WSL foi preparado com `tools/wsl-setup.sh` (Node 22, Claude Code 2.1.296, Codex 0.162.1) e o repositório está em `~/src/agent-controller`, com os 221 testes do core passando. O roteiro com o Claude Code real já abre o agente e passa da pergunta de confiança na pasta, mas para em "Login expired"; o Codex não está logado. Falta: logar os dois no WSL (`claude` e depois `/login`; `codex login`) e rodar `npm run test:smoke`. O Codex do WSL é mais novo que a versão testada (0.158.0), o que também exercita o aviso de versão.
 
 **O que fazer**
 
@@ -81,7 +81,7 @@
 ## [~] 0.5 CI e ambiente Linux
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** 0.1
-- **Situação em 2026-10-13:** Escrita, **CI ainda não executado**. Os workflows (`.github/workflows/ci.yml` e `release.yml`) nunca rodaram porque nada foi enviado ao GitHub; o primeiro push é o teste deles. O que foi verificado: o Dockerfile (`npm run test:core:docker` passa, 215 testes) e, no mesmo Docker, o empacotamento e os e2e no Linux. O guia do WSL2 está no README.
+- **Situação em 2026-10-13:** Enviada ao GitHub (branch `v1`), **resultado do CI ainda não conferido**: o repositório é privado e a conta do `gh` desta máquina não o enxerga, então não deu para ler a execução daqui. O workflow roda em todo push. O que foi verificado localmente: o Dockerfile (`npm run test:core:docker`) e, no mesmo Docker, o empacotamento e os e2e no Linux. O guia do WSL2 está no README.
 
 **O que fazer**
 

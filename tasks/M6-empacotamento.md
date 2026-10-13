@@ -9,7 +9,7 @@
 ## [~] 6.1 Instaladores
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** 0.3
-- **Situação em 2026-10-13:** Os três instaladores foram gerados e testados localmente (NSIS no Windows; `.deb` e AppImage em Docker), com ícone, nome e versão. **Falta:** rodar no CI a cada tag, o que depende do primeiro push (0.5), e instalar em uma máquina limpa.
+- **Situação em 2026-10-13:** Os três instaladores foram gerados e testados localmente (NSIS no Windows; `.deb` e AppImage em Docker), com ícone, nome e versão. O workflow de release (`.github/workflows/release.yml`) roda a cada tag `v*`, mas **nenhuma tag foi criada ainda** e o resultado do CI não foi conferido (ver 0.5). Falta também instalar em uma máquina limpa.
 
 **O que fazer**
 
