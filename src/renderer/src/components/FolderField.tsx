@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { isFavoriteFolder, toggleFavoriteFolder } from '@shared/prefs';
+import { useT } from '../lib/i18n';
 import { store, useAppState } from '../lib/store';
 
 interface Props {
@@ -12,6 +13,7 @@ const SHOWN = 5;
 
 /** A folder: typed, picked in the native dialog, or taken from the favorites and the latest used. */
 export function FolderField({ value, onChange, placeholder }: Props) {
+  const t = useT();
   const testMode = useAppState((s) => s.info.testMode);
   const favorites = useAppState((s) => s.prefs.favoriteFolders);
   const recent = useAppState((s) => s.recentFolders);
@@ -54,11 +56,11 @@ export function FolderField({ value, onChange, placeholder }: Props) {
   return (
     <div className="field">
       <label className="field">
-        <span>Pasta</span>
+        <span>{t('common.folder')}</span>
         <div className="field-row">
           <input
             data-autofocus
-            aria-label="Pasta"
+            aria-label={t('common.folder')}
             value={value}
             placeholder={placeholder}
             onChange={(e) => onChange(e.target.value)}
@@ -67,8 +69,8 @@ export function FolderField({ value, onChange, placeholder }: Props) {
             type="button"
             className={favorite ? 'favorite-toggle on' : 'favorite-toggle'}
             aria-pressed={favorite}
-            aria-label={favorite ? 'Tirar dos favoritos' : 'Guardar nos favoritos'}
-            title={favorite ? 'Tirar esta pasta dos favoritos' : 'Guardar esta pasta nos favoritos'}
+            aria-label={favorite ? t('folder.unfavorite') : t('folder.favorite')}
+            title={favorite ? t('folder.unfavoriteHint') : t('folder.favoriteHint')}
             disabled={!folder}
             onClick={() =>
               void window.api.invoke('prefs:set', {
@@ -81,13 +83,13 @@ export function FolderField({ value, onChange, placeholder }: Props) {
           {/* In test mode the native folder dialog cannot be driven; the path is typed. */}
           {!testMode && (
             <button type="button" onClick={pickFolder}>
-              Escolher…
+              {t('common.choose')}
             </button>
           )}
         </div>
       </label>
-      {list('Favoritas', favorites, '★')}
-      {list('Recentes', offered, '↺')}
+      {list(t('folder.favorites'), favorites, '★')}
+      {list(t('folder.recent'), offered, '↺')}
     </div>
   );
 }

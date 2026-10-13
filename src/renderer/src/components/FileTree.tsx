@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CHANGE_LABEL,
   CHANGE_LETTER,
   type ChangeKind,
   type FileEntry,
@@ -8,6 +7,7 @@ import {
   type RepoInfo,
 } from '@shared/git';
 import { errorMessage } from '../lib/format';
+import { useT } from '../lib/i18n';
 
 interface Props {
   sessionId: string;
@@ -44,6 +44,7 @@ export function FileTree({
   repos,
   onSelect,
 }: Props) {
+  const t = useT();
   const [listings, setListings] = useState<Record<string, FileListing>>({});
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const [active, setActive] = useState<string | null>(null);
@@ -166,11 +167,11 @@ export function FileTree({
       className="changes-list file-tree"
       role="tree"
       tabIndex={0}
-      aria-label="Todos os arquivos"
+      aria-label={t('changes.allFiles')}
       aria-activedescendant={index >= 0 ? `file-${index}` : undefined}
       onKeyDown={onKeyDown}
     >
-      {error && <li className="file-tree-note error">Não foi possível listar a pasta: {error}</li>}
+      {error && <li className="file-tree-note error">{t('tree.error', { error })}</li>}
       {outer && (
         // The repository the tree starts at has no row of its own to mark.
         <li role="presentation" className="changes-repo" data-repo="">
@@ -182,7 +183,7 @@ export function FileTree({
       )}
       {!error && root && rows.length === 0 && (
         <li className="file-tree-note">
-          {showHidden ? 'A pasta está vazia.' : 'Nada para mostrar sem os arquivos ocultos.'}
+          {showHidden ? t('tree.empty') : t('tree.emptyWithoutHidden')}
         </li>
       )}
       {rows.map(({ entry, depth }, i) => {
@@ -216,7 +217,7 @@ export function FileTree({
               leaves ? 'after-repo' : '',
             ].join(' ')}
             style={{ paddingLeft: 10 + depth * 14 }}
-            title={change ? `${CHANGE_LABEL[change]}: ${entry.path}` : entry.path}
+            title={change ? `${t(`change.${change}`)}: ${entry.path}` : entry.path}
             onClick={() => open(entry)}
           >
             <span className="file-twist" aria-hidden="true">
@@ -232,9 +233,7 @@ export function FileTree({
           </li>
         );
       })}
-      {truncated && (
-        <li className="file-tree-note">Há pastas com arquivos demais: só o começo aparece.</li>
-      )}
+      {truncated && <li className="file-tree-note">{t('tree.truncated')}</li>}
     </ul>
   );
 }

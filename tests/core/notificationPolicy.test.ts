@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { NotificationPolicy } from '@core/sessions/NotificationPolicy';
 import { DEFAULT_PREFERENCES, sanitizePreferences } from '@shared/prefs';
-import type { SessionState, SessionStatus, SessionView } from '@shared/session';
+import {
+  STATUS_DETAIL,
+  type SessionState,
+  type SessionStatus,
+  type SessionView,
+} from '@shared/session';
 
 const status = (state: SessionState, extra: Partial<SessionStatus> = {}): SessionStatus => ({
   state,
@@ -50,6 +55,27 @@ describe('NotificationPolicy', () => {
       background,
     );
     expect(request?.body).toBe('Possivelmente aguardando você.');
+  });
+
+  it('speaks the language of the preferences', () => {
+    const english = { ...background, prefs: { ...DEFAULT_PREFERENCES, language: 'en' as const } };
+    expect(
+      new NotificationPolicy().evaluate(session('terminou'), status('trabalhando'), english)?.body,
+    ).toBe('The agent finished.');
+    expect(
+      new NotificationPolicy().evaluate(
+        session('aguardando', { detail: STATUS_DETAIL.idle }),
+        status('trabalhando'),
+        english,
+      )?.body,
+    ).toBe('Waiting for you: idle, waiting for you');
+    expect(
+      new NotificationPolicy().evaluate(
+        session('aguardando', { origin: 'silencio', confirmed: false }),
+        status('trabalhando'),
+        english,
+      )?.body,
+    ).toBe('Possibly waiting for you.');
   });
 
   it('never notifies the session in focus', () => {

@@ -3,7 +3,7 @@ import { createAdapter } from '@core/agents';
 import { HOOKS_PROBE_MS, NOTIFY_HOLD_MS } from '@core/agents/codexAdapter';
 import { CLAUDE_CODE, CODEX, type AgentProfile } from '@core/agents/profiles';
 import { SignalAggregator } from '@core/sessions/SignalAggregator';
-import type { HooksMode, SessionState } from '@shared/session';
+import { STATUS_DETAIL, type HooksMode, type SessionState } from '@shared/session';
 
 beforeEach(() => vi.useFakeTimers({ now: 1_000_000 }));
 afterEach(() => vi.useRealTimers());
@@ -63,7 +63,7 @@ describe('ClaudeAdapter', () => {
     const c = claude();
     c.hook({ hook_event_name: 'SessionStart' });
     c.idle();
-    expect(c.state()).toMatchObject({ state: 'aguardando', detail: 'pronto' });
+    expect(c.state()).toMatchObject({ state: 'aguardando', detail: STATUS_DETAIL.ready });
     expect(c.hooks).toEqual(['active']);
   });
 

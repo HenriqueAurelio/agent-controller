@@ -1,5 +1,6 @@
 // Keyboard shortcuts of the app: what can be bound, the defaults, and how a key press is named.
 // A binding is a string such as `Ctrl+Shift+N`: modifiers in a fixed order, then the key.
+import type { Message } from './i18n';
 
 export const SHORTCUT_ACTIONS = [
   'newSession',
@@ -18,21 +19,6 @@ export const SHORTCUT_ACTIONS = [
 
 export type ShortcutAction = (typeof SHORTCUT_ACTIONS)[number];
 export type ShortcutMap = Record<ShortcutAction, string[]>;
-
-export const SHORTCUT_LABEL: Record<ShortcutAction, string> = {
-  newSession: 'Nova sessão',
-  nextSession: 'Próxima sessão',
-  prevSession: 'Sessão anterior',
-  nextWaiting: 'Próxima sessão aguardando você',
-  closeSession: 'Fechar a sessão atual',
-  focusSidebar: 'Ir para a lista de sessões',
-  focusTerminal: 'Ir para o terminal',
-  palette: 'Paleta de comandos',
-  toggleChanges: 'Abrir ou fechar o painel de mudanças',
-  toggleFiles: 'Abrir ou fechar todos os arquivos da pasta',
-  toggleHidden: 'Mostrar ou esconder arquivos ocultos',
-  preferences: 'Preferências',
-};
 
 export const DEFAULT_SHORTCUTS: ShortcutMap = {
   newSession: ['Ctrl+Shift+N'],
@@ -115,17 +101,19 @@ export function bindingFromEvent(event: KeyPress): string | null {
   return format(modifiers, key);
 }
 
-/** Why a binding cannot be used, in words for the user; null when it can. */
-export function bindingProblem(binding: string): string | null {
+/** Why a binding cannot be used, to be worded for the user; null when it can. */
+export function bindingProblem(binding: string): Message | null {
   const parts = binding.split('+');
   const key = parts[parts.length - 1]!;
   const modifiers = parts.slice(0, -1);
-  if (RESERVED.has(binding)) return `${binding} é usado pelo terminal ou pelo editor.`;
-  if (SESSION_BINDING.test(binding)) return `${binding} já leva à sessão ${key}.`;
+  if (RESERVED.has(binding)) return { key: 'shortcuts.reserved', params: { binding } };
+  if (SESSION_BINDING.test(binding)) {
+    return { key: 'shortcuts.sessionBinding', params: { binding, position: key } };
+  }
   const functionKey = /^F\d{1,2}$/.test(key);
   const strong = modifiers.some((m) => m === 'Ctrl' || m === 'Alt' || m === 'Meta');
   // Anything else would take a key away from what is typed into the terminal.
-  if (!strong && !functionKey) return 'Use Ctrl, Alt ou uma tecla de função (F1 a F11).';
+  if (!strong && !functionKey) return { key: 'shortcuts.needsModifier' };
   return null;
 }
 

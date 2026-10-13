@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { isFavoriteFolder, toggleFavoriteFolder } from '@shared/prefs';
+import { useT } from '../lib/i18n';
 import { useAppState } from '../lib/store';
 
 /** The favorite folders, in the preferences: the ones offered first when a session is created. */
 export function FavoriteFolders() {
   const favorites = useAppState((s) => s.prefs.favoriteFolders);
   const testMode = useAppState((s) => s.info.testMode);
+  const t = useT();
   const [typed, setTyped] = useState('');
 
   const save = (favoriteFolders: string[]) =>
@@ -18,9 +20,9 @@ export function FavoriteFolders() {
 
   return (
     <div className="favorite-folders">
-      <span className="muted">Pastas favoritas, oferecidas ao criar uma sessão</span>
+      <span className="muted">{t('favorites.hint')}</span>
       {favorites.length > 0 && (
-        <ul className="favorite-list" aria-label="Pastas favoritas">
+        <ul className="favorite-list" aria-label={t('favorites.list')}>
           {favorites.map((folder) => (
             <li key={folder}>
               <span className="favorite-path" title={folder}>
@@ -29,8 +31,8 @@ export function FavoriteFolders() {
               <button
                 type="button"
                 className="shortcut-remove"
-                aria-label={`Tirar ${folder} dos favoritos`}
-                title="Tirar dos favoritos"
+                aria-label={t('favorites.removeOne', { folder })}
+                title={t('folder.unfavorite')}
                 onClick={() => save(toggleFavoriteFolder(favorites, folder))}
               >
                 ×
@@ -41,8 +43,8 @@ export function FavoriteFolders() {
       )}
       <div className="field-row">
         <input
-          aria-label="Nova pasta favorita"
-          placeholder="Caminho de uma pasta"
+          aria-label={t('favorites.new')}
+          placeholder={t('favorites.placeholder')}
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
           onKeyDown={(e) => {
@@ -52,7 +54,7 @@ export function FavoriteFolders() {
           }}
         />
         <button type="button" disabled={!typed.trim()} onClick={() => add(typed)}>
-          Adicionar
+          {t('common.add')}
         </button>
         {!testMode && (
           <button
@@ -62,7 +64,7 @@ export function FavoriteFolders() {
               if (folder) add(folder);
             }}
           >
-            Escolher…
+            {t('common.choose')}
           </button>
         )}
       </div>

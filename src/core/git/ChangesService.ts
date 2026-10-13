@@ -8,6 +8,7 @@ import type {
   GitOverview,
   RepoInfo,
 } from '@shared/git';
+import { UserError } from '@shared/i18n';
 import { compareVersions } from '../agents/detect';
 import { listDirectory } from './FileBrowser';
 import {
@@ -68,8 +69,6 @@ export interface ChangesServiceOptions {
 
 /** How long the repositories found in a plain folder are trusted by the counter of the button. */
 const DISCOVERY_TTL_MS = 10_000;
-
-const NOT_OPEN = 'Painel de mudanças não está aberto para esta sessão';
 
 const join = (prefix: string, file: string) => (prefix ? `${prefix}/${file}` : file);
 
@@ -373,7 +372,7 @@ export class ChangesService {
   async diff(sessionId: string, file: string, base: DiffBase): Promise<FileDiff> {
     const entry = this.sessions.get(sessionId);
     const root = entry?.root ?? entry?.browseRoot;
-    if (!entry || !root) throw new Error(NOT_OPEN);
+    if (!entry || !root) throw new UserError('error.panel.notOpen');
     const repo = this.repoOf(entry, file);
     // Outside every repository there is no "before", only the file as it is.
     if (!repo) return fileDiff(root, { path: file, kind: 'untracked' }, null);
@@ -405,7 +404,7 @@ export class ChangesService {
   ): Promise<SaveResult> {
     const entry = this.sessions.get(sessionId);
     const root = entry?.root ?? entry?.browseRoot;
-    if (!root) throw new Error(NOT_OPEN);
+    if (!root) throw new UserError('error.panel.notOpen');
     return saveWorkingTreeFile(root, file, content, expected);
   }
 

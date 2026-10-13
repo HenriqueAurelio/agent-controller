@@ -69,14 +69,10 @@ export function classifyAvailability(
     displayName: profile.displayName,
     minVersion: profile.minVersion,
     lastTestedVersion: profile.lastTestedVersion,
+    installCommand: profile.installCommand,
   };
   if (!found) {
-    return {
-      ...base,
-      status: 'missing',
-      usable: false,
-      message: `${profile.displayName} não foi encontrado no PATH. ${profile.installHint}`,
-    };
+    return { ...base, status: 'missing', usable: false };
   }
   const { path: file, version } = found;
   if (version && compareVersions(version, profile.minVersion) < 0) {
@@ -86,7 +82,6 @@ export function classifyAvailability(
       usable: true,
       path: file,
       version,
-      message: `Versão ${version} é mais antiga que a mínima suportada (${profile.minVersion}). Os avisos podem não funcionar; atualize o ${profile.displayName}.`,
     };
   }
   if (version && compareVersions(version, profile.lastTestedVersion) > 0) {
@@ -96,7 +91,6 @@ export function classifyAvailability(
       usable: true,
       path: file,
       version,
-      message: `Versão ${version} é mais nova que a última testada (${profile.lastTestedVersion}). Deve funcionar; se os avisos falharem, avise.`,
     };
   }
   return { ...base, status: 'ok', usable: true, path: file, version: version ?? undefined };

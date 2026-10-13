@@ -108,9 +108,15 @@ Em **Preferências → Layout** você escolhe onde fica cada parte da janela. As
 
 A mudança vale na hora e fica guardada. **Restaurar padrão** volta ao arranjo de fábrica.
 
+### Idioma
+
+Em **Preferências → Geral → Idioma** você escolhe a língua da interface: **Português (Brasil)**, que é a de fábrica, ou **English**. A troca vale na hora, sem reabrir o app, e fica guardada. Ela alcança tudo o que o app escreve: telas, dicas, paleta de comandos, mensagens de erro, as notificações do sistema, as perguntas ao fechar e os avisos que o app deixa no terminal (`[O agente saiu (código 1).]`). O que o próprio agente escreve no terminal não é traduzido, e os avisos que já estavam na tela continuam na língua em que foram escritos.
+
+Este README descreve o app em português; em inglês, os nomes dos botões e menus são os equivalentes.
+
 ### Exportar e importar as configurações
 
-Em **Preferências → Geral → Configurações**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: avisos, terminal, pasta inicial, pastas favoritas, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
+Em **Preferências → Geral → Configurações**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
 
 As sessões não vão no arquivo. Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir.
 
@@ -215,7 +221,7 @@ src/
   main/      processo principal do Electron: janela, notificações, IPC
   preload/   a única API exposta à interface
   renderer/  React: barra lateral, terminal, painel de mudanças
-  shared/    tipos e contrato de IPC
+  shared/    tipos, contrato de IPC e textos da interface em cada idioma (i18n/)
 resources/agentctl/   script chamado pelos hooks dos agentes
 tests/       core (Vitest), e2e (Playwright), smoke (agentes reais)
 tools/       sondagem dos agentes, medição de memória

@@ -69,15 +69,6 @@ export interface FileListing {
   truncated: boolean;
 }
 
-export const CHANGE_LABEL: Record<ChangeKind, string> = {
-  added: 'Adicionado',
-  modified: 'Modificado',
-  removed: 'Removido',
-  renamed: 'Renomeado',
-  untracked: 'Não rastreado',
-  conflict: 'Em conflito',
-};
-
 export const CHANGE_LETTER: Record<ChangeKind, string> = {
   added: 'A',
   modified: 'M',

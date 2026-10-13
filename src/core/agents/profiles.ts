@@ -25,7 +25,8 @@ export interface AgentProfile {
   versionArgs: string[];
   minVersion: string;
   lastTestedVersion: string;
-  installHint: string;
+  /** The command that installs the agent, offered when it is not found. */
+  installCommand: string;
 }
 
 const BRAILLE = '\\u2800-\\u28FF';
@@ -51,7 +52,7 @@ export const CLAUDE_CODE: AgentProfile = {
   versionArgs: ['--version'],
   minVersion: '2.1.0',
   lastTestedVersion: '2.1.296',
-  installHint: 'Instale com: npm install -g @anthropic-ai/claude-code',
+  installCommand: 'npm install -g @anthropic-ai/claude-code',
 };
 
 export const CODEX: AgentProfile = {
@@ -76,7 +77,7 @@ export const CODEX: AgentProfile = {
   versionArgs: ['--version'],
   minVersion: '0.158.0',
   lastTestedVersion: '0.158.0',
-  installHint: 'Instale com: npm install -g @openai/codex',
+  installCommand: 'npm install -g @openai/codex',
 };
 
 export const PROFILES: Record<AgentProfileId, AgentProfile> = {

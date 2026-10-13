@@ -20,6 +20,11 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** A tooltip that names the shortcut, when there is one. */
+export function hint(text: string, binding: string | undefined): string {
+  return binding ? `${text} (${binding})` : text;
+}
+
 export function baseName(path: string): string {
   return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
 }

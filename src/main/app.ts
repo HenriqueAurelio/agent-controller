@@ -18,6 +18,7 @@ import {
   type GpuMode,
 } from '@core/store/gpuGuard';
 import type { AgentAvailability } from '@shared/agents';
+import { translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import type { Session } from '@shared/session';
 import { registerIpc, type IpcContext } from './ipc';
 import { showNotification } from './notifications';
@@ -87,7 +88,10 @@ export async function startApp(): Promise<void> {
     const profile = getProfile(session.profile);
     const executablePath = findOnPath(profile.executable);
     if (!executablePath) {
-      throw new Error(`${profile.displayName} não foi encontrado no PATH. ${profile.installHint}`);
+      throw new UserError('agent.missing', {
+        name: profile.displayName,
+        command: profile.installCommand,
+      });
     }
     return buildLaunchCommand(profile, session, {
       agentctl,
@@ -183,6 +187,7 @@ export async function startApp(): Promise<void> {
           usable: true,
           minVersion: profile.minVersion,
           lastTestedVersion: profile.lastTestedVersion,
+          installCommand: profile.installCommand,
         })),
       );
     }
@@ -214,6 +219,8 @@ export async function startApp(): Promise<void> {
 
   let closing = false;
   let unsavedFile: string | null = null;
+  const t = (key: MessageKey, params?: MessageParams) =>
+    translate(data.prefs.language, key, params);
 
   /**
    * A yes/no question before closing. In test mode there is nobody to answer a native dialog:
@@ -228,10 +235,10 @@ export async function startApp(): Promise<void> {
     }
     const choice = dialog.showMessageBoxSync(window!, {
       type: 'warning',
-      buttons: [yes, 'Cancelar'],
+      buttons: [yes, t('common.cancel')],
       defaultId: 1,
       cancelId: 1,
-      title: 'Fechar o Agent Controller',
+      title: t('main.close.title'),
       message,
       detail,
     });
@@ -264,9 +271,9 @@ export async function startApp(): Promise<void> {
       if (
         unsavedFile &&
         !confirmClose(
-          'Há edições não salvas no painel de mudanças.',
-          `${unsavedFile}\n\nFechar o app vai descartá-las.`,
-          'Descartar e fechar',
+          t('main.close.unsaved'),
+          t('main.close.unsavedDetail', { file: unsavedFile }),
+          t('main.close.discard'),
         )
       ) {
         return;
@@ -276,10 +283,10 @@ export async function startApp(): Promise<void> {
         running.length > 0 &&
         !confirmClose(
           running.length === 1
-            ? 'Há 1 agente rodando. Fechar o app vai encerrá-lo.'
-            : `Há ${running.length} agentes rodando. Fechar o app vai encerrá-los.`,
+            ? t('main.close.runningOne')
+            : t('main.close.runningMany', { count: running.length }),
           running.map((s) => `• ${s.name} (${getProfile(s.profile).displayName})`).join('\n'),
-          'Encerrar e fechar',
+          t('app.closeSession.confirm'),
         )
       ) {
         return;

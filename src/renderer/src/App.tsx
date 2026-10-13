@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { statusLabel, type SessionView } from '@shared/session';
+import { statusDetail, statusLabel, type SessionView } from '@shared/session';
 import {
   bindingFromEvent,
   bindingIndex,
@@ -14,15 +14,12 @@ import { NewSessionDialog } from './components/NewSessionDialog';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { Sidebar } from './components/Sidebar';
 import { TerminalArea, type TerminalAreaHandle } from './components/TerminalArea';
-import { PROFILE_LABEL } from './lib/format';
+import { hint, PROFILE_LABEL } from './lib/format';
+import { rich, useT } from './lib/i18n';
 import { shortcutRecording } from './lib/shortcuts';
 import { store, useAppState } from './lib/store';
 
 type Overlay = 'new' | 'prefs' | 'palette' | 'folder' | null;
-
-/** A tooltip that names the shortcut, when there is one. */
-const hint = (text: string, bindings: string[]) =>
-  bindings.length > 0 ? `${text} (${bindings[0]})` : text;
 
 export function App() {
   const sessions = useAppState((s) => s.sessions);
@@ -30,6 +27,8 @@ export function App() {
   const theme = useAppState((s) => s.prefs.theme);
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
   const layout = useAppState((s) => s.prefs.layout);
+  const language = useAppState((s) => s.prefs.language);
+  const t = useT();
   const [overlay, setOverlay] = useState<Overlay>(null);
   /** The folder a new session was asked for, when it came from one dropped on the window. */
   const [newFolder, setNewFolder] = useState<string | undefined>(undefined);
@@ -54,8 +53,8 @@ export function App() {
   const mayDiscardEdits = useCallback(
     () =>
       !unsavedRef.current ||
-      window.confirm(`Há edições não salvas em ${unsavedRef.current}. Descartar?`),
-    [],
+      window.confirm(t('common.unsavedConfirm', { file: unsavedRef.current })),
+    [t],
   );
   /** Opens the panel in `mode`; asked for the mode it is already in, closes it. */
   const togglePanel = useCallback(
@@ -85,12 +84,15 @@ export function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   // The taskbar says how many agents are waiting, even with the window out of sight.
   const waiting = sessions.filter((s) => s.status.state === 'aguardando' && s.running).length;
   useEffect(() => {
-    document.title = waiting > 0 ? `(${waiting} aguardando) Agent Controller` : 'Agent Controller';
-  }, [waiting]);
+    document.title = waiting > 0 ? t('app.titleWaiting', { count: waiting }) : 'Agent Controller';
+  }, [waiting, t]);
 
   // What is on top of the terminal right now, readable from a callback that runs later.
   const coveredRef = useRef(false);
@@ -256,53 +258,51 @@ export function App() {
   );
 
   const commands = useMemo<Command[]>(() => {
-    const action = (id: ShortcutAction, title: string, run?: () => void): Command => ({
+    const action = (id: ShortcutAction, title?: string, run?: () => void): Command => ({
       id,
-      title,
+      title: title ?? t(`shortcut.${id}`),
       shortcut: shortcuts[id][0],
       run: run ?? (() => runAction(id)),
     });
     const list: Command[] = [
-      action('newSession', 'Nova sessão'),
-      action('nextSession', 'Próxima sessão'),
-      action('prevSession', 'Sessão anterior'),
-      action('nextWaiting', 'Próxima sessão aguardando você'),
-      action('focusSidebar', 'Ir para a lista de sessões'),
-      action('preferences', 'Preferências'),
+      action('newSession'),
+      action('nextSession'),
+      action('prevSession'),
+      action('nextWaiting'),
+      action('focusSidebar'),
+      action('preferences'),
     ];
     if (selected) {
       list.unshift(
-        action('toggleChanges', 'See changes: ver as mudanças da sessão', () =>
-          showPanel('changes'),
-        ),
-        action('toggleFiles', 'Arquivos: ver todos os arquivos da pasta', () => showPanel('files')),
-        action('toggleHidden', 'Arquivos: mostrar ou esconder os ocultos'),
+        action('toggleChanges', t('command.seeChanges'), () => showPanel('changes')),
+        action('toggleFiles', t('command.files'), () => showPanel('files')),
+        action('toggleHidden', t('command.toggleHidden')),
       );
       list.push(
         selected.running
           ? {
               id: 'stop',
-              title: `Parar o agente de “${selected.name}”`,
+              title: t('command.stop', { name: selected.name }),
               run: () => void window.api.invoke('sessions:stop', selected.id),
             }
           : {
               id: 'start',
-              title: `Iniciar o agente de “${selected.name}”`,
+              title: t('command.start', { name: selected.name }),
               run: () => terminals.current?.start(selected.id),
             },
         {
           id: 'folder',
-          title: `Trocar a pasta de “${selected.name}”`,
+          title: t('command.changeFolder', { name: selected.name }),
           run: changeFolder,
         },
         {
           id: 'duplicate',
-          title: `Duplicar a sessão “${selected.name}”: outra na mesma pasta`,
+          title: t('command.duplicate', { name: selected.name }),
           run: () => duplicate(selected),
         },
         {
           id: 'close',
-          title: `Fechar a sessão “${selected.name}”`,
+          title: t('command.close', { name: selected.name }),
           run: () => requestClose(selected),
         },
       );
@@ -310,13 +310,23 @@ export function App() {
     sessions.forEach((s, i) =>
       list.push({
         id: `go-${s.id}`,
-        title: `Ir para: ${s.name}`,
+        title: t('command.goTo', { name: s.name }),
         shortcut: i < 9 ? `Ctrl+${i + 1}` : undefined,
         run: () => store.select(s.id),
       }),
     );
     return list;
-  }, [sessions, selected, shortcuts, runAction, showPanel, requestClose, changeFolder, duplicate]);
+  }, [
+    sessions,
+    selected,
+    shortcuts,
+    runAction,
+    showPanel,
+    requestClose,
+    changeFolder,
+    duplicate,
+    t,
+  ]);
 
   // Global shortcuts are taken in the capture phase, before the terminal sees the key.
   const bindings = useMemo(() => bindingIndex(shortcuts), [shortcuts]);
@@ -346,6 +356,7 @@ export function App() {
   }, [overlay, closing, changesOpen, selectedId, focusTerminal]);
 
   const closeOverlay = () => setOverlay(null);
+  const detail = selected && statusDetail(t, selected.status.detail);
 
   return (
     <div className="app" data-sessions={layout.sessions}>
@@ -369,15 +380,13 @@ export function App() {
                 data-testid="session-status"
                 className={`state-label state-label-${selected.status.state} ${selected.status.confirmed ? '' : 'inferred'}`}
               >
-                {statusLabel(selected.status)}
-                {selected.status.detail && selected.status.state !== 'terminou'
-                  ? ` (${selected.status.detail})`
-                  : ''}
+                {statusLabel(t, selected.status)}
+                {detail && selected.status.state !== 'terminou' ? ` (${detail})` : ''}
               </span>
               <button
                 className="muted path"
-                title={`${selected.cwd}\nClique para trocar a pasta da sessão`}
-                aria-label="Trocar a pasta da sessão"
+                title={`${selected.cwd}\n${t('app.changeFolderHint')}`}
+                aria-label={t('app.changeFolder')}
                 onClick={changeFolder}
               >
                 {selected.cwd}
@@ -386,17 +395,17 @@ export function App() {
             <span className="spacer" />
             {selected.running ? (
               <button onClick={() => void window.api.invoke('sessions:stop', selected.id)}>
-                Parar
+                {t('app.stop')}
               </button>
             ) : (
               <button className="primary" onClick={() => terminals.current?.start(selected.id)}>
-                Iniciar
+                {t('app.start')}
               </button>
             )}
             <button
               className={changesOpen && panelMode === 'changes' ? 'active' : ''}
               onClick={() => togglePanel('changes')}
-              title={hint('See changes', shortcuts.toggleChanges)}
+              title={hint('See changes', shortcuts.toggleChanges[0])}
             >
               See changes
               {changeCount !== null && changeCount > 0 && (
@@ -406,18 +415,15 @@ export function App() {
             <button
               className={changesOpen && panelMode === 'files' ? 'active' : ''}
               onClick={() => togglePanel('files')}
-              title={hint('Todos os arquivos da pasta', shortcuts.toggleFiles)}
+              title={hint(t('app.allFilesHint'), shortcuts.toggleFiles[0])}
             >
-              Arquivos
+              {t('common.files')}
             </button>
           </header>
         )}
         {selected?.running && selected.hooks === 'inactive' && (
           <div className="banner" role="status">
-            O modo preciso do Codex está desligado: os hooks do app ainda não foram confiados. O
-            aviso de “aguardando você” continua funcionando pelo título da janela. Para ligar a
-            confirmação por hook, abra uma nova sessão do Codex e, na tela{' '}
-            <strong>Hooks need review</strong>, escolha confiar nos hooks.
+            {rich(t('app.codexHooksBanner'), { screen: <strong>Hooks need review</strong> })}
           </div>
         )}
         <div className="content" data-panel={changesOpen && selected ? layout.panel : undefined}>
@@ -459,18 +465,15 @@ export function App() {
           }}
         />
       )}
-      {dropping && <div className="drop-hint">Solte a pasta para abrir uma sessão nela</div>}
+      {dropping && <div className="drop-hint">{t('app.dropHint')}</div>}
       {overlay === 'prefs' && <PreferencesDialog onClose={closeOverlay} />}
       {overlay === 'palette' && <CommandPalette commands={commands} onClose={closeOverlay} />}
       {closing && (
-        <Dialog title="Fechar sessão" onClose={() => setClosing(null)}>
-          <p>
-            O agente de <strong>{closing.name}</strong> está rodando. Fechar a sessão vai
-            encerrá-lo, junto com o que ele tiver iniciado.
-          </p>
+        <Dialog title={t('app.closeSession.title')} onClose={() => setClosing(null)}>
+          <p>{rich(t('app.closeSession.body'), { name: <strong>{closing.name}</strong> })}</p>
           <div className="dialog-actions">
             <button data-autofocus onClick={() => setClosing(null)}>
-              Cancelar
+              {t('common.cancel')}
             </button>
             <button
               className="danger"
@@ -479,7 +482,7 @@ export function App() {
                 setClosing(null);
               }}
             >
-              Encerrar e fechar
+              {t('app.closeSession.confirm')}
             </button>
           </div>
         </Dialog>

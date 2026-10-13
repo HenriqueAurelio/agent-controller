@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CHANGE_LABEL,
   CHANGE_LETTER,
   type DiffBase,
   type FileChange,
@@ -9,6 +8,7 @@ import {
 } from '@shared/git';
 import type { SessionView } from '@shared/session';
 import { errorMessage } from '../lib/format';
+import { rich, useT } from '../lib/i18n';
 import { useAppState } from '../lib/store';
 import { DiffView } from './DiffView';
 import { FileTree } from './FileTree';
@@ -63,35 +63,29 @@ function groupByFolder(changes: FileChange[], repos: RepoInfo[]): Group[] {
 const fileName = (path: string) => path.slice(path.lastIndexOf('/') + 1);
 
 function Unavailable({ overview }: { overview: Extract<GitOverview, { ok: false }> }) {
+  const t = useT();
   if (overview.reason === 'git-missing') {
     return (
       <div className="panel-message">
-        <h3>O git não está instalado</h3>
-        <p>
-          O painel de mudanças usa o git para saber o que o agente alterou. Instale em{' '}
-          <code>https://git-scm.com</code> e abra o painel de novo.
-        </p>
+        <h3>{t('git.missing.title')}</h3>
+        <p>{rich(t('git.missing.body'), { url: <code>https://git-scm.com</code> })}</p>
       </div>
     );
   }
   if (overview.reason === 'git-too-old') {
     return (
       <div className="panel-message">
-        <h3>A versão do git é antiga demais</h3>
+        <h3>{t('git.tooOld.title')}</h3>
         <p>
-          Encontrado o git {overview.gitVersion}; o painel precisa do {overview.minVersion} ou mais
-          novo. Atualize o git e abra o painel de novo.
+          {t('git.tooOld.body', { found: overview.gitVersion ?? '', min: overview.minVersion })}
         </p>
       </div>
     );
   }
   return (
     <div className="panel-message">
-      <h3>Esta pasta não é um repositório git</h3>
-      <p>
-        O painel só mostra mudanças em pastas com git. Para começar a acompanhar, rode{' '}
-        <code>git init</code> na pasta da sessão.
-      </p>
+      <h3>{t('git.notRepo.title')}</h3>
+      <p>{rich(t('git.notRepo.body'), { command: <code>git init</code> })}</p>
     </div>
   );
 }
@@ -105,6 +99,7 @@ export function ChangesPanel({
   onCount,
   onUnsavedChange,
 }: Props) {
+  const t = useT();
   const prefs = useAppState((s) => s.prefs);
   const [overview, setOverview] = useState<GitOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -184,7 +179,7 @@ export function ChangesPanel({
 
   /** Leaving the open file (another file, another base, closing) would lose unsaved edits. */
   const mayLeave = () =>
-    !dirty || window.confirm(`Há edições não salvas em ${current}. Descartar?`);
+    !dirty || window.confirm(t('common.unsavedConfirm', { file: current ?? '' }));
   const select = (path: string) => {
     if (path !== selected && mayLeave()) setSelected(path);
   };
@@ -213,7 +208,7 @@ export function ChangesPanel({
       tabIndex={-1}
       className="changes-panel"
       data-files={prefs.layout.files}
-      aria-label="Mudanças"
+      aria-label={t('changes.title')}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation();
@@ -223,15 +218,15 @@ export function ChangesPanel({
     >
       <header className="changes-header">
         <h2>
-          Mudanças <span className="count">{overview?.ok ? changes.length : ''}</span>
+          {t('changes.title')} <span className="count">{overview?.ok ? changes.length : ''}</span>
         </h2>
         <button
           className={files ? 'active' : ''}
           aria-pressed={files}
           onClick={() => switchMode(files ? 'changes' : 'files')}
-          title="Listar todos os arquivos da pasta, e não só os que mudaram"
+          title={t('changes.allFilesHint')}
         >
-          Todos os arquivos
+          {t('changes.allFiles')}
         </button>
         {files && (
           <label className="check">
@@ -242,30 +237,27 @@ export function ChangesPanel({
                 void window.api.invoke('prefs:set', { showHiddenFiles: e.target.checked })
               }
             />
-            Ocultos
+            {t('changes.hidden')}
           </label>
         )}
-        <span
-          className="readonly-tag"
-          title="O lado direito é o arquivo na pasta: edite e salve com Ctrl+S. A seta entre os dois lados desfaz um trecho."
-        >
-          Editável
+        <span className="readonly-tag" title={t('changes.editableHint')}>
+          {t('changes.editable')}
         </span>
         <span className="spacer" />
         {overview?.ok && (
           <>
             <label className="field-inline">
-              <span>Comparar com</span>
+              <span>{t('changes.compareWith')}</span>
               <select
-                aria-label="Comparar com"
+                aria-label={t('changes.compareWith')}
                 value={overview.base}
                 onChange={(e) => {
                   if (mayLeave()) setBase(e.target.value === 'session' ? 'session' : 'head');
                 }}
               >
-                <option value="head">Último commit</option>
+                <option value="head">{t('changes.base.head')}</option>
                 <option value="session" disabled={!overview.hasSessionBase}>
-                  Início da sessão
+                  {t('changes.base.session')}
                 </option>
               </select>
             </label>
@@ -273,33 +265,34 @@ export function ChangesPanel({
               className={inline ? 'active' : ''}
               aria-pressed={inline}
               onClick={() => setInline((v) => !v)}
-              title="Alternar entre lado a lado e em linha"
+              title={t('changes.viewHint')}
             >
-              {inline ? 'Em linha' : 'Lado a lado'}
+              {inline ? t('changes.inline') : t('changes.sideBySide')}
             </button>
           </>
         )}
-        <button onClick={close} title="Fechar (Esc)" aria-label="Fechar o painel de mudanças">
+        <button onClick={close} title={t('changes.closeHint')} aria-label={t('changes.close')}>
           ×
         </button>
       </header>
 
       {!files && error && (
-        <div className="panel-message error">Não foi possível ler as mudanças: {error}</div>
+        <div className="panel-message error">{t('changes.loadError', { error })}</div>
       )}
-      {!files && !error && !overview && <div className="panel-message">Carregando…</div>}
+      {!files && !error && !overview && <div className="panel-message">{t('changes.loading')}</div>}
       {!files && !error && overview && !overview.ok && <Unavailable overview={overview} />}
       {!files && !error && overview?.ok && changes.length === 0 && (
         <div className="panel-message">
-          <h3>Nenhuma mudança</h3>
+          <h3>{t('changes.none.title')}</h3>
           <p>
             {overview.base === 'session'
-              ? 'Nada mudou desde que a sessão começou.'
+              ? t('changes.none.session')
               : repos.length > 1
-                ? `Os ${repos.length} repositórios da pasta estão iguais ao último commit: ${repos
-                    .map((r) => r.name)
-                    .join(', ')}.`
-                : 'A pasta está igual ao último commit.'}
+                ? t('changes.none.repos', {
+                    count: repos.length,
+                    names: repos.map((r) => r.name).join(', '),
+                  })
+                : t('changes.none.head')}
           </p>
         </div>
       )}
@@ -328,7 +321,7 @@ export function ChangesPanel({
               onDirtyChange={setDirty}
             />
           ) : (
-            <div className="panel-message">Escolha um arquivo para ver e editar.</div>
+            <div className="panel-message">{t('changes.pickFile')}</div>
           )}
         </div>
       )}
@@ -340,7 +333,7 @@ export function ChangesPanel({
             className="changes-list"
             role="listbox"
             tabIndex={0}
-            aria-label="Arquivos modificados"
+            aria-label={t('changes.modifiedFiles')}
             aria-activedescendant={
               selected ? `change-${flat.findIndex((c) => c.path === selected)}` : undefined
             }
@@ -360,7 +353,7 @@ export function ChangesPanel({
                   <div
                     className="changes-repo"
                     data-repo={group.repo.path}
-                    title={`Repositório ${group.repo.name}`}
+                    title={t('changes.repo', { name: group.repo.name })}
                   >
                     <span className="changes-repo-name">{group.repo.name}</span>
                     {group.repo.branch && <span className="muted">{group.repo.branch}</span>}
@@ -368,7 +361,7 @@ export function ChangesPanel({
                     <span className="count">{group.repo.count}</span>
                   </div>
                 )}
-                <div className="changes-folder">{group.folder || '(raiz)'}</div>
+                <div className="changes-folder">{group.folder || t('changes.root')}</div>
                 <ul role="presentation">
                   {group.files.map((change) => (
                     <li
@@ -381,8 +374,8 @@ export function ChangesPanel({
                       className={`change-item ${change.path === selected ? 'selected' : ''}`}
                       title={
                         change.origPath
-                          ? `${CHANGE_LABEL[change.kind]}: ${change.origPath} → ${change.path}`
-                          : `${CHANGE_LABEL[change.kind]}: ${change.path}`
+                          ? `${t(`change.${change.kind}`)}: ${change.origPath} → ${change.path}`
+                          : `${t(`change.${change.kind}`)}: ${change.path}`
                       }
                       onClick={() => select(change.path)}
                     >
@@ -397,7 +390,7 @@ export function ChangesPanel({
             ))}
             {untouched.length > 0 && (
               <li role="presentation" className="changes-untouched">
-                Sem mudanças: {untouched.map((r) => r.name).join(', ')}
+                {t('changes.untouched', { names: untouched.map((r) => r.name).join(', ') })}
               </li>
             )}
           </ul>

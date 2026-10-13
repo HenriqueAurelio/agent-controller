@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { translate } from '@shared/i18n';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
 import { AGENT_PROFILE_IDS, type AgentProfileId, type Session } from '@shared/session';
 import { JsonStore, type Migration } from './JsonStore';
@@ -48,6 +49,7 @@ function isProfile(value: unknown): value is AgentProfileId {
 
 function validate(raw: unknown): AppData {
   const data = raw as Partial<AppData>;
+  const prefs = sanitizePreferences(data.prefs);
   const sessions: Session[] = [];
   const seen = new Set<string>();
   for (const s of Array.isArray(data.sessions) ? data.sessions : []) {
@@ -57,7 +59,10 @@ function validate(raw: unknown): AppData {
     // Only the documented fields are kept: anything else (state, env) is dropped on purpose.
     sessions.push({
       id: s.id,
-      name: typeof s.name === 'string' && s.name ? s.name : path.basename(s.cwd) || 'Sessão',
+      name:
+        typeof s.name === 'string' && s.name
+          ? s.name
+          : path.basename(s.cwd) || translate(prefs.language, 'session.fallbackName'),
       cwd: s.cwd,
       profile: s.profile,
       order: typeof s.order === 'number' ? s.order : sessions.length,
@@ -82,7 +87,7 @@ function validate(raw: unknown): AppData {
       height: Math.max(400, num(w.height) ?? DEFAULT_WINDOW.height),
       maximized: w.maximized === true,
     },
-    prefs: sanitizePreferences(data.prefs),
+    prefs,
   };
 }
 
