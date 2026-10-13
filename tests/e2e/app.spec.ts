@@ -489,7 +489,7 @@ test.describe('see changes', () => {
     await expect(save).toBeDisabled();
 
     // Type at the top of the working-tree side.
-    await frame.locator('.editor.modified .view-lines').click();
+    await frame.locator('.editor.modified .native-edit-context').first().focus();
     await page.keyboard.press('Control+Home');
     await page.keyboard.type('// revisado por mim');
     await page.keyboard.press('Enter');
@@ -505,12 +505,12 @@ test.describe('see changes', () => {
     expect(git(repo, 'stash', 'list')).toBe('');
 
     // The left side is what git has: it cannot be typed into.
-    await frame.locator('.editor.original .view-lines').click();
+    await frame.locator('.editor.original .native-edit-context').first().focus();
     await page.keyboard.type('zzz');
     await expect(frame.locator('.editor.original')).not.toContainText('zzz');
 
     // The agent writes to the file while there are unsaved edits: nothing is overwritten.
-    await frame.locator('.editor.modified .view-lines').click();
+    await frame.locator('.editor.modified .native-edit-context').first().focus();
     await page.keyboard.press('Control+End');
     await page.keyboard.type('// minha segunda edicao');
     await expect(save).toBeEnabled();

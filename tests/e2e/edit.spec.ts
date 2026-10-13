@@ -127,6 +127,14 @@ async function retry(attempt: () => Promise<void>, timeoutMs = 25_000): Promise<
 }
 
 /**
+ * Puts the keyboard in one side of the diff. Focusing the editor's own input is exact; a click
+ * on the text is not (in inline mode the same side is drawn twice).
+ */
+async function focusSide(side: Locator): Promise<void> {
+  await side.locator('.native-edit-context, textarea.inputarea').first().focus();
+}
+
+/**
  * Saves and waits until the save is done. The "unsaved" mark has to be seen first: otherwise
  * its absence right after the keystroke would only mean the editor has not caught up yet.
  */
@@ -138,7 +146,7 @@ async function saveWith(how: 'keyboard' | 'button'): Promise<void> {
 }
 
 async function typeAt(position: 'start' | 'end', text: string): Promise<void> {
-  await modified.locator('.view-lines').click();
+  await focusSide(modified);
   await page.keyboard.press(position === 'start' ? 'Control+Home' : 'Control+End');
   await page.keyboard.type(text);
 }
@@ -261,8 +269,8 @@ test('a conflict can be resolved by overwriting with my version', async () => {
 });
 
 test('unsaved edits are not lost by switching file, by the arrow keys or by closing the panel', async () => {
-  await start();
   fs.writeFileSync(file('outro.txt'), 'segundo arquivo\n');
+  await start();
   await expect(panel.locator('.change-item[data-path="outro.txt"]')).toBeVisible();
   await openFile('editado.ts');
   await typeAt('end', '// pendente');
@@ -299,7 +307,7 @@ test('unsaved edits are not lost by switching file, by the arrow keys or by clos
   await expect(modified).toContainText('pendente');
 
   // Esc typed inside the editor does not even ask: it belongs to the editor while editing.
-  await modified.locator('.view-lines').click();
+  await focusSide(modified);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
   await expect(panel).toBeVisible();
@@ -362,7 +370,7 @@ test('unsaved edits are not lost by the shortcuts, by switching session or by cl
   await expect(modified).toContainText('pendente');
 
   // Saving clears the warning: the next question on close is only about the running agents.
-  await modified.locator('.view-lines').click();
+  await focusSide(modified);
   await saveWith('keyboard');
   await running!.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.close());
   await page.waitForTimeout(500);
@@ -386,7 +394,7 @@ test('unsaved edits are not lost by the shortcuts, by switching session or by cl
 test('with nothing to lose, Esc and the shortcuts work from inside the editor', async () => {
   await start();
   await openFile('editado.ts');
-  await modified.locator('.view-lines').click();
+  await focusSide(modified);
 
   await page.keyboard.press('Control+Shift+P');
   const palette = page.getByRole('dialog', { name: 'Paleta de comandos' });
@@ -394,13 +402,13 @@ test('with nothing to lose, Esc and the shortcuts work from inside the editor', 
   await page.keyboard.press('Escape');
   await expect(palette).toBeHidden();
 
-  await modified.locator('.view-lines').click();
+  await focusSide(modified);
   await page.keyboard.press('Escape');
   await expect(panel).toBeHidden();
 
   await page.keyboard.press('Control+Shift+G');
   await openFile('editado.ts');
-  await modified.locator('.view-lines').click();
+  await focusSide(modified);
   await page.keyboard.press('Control+Shift+G');
   await expect(panel).toBeHidden();
 });
@@ -422,7 +430,7 @@ test('what can be edited: new files yes; removed and binary files no; the git si
   await openFile('removido.txt');
   await expect(panel.getByText('Arquivo removido')).toBeVisible();
   await expect(saveButton).toHaveCount(0);
-  await modified.locator('.view-lines').click({ force: true });
+  await focusSide(modified);
   await page.keyboard.type('zzz');
   await expect(unsaved()).toHaveCount(0);
   expect(fs.existsSync(file('removido.txt'))).toBe(false);
@@ -434,7 +442,7 @@ test('what can be edited: new files yes; removed and binary files no; the git si
 
   // The left side (what git has) cannot be typed into.
   await openFile('editado.ts');
-  await frame.locator('.editor.original .view-lines').click();
+  await focusSide(frame.locator('.editor.original'));
   await page.keyboard.type('zzz');
   await expect(frame.locator('.editor.original')).not.toContainText('zzz');
   await expect(unsaved()).toHaveCount(0);
@@ -508,7 +516,7 @@ test('typing while the next file is still loading never lands in the previous fi
   // Click the other file and type at once, without waiting for it to load. Depending on how
   // fast it loads, the text goes nowhere or into the new file; never into the one left behind.
   await panel.locator('.change-item[data-path="outro.txt"]').click();
-  await modified.locator('.view-lines').click({ force: true });
+  await focusSide(modified);
   await page.keyboard.type('perdido');
   await frame.locator('body[data-path="outro.txt"]').waitFor();
   await page.waitForTimeout(300);
