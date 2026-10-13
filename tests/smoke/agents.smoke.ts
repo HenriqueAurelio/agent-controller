@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { saveWorkingTreeFile } from '@core/git/GitService';
 import type { AgentProfileId, SessionState } from '@shared/session';
 import { AgentDriver, ENTER, ESC, sleep } from './driver';
 
@@ -104,6 +105,59 @@ for (const plan of PLANS) {
         await sleep(3000);
         expect(driver.state).toBe('terminou');
       });
+      expect(result.error).toBeUndefined();
+    });
+
+    // ADR 0012: the user edits, in the changes panel, a file the agent has already read. The
+    // agent's next change to that file must not throw the user's edit away.
+    it('edição do usuário em um arquivo que o agente já leu não é perdida', async ({ skip }) => {
+      skip(!available, 'agente não instalado');
+      const file = `nota-${Date.now()}.txt`;
+      const absolute = path.join(driver.cwd, file);
+      const original = 'cor: azul\ntamanho: pequeno\n';
+      fs.writeFileSync(absolute, original);
+      const result = await driver.scenario(
+        'edição do usuário e do agente no mesmo arquivo',
+        async (mark) => {
+          // The agent reads the file and stops.
+          await driver.prompt(
+            `Leia o arquivo ${file} e responda apenas com a primeira linha dele. Não altere nada.`,
+          );
+          await driver.waitFor('trabalhando', 30_000, mark);
+          await driver.waitFor('terminou', 120_000, mark);
+
+          // The user edits and saves, exactly as the panel does.
+          const edited = original + 'revisado: sim\n';
+          expect(await saveWorkingTreeFile(driver.cwd, file, edited, original)).toEqual({
+            saved: true,
+          });
+
+          // The agent now changes the same file, from what it remembers of it.
+          const second = driver.events.length;
+          await driver.prompt(
+            `No arquivo ${file}, troque a palavra azul por verde. Não mude mais nada no arquivo.`,
+          );
+          await driver.waitFor('trabalhando', 30_000, second);
+          // It asks before writing; approve as many times as it asks.
+          const deadline = Date.now() + 150_000;
+          while (driver.state !== 'terminou' && Date.now() < deadline) {
+            if (driver.state === 'aguardando') {
+              await sleep(1500);
+              driver.send(ENTER);
+              await sleep(2500);
+            }
+            await sleep(300);
+          }
+          expect(driver.state).toBe('terminou');
+          await sleep(1000);
+
+          const final = fs.readFileSync(absolute, 'utf8');
+          expect(final, 'a mudança do agente').toContain('cor: verde');
+          expect(final, 'a edição do usuário').toContain('revisado: sim');
+          expect(final).toContain('tamanho: pequeno');
+        },
+      );
+      fs.rmSync(absolute, { force: true, maxRetries: 20, retryDelay: 250 });
       expect(result.error).toBeUndefined();
     });
   });

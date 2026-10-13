@@ -15,6 +15,8 @@ interface Props {
   session: SessionView;
   onClose(): void;
   onCount(count: number | null): void;
+  /** The file with unsaved edits, or null: the app asks before anything discards them. */
+  onUnsavedChange(file: string | null): void;
 }
 
 function groupByFolder(changes: FileChange[]): { folder: string; files: FileChange[] }[] {
@@ -68,7 +70,7 @@ function Unavailable({ overview }: { overview: Extract<GitOverview, { ok: false 
 }
 
 /** "See changes": what the agent changed, with the working-tree side open for editing. */
-export function ChangesPanel({ session, onClose, onCount }: Props) {
+export function ChangesPanel({ session, onClose, onCount, onUnsavedChange }: Props) {
   const prefs = useAppState((s) => s.prefs);
   const [overview, setOverview] = useState<GitOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +127,11 @@ export function ChangesPanel({ session, onClose, onCount }: Props) {
   // The panel covers the terminal, so it takes the keyboard too: Esc closes it even when there
   // is no list to focus (no git, no changes).
   useEffect(() => (listRef.current ?? panelRef.current)?.focus(), [overview?.ok, changes.length]);
+
+  useEffect(() => {
+    onUnsavedChange(dirty ? selected : null);
+  }, [dirty, selected, onUnsavedChange]);
+  useEffect(() => () => onUnsavedChange(null), [onUnsavedChange]);
 
   /** Leaving the open file (another file, another base, closing) would lose unsaved edits. */
   const mayLeave = () =>

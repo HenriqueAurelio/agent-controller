@@ -169,7 +169,11 @@ export function Sidebar({ onNew, onPreferences, onClose, onDone }: Props) {
                   <span className={`profile-tag profile-${session.profile}`}>
                     {PROFILE_LABEL[session.profile]}
                   </span>
-                  <span className="session-state">{label}</span>
+                  <span
+                    className={`session-state state-label state-label-${session.status.state} ${session.status.confirmed ? '' : 'inferred'}`}
+                  >
+                    {label}
+                  </span>
                 </span>
                 {m && (
                   <span

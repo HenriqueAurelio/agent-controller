@@ -298,6 +298,67 @@ test('state follows the agent, and a session out of focus notifies, shows a badg
   expect(await screenText(page, a)).toContain('turno.cjs');
 });
 
+test('"aguardando você" stands out in the sidebar, in the header and in the window title', async () => {
+  const { page, app } = await open();
+  // The title an agent shows when it is at its prompt, waiting.
+  fs.writeFileSync(
+    path.join(work, 'pronto.cjs'),
+    `process.stdout.write('\\x1b]0;✳ agente\\x07'); setInterval(() => {}, 1000);`,
+  );
+  await createSession(page, 'Esperando', work);
+  await createSession(page, 'Quieta', work);
+  const waiting = page.locator('.session-item', { hasText: 'Esperando' });
+  const other = page.locator('.session-item', { hasText: 'Quieta' });
+  // The second session is stopped, to compare with: a Windows shell sets a window title of its
+  // own and would count as "at the prompt" too.
+  await page.getByRole('button', { name: 'Parar' }).click();
+  await expect(other).toHaveAttribute('data-state', 'parada');
+  await page.keyboard.press('Control+1');
+  await page.locator('.terminal-host.visible').click();
+  await page.keyboard.type('node pronto.cjs');
+  await page.keyboard.press('Enter');
+  await expect(waiting).toHaveAttribute('data-state', 'aguardando');
+
+  const style = (locator: typeof waiting, property: string) =>
+    locator.evaluate((el, p) => getComputedStyle(el).getPropertyValue(p), property);
+  const transparent = 'rgba(0, 0, 0, 0)';
+
+  // The label is a filled tag, in bold; the other session's label is plain text.
+  const label = waiting.locator('.session-state');
+  await expect(label).toHaveText('Aguardando você');
+  expect(await style(label, 'background-color')).not.toBe(transparent);
+  expect(Number(await style(label, 'font-weight'))).toBeGreaterThanOrEqual(700);
+  expect(await style(other.locator('.session-state'), 'background-color')).toBe(transparent);
+
+  // The row itself is tinted and marked on the left, selected or not, and the dot pulses.
+  await page.keyboard.press('Control+2');
+  expect(await style(waiting, 'background-color')).not.toBe(transparent);
+  expect(await style(waiting, 'border-left-color')).toBe(await style(label, 'background-color'));
+  expect(await style(other, 'border-left-color')).not.toBe(await style(label, 'background-color'));
+  expect(await style(waiting.locator('.state-dot'), 'animation-name')).toBe('attention');
+  expect(await style(waiting.locator('.session-name'), 'color')).toBe(
+    await style(label, 'background-color'),
+  );
+
+  // The header of the selected session uses the same tag.
+  await page.keyboard.press('Control+1');
+  const header = page.getByTestId('session-status');
+  await expect(header).toContainText('Aguardando você');
+  expect(await style(header, 'background-color')).toBe(await style(label, 'background-color'));
+
+  // The count reaches the taskbar through the window title.
+  await expect(page).toHaveTitle('(1 aguardando) Agent Controller');
+  expect(
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getTitle()),
+  ).toBe('(1 aguardando) Agent Controller');
+
+  // Once the agent is stopped, the emphasis is gone.
+  await page.getByRole('button', { name: 'Parar' }).click();
+  await expect(waiting).toHaveAttribute('data-state', 'parada');
+  await expect(page).toHaveTitle('Agent Controller');
+  expect(await style(waiting.locator('.session-state'), 'background-color')).toBe(transparent);
+});
+
 test('a flood of output does not freeze the interface', async () => {
   const { page } = await open();
   const id = await createSession(page, 'Enxurrada', work);

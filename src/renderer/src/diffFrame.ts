@@ -45,6 +45,8 @@ function show(message: ShowMessage): void {
     readOnly: !message.editable,
     renderMarginRevertIcon: message.editable,
   });
+  // Lets the tests (and anyone debugging) see which file the editor is really showing.
+  document.body.dataset.path = message.path;
 
   const previous = editor.getModel();
   const samePath = shownPath === message.path;
@@ -107,7 +109,12 @@ window.addEventListener('message', (event: MessageEvent<ParentMessage>) => {
   if (event.source !== window.parent) return;
   const message = event.data;
   if (message?.type === 'show') show(message);
-  else if (message?.type === 'request-save') save(message.overwrite);
+  else if (message?.type === 'loading') {
+    // Until the next file arrives the editor still shows the previous one; typing into it
+    // would be lost.
+    editor.updateOptions({ readOnly: true });
+    delete document.body.dataset.path;
+  } else if (message?.type === 'request-save') save(message.overwrite);
   else if (message?.type === 'saved' && message.path === shownPath) {
     loaded = message.content;
     setDirty(editor.getModel()?.modified.getValue() !== loaded);

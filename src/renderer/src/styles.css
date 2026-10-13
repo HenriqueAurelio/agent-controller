@@ -687,3 +687,71 @@ kbd {
   inset: 0;
   z-index: 1;
 }
+
+/* State labels. "Aguardando você" is the one that asks for action, so it is the loudest thing
+   in the sidebar: a filled tag, a tinted row and a ring pulsing around the dot. */
+.state-label {
+  font-weight: 600;
+}
+.state-label-parada,
+.state-label-iniciando {
+  font-weight: 400;
+}
+.state-label-trabalhando {
+  color: var(--working);
+}
+.state-label-terminou {
+  color: var(--done);
+}
+.state-label-erro {
+  color: var(--error);
+}
+.state-label-aguardando {
+  padding: 0 7px;
+  border-radius: 9px;
+  background: var(--waiting);
+  color: #1a1300;
+  font-weight: 700;
+}
+:root[data-theme='light'] .state-label-aguardando {
+  color: #fff;
+}
+.state-label-aguardando.inferred {
+  background: transparent;
+  color: var(--waiting);
+  border: 1px dashed var(--waiting);
+}
+.session-item[data-state='aguardando'] {
+  background: color-mix(in srgb, var(--waiting) 13%, transparent);
+  border-left-color: var(--waiting);
+}
+.session-item[data-state='aguardando']:hover {
+  background: color-mix(in srgb, var(--waiting) 20%, transparent);
+}
+.session-item[data-state='aguardando'].selected {
+  background: color-mix(in srgb, var(--waiting) 22%, var(--bg-selected));
+  border-left-color: var(--waiting);
+}
+.session-item[data-state='aguardando'] .session-name {
+  color: var(--waiting);
+}
+.session-item[data-state='aguardando'] .session-meta {
+  overflow: visible;
+}
+.state-dot.state-aguardando {
+  animation: attention 1.6s ease-out infinite;
+}
+@keyframes attention {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--waiting) 70%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .state-dot.state-aguardando,
+  .state-dot.state-trabalhando {
+    animation: none;
+  }
+}

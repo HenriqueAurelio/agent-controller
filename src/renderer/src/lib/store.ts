@@ -22,6 +22,8 @@ let state: AppState = {
   agents: [],
 };
 const listeners = new Set<() => void>();
+/** Asked before the selected session changes; returning false keeps the current one. */
+let leaveGuard: (() => boolean) | null = null;
 
 function set(patch: Partial<AppState>): void {
   state = { ...state, ...patch };
@@ -56,8 +58,13 @@ export const store = {
     return agents;
   },
 
+  setLeaveGuard(guard: (() => boolean) | null): void {
+    leaveGuard = guard;
+  },
+
   select(id: string | null): void {
     if (id === state.selectedId) return;
+    if (leaveGuard && !leaveGuard()) return;
     set({ selectedId: id }); // Optimistic: switching must feel instant.
     void window.api.invoke('sessions:select', id);
   },

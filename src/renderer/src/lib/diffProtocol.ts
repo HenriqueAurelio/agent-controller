@@ -15,6 +15,8 @@ export type ParentMessage =
       /** Replace the editor's content even if it has unsaved edits. */
       discardEdits?: boolean;
     }
+  /** Another file is being loaded: nothing typed now would belong to it. */
+  | { type: 'loading' }
   /** Ask the frame for its current content, to save it. */
   | { type: 'request-save'; overwrite: boolean }
   /** The content was written to disk: it is the new starting point. */

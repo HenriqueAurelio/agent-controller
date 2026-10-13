@@ -38,6 +38,8 @@ export interface SessionMetrics {
 export interface IpcCommands {
   'app:ping': (message: string) => string;
   'app:info': () => AppInfo;
+  /** The file with unsaved edits in the changes panel, or null. Closing the app asks first. */
+  'app:setUnsaved': (file: string | null) => void;
   'prefs:get': () => Preferences;
   'prefs:set': (patch: Partial<Preferences>) => Preferences;
   'agents:detect': (refresh: boolean) => AgentAvailability[];
@@ -94,6 +96,7 @@ export type EventChannel = keyof IpcEvents;
 export const COMMAND_CHANNELS = [
   'app:ping',
   'app:info',
+  'app:setUnsaved',
   'prefs:get',
   'prefs:set',
   'agents:detect',

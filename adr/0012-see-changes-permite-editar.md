@@ -45,6 +45,8 @@ O risco novo é os dois escreverem no mesmo arquivo. As regras:
 |---|---|
 | Sobrescrever o que o agente acabou de escrever | O salvamento compara com o conteúdo carregado e recusa em caso de diferença; sobrescrever é uma escolha explícita |
 | Perder edições ao trocar de arquivo ou fechar o painel | Confirmação antes de sair; `Esc` não fecha com edições pendentes |
-| Editar enquanto o agente trabalha e ele não perceber a mudança | Não há mitigação no app: depende de o agente reler o arquivo antes de mexer nele, o que não foi testado. O README recomenda editar com o agente parado |
+| Editar enquanto o agente trabalha e ele não perceber a mudança | Testado com os dois agentes reais (roteiro em `npm run test:smoke`): o agente lê o arquivo, o usuário salva uma edição pelo painel, o agente altera o mesmo arquivo em seguida. Claude Code 2.1.296 e Codex 0.158.0 preservaram a edição do usuário. O teste cobre o agente parado entre os dois passos; editar no meio de um turno em andamento não foi testado, e o README recomenda editar com o agente parado |
+| Digitar no editor enquanto o arquivo seguinte ainda carrega, e o texto ir para o arquivo errado | O editor fica bloqueado durante a troca de arquivo |
+| Fechar o painel, trocar de sessão ou fechar o app por um atalho, sem passar pelo aviso | Todos os caminhos perguntam antes: os atalhos globais, o botão da sessão, a troca de sessão e o fechamento da janela |
 | Escrita fora do repositório ou em arquivos internos do git, por um caminho forjado | O processo principal resolve o caminho, exige que fique dentro do repositório e recusa `.git` |
 | Mudar o fim de linha ou a codificação do arquivo ao salvar | O editor preserva o fim de linha do arquivo; a gravação é em UTF-8. Arquivos em outra codificação aparecem e seriam gravados como UTF-8 |

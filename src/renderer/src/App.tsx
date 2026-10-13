@@ -22,12 +22,43 @@ export function App() {
   const [changeCount, setChangeCount] = useState<number | null>(null);
   const terminals = useRef<TerminalAreaHandle>(null);
 
+  // Unsaved edits in the changes panel: anything that would close the panel asks first.
+  const unsavedRef = useRef<string | null>(null);
+  const changesOpenRef = useRef(false);
+  changesOpenRef.current = changesOpen;
+  const setUnsaved = useCallback((file: string | null) => {
+    if (unsavedRef.current === file) return;
+    unsavedRef.current = file;
+    void window.api.invoke('app:setUnsaved', file);
+  }, []);
+  const mayDiscardEdits = useCallback(
+    () =>
+      !unsavedRef.current ||
+      window.confirm(`Há edições não salvas em ${unsavedRef.current}. Descartar?`),
+    [],
+  );
+  const toggleChanges = useCallback(() => {
+    if (!store.get().selectedId) return;
+    if (changesOpenRef.current && !mayDiscardEdits()) return;
+    setChangesOpen(!changesOpenRef.current);
+  }, [mayDiscardEdits]);
+  useEffect(() => {
+    store.setLeaveGuard(mayDiscardEdits);
+    return () => store.setLeaveGuard(null);
+  }, [mayDiscardEdits]);
+
   const selected = sessions.find((s) => s.id === selectedId) ?? null;
   const sessionIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  // The taskbar says how many agents are waiting, even with the window out of sight.
+  const waiting = sessions.filter((s) => s.status.state === 'aguardando' && s.running).length;
+  useEffect(() => {
+    document.title = waiting > 0 ? `(${waiting} aguardando) Agent Controller` : 'Agent Controller';
+  }, [waiting]);
 
   // What is on top of the terminal right now, readable from a callback that runs later.
   const coveredRef = useRef(false);
@@ -143,8 +174,7 @@ export function App() {
       else if (event.shiftKey && key === 'n') setOverlay('new');
       else if (event.shiftKey && key === 'p')
         setOverlay((o) => (o === 'palette' ? null : 'palette'));
-      else if (event.shiftKey && key === 'g')
-        setChangesOpen((open) => (store.get().selectedId ? !open : false));
+      else if (event.shiftKey && key === 'g') toggleChanges();
       else if (!event.shiftKey && key === ',') setOverlay('prefs');
       else if (!event.shiftKey && /^[1-9]$/.test(event.key)) {
         const target = store.get().sessions[Number(event.key) - 1];
@@ -157,7 +187,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [selectByOffset]);
+  }, [selectByOffset, toggleChanges]);
 
   // Whenever nothing is on top of it, the terminal has the keyboard.
   useEffect(() => {
@@ -182,8 +212,12 @@ export function App() {
             />
             <div className="session-header-text">
               <strong>{selected.name}</strong>
-              <span className="muted" data-testid="session-status">
-                {PROFILE_LABEL[selected.profile]} · {statusLabel(selected.status)}
+              <span className="muted">{PROFILE_LABEL[selected.profile]}</span>
+              <span
+                data-testid="session-status"
+                className={`state-label state-label-${selected.status.state} ${selected.status.confirmed ? '' : 'inferred'}`}
+              >
+                {statusLabel(selected.status)}
                 {selected.status.detail && selected.status.state !== 'terminou'
                   ? ` (${selected.status.detail})`
                   : ''}
@@ -204,7 +238,7 @@ export function App() {
             )}
             <button
               className={changesOpen ? 'active' : ''}
-              onClick={() => setChangesOpen((open) => !open)}
+              onClick={toggleChanges}
               title="See changes (Ctrl+Shift+G)"
             >
               See changes
@@ -230,6 +264,7 @@ export function App() {
               session={selected}
               onClose={() => setChangesOpen(false)}
               onCount={setChangeCount}
+              onUnsavedChange={setUnsaved}
             />
           )}
         </div>

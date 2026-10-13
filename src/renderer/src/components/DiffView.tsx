@@ -73,10 +73,11 @@ export function DiffView({
 
   // Another file: whatever was pending about the previous one is gone.
   useEffect(() => {
+    send({ type: 'loading' });
     setDirty(false);
     setConflict(false);
     setSaveError(null);
-  }, [sessionId, path]);
+  }, [sessionId, path, base, send]);
 
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
 

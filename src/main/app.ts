@@ -201,6 +201,9 @@ export async function startApp(): Promise<void> {
     gpuMode,
     detectAgents,
     getWindow: () => window,
+    setUnsaved: (file) => {
+      unsavedFile = file;
+    },
     savePrefs: (prefs) => {
       data.prefs = prefs;
       manager.setPreferences(prefs);
@@ -210,6 +213,30 @@ export async function startApp(): Promise<void> {
   });
 
   let closing = false;
+  let unsavedFile: string | null = null;
+
+  /**
+   * A yes/no question before closing. In test mode there is nobody to answer a native dialog:
+   * the answer comes from AGENT_CONTROLLER_TEST_DIALOGS (default: yes) and the question is
+   * recorded, so the tests can check that it was asked.
+   */
+  const confirmClose = (message: string, detail: string, yes: string): boolean => {
+    if (TEST_SHELL) {
+      const asked = ((globalThis as Record<string, unknown>).__closeQuestions ??= []) as string[];
+      asked.push(`${message}\n${detail}`);
+      return process.env.AGENT_CONTROLLER_TEST_DIALOGS !== 'cancel';
+    }
+    const choice = dialog.showMessageBoxSync(window!, {
+      type: 'warning',
+      buttons: [yes, 'Cancelar'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Fechar o Agent Controller',
+      message,
+      detail,
+    });
+    return choice === 0;
+  };
   const shutdown = async () => {
     closing = true;
     metrics.stop();
@@ -234,23 +261,28 @@ export async function startApp(): Promise<void> {
     window.on('close', (event) => {
       if (closing) return;
       event.preventDefault();
+      if (
+        unsavedFile &&
+        !confirmClose(
+          'Há edições não salvas no painel de mudanças.',
+          `${unsavedFile}\n\nFechar o app vai descartá-las.`,
+          'Descartar e fechar',
+        )
+      ) {
+        return;
+      }
       const running = manager.runningSessions();
-      if (running.length > 0 && !TEST_SHELL) {
-        const choice = dialog.showMessageBoxSync(window!, {
-          type: 'warning',
-          buttons: ['Encerrar e fechar', 'Cancelar'],
-          defaultId: 1,
-          cancelId: 1,
-          title: 'Fechar o Agent Controller',
-          message:
-            running.length === 1
-              ? 'Há 1 agente rodando. Fechar o app vai encerrá-lo.'
-              : `Há ${running.length} agentes rodando. Fechar o app vai encerrá-los.`,
-          detail: running
-            .map((s) => `• ${s.name} (${getProfile(s.profile).displayName})`)
-            .join('\n'),
-        });
-        if (choice !== 0) return;
+      if (
+        running.length > 0 &&
+        !confirmClose(
+          running.length === 1
+            ? 'Há 1 agente rodando. Fechar o app vai encerrá-lo.'
+            : `Há ${running.length} agentes rodando. Fechar o app vai encerrá-los.`,
+          running.map((s) => `• ${s.name} (${getProfile(s.profile).displayName})`).join('\n'),
+          'Encerrar e fechar',
+        )
+      ) {
+        return;
       }
       window?.hide();
       void shutdown();

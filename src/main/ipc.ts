@@ -17,6 +17,7 @@ export interface IpcContext {
   detectAgents(refresh: boolean): Promise<AgentAvailability[]>;
   getWindow(): BrowserWindow | null;
   savePrefs(prefs: Preferences): void;
+  setUnsaved(file: string | null): void;
 }
 
 type Handler<K extends CommandChannel> = (
@@ -46,8 +47,10 @@ export function registerIpc(context: IpcContext): void {
   const handle = <K extends CommandChannel>(channel: K, handler: Handler<K>) => {
     ipcMain.handle(channel, (event, ...args) => {
       // Only the app's own window may call in.
-      if (event.sender !== context.getWindow()?.webContents)
+      const window = context.getWindow();
+      if (!window || window.isDestroyed() || event.sender !== window.webContents) {
         throw new Error('Origem não autorizada');
+      }
       return handler(...(args as Parameters<IpcCommands[K]>));
     });
   };
@@ -64,6 +67,10 @@ export function registerIpc(context: IpcContext): void {
     testMode: context.testMode,
     gpuMode: context.gpuMode,
   }));
+
+  handle('app:setUnsaved', (file) =>
+    context.setUnsaved(file === null ? null : str(file, 'arquivo')),
+  );
 
   handle('prefs:get', () => context.data.prefs);
   handle('prefs:set', (patch) => {
