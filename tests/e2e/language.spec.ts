@@ -92,6 +92,50 @@ test('the language chosen in the preferences is the one of every text', async ()
   await expect(page.getByRole('button', { name: '+ New session' })).toBeVisible();
 });
 
+test('the button of the changes and the palette speak the language too, Spanish included', async () => {
+  const { page } = await open();
+  await createSession(page, 'Loja', folder);
+  const header = page.locator('.session-header');
+  await expect(header.getByRole('button', { name: 'Ver mudanças' })).toHaveAttribute(
+    'title',
+    /^Ver mudanças/,
+  );
+  await page.keyboard.press('Control+Shift+P');
+  let palette = page.getByRole('dialog', { name: 'Paleta de comandos' });
+  await expect(palette.getByRole('option', { name: /^Ver mudanças:/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.keyboard.press('Control+,');
+  await page
+    .getByRole('dialog', { name: 'Preferências' })
+    .getByLabel('Idioma da interface')
+    .selectOption('es');
+  const prefs = page.getByRole('dialog', { name: 'Preferencias' });
+  await expect(prefs.getByRole('tab')).toHaveText([
+    'General',
+    'Agentes',
+    'Atajos',
+    'Diseño',
+    'Importar y exportar',
+  ]);
+  await expect(prefs.getByLabel('Idioma de la interfaz')).toHaveValue('es');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'es');
+  await prefs.getByRole('button', { name: 'Cerrar' }).click();
+
+  await expect(page.locator('.sidebar-title')).toHaveText('Sesiones');
+  await expect(page.getByRole('button', { name: '+ Nueva sesión' })).toBeVisible();
+  await expect(header.getByRole('button', { name: 'Ver cambios' })).toHaveAttribute(
+    'title',
+    /^Ver cambios/,
+  );
+  await page.keyboard.press('Control+Shift+P');
+  palette = page.getByRole('dialog', { name: 'Paleta de comandos' });
+  await expect(palette.getByRole('option', { name: /^Ver cambios:/ })).toBeVisible();
+  await expect(palette.getByRole('option', { name: 'Ir a: Loja' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  expect((await prefsOf(page)).language).toBe('es');
+});
+
 test('the language goes out with the exported settings and comes back with them', async () => {
   let { page } = await open();
   await page.evaluate(() => window.api.invoke('prefs:set', { language: 'en' }));

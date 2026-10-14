@@ -411,9 +411,9 @@ export function App() {
             <button
               className={changesOpen && panelMode === 'changes' ? 'active' : ''}
               onClick={() => togglePanel('changes')}
-              title={hint('See changes', shortcuts.toggleChanges[0])}
+              title={hint(t('app.seeChanges'), shortcuts.toggleChanges[0])}
             >
-              See changes
+              {t('app.seeChanges')}
               {changeCount !== null && changeCount > 0 && (
                 <span className="count">{changeCount}</span>
               )}

@@ -77,7 +77,7 @@ test('one repository: the panel is what it always was', async () => {
 
   // The counter of the button is read when the state of the agent changes, which a plain
   // shell never does on Linux; opening the panel reads it for sure.
-  const button = page.getByRole('button', { name: /See changes/ });
+  const button = page.getByRole('button', { name: /Ver mudanças/ });
   await button.click();
   await expect(button.locator('.count')).toHaveText('3');
   const panel = page.getByRole('region', { name: 'Mudanças' });
@@ -114,7 +114,7 @@ test('repositories side by side: every change, under its own repository', async 
   write('loja/web/src/rotas.ts', "export const rotas = ['/pedidos'];\n");
 
   // The counter of the button adds them up.
-  const button = page.getByRole('button', { name: /See changes/ });
+  const button = page.getByRole('button', { name: /Ver mudanças/ });
   await button.click();
   await expect(button.locator('.count')).toHaveText('3');
   const panel = page.getByRole('region', { name: 'Mudanças' });
@@ -240,7 +240,9 @@ test('a repository inside another: the changes of both, not one untracked folder
   await expect(panel.locator('.changes-repo[data-repo="libs/pagamentos"]')).toContainText(
     'feature/pix',
   );
-  await expect(page.getByRole('button', { name: /See changes/ }).locator('.count')).toHaveText('3');
+  await expect(page.getByRole('button', { name: /Ver mudanças/ }).locator('.count')).toHaveText(
+    '3',
+  );
 
   await panel.locator('.change-item[data-path="libs/pagamentos/index.ts"]').click();
   const editor = page.frameLocator('[data-testid="diff-frame"]');

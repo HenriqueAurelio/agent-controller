@@ -53,7 +53,7 @@ const parts = (page: Page) => ({
 test('the layout of the preferences places the sessions, the panel and its list of files', async () => {
   let { page } = await open();
   await createSession(page, 'Layout', repo);
-  await page.locator('.session-header button[title^="See changes"]').click();
+  await page.locator('.session-header button[title^="Ver mudanças"]').click();
   let p = parts(page);
   await expect(p.text).toBeVisible();
 
@@ -104,7 +104,7 @@ test('the layout of the preferences places the sessions, the panel and its list 
   ({ page } = await open());
   p = parts(page);
   await expect(page.locator('.app')).toHaveAttribute('data-sessions', 'top');
-  await page.locator('.session-header button[title^="See changes"]').click();
+  await page.locator('.session-header button[title^="Ver mudanças"]').click();
   await expect(p.text).toBeVisible();
   await expect.poll(combined).toEqual(['top', 'right', 'bottom']);
 
@@ -120,7 +120,7 @@ test('the layout of the preferences places the sessions, the panel and its list 
 test('the editor of the panel follows the theme of the app, with nothing left white', async () => {
   const { page } = await open();
   await createSession(page, 'Tema', repo);
-  await page.locator('.session-header button[title^="See changes"]').click();
+  await page.locator('.session-header button[title^="Ver mudanças"]').click();
   const frame = page.frameLocator('[data-testid="diff-frame"]');
   await expect(frame.locator('.monaco-diff-editor')).toBeVisible();
 

@@ -16,6 +16,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'app.changeFolderHint': 'Click to change the session folder',
   'app.start': 'Start',
   'app.stop': 'Stop',
+  'app.seeChanges': 'See changes',
   'app.allFilesHint': 'All files in the folder',
   'app.codexHooksBanner':
     'Codex precise mode is off: the app hooks have not been trusted yet. The “waiting for you” notice keeps working through the window title. To turn on confirmation by hook, open a new Codex session and, on the {screen} screen, choose to trust the hooks.',
@@ -25,7 +26,7 @@ export const en: Record<keyof typeof ptBR, string> = {
     'The agent of {name} is running. Closing the session will end it, along with whatever it has started.',
   'app.closeSession.confirm': 'End and close',
 
-  'command.seeChanges': 'See changes: view the changes of the session',
+  'command.seeChanges': 'See changes: what changed in the session',
   'command.files': 'Files: view all files in the folder',
   'command.toggleHidden': 'Files: show or hide the hidden ones',
   'command.start': 'Start the agent of “{name}”',
