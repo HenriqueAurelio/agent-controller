@@ -192,7 +192,7 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
                   key={prefs.defaultFolder}
                   className="wide"
                   aria-label={t('prefs.defaultFolder')}
-                  placeholder={t('prefs.defaultFolderPlaceholder')}
+                  placeholder={t('favorites.placeholder')}
                   defaultValue={prefs.defaultFolder}
                   onBlur={(e) => set({ defaultFolder: e.target.value })}
                 />

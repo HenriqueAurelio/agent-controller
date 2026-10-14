@@ -173,7 +173,6 @@ export const en: Record<keyof typeof ptBR, string> = {
   'prefs.fontSize': 'Size',
   'prefs.scrollback': 'Lines of history per session',
   'prefs.defaultFolder': 'Starting folder of new sessions',
-  'prefs.defaultFolderPlaceholder': 'The one of the latest session',
   'prefs.showHidden':
     'Also show hidden files (the ones that start with a dot and the ones git ignores)',
   'prefs.settings': 'Settings',

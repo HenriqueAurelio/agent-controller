@@ -173,7 +173,6 @@ export const ptBR = {
   'prefs.fontSize': 'Tamanho',
   'prefs.scrollback': 'Linhas de histórico por sessão',
   'prefs.defaultFolder': 'Pasta inicial das novas sessões',
-  'prefs.defaultFolderPlaceholder': 'A da última sessão',
   'prefs.showHidden':
     'Mostrar também os arquivos ocultos (os que começam com ponto e os ignorados pelo git)',
   'prefs.settings': 'Configurações',
