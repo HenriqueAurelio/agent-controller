@@ -8,6 +8,7 @@ import {
   type SessionTransition,
 } from '@core/sessions/SessionManager';
 import { createSocketPath, HookServer } from '@core/signals/HookServer';
+import { UserError } from '@shared/i18n';
 import { DEFAULT_PREFERENCES } from '@shared/prefs';
 import type { Session, SessionState } from '@shared/session';
 import { AGENTCTL_SCRIPT, FIXTURES, removeDir, sleep, tempDir, waitFor } from './helpers';
@@ -264,6 +265,18 @@ describe('SessionManager', () => {
       expect(manager.statusOf(s.id)).toMatchObject({ state: 'erro' });
       expect(await manager.screenText(s.id)).toContain('Codex não foi encontrado no PATH.');
       expect(manager.isRunning(s.id)).toBe(false);
+    });
+
+    it('writes its notices in the language of the preferences', async () => {
+      manager.setPreferences({ ...DEFAULT_PREFERENCES, silenceSeconds: 0, language: 'en' });
+      launch = () => {
+        throw new UserError('agent.missing', { name: 'Codex', command: 'npm install -g x' });
+      };
+      const s = create('x', 'codex');
+      manager.start(s.id, SIZE);
+      const reason = 'Codex was not found on the PATH. Install it with: npm install -g x';
+      expect(manager.statusOf(s.id)).toMatchObject({ state: 'erro', detail: reason });
+      expect(await manager.screenText(s.id)).toContain(`Could not start: ${reason}`);
     });
 
     it('removing a running session ends its process', async () => {

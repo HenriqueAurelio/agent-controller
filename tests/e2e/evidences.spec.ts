@@ -1,4 +1,4 @@
-// The screens of folders, theme of the editor, layout and settings, to attach to the pull
+// The screens of folders, theme of the editor, layout, settings and language, to attach to the pull
 // request: the same scenario photographed before and after the change. They go to evidences/,
 // which git ignores. It only runs when asked:
 //
@@ -113,6 +113,83 @@ test('evidences: folders, theme of the editor, layout and settings', async () =>
       await page.locator('.session-item', { hasText: 'Loja (2)' }).waitFor();
     }
     await shot('pastas', '03-duplicar');
+  } finally {
+    await running.close();
+    for (const dir of [userData, base]) removeDir(dir);
+  }
+});
+
+test('evidences: language of the interface', async () => {
+  test.setTimeout(180_000);
+  const userData = tempDir('ac-evid-data-');
+  const base = tempDir('ac-');
+  const loja = path.join(base, 'loja');
+  fs.renameSync(makeRepo(), loja);
+  fs.writeFileSync(path.join(loja, 'editado.ts'), 'export const valor = 2;\n');
+  const exported = path.join(base, 'configuracoes.json');
+
+  const running = await launch(userData, { AGENT_CONTROLLER_TEST_PREFS_FILE: exported });
+  const { page } = running;
+  const shot = async (name: string) => {
+    fs.mkdirSync(path.join(OUT, 'idioma'), { recursive: true });
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: path.join(OUT, 'idioma', `${name}-${PHASE}.png`) });
+  };
+  // The code of before only speaks Portuguese: each step names both.
+  const say = (portuguese: string, english: string) => (AFTER ? english : portuguese);
+
+  try {
+    await createSession(page, 'Loja', loja);
+
+    // 1. Where the language is chosen: the first thing in "Geral".
+    await page.keyboard.press('Control+,');
+    await shot('01-preferencias-geral');
+    if (AFTER) {
+      await page
+        .getByRole('dialog', { name: 'Preferências' })
+        .getByLabel('Idioma da interface')
+        .selectOption('en');
+    }
+    const prefs = page.getByRole('dialog', { name: say('Preferências', 'Preferences') });
+
+    // 2. The preferences, in the language chosen.
+    await shot('02-preferencias-no-idioma');
+    await prefs.getByRole('tab', { name: say('Atalhos', 'Shortcuts') }).click();
+    await shot('03-preferencias-atalhos');
+
+    // 3. The language goes out with the exported settings.
+    await prefs.getByRole('tab', { name: say('Geral', 'General') }).click();
+    await prefs.getByRole('button', { name: say('Exportar…', 'Export…') }).click();
+    await prefs.getByRole('status').scrollIntoViewIfNeeded();
+    await shot('04-exportar');
+    await prefs.getByRole('button', { name: say('Fechar', 'Close') }).click();
+
+    // 4. The window: sessions, state, header of the session.
+    await shot('05-janela');
+
+    // 5. A new session, with a message that comes from the main process.
+    await page.getByRole('button', { name: say('+ Nova sessão', '+ New session') }).click();
+    const dialog = page.getByRole('dialog', { name: say('Nova sessão', 'New session') });
+    await dialog.getByLabel(say('Pasta', 'Folder')).fill(path.join(base, 'nao-existe'));
+    await dialog.getByRole('button', { name: say('Criar e iniciar', 'Create and start') }).click();
+    await dialog.getByRole('alert').waitFor();
+    await shot('06-nova-sessao');
+    await dialog.getByRole('button', { name: say('Cancelar', 'Cancel') }).click();
+
+    // 6. The command palette.
+    await page.keyboard.press('Control+Shift+P');
+    await shot('07-paleta-de-comandos');
+    await page.keyboard.press('Escape');
+
+    // 7. The changes panel.
+    await page.locator('.session-header button[title^="See changes"]').click();
+    await page.locator('.change-item', { hasText: 'editado.ts' }).click();
+    await page
+      .frameLocator('[data-testid="diff-frame"]')
+      .locator('.view-line', { hasText: 'valor' })
+      .first()
+      .waitFor();
+    await shot('08-painel-de-mudancas');
   } finally {
     await running.close();
     for (const dir of [userData, base]) removeDir(dir);

@@ -1,3 +1,4 @@
+import { STATUS_DETAIL } from '@shared/session';
 import type { HookMessage } from '../signals/HookServer';
 import { asRecord, BaseAdapter } from './adapter';
 import { CLAUDE_HOOK_SOURCE } from './commandLine';
@@ -40,7 +41,7 @@ export class ClaudeAdapter extends BaseAdapter {
         if (!type) break;
         this.arm();
         this.resolved();
-        this.emit('waiting', 'hook', type === 'idle' ? 'parado esperando você' : undefined);
+        this.emit('waiting', 'hook', type === 'idle' ? STATUS_DETAIL.idle : undefined);
         break;
       }
       case 'Stop':

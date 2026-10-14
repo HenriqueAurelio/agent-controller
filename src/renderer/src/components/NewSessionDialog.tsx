@@ -1,6 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import type { AgentAvailability } from '@shared/agents';
+import type { Translate } from '@shared/i18n';
 import type { AgentProfileId, SessionView } from '@shared/session';
 import { baseName, errorMessage } from '../lib/format';
+import { useT } from '../lib/i18n';
 import { store, useAppState } from '../lib/store';
 import { Dialog } from './Dialog';
 import { FolderField } from './FolderField';
@@ -12,7 +15,23 @@ interface Props {
   onCreated(session: SessionView): void;
 }
 
+/** What is wrong with an agent that is not found, or not in a version the app knows. */
+function availabilityNote(t: Translate, agent: AgentAvailability): string | null {
+  const { displayName: name, version = '' } = agent;
+  if (agent.status === 'missing') {
+    return t('agent.missing', { name, command: agent.installCommand });
+  }
+  if (agent.status === 'outdated') {
+    return t('agent.outdated', { name, version, min: agent.minVersion });
+  }
+  if (agent.status === 'newer-than-tested') {
+    return t('agent.newer', { version, tested: agent.lastTestedVersion });
+  }
+  return null;
+}
+
 export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
+  const t = useT();
   const agents = useAppState((s) => s.agents);
   const defaultFolder = useAppState((s) => s.prefs.defaultFolder);
   // With no folder asked for and none set as the initial one, the latest one used is offered.
@@ -56,20 +75,20 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
   };
 
   return (
-    <Dialog title="Nova sessão" onClose={onClose}>
+    <Dialog title={t('shortcut.newSession')} onClose={onClose}>
       <form onSubmit={submit} className="form">
         <FolderField
           value={cwd}
-          placeholder="Pasta onde o agente vai trabalhar"
+          placeholder={t('newSession.folderPlaceholder')}
           onChange={applyFolder}
         />
 
         <label className="field">
-          <span>Nome</span>
+          <span>{t('newSession.name')}</span>
           <input
-            aria-label="Nome"
+            aria-label={t('newSession.name')}
             value={name}
-            placeholder="Como a sessão aparece na barra lateral"
+            placeholder={t('newSession.namePlaceholder')}
             onChange={(e) => {
               setName(e.target.value);
               setNameEdited(true);
@@ -78,35 +97,36 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
         </label>
 
         <fieldset className="field">
-          <legend>Agente</legend>
+          <legend>{t('newSession.agent')}</legend>
           <div className="profile-options">
-            {agents.map((agent) => (
-              <label
-                key={agent.profile}
-                className={`profile-option ${chosen === agent.profile ? 'chosen' : ''} ${agent.usable ? '' : 'disabled'}`}
-              >
-                <input
-                  type="radio"
-                  name="profile"
-                  value={agent.profile}
-                  disabled={!agent.usable}
-                  checked={chosen === agent.profile}
-                  onChange={() => setProfile(agent.profile)}
-                />
-                <span className="profile-name">
-                  {agent.displayName}
-                  {agent.version && <span className="profile-version"> {agent.version}</span>}
-                </span>
-                {agent.message && (
-                  <span className={`profile-note ${agent.usable ? 'warning' : 'blocking'}`}>
-                    {agent.message}
+            {agents.map((agent) => {
+              const note = availabilityNote(t, agent);
+              return (
+                <label
+                  key={agent.profile}
+                  className={`profile-option ${chosen === agent.profile ? 'chosen' : ''} ${agent.usable ? '' : 'disabled'}`}
+                >
+                  <input
+                    type="radio"
+                    name="profile"
+                    value={agent.profile}
+                    disabled={!agent.usable}
+                    checked={chosen === agent.profile}
+                    onChange={() => setProfile(agent.profile)}
+                  />
+                  <span className="profile-name">
+                    {agent.displayName}
+                    {agent.version && <span className="profile-version"> {agent.version}</span>}
                   </span>
-                )}
-              </label>
-            ))}
-            {agents.length === 0 && (
-              <span className="muted">Procurando os agentes instalados…</span>
-            )}
+                  {note && (
+                    <span className={`profile-note ${agent.usable ? 'warning' : 'blocking'}`}>
+                      {note}
+                    </span>
+                  )}
+                </label>
+              );
+            })}
+            {agents.length === 0 && <span className="muted">{t('newSession.detecting')}</span>}
           </div>
         </fieldset>
 
@@ -118,10 +138,10 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
 
         <div className="dialog-actions">
           <button type="button" onClick={onClose}>
-            Cancelar
+            {t('common.cancel')}
           </button>
           <button type="submit" className="primary" disabled={!chosen || !cwd.trim() || busy}>
-            Criar e iniciar
+            {t('newSession.submit')}
           </button>
         </div>
       </form>

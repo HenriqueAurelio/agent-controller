@@ -1,9 +1,12 @@
+import { DEFAULT_LANGUAGE, sanitizeLanguage, type Language } from './i18n';
 import { DEFAULT_LAYOUT, sanitizeLayout, type Layout } from './layout';
 import { DEFAULT_SHORTCUTS, sanitizeShortcuts, type ShortcutMap } from './shortcuts';
 
 export type ThemeName = 'dark' | 'light';
 
 export interface Preferences {
+  /** The language of every text the app shows. */
+  language: Language;
   theme: ThemeName;
   fontFamily: string;
   fontSize: number;
@@ -25,6 +28,7 @@ export interface Preferences {
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
+  language: DEFAULT_LANGUAGE,
   theme: 'dark',
   fontFamily: 'Cascadia Mono, Consolas, "DejaVu Sans Mono", monospace',
   fontSize: 13,
@@ -73,6 +77,7 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
       ? Math.min(max, Math.max(min, Math.round(n)))
       : fallback;
   return {
+    language: sanitizeLanguage(p.language),
     theme: p.theme === 'light' ? 'light' : 'dark',
     fontFamily:
       typeof p.fontFamily === 'string' && p.fontFamily.trim()

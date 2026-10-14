@@ -4,6 +4,7 @@ import {
   PREFS_FILE_VERSION,
   serializePreferences,
 } from '@core/store/prefsFile';
+import { errorText } from '@shared/i18n';
 import {
   DEFAULT_PREFERENCES,
   FAVORITE_FOLDERS_LIMIT,
@@ -45,6 +46,7 @@ describe('favorite folders', () => {
 describe('preferences file', () => {
   const chosen: Preferences = sanitizePreferences({
     ...DEFAULT_PREFERENCES,
+    language: 'en',
     theme: 'light',
     fontSize: 16,
     defaultFolder: '/src',
@@ -63,16 +65,38 @@ describe('preferences file', () => {
   it('fills what the file does not say, and fixes what it says wrongly, with the defaults', () => {
     const file = JSON.parse(serializePreferences(chosen));
     delete file.prefs.layout;
+    file.prefs.language = 'klingon';
     file.prefs.fontSize = 'grande';
     file.prefs.favoriteFolders = ['/src/api', 3];
     file.prefs.extra = { anything: true };
     const read = parsePreferencesFile(JSON.stringify(file));
     expect(read).toEqual({
       ...chosen,
+      language: DEFAULT_PREFERENCES.language,
       layout: DEFAULT_PREFERENCES.layout,
       fontSize: DEFAULT_PREFERENCES.fontSize,
       favoriteFolders: ['/src/api'],
     });
+  });
+
+  it('carries the language, and a file from before it existed gets the default one', () => {
+    const file = JSON.parse(serializePreferences(chosen));
+    expect(file.prefs.language).toBe('en');
+    expect(parsePreferencesFile(JSON.stringify(file)).language).toBe('en');
+    delete file.prefs.language;
+    expect(parsePreferencesFile(JSON.stringify(file)).language).toBe(DEFAULT_PREFERENCES.language);
+  });
+
+  it('says why a file was refused in the language of the app', () => {
+    const refusal = (() => {
+      try {
+        return parsePreferencesFile('[]');
+      } catch (err) {
+        return err;
+      }
+    })();
+    expect(errorText('pt-BR', refusal)).toMatch(/não é uma exportação/);
+    expect(errorText('en', refusal)).toMatch(/not an Agent Controller settings export/);
   });
 
   it('refuses what is not a file of preferences', () => {

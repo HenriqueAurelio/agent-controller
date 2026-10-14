@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import type { SessionView } from '@shared/session';
 import { errorMessage } from '../lib/format';
+import { rich, useT } from '../lib/i18n';
 import { Dialog } from './Dialog';
 import { FolderField } from './FolderField';
 
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function ChangeFolderDialog({ session, onClose, onChanged }: Props) {
+  const t = useT();
   const [cwd, setCwd] = useState(session.cwd);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -30,14 +32,12 @@ export function ChangeFolderDialog({ session, onClose, onChanged }: Props) {
   };
 
   return (
-    <Dialog title="Trocar pasta" onClose={onClose}>
+    <Dialog title={t('changeFolder.title')} onClose={onClose}>
       <form onSubmit={submit} className="form">
-        <FolderField value={cwd} onChange={setCwd} placeholder="Nova pasta da sessão" />
+        <FolderField value={cwd} onChange={setCwd} placeholder={t('changeFolder.placeholder')} />
         {session.running && (
           <p className="form-note">
-            O agente de <strong>{session.name}</strong> está rodando. Trocar a pasta vai encerrá-lo,
-            junto com o que ele tiver iniciado, e abri-lo de novo na nova pasta: a conversa atual
-            não continua.
+            {rich(t('changeFolder.running'), { name: <strong>{session.name}</strong> })}
           </p>
         )}
         {error && (
@@ -47,14 +47,14 @@ export function ChangeFolderDialog({ session, onClose, onChanged }: Props) {
         )}
         <div className="dialog-actions">
           <button type="button" onClick={onClose}>
-            Cancelar
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
             className={session.running ? 'danger' : 'primary'}
             disabled={!cwd.trim() || cwd.trim() === session.cwd || busy}
           >
-            {session.running ? 'Encerrar e trocar' : 'Trocar pasta'}
+            {session.running ? t('changeFolder.confirmRunning') : t('changeFolder.title')}
           </button>
         </div>
       </form>

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DiffBase, FileDiff, SideContent } from '@shared/git';
+import type { Translate } from '@shared/i18n';
 import type { ThemeName } from '@shared/prefs';
 import type { FrameMessage, ParentMessage } from '../lib/diffProtocol';
 import { errorMessage, formatBytes } from '../lib/format';
+import { useT } from '../lib/i18n';
 import { useAppState } from '../lib/store';
 
 interface Props {
@@ -20,10 +22,9 @@ interface Props {
   onDirtyChange(dirty: boolean): void;
 }
 
-function unavailable(side: SideContent): string | null {
-  if (side.kind === 'binary') return `Arquivo binário (${formatBytes(side.size)})`;
-  if (side.kind === 'too-large')
-    return `Arquivo grande demais para comparar (${formatBytes(side.size)})`;
+function unavailable(t: Translate, side: SideContent): string | null {
+  if (side.kind === 'binary') return t('diff.binary', { size: formatBytes(side.size) });
+  if (side.kind === 'too-large') return t('diff.tooLarge', { size: formatBytes(side.size) });
   return null;
 }
 
@@ -46,6 +47,7 @@ export function DiffView({
   plain,
   onDirtyChange,
 }: Props) {
+  const t = useT();
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [diff, setDiff] = useState<FileDiff | null>(null);
@@ -125,7 +127,7 @@ export function DiffView({
     if (ready) send({ type: 'shortcuts', bindings: Object.values(shortcuts).flat() });
   }, [ready, shortcuts, send]);
 
-  const blocked = diff ? (unavailable(diff.modified) ?? unavailable(diff.original)) : null;
+  const blocked = diff ? (unavailable(t, diff.modified) ?? unavailable(t, diff.original)) : null;
   const removed = diff?.modified.kind === 'missing';
 
   useEffect(() => {
@@ -159,14 +161,14 @@ export function DiffView({
             {path}
           </span>
           {diff.original.kind === 'missing' && !plain && (
-            <span className="diff-note">Arquivo novo</span>
+            <span className="diff-note">{t('diff.new')}</span>
           )}
-          {removed && <span className="diff-note">Arquivo removido</span>}
-          {dirty && <span className="diff-note unsaved">Edições não salvas</span>}
+          {removed && <span className="diff-note">{t('diff.removed')}</span>}
+          {dirty && <span className="diff-note unsaved">{t('diff.unsaved')}</span>}
           <span className="spacer" />
           {dirty && (
-            <button onClick={discard} title="Voltar ao que está no disco">
-              Descartar edições
+            <button onClick={discard} title={t('diff.discardHint')}>
+              {t('diff.discard')}
             </button>
           )}
           {!removed && (
@@ -174,31 +176,28 @@ export function DiffView({
               className="primary"
               disabled={!dirty}
               onClick={() => send({ type: 'request-save', overwrite: false })}
-              title="Salvar no arquivo (Ctrl+S)"
+              title={t('diff.saveHint')}
             >
-              Salvar
+              {t('diff.save')}
             </button>
           )}
         </div>
       )}
       {conflict && (
         <div className="diff-conflict" role="alert">
-          <span>
-            O arquivo mudou no disco desde que você começou a editar (o agente pode ter escrito
-            nele). Nada foi salvo.
-          </span>
-          <button onClick={discard}>Recarregar do disco</button>
+          <span>{t('diff.conflict')}</span>
+          <button onClick={discard}>{t('diff.reload')}</button>
           <button
             className="danger"
             onClick={() => send({ type: 'request-save', overwrite: true })}
           >
-            Sobrescrever com a minha versão
+            {t('diff.overwrite')}
           </button>
         </div>
       )}
       {saveError && (
         <div className="diff-conflict" role="alert">
-          Não foi possível salvar: {saveError}
+          {t('diff.saveError', { error: saveError })}
         </div>
       )}
       {error && <div className="panel-message error">{error}</div>}
@@ -206,7 +205,7 @@ export function DiffView({
       <iframe
         ref={frameRef}
         src={frameSrc}
-        title="Comparação do arquivo"
+        title={t('diff.frameTitle')}
         className="diff-editor"
         data-testid="diff-frame"
         style={{ visibility: error || blocked || !ready ? 'hidden' : 'visible' }}

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { translate } from '@shared/i18n';
 import { DEFAULT_PREFERENCES, sanitizePreferences } from '@shared/prefs';
 import {
   assignBinding,
@@ -40,12 +41,16 @@ describe('bindingFromEvent', () => {
 
 describe('which bindings are accepted', () => {
   it('refuses what would take keys from typing, from the terminal or from the editor', () => {
-    expect(bindingProblem('A')).toMatch(/Ctrl, Alt/);
-    expect(bindingProblem('Shift+A')).toMatch(/Ctrl, Alt/);
-    expect(bindingProblem('Ctrl+C')).toMatch(/terminal/);
-    expect(bindingProblem('Ctrl+S')).toMatch(/editor/);
-    expect(bindingProblem('F12')).not.toBeNull();
-    expect(bindingProblem('Ctrl+3')).toMatch(/sessão 3/);
+    const problem = (binding: string) => {
+      const message = bindingProblem(binding);
+      return message && translate('pt-BR', message.key, message.params);
+    };
+    expect(problem('A')).toMatch(/Ctrl, Alt/);
+    expect(problem('Shift+A')).toMatch(/Ctrl, Alt/);
+    expect(problem('Ctrl+C')).toMatch(/terminal/);
+    expect(problem('Ctrl+S')).toMatch(/editor/);
+    expect(problem('F12')).not.toBeNull();
+    expect(problem('Ctrl+3')).toMatch(/sessão 3/);
   });
 
   it('accepts a modifier with a key, and function keys alone', () => {

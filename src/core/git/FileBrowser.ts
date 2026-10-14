@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { FileEntry, FileListing } from '@shared/git';
+import { UserError } from '@shared/i18n';
 import { ignoredPaths } from './GitService';
 
 /** A folder with more entries than this is cut short: the tree is for browsing, not for dumps. */
@@ -32,13 +33,13 @@ export async function listDirectory(
   options: ListOptions,
 ): Promise<FileListing> {
   const absolute = path.resolve(root, dir);
-  if (!inside(root, absolute)) throw new Error('A pasta está fora da sessão');
+  if (!inside(root, absolute)) throw new UserError('error.files.outside');
   // A link in the middle of the path could still lead somewhere else.
   const [realRoot, realDir] = await Promise.all([
     fs.promises.realpath(root),
     fs.promises.realpath(absolute),
   ]);
-  if (!inside(realRoot, realDir)) throw new Error('A pasta está fora da sessão');
+  if (!inside(realRoot, realDir)) throw new UserError('error.files.outside');
 
   const prefix = path.relative(root, absolute).split(path.sep).filter(Boolean).join('/');
   const dirents = await fs.promises.readdir(absolute, { withFileTypes: true });

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { isHorizontal } from '@shared/layout';
 import { statusLabel, type SessionView } from '@shared/session';
-import { formatCpu, formatMemory, PROFILE_LABEL } from '../lib/format';
+import { formatCpu, formatMemory, hint, PROFILE_LABEL } from '../lib/format';
+import { useT } from '../lib/i18n';
 import { store, useAppState } from '../lib/store';
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
 }
 
 function RenameInput({ session, onEnd }: { session: SessionView; onEnd(): void }) {
+  const t = useT();
   const [value, setValue] = useState(session.name);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => ref.current?.select(), []);
@@ -25,7 +27,7 @@ function RenameInput({ session, onEnd }: { session: SessionView; onEnd(): void }
     <input
       ref={ref}
       className="rename-input"
-      aria-label="Nome da sessão"
+      aria-label={t('sidebar.sessionName')}
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onBlur={commit}
@@ -43,7 +45,8 @@ export function Sidebar({ onNew, onPreferences, onClose, onDuplicate, onDone }: 
   const sessions = useAppState((s) => s.sessions);
   const selectedId = useAppState((s) => s.selectedId);
   const metrics = useAppState((s) => s.metrics);
-  const preferences = useAppState((s) => s.prefs.shortcuts.preferences[0]);
+  const t = useT();
+  const shortcuts = useAppState((s) => s.prefs.shortcuts);
   // On top or at the bottom the list runs sideways, and so do the arrows.
   const horizontal = useAppState((s) => isHorizontal(s.prefs.layout.sessions));
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -106,21 +109,21 @@ export function Sidebar({ onNew, onPreferences, onClose, onDuplicate, onDone }: 
   };
 
   return (
-    <aside className="sidebar" aria-label="Sessões">
+    <aside className="sidebar" aria-label={t('common.sessions')}>
       <div className="sidebar-header">
-        <span className="sidebar-title">Sessões</span>
+        <span className="sidebar-title">{t('common.sessions')}</span>
         <button
           className="icon-button"
-          title={preferences ? `Preferências (${preferences})` : 'Preferências'}
+          title={hint(t('shortcut.preferences'), shortcuts.preferences[0])}
           onClick={onPreferences}
         >
           ⚙
         </button>
       </div>
-      <ul className="session-list" role="listbox" aria-label="Lista de sessões">
+      <ul className="session-list" role="listbox" aria-label={t('sidebar.list')}>
         {sessions.map((session, index) => {
           const m = session.running ? metrics[session.id] : undefined;
-          const label = statusLabel(session.status);
+          const label = statusLabel(t, session.status);
           return (
             <li
               key={session.id}
@@ -190,17 +193,17 @@ export function Sidebar({ onNew, onPreferences, onClose, onDuplicate, onDone }: 
                 {m && (
                   <span
                     className={`session-metrics ${showHeaviest && heaviest === session.id ? 'heaviest' : ''}`}
-                    title={`${m.processes} processo(s) na árvore da sessão`}
+                    title={t('sidebar.processes', { count: m.processes })}
                   >
                     CPU {formatCpu(m.cpu)} · RAM {formatMemory(m.memory)}
                   </span>
                 )}
               </div>
-              {session.unread && <span className="badge" aria-label="Tem novidade" />}
+              {session.unread && <span className="badge" aria-label={t('sidebar.unread')} />}
               <button
                 className="icon-button item-button"
-                title="Duplicar: outra sessão na mesma pasta"
-                aria-label={`Duplicar ${session.name}`}
+                title={t('sidebar.duplicateHint')}
+                aria-label={t('sidebar.duplicate', { name: session.name })}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDuplicate(session);
@@ -210,8 +213,8 @@ export function Sidebar({ onNew, onPreferences, onClose, onDuplicate, onDone }: 
               </button>
               <button
                 className="icon-button item-button close-button"
-                title="Fechar sessão"
-                aria-label={`Fechar ${session.name}`}
+                title={t('app.closeSession.title')}
+                aria-label={t('sidebar.close', { name: session.name })}
                 onClick={(e) => {
                   e.stopPropagation();
                   onClose(session);
@@ -223,8 +226,12 @@ export function Sidebar({ onNew, onPreferences, onClose, onDuplicate, onDone }: 
           );
         })}
       </ul>
-      <button className="new-session-button" onClick={onNew} title="Nova sessão (Ctrl+Shift+N)">
-        + Nova sessão
+      <button
+        className="new-session-button"
+        onClick={onNew}
+        title={hint(t('shortcut.newSession'), shortcuts.newSession[0])}
+      >
+        {t('sidebar.new')}
       </button>
     </aside>
   );

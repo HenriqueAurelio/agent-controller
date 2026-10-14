@@ -1,3 +1,4 @@
+import { UserError } from '@shared/i18n';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
 
 const KIND = 'agent-controller/preferences';
@@ -10,25 +11,24 @@ export function serializePreferences(prefs: Preferences): string {
 }
 
 /**
- * Reads a file written by `serializePreferences`. Throws with a message for the user when it is
- * not one. What the file does not say, or says wrongly, comes out as the default.
+ * Reads a file written by `serializePreferences`. Throws a `UserError` when it is not one. What the file does not say, or says wrongly, comes out as the default.
  */
 export function parsePreferencesFile(text: string): Preferences {
   let data: unknown;
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('O arquivo não é um JSON válido.');
+    throw new UserError('error.prefs.notJson');
   }
   const file = data as { kind?: unknown; version?: unknown; prefs?: unknown } | null;
   if (!file || typeof file !== 'object' || file.kind !== KIND) {
-    throw new Error('O arquivo não é uma exportação de configurações do Agent Controller.');
+    throw new UserError('error.prefs.notExport');
   }
   if (typeof file.version !== 'number' || file.version > PREFS_FILE_VERSION) {
-    throw new Error('O arquivo veio de uma versão mais nova do app. Atualize o app para importar.');
+    throw new UserError('error.prefs.newer');
   }
   if (!file.prefs || typeof file.prefs !== 'object' || Array.isArray(file.prefs)) {
-    throw new Error('O arquivo não tem configurações.');
+    throw new UserError('error.prefs.empty');
   }
   return sanitizePreferences(file.prefs as Partial<Preferences>);
 }

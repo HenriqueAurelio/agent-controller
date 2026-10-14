@@ -1,5 +1,6 @@
+import { translator } from '@shared/i18n';
 import type { Preferences } from '@shared/prefs';
-import { statusLabel, type SessionStatus, type SessionView } from '@shared/session';
+import { statusDetail, statusLabel, type SessionStatus, type SessionView } from '@shared/session';
 
 export interface NotificationRequest {
   sessionId: string;
@@ -48,14 +49,16 @@ export class NotificationPolicy {
     if (last && last.kind === kind && now - last.at < this.repeatWindowMs) return null;
     this.last.set(session.id, { kind, at: now });
 
+    const t = translator(context.prefs.language);
+    const detail = statusDetail(t, session.status.detail);
     return {
       sessionId: session.id,
       kind,
       title: session.name,
       body:
         kind === 'done'
-          ? 'O agente terminou.'
-          : `${statusLabel(session.status)}${session.status.detail ? `: ${session.status.detail}` : '.'}`,
+          ? t('notification.done')
+          : `${statusLabel(t, session.status)}${detail ? `: ${detail}` : '.'}`,
       silent: !context.prefs.notifySound,
     };
   }

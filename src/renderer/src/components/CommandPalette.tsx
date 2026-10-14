@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useT } from '../lib/i18n';
 import { Dialog } from './Dialog';
 
 export interface Command {
@@ -9,6 +10,7 @@ export interface Command {
 }
 
 export function CommandPalette({ commands, onClose }: { commands: Command[]; onClose(): void }) {
+  const t = useT();
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
 
@@ -25,11 +27,11 @@ export function CommandPalette({ commands, onClose }: { commands: Command[]; onC
   };
 
   return (
-    <Dialog title="Paleta de comandos" onClose={onClose} className="palette">
+    <Dialog title={t('shortcut.palette')} onClose={onClose} className="palette">
       <input
         data-autofocus
-        aria-label="Comando"
-        placeholder="Digite um comando…"
+        aria-label={t('palette.input')}
+        placeholder={t('palette.placeholder')}
         value={query}
         onChange={(e) => {
           setQuery(e.target.value);
@@ -62,7 +64,7 @@ export function CommandPalette({ commands, onClose }: { commands: Command[]; onC
             {command.shortcut && <kbd>{command.shortcut}</kbd>}
           </li>
         ))}
-        {matches.length === 0 && <li className="muted">Nenhum comando encontrado</li>}
+        {matches.length === 0 && <li className="muted">{t('palette.empty')}</li>}
       </ul>
     </Dialog>
   );

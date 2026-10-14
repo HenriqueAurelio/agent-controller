@@ -417,7 +417,8 @@ test.describe('see changes', () => {
 
     await page.getByRole('button', { name: /See changes/ }).click();
     const panel = page.getByRole('region', { name: 'Mudanças' });
-    await expect(panel.getByText('Editável')).toBeVisible();
+    // Not `toBeVisible`: a narrow panel, as on a small screen, hides the tag to keep one line.
+    await expect(panel.locator('.readonly-tag')).toHaveText('Editável');
     await expect(panel.locator('.changes-header .count')).toHaveText('5');
     await expect
       .poll(() => changes(page))

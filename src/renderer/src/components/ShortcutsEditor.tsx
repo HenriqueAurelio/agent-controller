@@ -6,10 +6,10 @@ import {
   DEFAULT_SHORTCUTS,
   MAX_BINDINGS_PER_ACTION,
   SHORTCUT_ACTIONS,
-  SHORTCUT_LABEL,
   type ShortcutAction,
   type ShortcutMap,
 } from '@shared/shortcuts';
+import { useT } from '../lib/i18n';
 import { shortcutRecording } from '../lib/shortcuts';
 
 interface Props {
@@ -19,6 +19,7 @@ interface Props {
 
 /** The shortcuts of the app, each one changed by pressing the keys it should have. */
 export function ShortcutsEditor({ shortcuts, onChange }: Props) {
+  const t = useT();
   const [recording, setRecording] = useState<ShortcutAction | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
@@ -42,76 +43,79 @@ export function ShortcutsEditor({ shortcuts, onChange }: Props) {
     }
     const problem = bindingProblem(binding);
     if (problem) {
-      setNote(problem);
+      setNote(t(problem.key, problem.params));
       return;
     }
     const { map, takenFrom } = assignBinding(shortcuts, action, binding);
     onChange(map);
     setRecording(null);
     setNote(
-      takenFrom ? `${binding} estava em “${SHORTCUT_LABEL[takenFrom]}” e passou para cá.` : null,
+      takenFrom ? t('shortcuts.moved', { binding, action: t(`shortcut.${takenFrom}`) }) : null,
     );
   };
 
   return (
-    <fieldset className="field shortcuts" aria-label="Atalhos">
+    <fieldset className="field shortcuts" aria-label={t('shortcuts.title')}>
       <ul className="shortcut-list">
-        {SHORTCUT_ACTIONS.map((action) => (
-          <li key={action} data-action={action}>
-            <span className="shortcut-label">{SHORTCUT_LABEL[action]}</span>
-            <span className="shortcut-keys">
-              {shortcuts[action].map((binding) => (
-                <kbd key={binding}>
-                  {binding}
+        {SHORTCUT_ACTIONS.map((action) => {
+          const label = t(`shortcut.${action}`);
+          return (
+            <li key={action} data-action={action}>
+              <span className="shortcut-label">{label}</span>
+              <span className="shortcut-keys">
+                {shortcuts[action].map((binding) => (
+                  <kbd key={binding}>
+                    {binding}
+                    <button
+                      className="shortcut-remove"
+                      aria-label={t('shortcuts.removeFrom', { binding, action: label })}
+                      title={t('common.remove')}
+                      onClick={() =>
+                        onChange({
+                          ...shortcuts,
+                          [action]: shortcuts[action].filter((b) => b !== binding),
+                        })
+                      }
+                    >
+                      ×
+                    </button>
+                  </kbd>
+                ))}
+                {shortcuts[action].length === 0 && recording !== action && (
+                  <span className="muted">{t('shortcuts.none')}</span>
+                )}
+                {recording === action ? (
                   <button
-                    className="shortcut-remove"
-                    aria-label={`Remover ${binding} de ${SHORTCUT_LABEL[action]}`}
-                    title="Remover"
-                    onClick={() =>
-                      onChange({
-                        ...shortcuts,
-                        [action]: shortcuts[action].filter((b) => b !== binding),
-                      })
-                    }
+                    className="active"
+                    autoFocus
+                    aria-label={t('shortcuts.pressFor', { action: label })}
+                    onKeyDown={(e) => record(action, e)}
+                    onBlur={() => setRecording(null)}
                   >
-                    ×
+                    {t('shortcuts.press')}
                   </button>
-                </kbd>
-              ))}
-              {shortcuts[action].length === 0 && recording !== action && (
-                <span className="muted">sem atalho</span>
-              )}
-              {recording === action ? (
-                <button
-                  className="active"
-                  autoFocus
-                  aria-label={`Pressione as teclas para ${SHORTCUT_LABEL[action]}`}
-                  onKeyDown={(e) => record(action, e)}
-                  onBlur={() => setRecording(null)}
-                >
-                  Pressione as teclas… (Esc cancela)
-                </button>
-              ) : (
-                <button
-                  aria-label={`Adicionar atalho para ${SHORTCUT_LABEL[action]}`}
-                  title="Adicionar um atalho"
-                  disabled={shortcuts[action].length >= MAX_BINDINGS_PER_ACTION}
-                  onClick={() => {
-                    setNote(null);
-                    setRecording(action);
-                  }}
-                >
-                  +
-                </button>
-              )}
-            </span>
-          </li>
-        ))}
+                ) : (
+                  <button
+                    aria-label={t('shortcuts.addFor', { action: label })}
+                    title={t('shortcuts.add')}
+                    disabled={shortcuts[action].length >= MAX_BINDINGS_PER_ACTION}
+                    onClick={() => {
+                      setNote(null);
+                      setRecording(action);
+                    }}
+                  >
+                    +
+                  </button>
+                )}
+              </span>
+            </li>
+          );
+        })}
         <li>
-          <span className="shortcut-label">Ir para a sessão N</span>
+          <span className="shortcut-label">{t('shortcuts.goToN')}</span>
           <span className="shortcut-keys">
             <kbd>Ctrl+1</kbd>…<kbd>Ctrl+9</kbd>
-            <span className="muted">fixo</span>
+            <span className="muted">{t('shortcuts.fixed')}</span>
           </span>
         </li>
       </ul>
@@ -122,10 +126,10 @@ export function ShortcutsEditor({ shortcuts, onChange }: Props) {
         <button
           onClick={() => {
             onChange(DEFAULT_SHORTCUTS);
-            setNote('Atalhos de volta ao padrão.');
+            setNote(t('shortcuts.restored'));
           }}
         >
-          Restaurar padrões
+          {t('shortcuts.restore')}
         </button>
       </div>
     </fieldset>

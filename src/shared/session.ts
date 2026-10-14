@@ -1,3 +1,5 @@
+import type { Translate } from './i18n';
+
 export type AgentProfileId = 'claude-code' | 'codex';
 
 export const AGENT_PROFILE_IDS: readonly AgentProfileId[] = ['claude-code', 'codex'];
@@ -61,18 +63,26 @@ export interface TerminalSize {
   rows: number;
 }
 
-export const STATE_LABEL: Record<SessionState, string> = {
-  parada: 'Parada',
-  iniciando: 'Iniciando',
-  trabalhando: 'Trabalhando',
-  aguardando: 'Aguardando você',
-  terminou: 'Terminou',
-  erro: 'Erro',
-};
+/**
+ * Details the app words itself. They travel as a code, since who emits them does not know the
+ * language; any other detail (a tool name, an error) is shown as it came.
+ */
+export const STATUS_DETAIL = {
+  ready: '@ready',
+  idle: '@idle',
+  unconfirmed: '@unconfirmed',
+} as const;
 
-export function statusLabel(status: SessionStatus): string {
-  const label = STATE_LABEL[status.state];
-  return status.confirmed ? label : `Possivelmente ${label.toLowerCase()}`;
+export function statusLabel(t: Translate, status: SessionStatus): string {
+  const label = t(`state.${status.state}`);
+  return status.confirmed ? label : t('state.possibly', { state: label.toLowerCase() });
+}
+
+export function statusDetail(t: Translate, detail: string | undefined): string | undefined {
+  if (detail === STATUS_DETAIL.ready) return t('detail.ready');
+  if (detail === STATUS_DETAIL.idle) return t('detail.idle');
+  if (detail === STATUS_DETAIL.unconfirmed) return t('detail.unconfirmed');
+  return detail;
 }
 
 export function initialStatus(at = 0): SessionStatus {

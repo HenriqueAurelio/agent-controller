@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { ChangeKind, FileChange, FileDiff, SideContent } from '@shared/git';
+import { UserError } from '@shared/i18n';
 
 /** `git status --porcelain=v2` and `--no-optional-locks` both exist since 2.15. */
 export const MIN_GIT_VERSION = '2.15.0';
@@ -223,11 +224,11 @@ export async function saveWorkingTreeFile(
   const absolute = path.resolve(root, file);
   const relative = path.relative(root, absolute);
   if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
-    throw new Error('O arquivo está fora do repositório');
+    throw new UserError('error.save.outside');
   }
   // The repository may be the root, or a folder anywhere below it.
   if (relative.split(path.sep).some((part) => part.toLowerCase() === '.git')) {
-    throw new Error('Arquivos internos do git não podem ser editados');
+    throw new UserError('error.save.gitInternal');
   }
   let stat: fs.Stats | null = null;
   try {
@@ -235,9 +236,9 @@ export async function saveWorkingTreeFile(
   } catch {
     // The file was removed in the meantime; saving brings it back, if that is what was asked.
   }
-  if (stat && !stat.isFile()) throw new Error('Só arquivos comuns podem ser editados');
+  if (stat && !stat.isFile()) throw new UserError('error.save.notFile');
   if (Buffer.byteLength(content, 'utf8') > MAX_TEXT_BYTES) {
-    throw new Error('O arquivo ficou grande demais para ser salvo pelo painel');
+    throw new UserError('error.save.tooLarge');
   }
   if (expected !== null) {
     const current = stat ? await fs.promises.readFile(absolute, 'utf8') : null;

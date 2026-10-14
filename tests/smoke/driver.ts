@@ -115,7 +115,7 @@ export class AgentDriver {
     const profile = getProfile(this.profileId);
     const availability = await detectAgent(profile);
     if (!availability.usable || !availability.path) {
-      this.log(`não instalado: ${availability.message}`);
+      this.log(`não instalado: ${availability.installCommand}`);
       return false;
     }
     this.version = availability.version ?? 'desconhecida';

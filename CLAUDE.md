@@ -51,7 +51,7 @@ src/
   main/      processo principal do Electron: janela, notificações, IPC
   preload/   a única API exposta à interface
   renderer/  React: barra lateral, terminal, painel de mudanças
-  shared/    tipos e contrato de IPC
+  shared/    tipos, contrato de IPC e textos da interface em cada idioma (i18n/)
 ```
 
 - `src/core` não importa Electron nem nada de `main`, `renderer` ou `preload`.
@@ -87,7 +87,8 @@ npm run build && npm run test:e2e     # interface (Playwright), com um shell no 
 
 ## Convenções
 
-- Textos da interface, mensagens de erro, commits e documentação em **português**; comentários e nomes no código em **inglês**.
+- Commits e documentação em **português**; comentários e nomes no código em **inglês**.
+- Nenhum texto que o usuário lê fica escrito no código: ele é uma chave de `src/shared/i18n`, com o texto em **todos** os idiomas (`pt-BR.ts` é a referência; `tests/core/i18n.test.ts` cobra que os outros tenham as mesmas chaves e os mesmos `{valores}`). Na interface, `useT()`; no main, `translate` com o idioma das preferências. O core não sabe o idioma: lança `UserError` com a chave, e o texto é montado na borda do IPC.
 - Comentário explica o porquê, não o que a linha faz.
 - Comportamento novo vem com teste: core em `tests/core`, interface em `tests/e2e`.
 - Mudou o que o usuário vê ou faz? Atualize o `README.md` no mesmo PR.
