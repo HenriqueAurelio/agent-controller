@@ -9,6 +9,7 @@ App Electron que roda sessões de Claude Code e Codex em uma janela só. O que o
 - Nada vai direto para a `main`: nem commit, nem push, nem correção pequena.
 - Trabalhe em uma branch, abra o PR contra a `main` e só faça o merge com o CI verde.
 - Não faça commit nem push sem que o usuário peça.
+- PR aberto e CI verde: faça o merge sem perguntar. Com o CI vermelho, nunca.
 
 ### 2. Todo PR leva evidências
 
