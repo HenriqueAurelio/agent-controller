@@ -6,6 +6,7 @@ import {
   launch,
   removeDir,
   runInTerminal,
+  stop,
   tempDir,
   type RunningApp,
 } from './harness';
@@ -142,7 +143,7 @@ test('a session changes folder, and a running agent is opened again in the new o
   await expect(header).toHaveText(first);
 
   // Stopped: nothing to end, the folder just changes.
-  await page.getByRole('button', { name: 'Parar', exact: true }).click();
+  await stop(page, 'Móvel');
   await expect(item).toHaveAttribute('data-state', 'parada');
   await header.click();
   await expect(dialog.getByText('está rodando')).toBeHidden();
@@ -152,7 +153,9 @@ test('a session changes folder, and a running agent is opened again in the new o
   await expect(header).toHaveText(second);
   await expect(item).toHaveAttribute('data-state', 'parada');
 
-  await page.getByRole('button', { name: 'Iniciar', exact: true }).click();
+  // Enter in the terminal of a stopped session starts it again.
+  await page.locator('.terminal-host.visible').click();
+  await page.keyboard.press('Enter');
   await expect(item).not.toHaveAttribute('data-state', 'parada');
   await runInTerminal(page, id, PWD, `aqui=[${second}]`);
 

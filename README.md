@@ -53,6 +53,7 @@ Outros caminhos para o mesmo lugar:
 - **Arrastar uma pasta** do gerenciador de arquivos para a janela abre **Nova sessão** já com ela preenchida. Um arquivo solto vale pela pasta em que está.
 - **Duplicar** (o botão **⧉** na sessão, ou a paleta de comandos) abre outra sessão na mesma pasta, com o mesmo agente.
 - **Trocar a pasta** de uma sessão que já existe: clique no caminho no topo da sessão, ou use a paleta de comandos. O agente trabalha na pasta em que foi aberto; se estiver rodando, o app avisa, encerra e abre de novo na nova pasta, e a conversa em andamento não continua.
+- **Parar e iniciar o agente** não tem botão: abrir uma sessão parada inicia o agente dela, e um agente que saiu com a sessão aberta inicia de novo com **Enter** no terminal. Para parar sem fechar a sessão, use "parar o agente" na paleta de comandos, ou peça ao próprio agente que saia (`/exit`).
 
 ### Comando do agente
 
@@ -76,7 +77,7 @@ A bolinha ao lado do nome da sessão mostra o estado:
 
 | Estado | Significa |
 |---|---|
-| **Parada** | O agente não está rodando. Sessões restauradas voltam assim; clique em **Iniciar** |
+| **Parada** | O agente não está rodando. Sessões restauradas voltam assim e o agente inicia quando você abre a sessão; se ele sair com a sessão aberta, **Enter** no terminal inicia de novo |
 | **Iniciando** | O agente foi aberto e ainda não mostrou o prompt |
 | **Trabalhando** | O agente está no meio de um turno |
 | **Aguardando você** | O agente está parado esperando: pediu uma permissão, fez uma pergunta ou está no prompt |
@@ -183,7 +184,7 @@ O Claude Code não tem essa tela: os avisos funcionam sem você fazer nada. Os d
 
 ## Limitações do v1
 
-- **Fechar o app encerra todos os agentes**, mesmo no meio de uma tarefa. O app pede confirmação antes, listando as sessões que serão encerradas. Ao reabrir, as sessões voltam com nome, pasta e agente, paradas. Encerrar os agentes leva alguns segundos, com a janela já fechada; se você abrir o app nesse meio-tempo, ele abre assim que o anterior terminar de sair.
+- **Fechar o app encerra todos os agentes**, mesmo no meio de uma tarefa. O app pede confirmação antes, listando as sessões que serão encerradas. Ao reabrir, as sessões voltam com nome, pasta e agente, paradas, e cada uma inicia quando você a abre (numa conversa nova). Encerrar os agentes leva alguns segundos, com a janela já fechada; se você abrir o app nesse meio-tempo, ele abre assim que o anterior terminar de sair.
 - **O painel de mudanças edita arquivos, mas não opera o git.** Não há "stage", "commit" nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar com o agente parado.
 - **O painel de mudanças exige git**, instalado e com a pasta da sessão dentro de um repositório. Sem isso, ele explica o que falta.
 - **"Aguardando você" não é infalível.** Ver "Possivelmente aguardando" acima.

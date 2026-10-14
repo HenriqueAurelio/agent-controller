@@ -386,6 +386,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     } catch (err) {
       const message = errorText(this.prefs.language, err);
       this.writeNotice(id, runtime, this.t('notice.startFailed', { error: message }));
+      this.writeNotice(id, runtime, this.t('notice.pressEnter'));
       this.applySignal({ sessionId: id, kind: 'started', origin: 'processo', at: this.now() });
       this.applySignal({
         sessionId: id,
@@ -438,6 +439,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
         ? this.t('notice.stopped')
         : this.t('notice.exited', { code: exit.exitCode }),
     );
+    this.writeNotice(id, runtime, this.t('notice.pressEnter'));
     const changed = this.applySignal({
       sessionId: id,
       kind: runtime.stopRequested ? 'stopped' : 'exited',
@@ -625,7 +627,14 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
 
   input(id: string, data: string): void {
     const runtime = this.entries.get(id)?.runtime;
-    if (!runtime?.running) return;
+    if (!runtime) return;
+    if (!runtime.running) {
+      // The way back for an agent that exited: there is no button for it.
+      if (data.includes('\r')) {
+        this.start(id, { cols: runtime.history.cols, rows: runtime.history.rows });
+      }
+      return;
+    }
     runtime.adapter.onUserInput(data);
     this.options.ptys.write(id, data);
   }

@@ -14,8 +14,6 @@ export const ptBR = {
   'app.titleWaiting': '({count} aguardando) Agent Controller',
   'app.changeFolder': 'Trocar a pasta da sessão',
   'app.changeFolderHint': 'Clique para trocar a pasta da sessão',
-  'app.start': 'Iniciar',
-  'app.stop': 'Parar',
   'app.seeChanges': 'Ver mudanças',
   'app.allFilesHint': 'Todos os arquivos da pasta',
   'app.codexHooksBanner':
@@ -268,6 +266,7 @@ export const ptBR = {
   'notice.startFailed': 'Não foi possível iniciar: {error}',
   'notice.stopped': 'Sessão encerrada.',
   'notice.exited': 'O agente saiu (código {code}).',
+  'notice.pressEnter': 'Pressione Enter para iniciar de novo.',
 
   'session.fallbackName': 'Sessão',
 

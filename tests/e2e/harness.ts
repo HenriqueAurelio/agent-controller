@@ -89,6 +89,14 @@ export async function createSession(
   return (await item.getAttribute('data-session-id'))!;
 }
 
+/** Stops the agent of a session the way the user does: there is no button, only the palette. */
+export async function stop(page: Page, name: string) {
+  await page.keyboard.press('Control+Shift+P');
+  const palette = page.getByRole('dialog', { name: 'Paleta de comandos' });
+  await palette.getByRole('option', { name: `Parar o agente de “${name}”` }).click();
+  await expect(palette).toBeHidden();
+}
+
 export const screenText = (page: Page, sessionId: string) =>
   page.evaluate((id) => window.api.invoke('terminal:screenText', id), sessionId);
 
