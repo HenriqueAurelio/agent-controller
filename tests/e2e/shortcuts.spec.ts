@@ -41,6 +41,11 @@ test('shortcuts are chosen in the preferences, used everywhere and kept', async 
   await expect(prefs.getByLabel('Tema')).toBeVisible();
   await expect(prefs.locator('.shortcut-list')).toBeHidden();
   await page.keyboard.press('ArrowRight');
+  await expect(prefs.getByRole('tab', { name: 'Agentes' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await page.keyboard.press('ArrowRight');
   await expect(prefs.getByRole('tab', { name: 'Atalhos' })).toHaveAttribute(
     'aria-selected',
     'true',

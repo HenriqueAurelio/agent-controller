@@ -1,4 +1,5 @@
-// The screens of folders, theme of the editor, layout, settings, language and command of the agent,
+// The screens of folders, theme of the editor, layout, settings, language, command of the agent and
+// tabs of the preferences,
 // to attach to the pull request: the same scenario photographed before and after the change. They
 // go to evidences/, which git ignores. It only runs when asked:
 //
@@ -99,7 +100,7 @@ test('evidences: folders, theme of the editor, layout and settings', async () =>
     const prefs = page.getByRole('dialog', { name: 'Preferências' });
     await shot('preferencias', '01-geral');
     if (AFTER) {
-      await prefs.getByRole('button', { name: 'Exportar…' }).scrollIntoViewIfNeeded();
+      await prefs.getByRole('tab', { name: 'Importar e exportar' }).click();
       await shot('preferencias', '02-favoritas-e-exportar');
       await prefs.getByRole('tab', { name: 'Layout' }).click();
       await shot('preferencias', '03-layout');
@@ -158,7 +159,7 @@ test('evidences: language of the interface', async () => {
     await shot('03-preferencias-atalhos');
 
     // 3. The language goes out with the exported settings.
-    await prefs.getByRole('tab', { name: say('Geral', 'General') }).click();
+    await prefs.getByRole('tab', { name: say('Importar e exportar', 'Import and export') }).click();
     await prefs.getByRole('button', { name: say('Exportar…', 'Export…') }).click();
     await prefs.getByRole('status').scrollIntoViewIfNeeded();
     await shot('04-exportar');
@@ -230,12 +231,57 @@ test('evidences: command of the agent', async () => {
     await page.keyboard.press('Control+,');
     const prefs = page.getByRole('dialog', { name: 'Preferências' });
     if (AFTER) {
+      await prefs.getByRole('tab', { name: 'Agentes' }).click();
       await prefs.getByLabel('Comando do Claude Code').fill('claude-personal');
       await prefs.getByLabel('Comando do Codex').scrollIntoViewIfNeeded();
     } else {
       await prefs.getByText('Mostrar também os arquivos ocultos').scrollIntoViewIfNeeded();
     }
     await shot('03-preferencias-agentes');
+  } finally {
+    await running.close();
+    for (const dir of [userData, base]) removeDir(dir);
+  }
+});
+
+test('evidences: tabs of the preferences', async () => {
+  test.setTimeout(180_000);
+  const userData = tempDir('ac-evid-data-');
+  const base = tempDir('ac-');
+  const loja = path.join(base, 'loja');
+  const api = path.join(base, 'api');
+  for (const dir of [loja, api]) fs.mkdirSync(dir);
+
+  const running = await launch(userData);
+  const { page } = running;
+  const shot = async (name: string) => {
+    fs.mkdirSync(path.join(OUT, 'abas-preferencias'), { recursive: true });
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: path.join(OUT, 'abas-preferencias', `${name}-${PHASE}.png`) });
+  };
+
+  try {
+    // The same choices on both sides, so the fields that moved have something in them.
+    await page.evaluate((patch) => window.api.invoke('prefs:set', patch), {
+      defaultFolder: loja,
+      favoriteFolders: [loja, api],
+      agentCommands: { 'claude-code': 'claude-work', codex: '' },
+    });
+    await page.keyboard.press('Control+,');
+    const prefs = page.getByRole('dialog', { name: 'Preferências' });
+
+    // 1. "Geral": what is left of it.
+    await shot('01-geral');
+
+    // 2. Folders, sessions and the commands of the agents.
+    if (AFTER) await prefs.getByRole('tab', { name: 'Agentes' }).click();
+    else await prefs.getByLabel('Pasta inicial das novas sessões').scrollIntoViewIfNeeded();
+    await shot('02-agentes');
+
+    // 3. Exporting and importing the settings.
+    if (AFTER) await prefs.getByRole('tab', { name: 'Importar e exportar' }).click();
+    else await prefs.getByRole('button', { name: 'Exportar…' }).scrollIntoViewIfNeeded();
+    await shot('03-importar-exportar');
   } finally {
     await running.close();
     for (const dir of [userData, base]) removeDir(dir);

@@ -87,6 +87,7 @@ test('the preferences give each agent a command, and a session may have its own'
   const { page } = await open();
   await page.keyboard.press('Control+,');
   const prefs = page.getByRole('dialog', { name: 'Preferências' });
+  await prefs.getByRole('tab', { name: 'Agentes' }).click();
   await expect(prefs.getByLabel('Comando do Claude Code')).toHaveAttribute('placeholder', 'claude');
   const field = prefs.getByLabel('Comando do Codex');
   await expect(field).toHaveAttribute('placeholder', 'codex');

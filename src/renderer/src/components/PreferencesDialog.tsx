@@ -19,7 +19,7 @@ import { ShortcutsEditor } from './ShortcutsEditor';
 
 const set = (patch: Partial<Preferences>) => void window.api.invoke('prefs:set', patch);
 
-const TABS = ['geral', 'atalhos', 'layout'] as const;
+const TABS = ['geral', 'agentes', 'atalhos', 'layout', 'configuracoes'] as const;
 type TabId = (typeof TABS)[number];
 
 export function PreferencesDialog({ onClose }: { onClose(): void }) {
@@ -187,6 +187,14 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
             </fieldset>
 
             <fieldset className="field">
+              <legend>{t('common.files')}</legend>
+              {check('showHiddenFiles', 'prefs.showHidden')}
+            </fieldset>
+          </>
+        )}
+        {tab === 'agentes' && (
+          <>
+            <fieldset className="field">
               <legend>{t('common.sessions')}</legend>
               <label className="field-inline">
                 <span>{t('prefs.defaultFolder')}</span>
@@ -244,12 +252,10 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
                 );
               })}
             </fieldset>
-
-            <fieldset className="field">
-              <legend>{t('common.files')}</legend>
-              {check('showHiddenFiles', 'prefs.showHidden')}
-            </fieldset>
-
+          </>
+        )}
+        {tab === 'configuracoes' && (
+          <>
             <fieldset className="field">
               <legend>{t('prefs.settings')}</legend>
               <span className="muted">{t('prefs.settingsHint')}</span>

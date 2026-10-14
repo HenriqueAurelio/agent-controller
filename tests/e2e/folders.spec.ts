@@ -91,6 +91,7 @@ test('the initial folder of the preferences comes before the latest one', async 
 
   // Shown, and editable, in the preferences.
   await page.keyboard.press('Control+,');
+  await page.getByRole('tab', { name: 'Agentes' }).click();
   const field = page.getByLabel('Pasta inicial das novas sessões');
   await expect(field).toHaveValue(second);
   await field.fill('');

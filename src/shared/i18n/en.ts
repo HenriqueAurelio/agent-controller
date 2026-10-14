@@ -158,8 +158,10 @@ export const en: Record<keyof typeof ptBR, string> = {
 
   'prefs.sections': 'Preferences sections',
   'prefs.tab.geral': 'General',
+  'prefs.tab.agentes': 'Agents',
   'prefs.tab.atalhos': 'Shortcuts',
   'prefs.tab.layout': 'Layout',
+  'prefs.tab.configuracoes': 'Import and export',
   'prefs.language': 'Language',
   'prefs.languageLabel': 'Interface language',
   'prefs.notices': 'Notices',
