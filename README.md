@@ -39,9 +39,9 @@ Não há atualização automática no v1: para atualizar, instale a versão nova
 ### Criar uma sessão
 
 1. Clique em **+ Nova sessão** (ou `Ctrl+Shift+N`).
-2. Escolha a **pasta** onde o agente vai trabalhar e dê um **nome** à sessão. O campo já vem com a pasta da última sessão, e as **recentes** ficam logo abaixo, a um clique. Em **Preferências → Sessões** dá para fixar uma pasta inicial.
+2. Escolha a **pasta** onde o agente vai trabalhar e dê um **nome** à sessão. O campo já vem com a pasta da última sessão, e as **recentes** ficam logo abaixo, a um clique. Em **Preferências → Agentes → Sessões** dá para fixar uma pasta inicial.
 
-   A **☆** ao lado do campo guarda a pasta nos **favoritos**; elas aparecem primeiro, acima das recentes, toda vez que você cria uma sessão ou troca a pasta de uma. A lista também é editada em **Preferências → Sessões**.
+   A **☆** ao lado do campo guarda a pasta nos **favoritos**; elas aparecem primeiro, acima das recentes, toda vez que você cria uma sessão ou troca a pasta de uma. A lista também é editada em **Preferências → Agentes → Sessões**.
 3. Escolha o **agente**: Claude Code ou Codex. Um agente que não está instalado aparece desabilitado, com a instrução de instalação.
 4. Se quiser, informe o **comando** que a sessão roda no lugar do agente (veja "Comando do agente", abaixo). Vazio, roda o próprio agente.
 5. **Criar e iniciar** abre o agente no terminal da sessão.
@@ -59,7 +59,7 @@ Outros caminhos para o mesmo lugar:
 Quem usa o mesmo agente de mais de um jeito costuma ter aliases ou funções no perfil do shell: `claude-work` e `claude-personal`, por exemplo, uma conta em cada um. O app abre o executável do agente direto, sem shell, e por isso não os enxerga. Para usá-los, diga qual comando a sessão roda:
 
 - **Em uma sessão:** o campo **Comando** de **Nova sessão**. O comando fica guardado com a sessão, aparece no topo dela ao lado do nome do agente, e **Duplicar** o leva junto. Os comandos que outras sessões do mesmo agente já usam são sugeridos no campo.
-- **Em todas as sessões de um agente:** **Preferências → Geral → Agentes**, um comando para o Claude Code e outro para o Codex. Vale para as sessões que não têm um comando só delas, inclusive as que já existem, a partir da próxima vez que forem iniciadas.
+- **Em todas as sessões de um agente:** **Preferências → Agentes**, um comando para o Claude Code e outro para o Codex. Vale para as sessões que não têm um comando só delas, inclusive as que já existem, a partir da próxima vez que forem iniciadas.
 
 O comando é uma linha, como você digitaria no terminal, e pode ter argumentos (`claude-work --model opus`). Ele roda **no seu shell, iniciado como você o inicia**, e por isso aliases e funções valem: no Windows, o PowerShell com o seu perfil (`pwsh`, se estiver instalado, senão o Windows PowerShell); no Linux, o shell de `$SHELL` em modo interativo.
 
@@ -133,9 +133,9 @@ Este README descreve o app em português; em inglês, os nomes dos botões e men
 
 ### Exportar e importar as configurações
 
-Em **Preferências → Geral → Configurações**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
+Em **Preferências → Importar e exportar**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
 
-As sessões não vão no arquivo. Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Geral → Agentes** depois.
+As sessões não vão no arquivo. Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Agentes** depois.
 
 ### Atalhos
 

@@ -158,8 +158,10 @@ export const ptBR = {
 
   'prefs.sections': 'Seções das preferências',
   'prefs.tab.geral': 'Geral',
+  'prefs.tab.agentes': 'Agentes',
   'prefs.tab.atalhos': 'Atalhos',
   'prefs.tab.layout': 'Layout',
+  'prefs.tab.configuracoes': 'Importar e exportar',
   'prefs.language': 'Idioma',
   'prefs.languageLabel': 'Idioma da interface',
   'prefs.notices': 'Avisos',

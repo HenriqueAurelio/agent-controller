@@ -66,6 +66,7 @@ test('a favorite folder is kept at hand for the next sessions', async () => {
   // The same list, in the preferences: add by typing, take out with the ×.
   await page.keyboard.press('Control+,');
   const prefs = page.getByRole('dialog', { name: 'Preferências' });
+  await prefs.getByRole('tab', { name: 'Agentes' }).click();
   const list = prefs.getByRole('list', { name: 'Pastas favoritas' });
   await expect(list.locator('.favorite-path')).toHaveText([first]);
   await prefs.getByLabel('Nova pasta favorita').fill(second + path.sep);
@@ -94,6 +95,7 @@ test('the preferences are exported to a file and imported back', async () => {
 
   await page.keyboard.press('Control+,');
   let prefs = page.getByRole('dialog', { name: 'Preferências' });
+  await prefs.getByRole('tab', { name: 'Importar e exportar' }).click();
   await prefs.getByRole('button', { name: 'Exportar…' }).click();
   await expect(prefs.getByRole('status')).toContainText(exported);
   const file = JSON.parse(fs.readFileSync(exported, 'utf8'));
@@ -109,11 +111,13 @@ test('the preferences are exported to a file and imported back', async () => {
   await expect(page.locator('.app')).toHaveAttribute('data-sessions', 'left');
   await page.keyboard.press('Control+,');
   prefs = page.getByRole('dialog', { name: 'Preferências' });
+  await prefs.getByRole('tab', { name: 'Importar e exportar' }).click();
   await prefs.getByRole('button', { name: 'Importar…' }).click();
   await expect(prefs.getByRole('status')).toHaveText('Configurações importadas.');
   // Applied right away, and shown in the dialog that is open.
   await expect(page.locator('.app')).toHaveAttribute('data-sessions', 'top');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await prefs.getByRole('tab', { name: 'Agentes' }).click();
   await expect(
     prefs.getByRole('list', { name: 'Pastas favoritas' }).locator('.favorite-path'),
   ).toHaveText([first, second]);
@@ -128,6 +132,7 @@ test('the preferences are exported to a file and imported back', async () => {
   fs.writeFileSync(exported, JSON.stringify({ version: 1, sessions: [] }));
   await page.keyboard.press('Control+,');
   prefs = page.getByRole('dialog', { name: 'Preferências' });
+  await prefs.getByRole('tab', { name: 'Importar e exportar' }).click();
   await prefs.getByRole('button', { name: 'Importar…' }).click();
   await expect(prefs.getByRole('alert')).toContainText('não é uma exportação');
   expect(await prefsOf(page)).toMatchObject(chosen);

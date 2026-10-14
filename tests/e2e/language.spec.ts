@@ -42,7 +42,13 @@ test('the language chosen in the preferences is the one of every text', async ()
 
   // Applied right away, to the dialog that is open and to what is behind it.
   const prefs = page.getByRole('dialog', { name: 'Preferences' });
-  await expect(prefs.getByRole('tab')).toHaveText(['General', 'Shortcuts', 'Layout']);
+  await expect(prefs.getByRole('tab')).toHaveText([
+    'General',
+    'Agents',
+    'Shortcuts',
+    'Layout',
+    'Import and export',
+  ]);
   await expect(prefs.getByLabel('Interface language')).toHaveValue('en');
   await expect(prefs.getByText('Notify when an agent is waiting for you')).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
@@ -91,6 +97,7 @@ test('the language goes out with the exported settings and comes back with them'
   await page.evaluate(() => window.api.invoke('prefs:set', { language: 'en' }));
   await page.keyboard.press('Control+,');
   let prefs = page.getByRole('dialog', { name: 'Preferences' });
+  await prefs.getByRole('tab', { name: 'Import and export' }).click();
   await prefs.getByRole('button', { name: 'Export…' }).click();
   await expect(prefs.getByRole('status')).toHaveText(`Settings exported to ${exported}`);
   expect(JSON.parse(fs.readFileSync(exported, 'utf8')).prefs.language).toBe('en');
@@ -102,13 +109,13 @@ test('the language goes out with the exported settings and comes back with them'
   ({ page } = await open());
   expect((await prefsOf(page)).language).toBe('pt-BR');
   await page.keyboard.press('Control+,');
-  await page
-    .getByRole('dialog', { name: 'Preferências' })
-    .getByRole('button', { name: 'Importar…' })
-    .click();
+  prefs = page.getByRole('dialog', { name: 'Preferências' });
+  await prefs.getByRole('tab', { name: 'Importar e exportar' }).click();
+  await prefs.getByRole('button', { name: 'Importar…' }).click();
   // The dialog that asked for the import already answers in the language that came in.
   prefs = page.getByRole('dialog', { name: 'Preferences' });
   await expect(prefs.getByRole('status')).toHaveText('Settings imported.');
+  await prefs.getByRole('tab', { name: 'General' }).click();
   await expect(prefs.getByLabel('Interface language')).toHaveValue('en');
   await expect(page.locator('.sidebar-title')).toHaveText('Sessions');
   expect((await prefsOf(page)).language).toBe('en');
@@ -117,6 +124,7 @@ test('the language goes out with the exported settings and comes back with them'
   const file = JSON.parse(fs.readFileSync(exported, 'utf8'));
   file.prefs.language = 'xx';
   fs.writeFileSync(exported, JSON.stringify(file));
+  await prefs.getByRole('tab', { name: 'Import and export' }).click();
   await prefs.getByRole('button', { name: 'Import…' }).click();
   await expect(page.getByRole('dialog', { name: 'Preferências' }).getByRole('status')).toHaveText(
     'Configurações importadas.',
