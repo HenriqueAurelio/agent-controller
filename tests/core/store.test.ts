@@ -85,6 +85,25 @@ describe('appStore', () => {
     ]);
   });
 
+  it('keeps the command of a session, and drops one that is not a line of text', () => {
+    const store = createAppStore(dir);
+    fs.writeFileSync(
+      store.file,
+      JSON.stringify({
+        version: 1,
+        sessions: [
+          { ...session('a'), command: ' claude-work ' },
+          { ...session('b', 1), command: 'a\nb' },
+          { ...session('c', 2), command: 7 },
+          session('d', 3),
+        ],
+      }),
+    );
+    const loaded = store.load().sessions;
+    expect(loaded.map((s) => s.command)).toEqual(['claude-work', undefined, undefined, undefined]);
+    expect(loaded[3]).not.toHaveProperty('command');
+  });
+
   it('drops sessions with an unknown profile or duplicated id', () => {
     const store = createAppStore(dir);
     fs.writeFileSync(

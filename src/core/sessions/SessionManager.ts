@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
+import { sanitizeAgentCommand } from '@shared/agents';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import type { Preferences } from '@shared/prefs';
 import {
@@ -194,12 +195,14 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     if (!name) throw new UserError('error.session.noName');
     const cwd = this.folder(input.cwd);
     getProfile(input.profile); // Throws on an unknown profile.
+    const command = sanitizeAgentCommand(input.command);
 
     const session: Session = {
       id: randomUUID(),
       name,
       cwd,
       profile: input.profile,
+      ...(command && { command }),
       order: this.order.length,
     };
     const entry = this.newEntry(session);

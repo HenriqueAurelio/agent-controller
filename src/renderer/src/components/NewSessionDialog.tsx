@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { AgentAvailability } from '@shared/agents';
+import { AGENT_COMMAND_LIMIT, type AgentAvailability } from '@shared/agents';
 import type { Translate } from '@shared/i18n';
 import type { AgentProfileId, SessionView } from '@shared/session';
 import { baseName, errorMessage } from '../lib/format';
@@ -34,6 +34,8 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
   const t = useT();
   const agents = useAppState((s) => s.agents);
   const defaultFolder = useAppState((s) => s.prefs.defaultFolder);
+  const agentCommands = useAppState((s) => s.prefs.agentCommands);
+  const sessions = useAppState((s) => s.sessions);
   // With no folder asked for and none set as the initial one, the latest one used is offered.
   const [suggested] = useState(
     () => initialCwd || defaultFolder || (store.get().recentFolders[0] ?? ''),
@@ -42,14 +44,24 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
   const [nameEdited, setNameEdited] = useState(false);
   const [cwd, setCwd] = useState(suggested);
   const [profile, setProfile] = useState<AgentProfileId | null>(null);
+  const [command, setCommand] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   // The agent may have been installed since the app opened.
   useEffect(() => void store.detectAgents(true), []);
 
-  const usable = agents.filter((a) => a.usable);
-  const chosen = profile ?? usable[0]?.profile ?? null;
+  // A command is found by the shell of the user: with one, the agent need not be on the PATH.
+  const selectable = (agent: AgentAvailability) =>
+    agent.usable || Boolean(command.trim() || agentCommands[agent.profile]);
+  const chosen = profile ?? agents.find(selectable)?.profile ?? null;
+  const chosenAgent = agents.find((a) => a.profile === chosen);
+  const canCreate = chosenAgent !== undefined && selectable(chosenAgent);
+  // What runs when the field is left empty, and the commands other sessions of the agent use.
+  const defaultCommand = chosen ? agentCommands[chosen] || (chosenAgent?.executable ?? '') : '';
+  const knownCommands = [
+    ...new Set(sessions.filter((s) => s.profile === chosen && s.command).map((s) => s.command!)),
+  ];
 
   const applyFolder = (folder: string) => {
     setCwd(folder);
@@ -58,7 +70,7 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!chosen || busy) return;
+    if (!chosen || !canCreate || busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -66,6 +78,7 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
         name: name.trim() || baseName(cwd),
         cwd: cwd.trim(),
         profile: chosen,
+        command: command.trim() || undefined,
       });
       onCreated(session);
     } catch (err) {
@@ -104,13 +117,13 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
               return (
                 <label
                   key={agent.profile}
-                  className={`profile-option ${chosen === agent.profile ? 'chosen' : ''} ${agent.usable ? '' : 'disabled'}`}
+                  className={`profile-option ${chosen === agent.profile ? 'chosen' : ''} ${selectable(agent) ? '' : 'disabled'}`}
                 >
                   <input
                     type="radio"
                     name="profile"
                     value={agent.profile}
-                    disabled={!agent.usable}
+                    disabled={!selectable(agent)}
                     checked={chosen === agent.profile}
                     onChange={() => setProfile(agent.profile)}
                   />
@@ -119,7 +132,7 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
                     {agent.version && <span className="profile-version"> {agent.version}</span>}
                   </span>
                   {note && (
-                    <span className={`profile-note ${agent.usable ? 'warning' : 'blocking'}`}>
+                    <span className={`profile-note ${selectable(agent) ? 'warning' : 'blocking'}`}>
                       {note}
                     </span>
                   )}
@@ -129,6 +142,26 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
             {agents.length === 0 && <span className="muted">{t('newSession.detecting')}</span>}
           </div>
         </fieldset>
+
+        <label className="field">
+          <span>{t('newSession.command')}</span>
+          <input
+            aria-label={t('newSession.command')}
+            className="command"
+            value={command}
+            placeholder={defaultCommand}
+            maxLength={AGENT_COMMAND_LIMIT}
+            spellCheck={false}
+            list="known-commands"
+            onChange={(e) => setCommand(e.target.value)}
+          />
+          <datalist id="known-commands">
+            {knownCommands.map((known) => (
+              <option key={known} value={known} />
+            ))}
+          </datalist>
+          <span className="muted">{t('newSession.commandHint', { command: defaultCommand })}</span>
+        </label>
 
         {error && (
           <p className="form-error" role="alert">
@@ -140,7 +173,7 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
           <button type="button" onClick={onClose}>
             {t('common.cancel')}
           </button>
-          <button type="submit" className="primary" disabled={!chosen || !cwd.trim() || busy}>
+          <button type="submit" className="primary" disabled={!canCreate || !cwd.trim() || busy}>
             {t('newSession.submit')}
           </button>
         </div>

@@ -1,6 +1,6 @@
-// The screens of folders, theme of the editor, layout, settings and language, to attach to the pull
-// request: the same scenario photographed before and after the change. They go to evidences/,
-// which git ignores. It only runs when asked:
+// The screens of folders, theme of the editor, layout, settings, language and command of the agent,
+// to attach to the pull request: the same scenario photographed before and after the change. They
+// go to evidences/, which git ignores. It only runs when asked:
 //
 //   EVIDENCES=1 npx playwright test --config tests/e2e/playwright.config.ts evidences.spec.ts
 //
@@ -190,6 +190,52 @@ test('evidences: language of the interface', async () => {
       .first()
       .waitFor();
     await shot('08-painel-de-mudancas');
+  } finally {
+    await running.close();
+    for (const dir of [userData, base]) removeDir(dir);
+  }
+});
+
+test('evidences: command of the agent', async () => {
+  test.setTimeout(180_000);
+  const userData = tempDir('ac-evid-data-');
+  const base = tempDir('ac-');
+  const loja = path.join(base, 'loja');
+  fs.mkdirSync(loja);
+
+  const running = await launch(userData);
+  const { page } = running;
+  const shot = async (name: string) => {
+    fs.mkdirSync(path.join(OUT, 'comando-do-agente'), { recursive: true });
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: path.join(OUT, 'comando-do-agente', `${name}-${PHASE}.png`) });
+  };
+
+  try {
+    // 1. A new session: the command it runs in place of the agent.
+    await page.getByRole('button', { name: '+ Nova sessão' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Nova sessão' });
+    await dialog.getByLabel('Pasta').fill(loja);
+    await dialog.getByLabel('Nome').fill('Trabalho');
+    if (AFTER) await dialog.getByLabel('Comando').fill('echo claude-work');
+    await shot('01-nova-sessao');
+
+    // 2. The session: what it ran, and the command beside the name of the agent.
+    await dialog.getByRole('button', { name: 'Criar e iniciar' }).click();
+    await page.locator('.session-item', { hasText: 'Trabalho' }).waitFor();
+    await page.waitForTimeout(AFTER ? 6000 : 1500);
+    await shot('02-sessao');
+
+    // 3. The preferences: a command per agent.
+    await page.keyboard.press('Control+,');
+    const prefs = page.getByRole('dialog', { name: 'Preferências' });
+    if (AFTER) {
+      await prefs.getByLabel('Comando do Claude Code').fill('claude-personal');
+      await prefs.getByLabel('Comando do Codex').scrollIntoViewIfNeeded();
+    } else {
+      await prefs.getByText('Mostrar também os arquivos ocultos').scrollIntoViewIfNeeded();
+    }
+    await shot('03-preferencias-agentes');
   } finally {
     await running.close();
     for (const dir of [userData, base]) removeDir(dir);

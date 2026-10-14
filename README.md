@@ -43,7 +43,8 @@ Não há atualização automática no v1: para atualizar, instale a versão nova
 
    A **☆** ao lado do campo guarda a pasta nos **favoritos**; elas aparecem primeiro, acima das recentes, toda vez que você cria uma sessão ou troca a pasta de uma. A lista também é editada em **Preferências → Sessões**.
 3. Escolha o **agente**: Claude Code ou Codex. Um agente que não está instalado aparece desabilitado, com a instrução de instalação.
-4. **Criar e iniciar** abre o agente no terminal da sessão.
+4. Se quiser, informe o **comando** que a sessão roda no lugar do agente (veja "Comando do agente", abaixo). Vazio, roda o próprio agente.
+5. **Criar e iniciar** abre o agente no terminal da sessão.
 
 Daí em diante é o agente de sempre: digite o prompt no terminal.
 
@@ -52,6 +53,22 @@ Outros caminhos para o mesmo lugar:
 - **Arrastar uma pasta** do gerenciador de arquivos para a janela abre **Nova sessão** já com ela preenchida. Um arquivo solto vale pela pasta em que está.
 - **Duplicar** (o botão **⧉** na sessão, ou a paleta de comandos) abre outra sessão na mesma pasta, com o mesmo agente.
 - **Trocar a pasta** de uma sessão que já existe: clique no caminho no topo da sessão, ou use a paleta de comandos. O agente trabalha na pasta em que foi aberto; se estiver rodando, o app avisa, encerra e abre de novo na nova pasta, e a conversa em andamento não continua.
+
+### Comando do agente
+
+Quem usa o mesmo agente de mais de um jeito costuma ter aliases ou funções no perfil do shell: `claude-work` e `claude-personal`, por exemplo, uma conta em cada um. O app abre o executável do agente direto, sem shell, e por isso não os enxerga. Para usá-los, diga qual comando a sessão roda:
+
+- **Em uma sessão:** o campo **Comando** de **Nova sessão**. O comando fica guardado com a sessão, aparece no topo dela ao lado do nome do agente, e **Duplicar** o leva junto. Os comandos que outras sessões do mesmo agente já usam são sugeridos no campo.
+- **Em todas as sessões de um agente:** **Preferências → Geral → Agentes**, um comando para o Claude Code e outro para o Codex. Vale para as sessões que não têm um comando só delas, inclusive as que já existem, a partir da próxima vez que forem iniciadas.
+
+O comando é uma linha, como você digitaria no terminal, e pode ter argumentos (`claude-work --model opus`). Ele roda **no seu shell, iniciado como você o inicia**, e por isso aliases e funções valem: no Windows, o PowerShell com o seu perfil (`pwsh`, se estiver instalado, senão o Windows PowerShell); no Linux, o shell de `$SHELL` em modo interativo.
+
+O que muda em uma sessão com comando:
+
+- **O agente continua sendo o que você escolheu.** É ele que diz ao app como ler o estado da sessão; o comando não troca isso. Rodar o Codex em uma sessão de Claude Code deixa os avisos errados.
+- **Os avisos dependem de o comando repassar os argumentos.** O app acrescenta ao fim do comando os argumentos que passaria ao agente. Um alias repassa sozinho; uma função precisa fazer isso (`@args` no PowerShell, `"$@"` no bash). Sem isso a sessão funciona, mas o estado passa a ser estimado ("Possivelmente aguardando").
+- **O app não confere se o agente está instalado nem a versão.** Quem acha o comando é o seu shell; se ele não existir, o erro aparece no terminal da sessão.
+- **Um alias de `cmd.exe` (doskey) não funciona:** no Windows o comando roda no PowerShell.
 
 ### O que cada estado significa
 
@@ -116,9 +133,9 @@ Este README descreve o app em português; em inglês, os nomes dos botões e men
 
 ### Exportar e importar as configurações
 
-Em **Preferências → Geral → Configurações**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
+Em **Preferências → Geral → Configurações**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
 
-As sessões não vão no arquivo. Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir.
+As sessões não vão no arquivo. Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Geral → Agentes** depois.
 
 ### Atalhos
 
@@ -170,8 +187,9 @@ O Claude Code não tem essa tela: os avisos funcionam sem você fazer nada. Os d
 - **O painel de mudanças edita arquivos, mas não opera o git.** Não há "stage", "commit" nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar com o agente parado.
 - **O painel de mudanças exige git**, instalado e com a pasta da sessão dentro de um repositório. Sem isso, ele explica o que falta.
 - **"Aguardando você" não é infalível.** Ver "Possivelmente aguardando" acima.
-- **Só Claude Code e Codex.** Sem comando personalizado, outras IAs, shell puro, SSH, divisão de tela ou macOS.
-- **O comando da sessão fica em um arquivo de texto.** O app guarda nome, pasta e agente de cada sessão em `sessions.json`, na pasta de dados do app. Ele não guarda o histórico do terminal nem variáveis de ambiente.
+- **Só Claude Code e Codex.** Sem outras IAs, shell puro, SSH, divisão de tela ou macOS. O comando de uma sessão pode ser trocado, mas o agente por trás dele tem que ser um dos dois.
+- **O comando de uma sessão não é editável depois de criada.** Para trocar, crie outra sessão (ou mude o comando do agente nas preferências, se a sessão não tiver um só dela).
+- **O comando da sessão fica em um arquivo de texto.** O app guarda nome, pasta, agente e comando de cada sessão em `sessions.json`, na pasta de dados do app. Ele não guarda o histórico do terminal nem variáveis de ambiente.
 
 O porquê de cada uma está em [`DECISOES-E-RISCOS.md`](DECISOES-E-RISCOS.md) e nas [ADRs](adr/README.md).
 

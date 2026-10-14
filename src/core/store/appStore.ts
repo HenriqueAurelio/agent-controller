@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { sanitizeAgentCommand } from '@shared/agents';
 import { translate } from '@shared/i18n';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
 import { AGENT_PROFILE_IDS, type AgentProfileId, type Session } from '@shared/session';
@@ -56,6 +57,7 @@ function validate(raw: unknown): AppData {
     if (!s || typeof s.id !== 'string' || !s.id || seen.has(s.id)) continue;
     if (typeof s.cwd !== 'string' || !isProfile(s.profile)) continue;
     seen.add(s.id);
+    const command = sanitizeAgentCommand(s.command);
     // Only the documented fields are kept: anything else (state, env) is dropped on purpose.
     sessions.push({
       id: s.id,
@@ -65,6 +67,7 @@ function validate(raw: unknown): AppData {
           : path.basename(s.cwd) || translate(prefs.language, 'session.fallbackName'),
       cwd: s.cwd,
       profile: s.profile,
+      ...(command && { command }),
       order: typeof s.order === 'number' ? s.order : sessions.length,
     });
   }

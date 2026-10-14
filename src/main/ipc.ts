@@ -10,7 +10,7 @@ import {
   serializePreferences,
 } from '@core/store/prefsFile';
 import { rememberFolder } from '@core/store/recentFolders';
-import type { AgentAvailability } from '@shared/agents';
+import { AGENT_COMMAND_LIMIT, sanitizeAgentCommand, type AgentAvailability } from '@shared/agents';
 import { errorText, translate, UserError, type MessageKey } from '@shared/i18n';
 import type { CommandChannel, EventChannel, IpcCommands, IpcEvents } from '@shared/ipc';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
@@ -41,6 +41,14 @@ const str = (value: unknown, name: ArgumentName, max = 4096): string => {
     throw new UserError('error.invalidArgument', { name: { key: `arg.${name}` } });
   }
   return value;
+};
+/** A command to run in place of the agent's own: one line, or it is refused. */
+const command = (value: unknown): string => {
+  const text = str(value, 'command', AGENT_COMMAND_LIMIT);
+  if (text.trim() && !sanitizeAgentCommand(text)) {
+    throw new UserError('error.invalidArgument', { name: { key: 'arg.command' } });
+  }
+  return text;
 };
 const size = (value: unknown): TerminalSize => {
   const v = value as Partial<TerminalSize> | null;
@@ -187,6 +195,7 @@ export function registerIpc(context: IpcContext): void {
       name: str(input.name, 'name', 200),
       cwd: str(input.cwd, 'folder'),
       profile,
+      command: input.command === undefined ? undefined : command(input.command),
     });
     remember(created.cwd);
     return created;

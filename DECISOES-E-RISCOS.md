@@ -80,7 +80,7 @@ Se o agente estiver trabalhando em uma pasta que não é um repositório git, o 
 - [ ] Concordo
 
 - macOS
-- Outras IAs além de Claude Code e Codex, comando personalizado e terminal comum (decisão sua, item 4.3)
+- Outras IAs além de Claude Code e Codex e terminal comum (decisão sua, item 4.3). O comando personalizado entrou depois, restrito aos dois agentes ([ADR 0013](adr/0013-comando-do-usuario-no-lugar-do-agente.md))
 - Sessões em outras máquinas (SSH)
 - Dividir a tela em vários terminais lado a lado
 - Um agente coordenando outros
@@ -186,7 +186,7 @@ O app deve usar até 450 MB de RAM com 10 sessões abertas, contando só o app e
 
 ### 4.3 O usuário escolhe a IA de cada sessão, e o app não mexe na configuração dela (2026-10-12)
 
-Ao criar uma sessão, o usuário escolhe o perfil: **Claude Code ou Codex**. Não há comando personalizado, outras IAs nem shell puro no v1. O app abre o agente já com os avisos ligados por parâmetro, sem alterar nenhum arquivo do usuário ou do agente.
+Ao criar uma sessão, o usuário escolhe o perfil: **Claude Code ou Codex**. Não há outras IAs nem shell puro no v1. Desde 2026-10-13 a sessão pode rodar um comando do usuário no lugar do executável do agente, para que aliases e funções do shell dele valham ([ADR 0013](adr/0013-comando-do-usuario-no-lugar-do-agente.md)); o perfil continua sendo escolhido. O app abre o agente já com os avisos ligados por parâmetro, sem alterar nenhum arquivo do usuário ou do agente.
 
 **O que foi testado com o Codex (0.158.0, Windows).**
 
