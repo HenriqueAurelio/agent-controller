@@ -55,7 +55,9 @@ test('the language chosen in the preferences is the one of every text', async ()
   await expect(page.locator('.sidebar-title')).toHaveText('Sessions');
   await expect(page.locator('.session-item .session-state')).toHaveText(/Waiting for you|Starting/);
   await expect(page.getByRole('button', { name: '+ New session' })).toBeVisible();
-  await expect(page.locator('.session-header').getByRole('button', { name: 'Stop' })).toBeVisible();
+  await expect(
+    page.locator('.session-header').getByRole('button', { name: 'Files' }),
+  ).toBeVisible();
 
   // The other sections of the preferences.
   await prefs.getByRole('tab', { name: 'Shortcuts' }).click();

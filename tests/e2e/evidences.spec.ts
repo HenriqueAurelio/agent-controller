@@ -333,3 +333,34 @@ test('evidences: see changes translated and Spanish', async () => {
     for (const dir of [userData, loja]) removeDir(dir);
   }
 });
+
+test('evidences: no start and stop button', async () => {
+  test.setTimeout(180_000);
+  const userData = tempDir('ac-evid-data-');
+  const loja = tempDir('ac-loja-');
+
+  const running = await launch(userData);
+  const { page } = running;
+  const shot = async (name: string) => {
+    fs.mkdirSync(path.join(OUT, 'sem-iniciar-parar'), { recursive: true });
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: path.join(OUT, 'sem-iniciar-parar', `${name}-${PHASE}.png`) });
+  };
+
+  try {
+    await createSession(page, 'Loja', loja);
+
+    // 1. The header of a running session.
+    await shot('01-cabecalho');
+
+    // 2. The agent leaves: what the terminal says about getting it back.
+    await page.locator('.terminal-host.visible').click();
+    await page.keyboard.type('exit');
+    await page.keyboard.press('Enter');
+    await page.locator('.session-item[data-state="terminou"]').waitFor();
+    await shot('02-agente-saiu');
+  } finally {
+    await running.close();
+    for (const dir of [userData, loja]) removeDir(dir);
+  }
+});

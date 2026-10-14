@@ -283,6 +283,22 @@ describe('SessionManager', () => {
       expect(manager.pidOf(s.id)).not.toBe(pid);
     });
 
+    it('an agent that left says how to start it again, and Enter does it', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      manager.input(s.id, 'exit 0\r');
+      await waitFor(() => !manager.isRunning(s.id));
+      expect(await manager.screenText(s.id)).toContain('Pressione Enter para iniciar de novo.');
+
+      // Other keys do nothing while it is stopped.
+      manager.input(s.id, 'x');
+      expect(manager.isRunning(s.id)).toBe(false);
+      manager.input(s.id, '\r');
+      expect(manager.isRunning(s.id)).toBe(true);
+      await until(s.id, 'aguardando');
+    });
+
     it('an agent that cannot be opened ends in "erro", with the reason on screen', async () => {
       launch = () => {
         throw new Error('Codex não foi encontrado no PATH.');

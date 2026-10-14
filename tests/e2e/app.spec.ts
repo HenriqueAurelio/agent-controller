@@ -9,6 +9,7 @@ import {
   removeDir,
   runInTerminal,
   screenText,
+  stop,
   tempDir,
   type RunningApp,
 } from './harness';
@@ -138,14 +139,13 @@ test('create a session, run a command, rename, close the app and find it again',
   await expect(restored).toHaveCount(1);
   await expect(restored).toContainText('API de pagamentos');
   await expect(restored).toContainText('Claude Code');
-  await expect(restored).toHaveAttribute('data-state', 'parada');
   await expect(restored).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByTestId('session-status')).toContainText('Parada');
 
-  // Sessions come back stopped, with the action to start them.
-  await page.getByRole('button', { name: 'Iniciar' }).click();
+  // Sessions come back stopped; the one in sight starts, with no button to press.
   await expect(restored).not.toHaveAttribute('data-state', 'parada');
   await runInTerminal(page, id, 'echo de-volta', 'de-volta');
+  await expect(page.getByRole('button', { name: 'Iniciar' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Parar' })).toHaveCount(0);
 });
 
 test('five sessions of both agents, switched by shortcut, survive a restart', async () => {
@@ -190,8 +190,19 @@ test('five sessions of both agents, switched by shortcut, survive a restart', as
     'Codex',
     'Claude Code',
   ]);
-  await expect(page.locator('.session-item[data-state="parada"]')).toHaveCount(5);
+  // Only the session in sight started again; the others wait until they are opened.
   expect(await selected()).toBe('Três');
+  await expect(page.locator('.session-item[data-state="parada"]')).toHaveCount(4);
+  await expect(page.locator('.session-item', { hasText: 'Três' })).not.toHaveAttribute(
+    'data-state',
+    'parada',
+  );
+  await page.keyboard.press('Control+1');
+  await expect(page.locator('.session-item', { hasText: 'Um' })).not.toHaveAttribute(
+    'data-state',
+    'parada',
+  );
+  await expect(page.locator('.session-item[data-state="parada"]')).toHaveCount(3);
 });
 
 test('only a fixed number of terminals stays mounted, and an unmounted one comes back intact', async () => {
@@ -311,8 +322,11 @@ test('"aguardando você" stands out in the sidebar, in the header and in the win
   const other = page.locator('.session-item', { hasText: 'Quieta' });
   // The second session is stopped, to compare with: a Windows shell sets a window title of its
   // own and would count as "at the prompt" too.
-  await page.getByRole('button', { name: 'Parar' }).click();
-  await expect(other).toHaveAttribute('data-state', 'parada');
+  const stopOther = async () => {
+    await stop(page, 'Quieta');
+    await expect(other).toHaveAttribute('data-state', 'parada');
+  };
+  await stopOther();
   await page.keyboard.press('Control+1');
   await page.locator('.terminal-host.visible').click();
   await page.keyboard.type('node pronto.cjs');
@@ -331,7 +345,9 @@ test('"aguardando você" stands out in the sidebar, in the header and in the win
   expect(await style(other.locator('.session-state'), 'background-color')).toBe(transparent);
 
   // The row itself is tinted and marked on the left, selected or not, and the dot pulses.
+  // Opening the other session starts it again, so it is stopped once more.
   await page.keyboard.press('Control+2');
+  await stopOther();
   expect(await style(waiting, 'background-color')).not.toBe(transparent);
   expect(await style(waiting, 'border-left-color')).toBe(await style(label, 'background-color'));
   expect(await style(other, 'border-left-color')).not.toBe(await style(label, 'background-color'));
@@ -353,7 +369,7 @@ test('"aguardando você" stands out in the sidebar, in the header and in the win
   ).toBe('(1 aguardando) Agent Controller');
 
   // Once the agent is stopped, the emphasis is gone.
-  await page.getByRole('button', { name: 'Parar' }).click();
+  await stop(page, 'Esperando');
   await expect(waiting).toHaveAttribute('data-state', 'parada');
   await expect(page).toHaveTitle('Agent Controller');
   expect(await style(waiting.locator('.session-state'), 'background-color')).toBe(transparent);

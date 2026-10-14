@@ -130,9 +130,25 @@ export function App() {
   }, []);
 
   /** The agent starts at the size of its terminal, which is mounted on the next frame. */
+  const starting = useRef(new Set<string>());
   const startWhenMounted = useCallback((id: string) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => terminals.current?.start(id)));
+    // Creating a session also selects it: one start for both, or a failure is told twice.
+    if (starting.current.has(id)) return;
+    starting.current.add(id);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        starting.current.delete(id);
+        terminals.current?.start(id);
+      }),
+    );
   }, []);
+
+  // Opening a session that is not running starts its agent. One that exits while in sight stays
+  // stopped, with its last words on screen, until Enter starts it again (see `SessionManager`).
+  useEffect(() => {
+    const session = store.get().sessions.find((s) => s.id === selectedId);
+    if (session && !session.running) startWhenMounted(session.id);
+  }, [selectedId, startWhenMounted]);
 
   const openNew = useCallback((folder?: string) => {
     setNewFolder(folder);
@@ -399,15 +415,6 @@ export function App() {
               </button>
             </div>
             <span className="spacer" />
-            {selected.running ? (
-              <button onClick={() => void window.api.invoke('sessions:stop', selected.id)}>
-                {t('app.stop')}
-              </button>
-            ) : (
-              <button className="primary" onClick={() => terminals.current?.start(selected.id)}>
-                {t('app.start')}
-              </button>
-            )}
             <button
               className={changesOpen && panelMode === 'changes' ? 'active' : ''}
               onClick={() => togglePanel('changes')}

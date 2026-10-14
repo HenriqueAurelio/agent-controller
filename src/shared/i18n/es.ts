@@ -14,8 +14,6 @@ export const es: Record<keyof typeof ptBR, string> = {
   'app.titleWaiting': '({count} esperando) Agent Controller',
   'app.changeFolder': 'Cambiar la carpeta de la sesión',
   'app.changeFolderHint': 'Haz clic para cambiar la carpeta de la sesión',
-  'app.start': 'Iniciar',
-  'app.stop': 'Detener',
   'app.seeChanges': 'Ver cambios',
   'app.allFilesHint': 'Todos los archivos de la carpeta',
   'app.codexHooksBanner':
@@ -269,6 +267,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'notice.startFailed': 'No se pudo iniciar: {error}',
   'notice.stopped': 'Sesión terminada.',
   'notice.exited': 'El agente salió (código {code}).',
+  'notice.pressEnter': 'Presiona Enter para iniciarlo de nuevo.',
 
   'session.fallbackName': 'Sesión',
 
