@@ -31,8 +31,7 @@ const open = async () =>
   ));
 const sessionsOf = (page: Page) => page.evaluate(() => window.api.invoke('sessions:list'));
 const EXITED = '[O agente saiu (código 0).]';
-// Waits for the command to end. Closing the app while a session is still exiting can hang it on
-// Windows, also without a command (it happens on main): a problem of its own, not tested here.
+// Waits for the command to end, and with it the session, before the next step.
 const ended = (page: Page, id: string) =>
   expect.poll(() => screenText(page, id), { timeout: 30_000 }).toContain(EXITED);
 

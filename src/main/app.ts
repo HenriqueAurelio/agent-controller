@@ -230,6 +230,7 @@ export async function startApp(): Promise<void> {
   });
 
   let closing = false;
+  let reopenAfterClosing = false;
   let unsavedFile: string | null = null;
   const t = (key: MessageKey, params?: MessageParams) =>
     translate(data.prefs.language, key, params);
@@ -268,6 +269,11 @@ export async function startApp(): Promise<void> {
       store.save(data);
     } catch {
       // Nothing left to do with the error at this point.
+    }
+    if (reopenAfterClosing) {
+      // Inside an AppImage the executable lives in a mount that goes away with this process.
+      const appImage = process.env.APPIMAGE;
+      app.relaunch(appImage ? { execPath: appImage, args: process.argv.slice(1) } : undefined);
     }
     app.exit(0);
   };
@@ -330,6 +336,12 @@ export async function startApp(): Promise<void> {
   });
 
   app.on('second-instance', () => {
+    // Opened again while closing: this window would come back only to vanish with the process, and
+    // the new instance has already given way. The app starts again once this one is gone.
+    if (closing) {
+      reopenAfterClosing = true;
+      return;
+    }
     if (!window || window.isDestroyed()) return;
     if (window.isMinimized()) window.restore();
     window.show();
