@@ -1,7 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { app, dialog, type BrowserWindow } from 'electron';
-import { buildLaunchCommand, detectAgent, findOnPath, getProfile, PROFILES } from '@core/agents';
+import {
+  buildLaunchCommand,
+  detectAgent,
+  findOnPath,
+  getProfile,
+  PROFILES,
+  wrapInShell,
+} from '@core/agents';
 import type { LaunchCommand } from '@core/agents';
 import { ChangesService } from '@core/git/ChangesService';
 import { MetricsSampler } from '@core/metrics/MetricsSampler';
@@ -32,9 +39,13 @@ function resourcesPath(...parts: string[]): string {
     : path.join(app.getAppPath(), 'resources', ...parts);
 }
 
-/** In test mode every session runs a plain shell: no account, no credits, same plumbing. */
-function testShell(session: Session, socketPath: string): LaunchCommand {
+/**
+ * In test mode every session runs a plain shell: no account, no credits, same plumbing. A command
+ * asked for runs as it would outside the tests, in the shell of the user.
+ */
+function testShell(session: Session, socketPath: string, command: string): LaunchCommand {
   const env = { AGENTCTL_SESSION_ID: session.id, AGENTCTL_SOCKET: socketPath };
+  if (command) return wrapInShell({ file: '', args: [], env }, command);
   if (process.platform === 'win32') {
     return { file: process.env.ComSpec || 'cmd.exe', args: [], env };
   }
@@ -84,8 +95,13 @@ export async function startApp(): Promise<void> {
   });
 
   const resolveLaunch = (session: Session): LaunchCommand => {
-    if (TEST_SHELL) return testShell(session, hookServer.socketPath);
+    // The command of the session, or the one the preferences give its agent.
+    const command = session.command || data.prefs.agentCommands[session.profile];
+    if (TEST_SHELL) return testShell(session, hookServer.socketPath, command);
     const profile = getProfile(session.profile);
+    const context = { agentctl, dataDirectory: userData, socketPath: hookServer.socketPath };
+    // The shell of the user is who finds a command of theirs: the agent need not be on the PATH.
+    if (command) return wrapInShell(buildLaunchCommand(profile, session, context), command);
     const executablePath = findOnPath(profile.executable);
     if (!executablePath) {
       throw new UserError('agent.missing', {
@@ -93,12 +109,7 @@ export async function startApp(): Promise<void> {
         command: profile.installCommand,
       });
     }
-    return buildLaunchCommand(profile, session, {
-      agentctl,
-      dataDirectory: userData,
-      socketPath: hookServer.socketPath,
-      executablePath,
-    });
+    return buildLaunchCommand(profile, session, { ...context, executablePath });
   };
 
   const persist = (sessions: Session[], selectedSessionId: string | null) => {
@@ -183,6 +194,7 @@ export async function startApp(): Promise<void> {
         Object.values(PROFILES).map((profile) => ({
           profile: profile.id,
           displayName: profile.displayName,
+          executable: profile.executable,
           status: 'ok' as const,
           usable: true,
           minVersion: profile.minVersion,

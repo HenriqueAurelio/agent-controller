@@ -67,6 +67,7 @@ export function classifyAvailability(
   const base = {
     profile: profile.id,
     displayName: profile.displayName,
+    executable: profile.executable,
     minVersion: profile.minVersion,
     lastTestedVersion: profile.lastTestedVersion,
     installCommand: profile.installCommand,

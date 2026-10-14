@@ -104,6 +104,9 @@ export const ptBR = {
   'newSession.namePlaceholder': 'Como a sessão aparece na barra lateral',
   'newSession.agent': 'Agente',
   'newSession.detecting': 'Procurando os agentes instalados…',
+  'newSession.command': 'Comando',
+  'newSession.commandHint':
+    'Opcional. Roda no seu shell, então os aliases e as funções do seu perfil valem (por exemplo, claude-work). Vazio: {command}.',
   'newSession.submit': 'Criar e iniciar',
 
   'agent.missing': '{name} não foi encontrado no PATH. Instale com: {command}',
@@ -173,11 +176,15 @@ export const ptBR = {
   'prefs.fontSize': 'Tamanho',
   'prefs.scrollback': 'Linhas de histórico por sessão',
   'prefs.defaultFolder': 'Pasta inicial das novas sessões',
+  'prefs.agents': 'Agentes',
+  'prefs.agentCommand': 'Comando do {name}',
+  'prefs.agentCommandsHint':
+    'O que as sessões rodam no lugar do agente. O comando roda no seu shell, então os aliases e as funções do seu perfil valem. Vazio, roda o próprio agente. Uma sessão criada com um comando só dela continua com ele.',
   'prefs.showHidden':
     'Mostrar também os arquivos ocultos (os que começam com ponto e os ignorados pelo git)',
   'prefs.settings': 'Configurações',
   'prefs.settingsHint':
-    'Tudo o que está nas preferências, idioma, atalhos, layout e pastas favoritas incluídos, em um arquivo para guardar ou levar a outra máquina. As sessões não vão junto.',
+    'Tudo o que está nas preferências, idioma, comandos dos agentes, atalhos, layout e pastas favoritas incluídos, em um arquivo para guardar ou levar a outra máquina. As sessões não vão junto.',
   'prefs.export': 'Exportar…',
   'prefs.import': 'Importar…',
   'prefs.exported': 'Configurações exportadas para {file}',
@@ -294,5 +301,6 @@ export const ptBR = {
   'arg.folder': 'pasta',
   'arg.data': 'dados',
   'arg.content': 'conteúdo',
+  'arg.command': 'comando',
   'arg.expected': 'conteúdo esperado',
 } as const;

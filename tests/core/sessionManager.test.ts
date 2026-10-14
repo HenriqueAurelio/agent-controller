@@ -135,6 +135,33 @@ describe('SessionManager', () => {
       ]);
     });
 
+    it('keeps the command a session was created with, and a duplicate runs the same', () => {
+      const work = manager.create({
+        name: 'Trabalho',
+        cwd: dir,
+        profile: 'claude-code',
+        command: '  claude-work --model opus  ',
+      });
+      expect(work.command).toBe('claude-work --model opus');
+      expect(manager.duplicate(work.id).command).toBe('claude-work --model opus');
+      // No command, or one that is not a line: the session has none.
+      expect(create('Sem comando')).not.toHaveProperty('command');
+      const broken = manager.create({
+        name: 'Duas linhas',
+        cwd: dir,
+        profile: 'codex',
+        command: 'a\nb',
+      });
+      expect(broken).not.toHaveProperty('command');
+      manager.flushPersist();
+      expect(persisted.at(-1)!.sessions.map((s) => s.command)).toEqual([
+        'claude-work --model opus',
+        'claude-work --model opus',
+        undefined,
+        undefined,
+      ]);
+    });
+
     it('moves a session to another folder, ending the agent that was running in the old one', async () => {
       const other = tempDir();
       try {

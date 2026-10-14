@@ -594,6 +594,10 @@ button.path:hover:not(:disabled) {
 .profile-note.blocking {
   color: var(--muted);
 }
+/* A command line, as typed in a terminal. */
+.command {
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+}
 .form-error {
   margin: 0;
   color: var(--danger);

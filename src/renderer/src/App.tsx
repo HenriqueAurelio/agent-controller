@@ -28,6 +28,7 @@ export function App() {
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
   const layout = useAppState((s) => s.prefs.layout);
   const language = useAppState((s) => s.prefs.language);
+  const agentCommands = useAppState((s) => s.prefs.agentCommands);
   const t = useT();
   const [overlay, setOverlay] = useState<Overlay>(null);
   /** The folder a new session was asked for, when it came from one dropped on the window. */
@@ -79,6 +80,8 @@ export function App() {
   }, [mayDiscardEdits]);
 
   const selected = sessions.find((s) => s.id === selectedId) ?? null;
+  // What the session runs in place of the agent, when it is not the agent itself.
+  const agentCommand = selected && (selected.command || agentCommands[selected.profile]);
   const sessionIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
 
   useEffect(() => {
@@ -375,7 +378,10 @@ export function App() {
             />
             <div className="session-header-text">
               <strong>{selected.name}</strong>
-              <span className="muted">{PROFILE_LABEL[selected.profile]}</span>
+              <span className="muted">
+                {PROFILE_LABEL[selected.profile]}
+                {agentCommand && <span className="command"> · {agentCommand}</span>}
+              </span>
               <span
                 data-testid="session-status"
                 className={`state-label state-label-${selected.status.state} ${selected.status.confirmed ? '' : 'inferred'}`}

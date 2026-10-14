@@ -1,3 +1,4 @@
+import { NO_AGENT_COMMANDS, sanitizeAgentCommands, type AgentCommands } from './agents';
 import { DEFAULT_LANGUAGE, sanitizeLanguage, type Language } from './i18n';
 import { DEFAULT_LAYOUT, sanitizeLayout, type Layout } from './layout';
 import { DEFAULT_SHORTCUTS, sanitizeShortcuts, type ShortcutMap } from './shortcuts';
@@ -23,6 +24,8 @@ export interface Preferences {
   defaultFolder: string;
   /** Folders kept at hand, offered first when a session is created. */
   favoriteFolders: string[];
+  /** Per agent, the command sessions run in place of the agent's own. Empty: the agent's. */
+  agentCommands: AgentCommands;
   layout: Layout;
   shortcuts: ShortcutMap;
 }
@@ -40,6 +43,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   showHiddenFiles: false,
   defaultFolder: '',
   favoriteFolders: [],
+  agentCommands: NO_AGENT_COMMANDS,
   layout: DEFAULT_LAYOUT,
   shortcuts: DEFAULT_SHORTCUTS,
 };
@@ -100,6 +104,7 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
         ? p.defaultFolder.trim()
         : '',
     favoriteFolders: sanitizeFavoriteFolders(p.favoriteFolders),
+    agentCommands: sanitizeAgentCommands(p.agentCommands),
     layout: sanitizeLayout(p.layout),
     shortcuts: sanitizeShortcuts(p.shortcuts),
   };

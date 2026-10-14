@@ -38,6 +38,11 @@ export interface Session {
   name: string;
   cwd: string;
   profile: AgentProfileId;
+  /**
+   * Run in the user's shell in place of the agent's executable, so an alias or a function of
+   * theirs works. Absent: the command of the preferences, or the agent's own.
+   */
+  command?: string;
   order: number;
 }
 
@@ -56,6 +61,7 @@ export interface NewSessionInput {
   name: string;
   cwd: string;
   profile: AgentProfileId;
+  command?: string;
 }
 
 export interface TerminalSize {

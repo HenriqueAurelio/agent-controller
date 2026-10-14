@@ -16,3 +16,4 @@ export type { AdapterHost, AgentAdapter } from './adapter';
 export * from './profiles';
 export * from './commandLine';
 export * from './detect';
+export * from './shellCommand';

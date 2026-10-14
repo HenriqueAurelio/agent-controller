@@ -6,9 +6,11 @@ import {
   type Message,
   type MessageKey,
 } from '@shared/i18n';
+import { AGENT_COMMAND_LIMIT } from '@shared/agents';
 import { SCROLLBACK_LIMITS, type Preferences } from '@shared/prefs';
+import { AGENT_PROFILE_IDS } from '@shared/session';
 import { useAppState } from '../lib/store';
-import { errorMessage } from '../lib/format';
+import { errorMessage, PROFILE_LABEL } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Dialog } from './Dialog';
 import { FavoriteFolders } from './FavoriteFolders';
@@ -24,6 +26,7 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
   const t = useT();
   const prefs = useAppState((s) => s.prefs);
   const testMode = useAppState((s) => s.info.testMode);
+  const agents = useAppState((s) => s.agents);
   const [tab, setTab] = useState<TabId>('geral');
   // Kept as a message, not as its words: an import may bring another language with it.
   const [transfer, setTransfer] = useState<Message | { error: string } | null>(null);
@@ -212,6 +215,34 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
                 )}
               </label>
               <FavoriteFolders />
+            </fieldset>
+
+            <fieldset className="field">
+              <legend>{t('prefs.agents')}</legend>
+              <span className="muted">{t('prefs.agentCommandsHint')}</span>
+              {AGENT_PROFILE_IDS.map((profile) => {
+                const label = t('prefs.agentCommand', { name: PROFILE_LABEL[profile] });
+                return (
+                  <label key={profile} className="field-inline">
+                    <span>{label}</span>
+                    <input
+                      // Remounted when the command comes from an imported file.
+                      key={prefs.agentCommands[profile]}
+                      className="wide command"
+                      aria-label={label}
+                      placeholder={agents.find((a) => a.profile === profile)?.executable}
+                      maxLength={AGENT_COMMAND_LIMIT}
+                      spellCheck={false}
+                      defaultValue={prefs.agentCommands[profile]}
+                      onBlur={(e) =>
+                        set({
+                          agentCommands: { ...prefs.agentCommands, [profile]: e.target.value },
+                        })
+                      }
+                    />
+                  </label>
+                );
+              })}
             </fieldset>
 
             <fieldset className="field">

@@ -104,6 +104,9 @@ export const en: Record<keyof typeof ptBR, string> = {
   'newSession.namePlaceholder': 'How the session appears in the sidebar',
   'newSession.agent': 'Agent',
   'newSession.detecting': 'Looking for the installed agents…',
+  'newSession.command': 'Command',
+  'newSession.commandHint':
+    'Optional. It runs in your shell, so the aliases and functions of your profile work (for example, claude-work). Empty: {command}.',
   'newSession.submit': 'Create and start',
 
   'agent.missing': '{name} was not found on the PATH. Install it with: {command}',
@@ -173,11 +176,15 @@ export const en: Record<keyof typeof ptBR, string> = {
   'prefs.fontSize': 'Size',
   'prefs.scrollback': 'Lines of history per session',
   'prefs.defaultFolder': 'Starting folder of new sessions',
+  'prefs.agents': 'Agents',
+  'prefs.agentCommand': '{name} command',
+  'prefs.agentCommandsHint':
+    'What the sessions run in place of the agent. The command runs in your shell, so the aliases and functions of your profile work. Empty, the agent itself runs. A session created with a command of its own keeps it.',
   'prefs.showHidden':
     'Also show hidden files (the ones that start with a dot and the ones git ignores)',
   'prefs.settings': 'Settings',
   'prefs.settingsHint':
-    'Everything in the preferences, language, shortcuts, layout and favorite folders included, in a file to keep or to take to another machine. The sessions do not go along.',
+    'Everything in the preferences, language, agent commands, shortcuts, layout and favorite folders included, in a file to keep or to take to another machine. The sessions do not go along.',
   'prefs.export': 'Export…',
   'prefs.import': 'Import…',
   'prefs.exported': 'Settings exported to {file}',
@@ -295,5 +302,6 @@ export const en: Record<keyof typeof ptBR, string> = {
   'arg.folder': 'folder',
   'arg.data': 'data',
   'arg.content': 'content',
+  'arg.command': 'command',
   'arg.expected': 'expected content',
 };
