@@ -50,7 +50,7 @@ test('evidences: folders, theme of the editor, layout and settings', async () =>
       .getByRole('button', { name: /Cancelar|Fechar/ })
       .click();
   const openChanges = async (p: Page) => {
-    await p.locator('.session-header button[title^="See changes"]').click();
+    await p.locator('.session-header button', { hasText: /^(See changes|Ver mudanças)/ }).click();
     await p.locator('.change-item', { hasText: 'velho.txt' }).click();
     await p
       .frameLocator('[data-testid="diff-frame"]')
@@ -285,5 +285,51 @@ test('evidences: tabs of the preferences', async () => {
   } finally {
     await running.close();
     for (const dir of [userData, base]) removeDir(dir);
+  }
+});
+
+test('evidences: see changes translated and Spanish', async () => {
+  test.setTimeout(180_000);
+  const userData = tempDir('ac-evid-data-');
+  const loja = tempDir('ac-loja-');
+
+  const running = await launch(userData);
+  const { page } = running;
+  const shot = async (name: string) => {
+    fs.mkdirSync(path.join(OUT, 'ver-mudancas-e-espanhol'), { recursive: true });
+    await page.waitForTimeout(700);
+    await page.screenshot({
+      path: path.join(OUT, 'ver-mudancas-e-espanhol', `${name}-${PHASE}.png`),
+    });
+  };
+
+  try {
+    await createSession(page, 'Loja', loja);
+
+    // 1. The header of the session, in Portuguese: the button of the changes.
+    const button = page.locator('.session-header button', {
+      hasText: /^(See changes|Ver mudanças)/,
+    });
+    await button.hover();
+    await shot('01-botao');
+
+    // 2. The command palette, looking for the changes.
+    await page.keyboard.press('Control+Shift+P');
+    await page.keyboard.type(AFTER ? 'ver' : 'see');
+    await shot('02-paleta');
+    await page.keyboard.press('Escape');
+
+    // 3. The languages to choose from, and the app in Spanish.
+    await page.keyboard.press('Control+,');
+    const language = page
+      .getByRole('dialog', { name: 'Preferências' })
+      .getByLabel('Idioma da interface');
+    if (AFTER) await language.selectOption('es');
+    await shot('03-preferencias');
+    await page.keyboard.press('Escape');
+    await shot('04-janela');
+  } finally {
+    await running.close();
+    for (const dir of [userData, loja]) removeDir(dir);
   }
 });

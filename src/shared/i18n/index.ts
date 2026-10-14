@@ -1,9 +1,10 @@
 // The language of the interface. Every text shown to the user is a key of a dictionary; nothing
 // outside this folder knows the words.
 import { en } from './en';
+import { es } from './es';
 import { ptBR } from './pt-BR';
 
-export const LANGUAGES = ['pt-BR', 'en'] as const;
+export const LANGUAGES = ['pt-BR', 'en', 'es'] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 export const DEFAULT_LANGUAGE: Language = 'pt-BR';
@@ -12,6 +13,7 @@ export const DEFAULT_LANGUAGE: Language = 'pt-BR';
 export const LANGUAGE_NAME: Record<Language, string> = {
   'pt-BR': 'Português (Brasil)',
   en: 'English',
+  es: 'Español',
 };
 
 export type MessageKey = keyof typeof ptBR;
@@ -24,7 +26,7 @@ export interface Message {
 export type MessageParams = Record<string, string | number | Message>;
 export type Translate = (key: MessageKey, params?: MessageParams) => string;
 
-const DICTIONARIES: Record<Language, Record<MessageKey, string>> = { 'pt-BR': ptBR, en };
+const DICTIONARIES: Record<Language, Record<MessageKey, string>> = { 'pt-BR': ptBR, en, es };
 
 export const sanitizeLanguage = (value: unknown): Language =>
   LANGUAGES.includes(value as Language) ? (value as Language) : DEFAULT_LANGUAGE;

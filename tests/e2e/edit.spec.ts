@@ -341,7 +341,7 @@ test('unsaved edits are not lost by the shortcuts, by switching session or by cl
 
   // The toolbar button.
   confirm = answerNextConfirm(false);
-  await page.locator('.session-header button[title^="See changes"]').click();
+  await page.locator('.session-header button[title^="Ver mudanças"]').click();
   await expect.poll(confirm.asked).not.toBeNull();
   await expect(panel).toBeVisible();
 

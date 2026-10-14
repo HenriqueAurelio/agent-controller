@@ -16,6 +16,7 @@ export const ptBR = {
   'app.changeFolderHint': 'Clique para trocar a pasta da sessão',
   'app.start': 'Iniciar',
   'app.stop': 'Parar',
+  'app.seeChanges': 'Ver mudanças',
   'app.allFilesHint': 'Todos os arquivos da pasta',
   'app.codexHooksBanner':
     'O modo preciso do Codex está desligado: os hooks do app ainda não foram confiados. O aviso de “aguardando você” continua funcionando pelo título da janela. Para ligar a confirmação por hook, abra uma nova sessão do Codex e, na tela {screen}, escolha confiar nos hooks.',
@@ -25,7 +26,7 @@ export const ptBR = {
     'O agente de {name} está rodando. Fechar a sessão vai encerrá-lo, junto com o que ele tiver iniciado.',
   'app.closeSession.confirm': 'Encerrar e fechar',
 
-  'command.seeChanges': 'See changes: ver as mudanças da sessão',
+  'command.seeChanges': 'Ver mudanças: o que mudou na sessão',
   'command.files': 'Arquivos: ver todos os arquivos da pasta',
   'command.toggleHidden': 'Arquivos: mostrar ou esconder os ocultos',
   'command.start': 'Iniciar o agente de “{name}”',

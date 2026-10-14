@@ -11,7 +11,7 @@ Um app desktop que reúne sessões de **Claude Code** e **Codex** em uma janela 
 | O quê | Para quê | Como conferir |
 |---|---|---|
 | [Claude Code](https://docs.claude.com/claude-code) e/ou [Codex CLI](https://developers.openai.com/codex/cli) | São os agentes que o app abre. Precisam estar instalados, no `PATH` e logados | `claude --version`, `codex --version` |
-| [git](https://git-scm.com) 2.15 ou mais novo | Só para o painel "See changes" | `git --version` |
+| [git](https://git-scm.com) 2.15 ou mais novo | Só para o painel "Ver mudanças" | `git --version` |
 
 Versões de agente testadas: **Claude Code 2.1.296** e **Codex CLI 0.158.0**, as duas no Windows 10. Com uma versão mais nova o app funciona e avisa que ela ainda não foi testada; com uma mais antiga que a mínima (Claude Code 2.1.0, Codex 0.158.0), avisa que os avisos podem falhar.
 
@@ -95,7 +95,7 @@ Em **Preferências** (`Ctrl+,`) dá para desligar cada tipo de aviso e o som.
 
 ### Ver o que o agente alterou
 
-**See changes** (botão no topo da sessão, `Ctrl+Shift+G`, ou "see changes" na paleta de comandos) abre o painel de mudanças:
+**Ver mudanças** (botão no topo da sessão, `Ctrl+Shift+G`, ou "ver mudanças" na paleta de comandos) abre o painel de mudanças:
 
 - A lista dos arquivos adicionados, modificados, removidos, renomeados e não rastreados, agrupados por pasta.
 - O antes e depois do arquivo selecionado, lado a lado ou em linha.
@@ -127,7 +127,7 @@ A mudança vale na hora e fica guardada. **Restaurar padrão** volta ao arranjo 
 
 ### Idioma
 
-Em **Preferências → Geral → Idioma** você escolhe a língua da interface: **Português (Brasil)**, que é a de fábrica, ou **English**. A troca vale na hora, sem reabrir o app, e fica guardada. Ela alcança tudo o que o app escreve: telas, dicas, paleta de comandos, mensagens de erro, as notificações do sistema, as perguntas ao fechar e os avisos que o app deixa no terminal (`[O agente saiu (código 1).]`). O que o próprio agente escreve no terminal não é traduzido, e os avisos que já estavam na tela continuam na língua em que foram escritos.
+Em **Preferências → Geral → Idioma** você escolhe a língua da interface: **Português (Brasil)**, que é a de fábrica, **English** ou **Español**. A troca vale na hora, sem reabrir o app, e fica guardada. Ela alcança tudo o que o app escreve: telas, dicas, paleta de comandos, mensagens de erro, as notificações do sistema, as perguntas ao fechar e os avisos que o app deixa no terminal (`[O agente saiu (código 1).]`). O que o próprio agente escreve no terminal não é traduzido, e os avisos que já estavam na tela continuam na língua em que foram escritos.
 
 Este README descreve o app em português; em inglês, os nomes dos botões e menus são os equivalentes.
 

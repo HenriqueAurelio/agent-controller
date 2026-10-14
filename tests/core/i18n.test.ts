@@ -11,11 +11,12 @@ import {
   type MessageKey,
 } from '@shared/i18n';
 import { en } from '@shared/i18n/en';
+import { es } from '@shared/i18n/es';
 import { ptBR } from '@shared/i18n/pt-BR';
 import { sanitizePreferences } from '@shared/prefs';
 import { STATUS_DETAIL, statusDetail, statusLabel, type SessionStatus } from '@shared/session';
 
-const DICTIONARIES = { 'pt-BR': ptBR, en } as const;
+const DICTIONARIES = { 'pt-BR': ptBR, en, es } as const;
 const marks = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
 describe('dictionaries', () => {
@@ -42,6 +43,7 @@ describe('translate', () => {
     expect(translate('pt-BR', 'command.goTo', { name: 'API' })).toBe('Ir para: API');
     expect(translate('en', 'command.goTo', { name: 'API' })).toBe('Go to: API');
     expect(translator('en')('notice.exited', { code: 7 })).toBe('The agent exited (code 7).');
+    expect(translate('es', 'command.goTo', { name: 'API' })).toBe('Ir a: API');
   });
 
   it('words a value that is itself a text, and leaves alone what has no value', () => {
@@ -55,6 +57,7 @@ describe('translate', () => {
 
   it('an unknown language is the default one', () => {
     expect(sanitizeLanguage('en')).toBe('en');
+    expect(sanitizeLanguage('es')).toBe('es');
     expect(sanitizeLanguage('fr')).toBe(DEFAULT_LANGUAGE);
     expect(sanitizeLanguage(undefined)).toBe(DEFAULT_LANGUAGE);
     expect(sanitizePreferences({ language: 'xx' as never }).language).toBe(DEFAULT_LANGUAGE);

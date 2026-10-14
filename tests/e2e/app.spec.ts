@@ -415,7 +415,7 @@ test.describe('see changes', () => {
     fs.writeFileSync(path.join(repo, 'adicionado.txt'), 'no índice\n');
     git(repo, 'add', 'adicionado.txt');
 
-    await page.getByRole('button', { name: /See changes/ }).click();
+    await page.getByRole('button', { name: /Ver mudanças/ }).click();
     const panel = page.getByRole('region', { name: 'Mudanças' });
     // Not `toBeVisible`: a narrow panel, as on a small screen, hides the tag to keep one line.
     await expect(panel.locator('.readonly-tag')).toHaveText('Editável');
@@ -470,7 +470,7 @@ test.describe('see changes', () => {
 
     await page.keyboard.press('Escape');
     await expect(panel).toBeHidden();
-    await expect(page.getByRole('button', { name: /See changes/ }).locator('.count')).toHaveText(
+    await expect(page.getByRole('button', { name: /Ver mudanças/ }).locator('.count')).toHaveText(
       '6',
     );
   });
@@ -554,7 +554,7 @@ test.describe('see changes', () => {
     await createSession(page, 'Sem git', work);
     await page.keyboard.press('Control+Shift+P');
     const palette = page.getByRole('dialog', { name: 'Paleta de comandos' });
-    await palette.getByLabel('Comando').fill('see changes');
+    await palette.getByLabel('Comando').fill('ver mudanças');
     await page.keyboard.press('Enter');
     const panel = page.getByRole('region', { name: 'Mudanças' });
     await expect(panel).toContainText('Esta pasta não é um repositório git');
