@@ -11,6 +11,8 @@ export interface AppState {
   metrics: Record<string, SessionMetrics>;
   prefs: Preferences;
   agents: AgentAvailability[];
+  /** Folders of the latest sessions that still exist, most recent first. */
+  recentFolders: string[];
 }
 
 let state: AppState = {
@@ -20,10 +22,14 @@ let state: AppState = {
   metrics: {},
   prefs: DEFAULT_PREFERENCES,
   agents: [],
+  recentFolders: [],
 };
 const listeners = new Set<() => void>();
 /** Asked before the selected session changes; returning false keeps the current one. */
 let leaveGuard: (() => boolean) | null = null;
+
+/** The folders of the sessions as last seen: the recent ones only change when these do. */
+let knownFolders: string | null = null;
 
 function set(patch: Partial<AppState>): void {
   state = { ...state, ...patch };
@@ -40,7 +46,10 @@ export const store = {
 
   async init(): Promise<void> {
     const { api } = window;
-    api.on('sessions:changed', (snapshot) => set(snapshot));
+    api.on('sessions:changed', (snapshot) => {
+      set(snapshot);
+      void store.refreshRecentFolders();
+    });
     api.on('metrics:update', (metrics) => set({ metrics }));
     api.on('prefs:changed', (prefs) => set({ prefs }));
     const [info, snapshot, prefs] = await Promise.all([
@@ -49,6 +58,7 @@ export const store = {
       api.invoke('prefs:get'),
     ]);
     set({ info, ...snapshot, prefs });
+    void store.refreshRecentFolders();
     void store.detectAgents(false);
   },
 
@@ -56,6 +66,14 @@ export const store = {
     const agents = await window.api.invoke('agents:detect', refresh);
     set({ agents });
     return agents;
+  },
+
+  /** Asks again for the recent folders, when the folders of the sessions are not the same. */
+  async refreshRecentFolders(force = false): Promise<void> {
+    const folders = state.sessions.map((s) => s.cwd).join('\n');
+    if (!force && folders === knownFolders) return;
+    knownFolders = folders;
+    set({ recentFolders: await window.api.invoke('folders:recent') });
   },
 
   setLeaveGuard(guard: (() => boolean) | null): void {

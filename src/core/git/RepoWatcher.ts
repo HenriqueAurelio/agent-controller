@@ -10,8 +10,10 @@ export interface RepoWatcherOptions {
   maxTrackedPaths?: number;
 }
 
-// Inside .git, only what moves HEAD or the index changes what the panel shows.
-const GIT_RELEVANT = /^\.git\/(HEAD|index|ORIG_HEAD|MERGE_HEAD|refs\/heads\/.*)$/;
+// Inside .git, only what moves HEAD or the index changes what the panel shows. The repository
+// may be the watched folder or any folder below it.
+const GIT_FOLDER = /(^|\/)\.git(\/|$)/;
+const GIT_RELEVANT = /(^|\/)\.git\/(HEAD|index|ORIG_HEAD|MERGE_HEAD|refs\/heads\/.*)$/;
 
 function normalize(file: string): string {
   return file.split(path.sep).join('/');
@@ -50,7 +52,7 @@ export class RepoWatcher {
   private onEvent(file: string | null): void {
     if (file === null) {
       this.overflow = true;
-    } else if (file === '.git' || file.startsWith('.git/')) {
+    } else if (GIT_FOLDER.test(file)) {
       if (!GIT_RELEVANT.test(file) || file.endsWith('.lock')) return;
       this.overflow = true; // HEAD or index moved: always refresh.
     } else if (this.pending.size >= this.maxTrackedPaths) {

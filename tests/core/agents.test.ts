@@ -130,28 +130,25 @@ describe('agent detection', () => {
   it('missing agent: the profile is unusable and explains how to install', async () => {
     const result = await detectAgent(CODEX, env());
     expect(result).toMatchObject({ profile: 'codex', status: 'missing', usable: false });
-    expect(result.message).toMatch(/não foi encontrado.*npm install -g @openai\/codex/);
+    expect(result.installCommand).toBe('npm install -g @openai/codex');
   });
 
   it('tested version: ok, no message', async () => {
     fakeAgent('codex', 'codex-cli 0.158.0');
     const result = await detectAgent(CODEX, env());
     expect(result).toMatchObject({ status: 'ok', usable: true, version: '0.158.0' });
-    expect(result.message).toBeUndefined();
   });
 
   it('old version: usable, with a warning', async () => {
     fakeAgent('claude', '1.0.44 (Claude Code)');
     const result = await detectAgent(CLAUDE_CODE, env());
     expect(result).toMatchObject({ status: 'outdated', usable: true, version: '1.0.44' });
-    expect(result.message).toMatch(/mais antiga que a mínima suportada \(2\.1\.0\)/);
   });
 
   it('newer than the last tested version: usable, non-blocking warning', async () => {
     fakeAgent('codex', 'codex-cli 0.200.1');
     const result = await detectAgent(CODEX, env());
     expect(result).toMatchObject({ status: 'newer-than-tested', usable: true });
-    expect(result.message).toMatch(/mais nova que a última testada/);
   });
 
   it('an executable that does not report a version still counts as installed', () => {

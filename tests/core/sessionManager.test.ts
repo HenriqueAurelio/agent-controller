@@ -8,6 +8,7 @@ import {
   type SessionTransition,
 } from '@core/sessions/SessionManager';
 import { createSocketPath, HookServer } from '@core/signals/HookServer';
+import { UserError } from '@shared/i18n';
 import { DEFAULT_PREFERENCES } from '@shared/prefs';
 import type { Session, SessionState } from '@shared/session';
 import { AGENTCTL_SCRIPT, FIXTURES, removeDir, sleep, tempDir, waitFor } from './helpers';
@@ -111,6 +112,67 @@ describe('SessionManager', () => {
       ).toThrow(/não existe/);
     });
 
+    it('duplicates a session right below it, in the same folder and with the same agent', () => {
+      const a = create('API', 'codex');
+      const b = create('Web');
+      const copy = manager.duplicate(a.id);
+      const again = manager.duplicate(copy.id);
+      expect(manager.list().map((s) => [s.name, s.profile, s.cwd])).toEqual([
+        ['API', 'codex', dir],
+        ['API (2)', 'codex', dir],
+        ['API (3)', 'codex', dir],
+        ['Web', 'claude-code', dir],
+      ]);
+      expect(new Set([a.id, b.id, copy.id, again.id]).size).toBe(4);
+      expect(manager.selected).toBe(again.id);
+      expect(copy).toMatchObject({ running: false, status: { state: 'parada' } });
+      manager.flushPersist();
+      expect(persisted.at(-1)!.sessions.map((s) => [s.name, s.order])).toEqual([
+        ['API', 0],
+        ['API (2)', 1],
+        ['API (3)', 2],
+        ['Web', 3],
+      ]);
+    });
+
+    it('moves a session to another folder, ending the agent that was running in the old one', async () => {
+      const other = tempDir();
+      try {
+        const s = create();
+        await expect(manager.setCwd(s.id, path.join(dir, 'nao-existe'))).rejects.toThrow(
+          /não existe/,
+        );
+        await expect(manager.setCwd(s.id, FAKE_AGENT)).rejects.toThrow(/Não é uma pasta/);
+        expect(manager.get(s.id)!.cwd).toBe(dir);
+
+        expect(await manager.setCwd(s.id, other)).toBe(false);
+        expect(manager.list()[0]!.cwd).toBe(other);
+        manager.flushPersist();
+        expect(persisted.at(-1)!.sessions[0]!.cwd).toBe(other);
+
+        const cwds: string[] = [];
+        launch = (session) => {
+          cwds.push(session.cwd);
+          return { file: process.execPath, args: [FAKE_AGENT] };
+        };
+        manager.start(s.id, SIZE);
+        await until(s.id, 'aguardando');
+        expect(cwds).toEqual([other]);
+
+        // A folder that cannot be used leaves the running agent alone.
+        await expect(manager.setCwd(s.id, path.join(dir, 'nao-existe'))).rejects.toThrow();
+        expect(await manager.setCwd(s.id, other)).toBe(false);
+        expect(manager.isRunning(s.id)).toBe(true);
+
+        expect(await manager.setCwd(s.id, dir)).toBe(true);
+        expect(manager.list()[0]).toMatchObject({ cwd: dir, running: false });
+        expect(state(s.id)).toBe('parada');
+      } finally {
+        await manager.stopAll(0);
+        removeDir(other);
+      }
+    });
+
     it('restores saved sessions as stopped, with the last selection', async () => {
       await manager.dispose(0);
       const saved: Session[] = [
@@ -203,6 +265,18 @@ describe('SessionManager', () => {
       expect(manager.statusOf(s.id)).toMatchObject({ state: 'erro' });
       expect(await manager.screenText(s.id)).toContain('Codex não foi encontrado no PATH.');
       expect(manager.isRunning(s.id)).toBe(false);
+    });
+
+    it('writes its notices in the language of the preferences', async () => {
+      manager.setPreferences({ ...DEFAULT_PREFERENCES, silenceSeconds: 0, language: 'en' });
+      launch = () => {
+        throw new UserError('agent.missing', { name: 'Codex', command: 'npm install -g x' });
+      };
+      const s = create('x', 'codex');
+      manager.start(s.id, SIZE);
+      const reason = 'Codex was not found on the PATH. Install it with: npm install -g x';
+      expect(manager.statusOf(s.id)).toMatchObject({ state: 'erro', detail: reason });
+      expect(await manager.screenText(s.id)).toContain(`Could not start: ${reason}`);
     });
 
     it('removing a running session ends its process', async () => {

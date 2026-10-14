@@ -1,17 +1,21 @@
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
+import { isHorizontal } from '@shared/layout';
 import { statusLabel, type SessionView } from '@shared/session';
-import { formatCpu, formatMemory, PROFILE_LABEL } from '../lib/format';
+import { formatCpu, formatMemory, hint, PROFILE_LABEL } from '../lib/format';
+import { useT } from '../lib/i18n';
 import { store, useAppState } from '../lib/store';
 
 interface Props {
   onNew(): void;
   onPreferences(): void;
   onClose(session: SessionView): void;
+  onDuplicate(session: SessionView): void;
   /** The keyboard goes back to the terminal after an action in the list. */
   onDone(): void;
 }
 
 function RenameInput({ session, onEnd }: { session: SessionView; onEnd(): void }) {
+  const t = useT();
   const [value, setValue] = useState(session.name);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => ref.current?.select(), []);
@@ -23,7 +27,7 @@ function RenameInput({ session, onEnd }: { session: SessionView; onEnd(): void }
     <input
       ref={ref}
       className="rename-input"
-      aria-label="Nome da sessão"
+      aria-label={t('sidebar.sessionName')}
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onBlur={commit}
@@ -37,10 +41,14 @@ function RenameInput({ session, onEnd }: { session: SessionView; onEnd(): void }
   );
 }
 
-export function Sidebar({ onNew, onPreferences, onClose, onDone }: Props) {
+export function Sidebar({ onNew, onPreferences, onClose, onDuplicate, onDone }: Props) {
   const sessions = useAppState((s) => s.sessions);
   const selectedId = useAppState((s) => s.selectedId);
   const metrics = useAppState((s) => s.metrics);
+  const t = useT();
+  const shortcuts = useAppState((s) => s.prefs.shortcuts);
+  // On top or at the bottom the list runs sideways, and so do the arrows.
+  const horizontal = useAppState((s) => isHorizontal(s.prefs.layout.sessions));
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -73,17 +81,18 @@ export function Sidebar({ onNew, onPreferences, onClose, onDone }: Props) {
     if (renaming) return;
     const focusItem = (i: number) =>
       document.querySelector<HTMLElement>(`[data-session-index="${i}"]`)?.focus();
-    const arrow = event.key === 'ArrowUp' || event.key === 'ArrowDown';
+    const [back, forward] = horizontal ? ['ArrowLeft', 'ArrowRight'] : ['ArrowUp', 'ArrowDown'];
+    const arrow = event.key === back || event.key === forward;
     // Alt+arrow, or Ctrl+Shift+arrow where the window manager keeps Alt for itself.
     if (arrow && (event.altKey || (event.ctrlKey && event.shiftKey))) {
       event.preventDefault();
-      const to = index + (event.key === 'ArrowUp' ? -1 : 1);
+      const to = index + (event.key === back ? -1 : 1);
       move(session.id, to);
       requestAnimationFrame(() => focusItem(Math.max(0, Math.min(sessions.length - 1, to))));
-    } else if (event.key === 'ArrowDown') {
+    } else if (event.key === forward) {
       event.preventDefault();
       focusItem(Math.min(sessions.length - 1, index + 1));
-    } else if (event.key === 'ArrowUp') {
+    } else if (event.key === back) {
       event.preventDefault();
       focusItem(Math.max(0, index - 1));
     } else if (event.key === 'Enter' || event.key === ' ') {
@@ -100,17 +109,21 @@ export function Sidebar({ onNew, onPreferences, onClose, onDone }: Props) {
   };
 
   return (
-    <aside className="sidebar" aria-label="Sessões">
+    <aside className="sidebar" aria-label={t('common.sessions')}>
       <div className="sidebar-header">
-        <span className="sidebar-title">Sessões</span>
-        <button className="icon-button" title="Preferências (Ctrl+,)" onClick={onPreferences}>
+        <span className="sidebar-title">{t('common.sessions')}</span>
+        <button
+          className="icon-button"
+          title={hint(t('shortcut.preferences'), shortcuts.preferences[0])}
+          onClick={onPreferences}
+        >
           ⚙
         </button>
       </div>
-      <ul className="session-list" role="listbox" aria-label="Lista de sessões">
+      <ul className="session-list" role="listbox" aria-label={t('sidebar.list')}>
         {sessions.map((session, index) => {
           const m = session.running ? metrics[session.id] : undefined;
-          const label = statusLabel(session.status);
+          const label = statusLabel(t, session.status);
           return (
             <li
               key={session.id}
@@ -133,6 +146,8 @@ export function Sidebar({ onNew, onPreferences, onClose, onDone }: Props) {
                 e.dataTransfer.effectAllowed = 'move';
               }}
               onDragOver={(e) => {
+                // A folder dragged in from outside is not a session being reordered.
+                if (!dragging) return;
                 e.preventDefault();
                 setDropTarget(session.id);
               }}
@@ -178,17 +193,28 @@ export function Sidebar({ onNew, onPreferences, onClose, onDone }: Props) {
                 {m && (
                   <span
                     className={`session-metrics ${showHeaviest && heaviest === session.id ? 'heaviest' : ''}`}
-                    title={`${m.processes} processo(s) na árvore da sessão`}
+                    title={t('sidebar.processes', { count: m.processes })}
                   >
                     CPU {formatCpu(m.cpu)} · RAM {formatMemory(m.memory)}
                   </span>
                 )}
               </div>
-              {session.unread && <span className="badge" aria-label="Tem novidade" />}
+              {session.unread && <span className="badge" aria-label={t('sidebar.unread')} />}
               <button
-                className="icon-button close-button"
-                title="Fechar sessão"
-                aria-label={`Fechar ${session.name}`}
+                className="icon-button item-button"
+                title={t('sidebar.duplicateHint')}
+                aria-label={t('sidebar.duplicate', { name: session.name })}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDuplicate(session);
+                }}
+              >
+                ⧉
+              </button>
+              <button
+                className="icon-button item-button close-button"
+                title={t('app.closeSession.title')}
+                aria-label={t('sidebar.close', { name: session.name })}
                 onClick={(e) => {
                   e.stopPropagation();
                   onClose(session);
@@ -200,8 +226,12 @@ export function Sidebar({ onNew, onPreferences, onClose, onDone }: Props) {
           );
         })}
       </ul>
-      <button className="new-session-button" onClick={onNew} title="Nova sessão (Ctrl+Shift+N)">
-        + Nova sessão
+      <button
+        className="new-session-button"
+        onClick={onNew}
+        title={hint(t('shortcut.newSession'), shortcuts.newSession[0])}
+      >
+        {t('sidebar.new')}
       </button>
     </aside>
   );

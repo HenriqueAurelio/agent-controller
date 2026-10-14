@@ -1,5 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react';
 import type { SessionView } from '@shared/session';
+import { useT } from '../lib/i18n';
 import { useAppState } from '../lib/store';
 import { TerminalPool } from '../lib/terminalPool';
 
@@ -19,6 +20,7 @@ const DEFAULT_SIZE = { cols: 100, rows: 30 };
 
 /** Hosts the xterm.js instances, which live outside the React render cycle. */
 export function TerminalArea({ session, sessionIds, ref }: Props) {
+  const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const poolRef = useRef<TerminalPool | null>(null);
   const prefs = useAppState((s) => s.prefs);
@@ -60,8 +62,8 @@ export function TerminalArea({ session, sessionIds, ref }: Props) {
       <div className="terminal-container" ref={containerRef} data-testid="terminals" />
       {!session && (
         <div className="empty-state">
-          <h2>Nenhuma sessão</h2>
-          <p>Crie uma sessão para abrir o Claude Code ou o Codex em uma pasta.</p>
+          <h2>{t('terminal.empty.title')}</h2>
+          <p>{t('terminal.empty.body')}</p>
         </div>
       )}
     </div>

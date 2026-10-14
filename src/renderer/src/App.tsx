@@ -1,24 +1,41 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { statusLabel, type SessionView } from '@shared/session';
-import { ChangesPanel } from './components/ChangesPanel';
+import { statusDetail, statusLabel, type SessionView } from '@shared/session';
+import {
+  bindingFromEvent,
+  bindingIndex,
+  SESSION_BINDING,
+  type ShortcutAction,
+} from '@shared/shortcuts';
+import { ChangeFolderDialog } from './components/ChangeFolderDialog';
+import { ChangesPanel, type PanelMode } from './components/ChangesPanel';
 import { CommandPalette, type Command } from './components/CommandPalette';
 import { Dialog } from './components/Dialog';
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { Sidebar } from './components/Sidebar';
 import { TerminalArea, type TerminalAreaHandle } from './components/TerminalArea';
-import { PROFILE_LABEL } from './lib/format';
+import { hint, PROFILE_LABEL } from './lib/format';
+import { rich, useT } from './lib/i18n';
+import { shortcutRecording } from './lib/shortcuts';
 import { store, useAppState } from './lib/store';
 
-type Overlay = 'new' | 'prefs' | 'palette' | null;
+type Overlay = 'new' | 'prefs' | 'palette' | 'folder' | null;
 
 export function App() {
   const sessions = useAppState((s) => s.sessions);
   const selectedId = useAppState((s) => s.selectedId);
   const theme = useAppState((s) => s.prefs.theme);
+  const shortcuts = useAppState((s) => s.prefs.shortcuts);
+  const layout = useAppState((s) => s.prefs.layout);
+  const language = useAppState((s) => s.prefs.language);
+  const t = useT();
   const [overlay, setOverlay] = useState<Overlay>(null);
+  /** The folder a new session was asked for, when it came from one dropped on the window. */
+  const [newFolder, setNewFolder] = useState<string | undefined>(undefined);
+  const [dropping, setDropping] = useState(false);
   const [closing, setClosing] = useState<SessionView | null>(null);
   const [changesOpen, setChangesOpen] = useState(false);
+  const [panelMode, setPanelMode] = useState<PanelMode>('changes');
   const [changeCount, setChangeCount] = useState<number | null>(null);
   const terminals = useRef<TerminalAreaHandle>(null);
 
@@ -26,6 +43,8 @@ export function App() {
   const unsavedRef = useRef<string | null>(null);
   const changesOpenRef = useRef(false);
   changesOpenRef.current = changesOpen;
+  const panelModeRef = useRef(panelMode);
+  panelModeRef.current = panelMode;
   const setUnsaved = useCallback((file: string | null) => {
     if (unsavedRef.current === file) return;
     unsavedRef.current = file;
@@ -34,14 +53,26 @@ export function App() {
   const mayDiscardEdits = useCallback(
     () =>
       !unsavedRef.current ||
-      window.confirm(`Há edições não salvas em ${unsavedRef.current}. Descartar?`),
-    [],
+      window.confirm(t('common.unsavedConfirm', { file: unsavedRef.current })),
+    [t],
   );
-  const toggleChanges = useCallback(() => {
-    if (!store.get().selectedId) return;
-    if (changesOpenRef.current && !mayDiscardEdits()) return;
-    setChangesOpen(!changesOpenRef.current);
-  }, [mayDiscardEdits]);
+  /** Opens the panel in `mode`; asked for the mode it is already in, closes it. */
+  const togglePanel = useCallback(
+    (mode: PanelMode) => {
+      if (!store.get().selectedId) return;
+      const open = changesOpenRef.current;
+      if (open && !mayDiscardEdits()) return;
+      setChangesOpen(!open || panelModeRef.current !== mode);
+      setPanelMode(mode);
+    },
+    [mayDiscardEdits],
+  );
+  const showPanel = useCallback(
+    (mode: PanelMode) => {
+      if (!changesOpenRef.current || panelModeRef.current !== mode) togglePanel(mode);
+    },
+    [togglePanel],
+  );
   useEffect(() => {
     store.setLeaveGuard(mayDiscardEdits);
     return () => store.setLeaveGuard(null);
@@ -53,16 +84,20 @@ export function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   // The taskbar says how many agents are waiting, even with the window out of sight.
   const waiting = sessions.filter((s) => s.status.state === 'aguardando' && s.running).length;
   useEffect(() => {
-    document.title = waiting > 0 ? `(${waiting} aguardando) Agent Controller` : 'Agent Controller';
-  }, [waiting]);
+    document.title = waiting > 0 ? t('app.titleWaiting', { count: waiting }) : 'Agent Controller';
+  }, [waiting, t]);
 
   // What is on top of the terminal right now, readable from a callback that runs later.
   const coveredRef = useRef(false);
-  coveredRef.current = Boolean(overlay || closing || changesOpen);
+  // A panel beside the terminal leaves it in sight, and reachable.
+  coveredRef.current = Boolean(overlay || closing || (changesOpen && layout.panel === 'cover'));
 
   /**
    * Hands the keyboard to the terminal on the next frame. By then the user may have opened or
@@ -91,6 +126,73 @@ export function App() {
     else void window.api.invoke('sessions:remove', session.id);
   }, []);
 
+  /** The agent starts at the size of its terminal, which is mounted on the next frame. */
+  const startWhenMounted = useCallback((id: string) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => terminals.current?.start(id)));
+  }, []);
+
+  const openNew = useCallback((folder?: string) => {
+    setNewFolder(folder);
+    setOverlay('new');
+  }, []);
+
+  // Both leave the open file of the changes panel behind.
+  const duplicate = useCallback(
+    (session: SessionView) => {
+      if (!mayDiscardEdits()) return;
+      void window.api
+        .invoke('sessions:duplicate', session.id)
+        .then((copy) => startWhenMounted(copy.id));
+    },
+    [mayDiscardEdits, startWhenMounted],
+  );
+  const changeFolder = useCallback(() => {
+    if (store.get().selectedId && mayDiscardEdits()) setOverlay('folder');
+  }, [mayDiscardEdits]);
+
+  // A folder dropped anywhere on the window asks for a session in it.
+  useEffect(() => {
+    const carriesFiles = (event: DragEvent) => event.dataTransfer?.types.includes('Files') ?? false;
+    let depth = 0;
+    const onEnter = (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      depth++;
+      setDropping(true);
+    };
+    const onLeave = (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) setDropping(false);
+    };
+    const onOver = (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      event.dataTransfer!.dropEffect = 'copy';
+    };
+    const onDrop = (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      depth = 0;
+      setDropping(false);
+      const file = event.dataTransfer!.files[0];
+      const dropped = file ? window.api.pathForFile(file) : '';
+      if (!dropped) return;
+      void window.api
+        .invoke('folders:resolve', dropped)
+        .then((folder) => folder && openNew(folder));
+    };
+    window.addEventListener('dragenter', onEnter);
+    window.addEventListener('dragleave', onLeave);
+    window.addEventListener('dragover', onOver);
+    window.addEventListener('drop', onDrop);
+    return () => {
+      window.removeEventListener('dragenter', onEnter);
+      window.removeEventListener('dragleave', onLeave);
+      window.removeEventListener('dragover', onOver);
+      window.removeEventListener('drop', onDrop);
+    };
+  }, [openNew]);
+
   // The counter on the "see changes" button.
   const selectedState = selected?.status.state;
   useEffect(() => {
@@ -113,40 +215,94 @@ export function App() {
     [focusTerminal],
   );
 
+  const selectNextWaiting = useCallback(() => {
+    const { sessions: list, selectedId: current } = store.get();
+    const from = list.findIndex((s) => s.id === current);
+    for (let step = 1; step <= list.length; step++) {
+      const candidate = list[(from + step + list.length) % list.length]!;
+      if (candidate.status.state === 'aguardando' && candidate.running) {
+        store.select(candidate.id);
+        return;
+      }
+    }
+  }, []);
+
+  const runAction = useCallback(
+    (action: ShortcutAction) => {
+      const { sessions: list, selectedId: current, prefs } = store.get();
+      const session = list.find((s) => s.id === current);
+      const run: Record<ShortcutAction, () => void> = {
+        newSession: () => openNew(),
+        nextSession: () => selectByOffset(1),
+        prevSession: () => selectByOffset(-1),
+        nextWaiting: selectNextWaiting,
+        closeSession: () => session && requestClose(session),
+        focusSidebar: () => {
+          setOverlay(null);
+          document.querySelector<HTMLElement>('.session-item.selected, .session-item')?.focus();
+        },
+        focusTerminal: () => {
+          setOverlay(null);
+          requestAnimationFrame(() => focusTerminal(true));
+        },
+        palette: () => setOverlay((o) => (o === 'palette' ? null : 'palette')),
+        toggleChanges: () => togglePanel('changes'),
+        toggleFiles: () => togglePanel('files'),
+        toggleHidden: () =>
+          void window.api.invoke('prefs:set', { showHiddenFiles: !prefs.showHiddenFiles }),
+        preferences: () => setOverlay('prefs'),
+      };
+      run[action]();
+    },
+    [selectByOffset, selectNextWaiting, requestClose, focusTerminal, togglePanel, openNew],
+  );
+
   const commands = useMemo<Command[]>(() => {
+    const action = (id: ShortcutAction, title?: string, run?: () => void): Command => ({
+      id,
+      title: title ?? t(`shortcut.${id}`),
+      shortcut: shortcuts[id][0],
+      run: run ?? (() => runAction(id)),
+    });
     const list: Command[] = [
-      { id: 'new', title: 'Nova sessão', shortcut: 'Ctrl+Shift+N', run: () => setOverlay('new') },
-      { id: 'next', title: 'Próxima sessão', shortcut: 'Ctrl+Tab', run: () => selectByOffset(1) },
-      {
-        id: 'prev',
-        title: 'Sessão anterior',
-        shortcut: 'Ctrl+Shift+Tab',
-        run: () => selectByOffset(-1),
-      },
-      { id: 'prefs', title: 'Preferências', shortcut: 'Ctrl+,', run: () => setOverlay('prefs') },
+      action('newSession'),
+      action('nextSession'),
+      action('prevSession'),
+      action('nextWaiting'),
+      action('focusSidebar'),
+      action('preferences'),
     ];
     if (selected) {
-      list.unshift({
-        id: 'changes',
-        title: 'See changes: ver as mudanças da sessão',
-        shortcut: 'Ctrl+Shift+G',
-        run: () => setChangesOpen(true),
-      });
+      list.unshift(
+        action('toggleChanges', t('command.seeChanges'), () => showPanel('changes')),
+        action('toggleFiles', t('command.files'), () => showPanel('files')),
+        action('toggleHidden', t('command.toggleHidden')),
+      );
       list.push(
         selected.running
           ? {
               id: 'stop',
-              title: `Parar o agente de “${selected.name}”`,
+              title: t('command.stop', { name: selected.name }),
               run: () => void window.api.invoke('sessions:stop', selected.id),
             }
           : {
               id: 'start',
-              title: `Iniciar o agente de “${selected.name}”`,
+              title: t('command.start', { name: selected.name }),
               run: () => terminals.current?.start(selected.id),
             },
         {
+          id: 'folder',
+          title: t('command.changeFolder', { name: selected.name }),
+          run: changeFolder,
+        },
+        {
+          id: 'duplicate',
+          title: t('command.duplicate', { name: selected.name }),
+          run: () => duplicate(selected),
+        },
+        {
           id: 'close',
-          title: `Fechar a sessão “${selected.name}”`,
+          title: t('command.close', { name: selected.name }),
           run: () => requestClose(selected),
         },
       );
@@ -154,40 +310,45 @@ export function App() {
     sessions.forEach((s, i) =>
       list.push({
         id: `go-${s.id}`,
-        title: `Ir para: ${s.name}`,
+        title: t('command.goTo', { name: s.name }),
         shortcut: i < 9 ? `Ctrl+${i + 1}` : undefined,
         run: () => store.select(s.id),
       }),
     );
     return list;
-  }, [sessions, selected, selectByOffset, requestClose]);
+  }, [
+    sessions,
+    selected,
+    shortcuts,
+    runAction,
+    showPanel,
+    requestClose,
+    changeFolder,
+    duplicate,
+    t,
+  ]);
 
   // Global shortcuts are taken in the capture phase, before the terminal sees the key.
+  const bindings = useMemo(() => bindingIndex(shortcuts), [shortcuts]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!event.ctrlKey || event.altKey || event.metaKey) return;
-      const key = event.key.toLowerCase();
-      let handled = true;
-      if (key === 'tab') selectByOffset(event.shiftKey ? -1 : 1);
-      else if (key === 'pagedown' && !event.shiftKey) selectByOffset(1);
-      else if (key === 'pageup' && !event.shiftKey) selectByOffset(-1);
-      else if (event.shiftKey && key === 'n') setOverlay('new');
-      else if (event.shiftKey && key === 'p')
-        setOverlay((o) => (o === 'palette' ? null : 'palette'));
-      else if (event.shiftKey && key === 'g') toggleChanges();
-      else if (!event.shiftKey && key === ',') setOverlay('prefs');
-      else if (!event.shiftKey && /^[1-9]$/.test(event.key)) {
-        const target = store.get().sessions[Number(event.key) - 1];
+      // The preferences are asking which keys a shortcut should have.
+      if (shortcutRecording.active) return;
+      const binding = bindingFromEvent(event);
+      if (!binding) return;
+      const position = SESSION_BINDING.exec(binding)?.[1];
+      const action = bindings.get(binding);
+      if (position) {
+        const target = store.get().sessions[Number(position) - 1];
         if (target) store.select(target.id);
-      } else handled = false;
-      if (handled) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+      } else if (action) runAction(action);
+      else return;
+      event.preventDefault();
+      event.stopPropagation();
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [selectByOffset, toggleChanges]);
+  }, [bindings, runAction]);
 
   // Whenever nothing is on top of it, the terminal has the keyboard.
   useEffect(() => {
@@ -195,13 +356,15 @@ export function App() {
   }, [overlay, closing, changesOpen, selectedId, focusTerminal]);
 
   const closeOverlay = () => setOverlay(null);
+  const detail = selected && statusDetail(t, selected.status.detail);
 
   return (
-    <div className="app">
+    <div className="app" data-sessions={layout.sessions}>
       <Sidebar
-        onNew={() => setOverlay('new')}
+        onNew={() => openNew()}
         onPreferences={() => setOverlay('prefs')}
         onClose={requestClose}
+        onDuplicate={duplicate}
         onDone={() => focusTerminal(true)}
       />
       <main className="main">
@@ -217,51 +380,61 @@ export function App() {
                 data-testid="session-status"
                 className={`state-label state-label-${selected.status.state} ${selected.status.confirmed ? '' : 'inferred'}`}
               >
-                {statusLabel(selected.status)}
-                {selected.status.detail && selected.status.state !== 'terminou'
-                  ? ` (${selected.status.detail})`
-                  : ''}
+                {statusLabel(t, selected.status)}
+                {detail && selected.status.state !== 'terminou' ? ` (${detail})` : ''}
               </span>
-              <span className="muted path" title={selected.cwd}>
+              <button
+                className="muted path"
+                title={`${selected.cwd}\n${t('app.changeFolderHint')}`}
+                aria-label={t('app.changeFolder')}
+                onClick={changeFolder}
+              >
                 {selected.cwd}
-              </span>
+              </button>
             </div>
             <span className="spacer" />
             {selected.running ? (
               <button onClick={() => void window.api.invoke('sessions:stop', selected.id)}>
-                Parar
+                {t('app.stop')}
               </button>
             ) : (
               <button className="primary" onClick={() => terminals.current?.start(selected.id)}>
-                Iniciar
+                {t('app.start')}
               </button>
             )}
             <button
-              className={changesOpen ? 'active' : ''}
-              onClick={toggleChanges}
-              title="See changes (Ctrl+Shift+G)"
+              className={changesOpen && panelMode === 'changes' ? 'active' : ''}
+              onClick={() => togglePanel('changes')}
+              title={hint('See changes', shortcuts.toggleChanges[0])}
             >
               See changes
               {changeCount !== null && changeCount > 0 && (
                 <span className="count">{changeCount}</span>
               )}
             </button>
+            <button
+              className={changesOpen && panelMode === 'files' ? 'active' : ''}
+              onClick={() => togglePanel('files')}
+              title={hint(t('app.allFilesHint'), shortcuts.toggleFiles[0])}
+            >
+              {t('common.files')}
+            </button>
           </header>
         )}
         {selected?.running && selected.hooks === 'inactive' && (
           <div className="banner" role="status">
-            O modo preciso do Codex está desligado: os hooks do app ainda não foram confiados. O
-            aviso de “aguardando você” continua funcionando pelo título da janela. Para ligar a
-            confirmação por hook, abra uma nova sessão do Codex e, na tela{' '}
-            <strong>Hooks need review</strong>, escolha confiar nos hooks.
+            {rich(t('app.codexHooksBanner'), { screen: <strong>Hooks need review</strong> })}
           </div>
         )}
-        <div className="content">
+        <div className="content" data-panel={changesOpen && selected ? layout.panel : undefined}>
           <TerminalArea ref={terminals} session={selected} sessionIds={sessionIds} />
           {changesOpen && selected && (
             <ChangesPanel
-              key={selected.id}
+              // Another folder is another panel: nothing of the previous one applies.
+              key={`${selected.id}:${selected.cwd}`}
               session={selected}
+              mode={panelMode}
+              onModeChange={setPanelMode}
               onClose={() => setChangesOpen(false)}
               onCount={setChangeCount}
               onUnsavedChange={setUnsaved}
@@ -272,27 +445,35 @@ export function App() {
 
       {overlay === 'new' && (
         <NewSessionDialog
+          // A folder dropped while the dialog is open starts it over, in that folder.
+          key={newFolder ?? ''}
+          initialCwd={newFolder}
           onClose={closeOverlay}
           onCreated={(session) => {
             closeOverlay();
-            // The terminal is mounted on the next frame; the agent starts at its size.
-            requestAnimationFrame(() =>
-              requestAnimationFrame(() => terminals.current?.start(session.id)),
-            );
+            startWhenMounted(session.id);
           }}
         />
       )}
+      {overlay === 'folder' && selected && (
+        <ChangeFolderDialog
+          session={selected}
+          onClose={closeOverlay}
+          onChanged={(restart) => {
+            closeOverlay();
+            if (restart) terminals.current?.start(selected.id);
+          }}
+        />
+      )}
+      {dropping && <div className="drop-hint">{t('app.dropHint')}</div>}
       {overlay === 'prefs' && <PreferencesDialog onClose={closeOverlay} />}
       {overlay === 'palette' && <CommandPalette commands={commands} onClose={closeOverlay} />}
       {closing && (
-        <Dialog title="Fechar sessão" onClose={() => setClosing(null)}>
-          <p>
-            O agente de <strong>{closing.name}</strong> está rodando. Fechar a sessão vai
-            encerrá-lo, junto com o que ele tiver iniciado.
-          </p>
+        <Dialog title={t('app.closeSession.title')} onClose={() => setClosing(null)}>
+          <p>{rich(t('app.closeSession.body'), { name: <strong>{closing.name}</strong> })}</p>
           <div className="dialog-actions">
             <button data-autofocus onClick={() => setClosing(null)}>
-              Cancelar
+              {t('common.cancel')}
             </button>
             <button
               className="danger"
@@ -301,7 +482,7 @@ export function App() {
                 setClosing(null);
               }}
             >
-              Encerrar e fechar
+              {t('app.closeSession.confirm')}
             </button>
           </div>
         </Dialog>

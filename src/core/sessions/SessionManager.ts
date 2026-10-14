@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
+import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import type { Preferences } from '@shared/prefs';
 import {
   initialStatus,
@@ -190,20 +191,14 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
 
   create(input: NewSessionInput): SessionView {
     const name = input.name.trim();
-    if (!name) throw new Error('Dê um nome à sessão.');
-    let stat: fs.Stats;
-    try {
-      stat = fs.statSync(input.cwd);
-    } catch {
-      throw new Error(`A pasta não existe: ${input.cwd}`);
-    }
-    if (!stat.isDirectory()) throw new Error(`Não é uma pasta: ${input.cwd}`);
+    if (!name) throw new UserError('error.session.noName');
+    const cwd = this.folder(input.cwd);
     getProfile(input.profile); // Throws on an unknown profile.
 
     const session: Session = {
       id: randomUUID(),
       name,
-      cwd: toLongPath(input.cwd),
+      cwd,
       profile: input.profile,
       order: this.order.length,
     };
@@ -213,6 +208,59 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.selectedId = session.id;
     this.changed(true);
     return this.view(entry);
+  }
+
+  /** The folder as a session keeps it. Throws a `UserError` when it cannot be one. */
+  private folder(cwd: string): string {
+    let stat: fs.Stats;
+    try {
+      stat = fs.statSync(cwd);
+    } catch {
+      throw new UserError('error.folder.missing', { folder: cwd });
+    }
+    if (!stat.isDirectory()) throw new UserError('error.folder.notFolder', { folder: cwd });
+    return toLongPath(cwd);
+  }
+
+  /** The same folder and agent in a new session, listed right below the original. */
+  duplicate(id: string): SessionView {
+    const source = this.entries.get(id)?.session;
+    if (!source) throw new UserError('error.session.notFound');
+    const names = new Set([...this.entries.values()].map((e) => e.session.name));
+    const base = source.name.replace(/ \(\d+\)$/, '');
+    let copy = 2;
+    while (names.has(`${base} (${copy})`)) copy++;
+
+    const position = this.order.indexOf(id) + 1;
+    const session: Session = {
+      ...source,
+      id: randomUUID(),
+      name: `${base} (${copy})`,
+      order: position,
+    };
+    const entry = this.newEntry(session);
+    this.entries.set(session.id, entry);
+    this.order.splice(position, 0, session.id);
+    this.selectedId = session.id;
+    this.changed(true);
+    return this.view(entry);
+  }
+
+  /**
+   * Moves a session to another folder. An agent works where it was opened, so a running one is
+   * ended first: resolves to whether that happened. A folder that cannot be used ends nothing.
+   */
+  async setCwd(id: string, cwd: string): Promise<boolean> {
+    const entry = this.entries.get(id);
+    if (!entry) return false;
+    const folder = this.folder(cwd);
+    if (folder === entry.session.cwd) return false;
+    const wasRunning = entry.runtime?.running ?? false;
+    await this.stop(id);
+    if (this.entries.get(id) !== entry) return false; // Closed in the meantime.
+    entry.session = { ...entry.session, cwd: folder };
+    this.changed(true);
+    return wasRunning;
   }
 
   rename(id: string, name: string): void {
@@ -333,8 +381,8 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       });
       runtime.running = true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.writeNotice(id, runtime, `Não foi possível iniciar: ${message}`);
+      const message = errorText(this.prefs.language, err);
+      this.writeNotice(id, runtime, this.t('notice.startFailed', { error: message }));
       this.applySignal({ sessionId: id, kind: 'started', origin: 'processo', at: this.now() });
       this.applySignal({
         sessionId: id,
@@ -383,7 +431,9 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.writeNotice(
       id,
       runtime,
-      runtime.stopRequested ? 'Sessão encerrada.' : `O agente saiu (código ${exit.exitCode}).`,
+      runtime.stopRequested
+        ? this.t('notice.stopped')
+        : this.t('notice.exited', { code: exit.exitCode }),
     );
     const changed = this.applySignal({
       sessionId: id,
@@ -394,6 +444,11 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     });
     if (!changed) this.changed(); // `running` flipped even if the state did not.
   };
+
+  /** Notices are written in the language of the moment; the ones already on screen stay. */
+  private t(key: MessageKey, params?: MessageParams): string {
+    return translate(this.prefs.language, key, params);
+  }
 
   private writeNotice(id: string, runtime: Runtime, text: string): void {
     this.deliver(id, runtime, `\r\n\x1b[0m\x1b[2m[${text}]\x1b[0m\r\n`);

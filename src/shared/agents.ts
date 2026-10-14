@@ -12,6 +12,6 @@ export interface AgentAvailability {
   version?: string;
   minVersion: string;
   lastTestedVersion: string;
-  /** Explanation shown in the new-session dialog when status is not `ok`. */
-  message?: string;
+  /** The command that installs the agent, shown when it is `missing`. */
+  installCommand: string;
 }

@@ -1,8 +1,17 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { app, clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'electron';
 import type { ChangesService } from '@core/git/ChangesService';
 import type { SessionManager } from '@core/sessions/SessionManager';
 import type { AppData } from '@core/store/appStore';
+import {
+  parsePreferencesFile,
+  PREFS_FILE_MAX_BYTES,
+  serializePreferences,
+} from '@core/store/prefsFile';
+import { rememberFolder } from '@core/store/recentFolders';
 import type { AgentAvailability } from '@shared/agents';
+import { errorText, translate, UserError, type MessageKey } from '@shared/i18n';
 import type { CommandChannel, EventChannel, IpcCommands, IpcEvents } from '@shared/ipc';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
 import { AGENT_PROFILE_IDS, type TerminalSize } from '@shared/session';
@@ -24,16 +33,19 @@ type Handler<K extends CommandChannel> = (
   ...args: Parameters<IpcCommands[K]>
 ) => ReturnType<IpcCommands[K]> | Promise<ReturnType<IpcCommands[K]>>;
 
+type ArgumentName = Extract<MessageKey, `arg.${string}`> extends `arg.${infer Name}` ? Name : never;
+
 // Arguments come from the renderer: checked here, never trusted.
-const str = (value: unknown, name: string, max = 4096): string => {
-  if (typeof value !== 'string' || value.length > max)
-    throw new Error(`Argumento inválido: ${name}`);
+const str = (value: unknown, name: ArgumentName, max = 4096): string => {
+  if (typeof value !== 'string' || value.length > max) {
+    throw new UserError('error.invalidArgument', { name: { key: `arg.${name}` } });
+  }
   return value;
 };
 const size = (value: unknown): TerminalSize => {
   const v = value as Partial<TerminalSize> | null;
   const ok = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
-  if (!v || !ok(v.cols) || !ok(v.rows)) throw new Error('Tamanho de terminal inválido');
+  if (!v || !ok(v.cols) || !ok(v.rows)) throw new UserError('error.terminalSize');
   return {
     cols: Math.min(1000, Math.max(2, Math.floor(v.cols))),
     rows: Math.min(500, Math.max(1, Math.floor(v.rows))),
@@ -44,23 +56,41 @@ const base = (value: unknown) => (value === 'session' ? 'session' : 'head');
 export function registerIpc(context: IpcContext): void {
   const { manager, changes } = context;
 
+  // Read at each use: the language may change at any moment.
+  const language = () => context.data.prefs.language;
+  const t = (key: MessageKey) => translate(language(), key);
+
   const handle = <K extends CommandChannel>(channel: K, handler: Handler<K>) => {
-    ipcMain.handle(channel, (event, ...args) => {
-      // Only the app's own window may call in.
-      const window = context.getWindow();
-      if (!window || window.isDestroyed() || event.sender !== window.webContents) {
-        throw new Error('Origem não autorizada');
+    ipcMain.handle(channel, async (event, ...args) => {
+      try {
+        // Only the app's own window may call in.
+        const window = context.getWindow();
+        if (!window || window.isDestroyed() || event.sender !== window.webContents) {
+          throw new UserError('error.unauthorized');
+        }
+        return await handler(...(args as Parameters<IpcCommands[K]>));
+      } catch (err) {
+        // Only the message crosses to the renderer: this is where it gets its language.
+        throw err instanceof UserError ? new Error(errorText(language(), err)) : err;
       }
-      return handler(...(args as Parameters<IpcCommands[K]>));
     });
   };
   const session = (id: unknown) => {
-    const found = manager.get(str(id, 'sessão', 64));
-    if (!found) throw new Error('Sessão não encontrada');
+    const found = manager.get(str(id, 'session', 64));
+    if (!found) throw new UserError('error.session.notFound');
     return found;
   };
+  const isFolder = (folder: string) =>
+    fs.promises.stat(folder).then(
+      (stat) => stat.isDirectory(),
+      () => false,
+    );
+  // Saved along with the sessions, which every change of folder already persists.
+  const remember = (folder: string) => {
+    context.data.recentFolders = rememberFolder(context.data.recentFolders, folder);
+  };
 
-  handle('app:ping', (message) => `pong: ${str(message, 'mensagem', 200)}`);
+  handle('app:ping', (message) => `pong: ${str(message, 'message', 200)}`);
   handle('app:info', () => ({
     version: app.getVersion(),
     platform: process.platform as 'win32' | 'linux' | 'darwin',
@@ -68,13 +98,51 @@ export function registerIpc(context: IpcContext): void {
     gpuMode: context.gpuMode,
   }));
 
-  handle('app:setUnsaved', (file) =>
-    context.setUnsaved(file === null ? null : str(file, 'arquivo')),
-  );
+  handle('app:setUnsaved', (file) => context.setUnsaved(file === null ? null : str(file, 'file')));
 
   handle('prefs:get', () => context.data.prefs);
   handle('prefs:set', (patch) => {
     const prefs = sanitizePreferences({ ...context.data.prefs, ...(patch ?? {}) });
+    context.savePrefs(prefs);
+    return prefs;
+  });
+
+  // In test mode nobody can answer a native dialog: the file comes from the environment.
+  const testFile = () =>
+    context.testMode ? (process.env.AGENT_CONTROLLER_TEST_PREFS_FILE ?? null) : undefined;
+  const filters = () => [{ name: t('main.settingsFilter'), extensions: ['json'] }];
+  handle('prefs:export', async () => {
+    const window = context.getWindow();
+    let file = testFile();
+    if (file === undefined) {
+      if (!window) return null;
+      const result = await dialog.showSaveDialog(window, {
+        title: t('main.export.title'),
+        defaultPath: path.join(app.getPath('documents'), t('main.export.fileName')),
+        filters: filters(),
+      });
+      file = result.canceled ? null : (result.filePath ?? null);
+    }
+    if (!file) return null;
+    await fs.promises.writeFile(file, serializePreferences(context.data.prefs), 'utf8');
+    return file;
+  });
+  handle('prefs:import', async () => {
+    const window = context.getWindow();
+    let file = testFile();
+    if (file === undefined) {
+      if (!window) return null;
+      const result = await dialog.showOpenDialog(window, {
+        title: t('main.import.title'),
+        filters: filters(),
+        properties: ['openFile'],
+      });
+      file = result.canceled ? null : (result.filePaths[0] ?? null);
+    }
+    if (!file) return null;
+    const { size } = await fs.promises.stat(file);
+    if (size > PREFS_FILE_MAX_BYTES) throw new UserError('error.prefs.tooLarge');
+    const prefs = parsePreferencesFile(await fs.promises.readFile(file, 'utf8'));
     context.savePrefs(prefs);
     return prefs;
   });
@@ -85,35 +153,60 @@ export function registerIpc(context: IpcContext): void {
     const window = context.getWindow();
     if (!window) return null;
     const result = await dialog.showOpenDialog(window, {
-      title: 'Pasta da sessão',
+      title: t('main.pickFolder'),
       defaultPath: typeof defaultPath === 'string' ? defaultPath : undefined,
       properties: ['openDirectory', 'createDirectory'],
     });
     return result.canceled ? null : (result.filePaths[0] ?? null);
   });
+  handle('folders:recent', async () => {
+    const recent = context.data.recentFolders;
+    const exists = await Promise.all(recent.map(isFolder));
+    return recent.filter((_, index) => exists[index]);
+  });
+  handle('folders:resolve', async (dropped) => {
+    const target = path.resolve(str(dropped, 'path'));
+    if (await isFolder(target)) return target;
+    const parent = path.dirname(target);
+    return fs.existsSync(target) && (await isFolder(parent)) ? parent : null;
+  });
 
   handle('clipboard:read', () => clipboard.readText());
-  handle('clipboard:write', (text) => clipboard.writeText(str(text, 'texto', 10 * 1024 * 1024)));
+  handle('clipboard:write', (text) => clipboard.writeText(str(text, 'text', 10 * 1024 * 1024)));
   handle('shell:openExternal', async (url) => {
     // Links in the terminal come from whatever the agent printed.
-    if (!/^https?:\/\//i.test(str(url, 'url'))) throw new Error('Apenas links http(s)');
+    if (!/^https?:\/\//i.test(str(url, 'url'))) throw new UserError('error.onlyHttp');
     await shell.openExternal(url);
   });
 
   handle('sessions:list', () => ({ sessions: manager.list(), selectedId: manager.selected }));
   handle('sessions:create', (input) => {
     const profile = input?.profile;
-    if (!AGENT_PROFILE_IDS.includes(profile)) throw new Error('Perfil desconhecido');
-    return manager.create({
-      name: str(input.name, 'nome', 200),
-      cwd: str(input.cwd, 'pasta'),
+    if (!AGENT_PROFILE_IDS.includes(profile)) throw new UserError('error.unknownProfile');
+    const created = manager.create({
+      name: str(input.name, 'name', 200),
+      cwd: str(input.cwd, 'folder'),
       profile,
     });
+    remember(created.cwd);
+    return created;
   });
-  handle('sessions:rename', (id, name) => manager.rename(session(id).id, str(name, 'nome', 200)));
+  handle('sessions:setCwd', async (id, cwd) => {
+    const { id: sessionId } = session(id);
+    const ended = await manager.setCwd(sessionId, str(cwd, 'folder'));
+    const moved = manager.get(sessionId);
+    if (moved) remember(moved.cwd);
+    return ended;
+  });
+  handle('sessions:duplicate', (id) => {
+    const copy = manager.duplicate(session(id).id);
+    remember(copy.cwd);
+    return copy;
+  });
+  handle('sessions:rename', (id, name) => manager.rename(session(id).id, str(name, 'name', 200)));
   handle('sessions:remove', (id) => manager.remove(session(id).id));
   handle('sessions:reorder', (ids) => {
-    if (!Array.isArray(ids)) throw new Error('Ordem inválida');
+    if (!Array.isArray(ids)) throw new UserError('error.invalidOrder');
     manager.reorder(ids.filter((id): id is string => typeof id === 'string'));
   });
   handle('sessions:select', (id) => manager.select(id === null ? null : session(id).id));
@@ -123,20 +216,20 @@ export function registerIpc(context: IpcContext): void {
   handle('terminal:attach', (id, terminalSize) =>
     manager.attach(session(id).id, size(terminalSize)),
   );
-  handle('terminal:detach', (id) => manager.detach(str(id, 'sessão', 64)));
+  handle('terminal:detach', (id) => manager.detach(str(id, 'session', 64)));
   handle('terminal:setVisible', (id, visible) =>
-    manager.setVisible(str(id, 'sessão', 64), visible === true),
+    manager.setVisible(str(id, 'session', 64), visible === true),
   );
   handle('terminal:input', (id, data) =>
-    manager.input(str(id, 'sessão', 64), str(data, 'dados', 16 * 1024 * 1024)),
+    manager.input(str(id, 'session', 64), str(data, 'data', 16 * 1024 * 1024)),
   );
   handle('terminal:resize', (id, terminalSize) =>
-    manager.resize(str(id, 'sessão', 64), size(terminalSize)),
+    manager.resize(str(id, 'session', 64), size(terminalSize)),
   );
   handle('terminal:ack', (id, chars) => {
-    if (typeof chars === 'number' && chars > 0) manager.ack(str(id, 'sessão', 64), chars);
+    if (typeof chars === 'number' && chars > 0) manager.ack(str(id, 'session', 64), chars);
   });
-  handle('terminal:screenText', (id) => manager.screenText(str(id, 'sessão', 64)));
+  handle('terminal:screenText', (id) => manager.screenText(str(id, 'session', 64)));
 
   handle('git:open', (id, diffBase) => {
     const s = session(id);
@@ -146,21 +239,25 @@ export function registerIpc(context: IpcContext): void {
     const s = session(id);
     return changes.overview(s.id, s.cwd, base(diffBase));
   });
-  handle('git:close', (id) => changes.close(str(id, 'sessão', 64)));
+  handle('git:close', (id) => changes.close(str(id, 'session', 64)));
   handle('git:diff', (id, file, diffBase) =>
-    changes.diff(session(id).id, str(file, 'arquivo'), base(diffBase)),
+    changes.diff(session(id).id, str(file, 'file'), base(diffBase)),
   );
   handle('git:save', async (id, file, content, expected) => {
     const result = await changes.save(
       session(id).id,
-      str(file, 'arquivo'),
-      str(content, 'conteúdo', 4 * 1024 * 1024),
-      expected === null ? null : str(expected, 'conteúdo esperado', 4 * 1024 * 1024),
+      str(file, 'file'),
+      str(content, 'content', 4 * 1024 * 1024),
+      expected === null ? null : str(expected, 'expected', 4 * 1024 * 1024),
     );
     return { saved: result.saved };
   });
   handle('git:count', (id) => {
     const s = session(id);
     return changes.count(s.id, s.cwd);
+  });
+  handle('files:list', (id, dir, showHidden) => {
+    const s = session(id);
+    return changes.list(s.id, s.cwd, str(dir, 'folder'), showHidden === true);
   });
 }

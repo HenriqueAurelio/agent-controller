@@ -1,4 +1,10 @@
-import type { HooksMode, Signal, SignalKind, SignalOrigin } from '@shared/session';
+import {
+  STATUS_DETAIL,
+  type HooksMode,
+  type Signal,
+  type SignalKind,
+  type SignalOrigin,
+} from '@shared/session';
 import type { HookMessage } from '../signals/HookServer';
 import { classifyTitle, type TitleActivity } from '../signals/title';
 import type { AgentProfile } from './profiles';
@@ -107,7 +113,7 @@ export abstract class BaseAdapter implements AgentAdapter {
         if (!this.readyEmitted) {
           // The agent opened and is at its prompt (or at a trust question): it is your turn.
           this.readyEmitted = true;
-          this.emit('waiting', 'titulo', 'pronto');
+          this.emit('waiting', 'titulo', STATUS_DETAIL.ready);
         }
       }
       return;
@@ -134,11 +140,11 @@ export abstract class BaseAdapter implements AgentAdapter {
       if (this.host.now() - this.resolvedAt < this.profile.idleSettleMs) return;
       this.idleTimer = setTimeout(() => {
         this.idleTimer = null;
-        this.emit('done', 'titulo', 'sem confirmação do agente');
+        this.emit('done', 'titulo', STATUS_DETAIL.unconfirmed);
       }, this.profile.idleSettleMs);
     } else if (!this.readyEmitted) {
       this.readyEmitted = true;
-      this.emit('waiting', 'titulo', 'pronto');
+      this.emit('waiting', 'titulo', STATUS_DETAIL.ready);
     }
   }
 
