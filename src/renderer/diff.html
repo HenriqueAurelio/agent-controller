@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <!--csp-->
+    <title>Diff</title>
+    <style>
+      html,
+      body,
+      #editor {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+      /* What shows around the editor (the strip of the changed blocks, at the right) follows the
+         theme of the app, like the editor itself. */
+      html {
+        background: #1e2128;
+        color-scheme: dark;
+      }
+      html[data-theme='light'] {
+        background: #f4f5f7;
+        color-scheme: light;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="editor"></div>
+    <script type="module" src="/src/diffFrame.ts"></script>
+  </body>
+</html>

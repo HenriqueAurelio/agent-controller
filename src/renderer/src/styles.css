@@ -1,0 +1,1231 @@
+:root {
+  --bg: #16181d;
+  --bg-raised: #1e2128;
+  --bg-hover: #272b34;
+  --bg-selected: #2f3542;
+  --border: #30343d;
+  --text: #d7dae0;
+  --muted: #8b919e;
+  --accent: #5b9dff;
+  --danger: #e5534b;
+  --working: #5b9dff;
+  --waiting: #e3a008;
+  --done: #3fb950;
+  --error: #e5534b;
+  --stopped: #6b7280;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #ffffff;
+  --bg-raised: #f4f5f7;
+  --bg-hover: #e9ebef;
+  --bg-selected: #dde3ee;
+  --border: #d0d4dc;
+  --text: #24292f;
+  --muted: #6e7781;
+  --accent: #0969da;
+  --danger: #cf222e;
+  --working: #0969da;
+  --waiting: #9a6700;
+  --done: #1a7f37;
+  --error: #cf222e;
+  --stopped: #8c959f;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font:
+    13px/1.4 system-ui,
+    'Segoe UI',
+    Ubuntu,
+    sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+button.active {
+  background: var(--bg-selected);
+  border-color: var(--accent);
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+input,
+select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  user-select: text;
+}
+
+code,
+kbd {
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+  background: var(--bg-hover);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+.muted {
+  color: var(--muted);
+}
+.spacer {
+  flex: 1;
+}
+.count {
+  display: inline-block;
+  min-width: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  text-align: center;
+}
+.count:empty {
+  display: none;
+}
+
+/* Layout */
+.app {
+  display: flex;
+  height: 100%;
+}
+.main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.content {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/* The list of sessions goes to the side the preferences say; on top or at the bottom it runs
+   sideways. */
+.app[data-sessions='right'] {
+  flex-direction: row-reverse;
+}
+.app[data-sessions='top'] {
+  flex-direction: column;
+}
+.app[data-sessions='bottom'] {
+  flex-direction: column-reverse;
+}
+.app[data-sessions='right'] .sidebar {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+.app[data-sessions='top'] .sidebar,
+.app[data-sessions='bottom'] .sidebar {
+  width: auto;
+  flex-direction: row;
+  align-items: center;
+  border-right: none;
+}
+.app[data-sessions='top'] .sidebar {
+  border-bottom: 1px solid var(--border);
+}
+.app[data-sessions='bottom'] .sidebar {
+  border-top: 1px solid var(--border);
+}
+.app:is([data-sessions='top'], [data-sessions='bottom']) .sidebar-header {
+  gap: 6px;
+}
+.app:is([data-sessions='top'], [data-sessions='bottom']) .session-list {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.app:is([data-sessions='top'], [data-sessions='bottom']) .session-item {
+  flex: 0 0 210px;
+  min-width: 0;
+}
+.app:is([data-sessions='top'], [data-sessions='bottom']) .session-item.drop-target {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.app:is([data-sessions='top'], [data-sessions='bottom']) .new-session-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* The panel beside the terminal instead of over it. */
+.content[data-panel='right'] .terminal-area {
+  right: 55%;
+}
+.content[data-panel='right'] .changes-panel {
+  left: 45%;
+  border-left: 1px solid var(--border);
+}
+.content[data-panel='left'] .terminal-area {
+  left: 55%;
+}
+.content[data-panel='left'] .changes-panel {
+  right: 45%;
+  border-right: 1px solid var(--border);
+}
+.content[data-panel='bottom'] .terminal-area {
+  bottom: 55%;
+}
+.content[data-panel='bottom'] .changes-panel {
+  top: 45%;
+  border-top: 1px solid var(--border);
+}
+.content[data-panel='top'] .terminal-area {
+  top: 55%;
+}
+.content[data-panel='top'] .changes-panel {
+  bottom: 45%;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Sidebar */
+.sidebar {
+  width: 250px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-raised);
+  border-right: 1px solid var(--border);
+}
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+}
+.sidebar-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.icon-button {
+  background: transparent;
+  border: none;
+  padding: 2px 6px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--muted);
+}
+.session-list {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+.session-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 6px 8px 10px;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+}
+.session-item:hover {
+  background: var(--bg-hover);
+}
+.session-item.selected {
+  background: var(--bg-selected);
+  border-left-color: var(--accent);
+}
+.session-item.dragging {
+  opacity: 0.4;
+}
+.session-item.drop-target {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.session-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.session-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-meta,
+.session-metrics {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-metrics.heaviest {
+  color: var(--waiting);
+  font-weight: 600;
+}
+.profile-tag {
+  margin-right: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--bg-hover);
+}
+.rename-input {
+  width: 100%;
+  padding: 1px 4px;
+}
+.item-button {
+  visibility: hidden;
+  padding: 2px 3px;
+}
+.session-item:hover .item-button,
+.session-item:focus-within .item-button,
+.session-item.selected .item-button {
+  visibility: visible;
+}
+.badge {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.new-session-button {
+  margin: 8px;
+}
+
+/* State indicator: filled when the agent said so, hollow when inferred from silence. */
+.state-dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 50%;
+  border: 2px solid var(--stopped);
+  background: var(--stopped);
+}
+.state-dot.state-parada {
+  background: transparent;
+}
+.state-dot.state-iniciando {
+  border-color: var(--muted);
+  background: var(--muted);
+}
+.state-dot.state-trabalhando {
+  border-color: var(--working);
+  background: var(--working);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.state-dot.state-aguardando {
+  border-color: var(--waiting);
+  background: var(--waiting);
+}
+.state-dot.state-terminou {
+  border-color: var(--done);
+  background: var(--done);
+}
+.state-dot.state-erro {
+  border-color: var(--error);
+  background: var(--error);
+}
+.state-dot.inferred {
+  background: transparent;
+  border-style: dashed;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Session header */
+.session-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+.session-header > button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.session-header .state-dot {
+  margin-top: 0;
+}
+.session-header-text {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.session-header-text > * {
+  white-space: nowrap;
+}
+.session-header-text .path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+button.path {
+  padding: 0 4px;
+  background: transparent;
+  border-color: transparent;
+}
+button.path:hover:not(:disabled) {
+  border-color: var(--border);
+}
+
+/* A folder dragged over the window. */
+.drop-hint {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border: 2px dashed var(--accent);
+  font-size: 15px;
+  font-weight: 600;
+  pointer-events: none;
+}
+.banner {
+  padding: 6px 12px;
+  background: color-mix(in srgb, var(--waiting) 18%, var(--bg));
+  border-bottom: 1px solid var(--border);
+  user-select: text;
+}
+
+/* Terminal */
+.terminal-area {
+  position: absolute;
+  inset: 0;
+}
+.terminal-container {
+  position: absolute;
+  inset: 0;
+}
+.terminal-host {
+  position: absolute;
+  inset: 6px 0 0 8px;
+  display: none;
+}
+.terminal-host.visible {
+  display: block;
+}
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+/* Dialogs */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, 0.45);
+}
+.dialog {
+  width: min(520px, 92vw);
+  padding: 16px 18px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+.dialog:not(.palette) {
+  max-height: 84vh;
+  overflow-y: auto;
+}
+.dialog-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+.field > span,
+.field > legend {
+  padding: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.field-row {
+  display: flex;
+  gap: 6px;
+}
+.field-row input {
+  flex: 1;
+}
+.field-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.field-inline input[type='number'] {
+  width: 80px;
+}
+.field-inline input.wide {
+  flex: 1;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.profile-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.profile-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.profile-option.chosen {
+  border-color: var(--accent);
+}
+.profile-option.disabled {
+  cursor: default;
+}
+.profile-option.disabled .profile-name {
+  opacity: 0.55;
+}
+.profile-name {
+  font-weight: 600;
+}
+.profile-version {
+  font-weight: 400;
+  color: var(--muted);
+}
+.profile-note {
+  grid-column: 2;
+  font-size: 12px;
+  user-select: text;
+}
+.profile-note.warning {
+  color: var(--waiting);
+}
+.profile-note.blocking {
+  color: var(--muted);
+}
+.form-error {
+  margin: 0;
+  color: var(--danger);
+  user-select: text;
+}
+.form-note {
+  margin: 0;
+  color: var(--waiting);
+}
+.recent-folders {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.recent-folder.chosen {
+  color: var(--text);
+}
+.recent-mark {
+  display: inline-block;
+  width: 16px;
+}
+.favorite-toggle {
+  padding: 4px 8px;
+  color: var(--muted);
+}
+.favorite-toggle.on {
+  color: var(--waiting);
+}
+.form-note.done {
+  color: var(--done);
+  user-select: text;
+}
+.favorite-folders {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+.favorite-list {
+  max-height: 132px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+.favorite-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 0;
+}
+.favorite-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.settings-transfer {
+  margin-top: 4px;
+}
+.recent-folder {
+  width: 100%;
+  padding: 2px 6px;
+  background: transparent;
+  border-color: transparent;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Command palette */
+.dialog.palette {
+  padding: 8px;
+}
+.dialog.palette .dialog-title {
+  display: none;
+}
+.dialog.palette > input {
+  width: 100%;
+  padding: 8px 10px;
+}
+.palette-list {
+  max-height: 320px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+.palette-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.palette-list li.active {
+  background: var(--bg-selected);
+}
+
+/* Tabs of the preferences */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.tab {
+  padding: 5px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+}
+.tab:hover {
+  color: var(--text);
+}
+.tab.selected {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+/* The same height in every tab, so the dialog does not jump when switching. */
+.dialog.prefs .tab-panel {
+  min-height: 400px;
+}
+
+/* Layout in the preferences: the choices and a miniature of the window they give. */
+.layout-option > span {
+  flex: 1;
+}
+.layout-option select {
+  width: 210px;
+}
+.layout-preview,
+.layout-main,
+.layout-panel {
+  display: flex;
+  gap: 3px;
+}
+.layout-preview {
+  height: 170px;
+  margin-top: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 11px;
+}
+.layout-part {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--bg-hover);
+  color: var(--muted);
+}
+.layout-main,
+.layout-terminal,
+.layout-text {
+  flex: 1;
+}
+.layout-main,
+.layout-panel {
+  min-width: 0;
+  min-height: 0;
+}
+.layout-panel {
+  flex: 1.2;
+}
+.layout-sessions {
+  flex: 0 0 18%;
+  background: var(--bg-selected);
+  color: var(--text);
+}
+.layout-files {
+  flex: 0 0 30%;
+  background: color-mix(in srgb, var(--accent) 30%, var(--bg-hover));
+  color: var(--text);
+}
+.layout-preview:is([data-sessions='top'], [data-sessions='bottom']) .layout-sessions {
+  flex-basis: 16%;
+}
+.layout-preview[data-sessions='right'],
+.layout-main[data-panel='left'],
+.layout-panel[data-files='right'] {
+  flex-direction: row-reverse;
+}
+.layout-preview[data-sessions='top'],
+.layout-main[data-panel='bottom'],
+.layout-panel[data-files='top'] {
+  flex-direction: column;
+}
+.layout-preview[data-sessions='bottom'],
+.layout-main[data-panel='top'],
+.layout-panel[data-files='bottom'] {
+  flex-direction: column-reverse;
+}
+.layout-main[data-panel='cover'] .layout-terminal {
+  display: none;
+}
+
+/* Shortcuts in the preferences */
+.shortcut-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.shortcut-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+}
+.shortcut-keys {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.shortcut-keys kbd {
+  white-space: nowrap;
+}
+.shortcut-keys button {
+  padding: 1px 7px;
+}
+.shortcut-remove {
+  margin-left: 4px;
+  padding: 0 2px !important;
+  border: none;
+  background: none;
+  color: var(--muted);
+}
+.shortcut-remove:hover {
+  color: var(--danger);
+}
+.shortcut-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+}
+.shortcut-note {
+  font-size: 12px;
+  color: var(--waiting);
+}
+
+/* Changes panel */
+.changes-panel:focus {
+  outline: none;
+}
+.changes-panel {
+  container-type: inline-size;
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.changes-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+/* Beside the terminal the panel is narrow: the header keeps to one line. */
+@container (max-width: 760px) {
+  .changes-header .field-inline > span,
+  .changes-header .readonly-tag {
+    display: none;
+  }
+}
+.changes-header h2 {
+  margin: 0;
+  font-size: 13px;
+}
+.changes-header .field-inline {
+  margin: 0;
+}
+.readonly-tag {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.changes-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.changes-list {
+  width: 280px;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+}
+/* The list of files on another side of the text. */
+.changes-panel[data-files='right'] .changes-body {
+  flex-direction: row-reverse;
+}
+.changes-panel[data-files='right'] .changes-list {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+.changes-panel[data-files='top'] .changes-body {
+  flex-direction: column;
+}
+.changes-panel[data-files='bottom'] .changes-body {
+  flex-direction: column-reverse;
+}
+.changes-panel:is([data-files='top'], [data-files='bottom']) .changes-list {
+  width: auto;
+  height: 32%;
+  min-height: 90px;
+  border-right: none;
+}
+.changes-panel[data-files='top'] .changes-list {
+  border-bottom: 1px solid var(--border);
+}
+.changes-panel[data-files='bottom'] .changes-list {
+  border-top: 1px solid var(--border);
+}
+.changes-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* More than one repository in the session: each one heads its own files. */
+.changes-repo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 5px 10px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+  white-space: nowrap;
+}
+.changes-list > li:first-child > .changes-repo {
+  margin-top: -4px;
+  border-top: none;
+}
+.changes-repo-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.changes-repo .muted {
+  font-size: 11px;
+}
+.changes-untouched {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+.changes-folder {
+  padding: 6px 10px 2px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.change-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 10px 3px 20px;
+  cursor: pointer;
+}
+.change-item:hover {
+  background: var(--bg-hover);
+}
+.change-item.selected {
+  background: var(--bg-selected);
+}
+.change-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.change-kind {
+  font-weight: 700;
+  font-family: Consolas, monospace;
+}
+.kind-added,
+.kind-untracked {
+  color: var(--done);
+}
+.kind-modified,
+.kind-renamed {
+  color: var(--waiting);
+}
+.kind-removed,
+.kind-conflict {
+  color: var(--error);
+}
+.kind-removed + .change-name,
+.change-item[data-kind='removed'] .change-name {
+  text-decoration: line-through;
+}
+.changes-header .check {
+  margin: 0;
+}
+.changes-body > .panel-message {
+  flex: 1;
+}
+.file-item {
+  justify-content: flex-start;
+  gap: 4px;
+}
+.file-item .change-name {
+  flex: 1;
+}
+.file-item.active {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+/* The folder of a repository, when the session has more than one: a band like the one that
+   heads its changes, so the tree is visibly split by repository. */
+.file-item.repo-row {
+  align-items: baseline;
+  margin-top: 8px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+.file-item.after-repo {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.file-item.repo-row:hover {
+  background: var(--bg-hover);
+}
+.file-item.repo-row.selected {
+  background: var(--bg-selected);
+}
+.file-tree > .file-item.repo-row:first-child {
+  margin-top: -4px;
+  border-top: none;
+}
+.file-item.repo-row .change-name {
+  flex: 0 1 auto;
+  font-weight: 600;
+}
+.file-item.repo-row .repo-branch {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.file-tree > .changes-repo {
+  margin-top: -4px;
+  border-top: none;
+}
+.file-item.hidden-entry .change-name {
+  opacity: 0.6;
+}
+.file-twist {
+  flex-shrink: 0;
+  width: 12px;
+  color: var(--muted);
+}
+.file-tree-note {
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.file-tree-note.error {
+  color: var(--danger);
+}
+.diff-view {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.diff-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.diff-toolbar .diff-note {
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.diff-toolbar .diff-note.unsaved {
+  color: var(--waiting);
+  border-color: var(--waiting);
+}
+.diff-path {
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diff-conflict {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--waiting) 18%, var(--bg));
+  border-bottom: 1px solid var(--border);
+  user-select: text;
+}
+.diff-conflict > span {
+  flex: 1;
+}
+.diff-note {
+  padding: 3px 12px;
+  font-size: 11px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.diff-editor {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: none;
+}
+.panel-message {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--muted);
+  user-select: text;
+}
+.panel-message h3 {
+  margin: 0 0 6px;
+  color: var(--text);
+}
+.panel-message.error {
+  color: var(--danger);
+}
+.diff-view > .panel-message {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* State labels. "Aguardando você" is the one that asks for action, so it is the loudest thing
+   in the sidebar: a filled tag, a tinted row and a ring pulsing around the dot. */
+.state-label {
+  font-weight: 600;
+}
+.state-label-parada,
+.state-label-iniciando {
+  font-weight: 400;
+}
+.state-label-trabalhando {
+  color: var(--working);
+}
+.state-label-terminou {
+  color: var(--done);
+}
+.state-label-erro {
+  color: var(--error);
+}
+.state-label-aguardando {
+  padding: 0 7px;
+  border-radius: 9px;
+  background: var(--waiting);
+  color: #1a1300;
+  font-weight: 700;
+}
+:root[data-theme='light'] .state-label-aguardando {
+  color: #fff;
+}
+.state-label-aguardando.inferred {
+  background: transparent;
+  color: var(--waiting);
+  border: 1px dashed var(--waiting);
+}
+.session-item[data-state='aguardando'] {
+  background: color-mix(in srgb, var(--waiting) 13%, transparent);
+  border-left-color: var(--waiting);
+}
+.session-item[data-state='aguardando']:hover {
+  background: color-mix(in srgb, var(--waiting) 20%, transparent);
+}
+.session-item[data-state='aguardando'].selected {
+  background: color-mix(in srgb, var(--waiting) 22%, var(--bg-selected));
+  border-left-color: var(--waiting);
+}
+.session-item[data-state='aguardando'] .session-name {
+  color: var(--waiting);
+}
+.session-item[data-state='aguardando'] .session-meta {
+  overflow: visible;
+}
+.state-dot.state-aguardando {
+  animation: attention 1.6s ease-out infinite;
+}
+@keyframes attention {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--waiting) 70%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .state-dot.state-aguardando,
+  .state-dot.state-trabalhando {
+    animation: none;
+  }
+}

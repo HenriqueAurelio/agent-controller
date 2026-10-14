@@ -1,0 +1,191 @@
+{
+  "agent": "claude-code",
+  "version": "2.1.296",
+  "platform": "win32",
+  "date": "2026-10-13T14:35:18.354Z",
+  "hooks": "active",
+  "ok": true,
+  "scenarios": [
+    {
+      "name": "fim de turno normal",
+      "ok": true,
+      "states": [
+        {
+          "t": 3.85,
+          "state": "trabalhando",
+          "origin": "titulo",
+          "confirmed": true
+        },
+        {
+          "t": 4.96,
+          "state": "terminou",
+          "origin": "hook",
+          "confirmed": true
+        }
+      ]
+    },
+    {
+      "name": "pedido de permissão",
+      "ok": true,
+      "states": [
+        {
+          "t": 11.53,
+          "state": "trabalhando",
+          "origin": "titulo",
+          "confirmed": true
+        },
+        {
+          "t": 13.03,
+          "state": "aguardando",
+          "origin": "hook",
+          "confirmed": true,
+          "detail": "Write"
+        },
+        {
+          "t": 17.1,
+          "state": "trabalhando",
+          "origin": "titulo",
+          "confirmed": true
+        },
+        {
+          "t": 18.76,
+          "state": "terminou",
+          "origin": "hook",
+          "confirmed": true
+        }
+      ]
+    },
+    {
+      "name": "cancelamento",
+      "ok": true,
+      "states": [
+        {
+          "t": 19.37,
+          "state": "trabalhando",
+          "origin": "titulo",
+          "confirmed": true
+        },
+        {
+          "t": 24.49,
+          "state": "terminou",
+          "origin": "titulo",
+          "confirmed": true,
+          "detail": "sem confirmação do agente"
+        }
+      ]
+    },
+    {
+      "name": "edição do usuário e do agente no mesmo arquivo",
+      "ok": true,
+      "states": [
+        {
+          "t": 28.11,
+          "state": "trabalhando",
+          "origin": "titulo",
+          "confirmed": true
+        },
+        {
+          "t": 30.33,
+          "state": "terminou",
+          "origin": "hook",
+          "confirmed": true
+        },
+        {
+          "t": 30.98,
+          "state": "trabalhando",
+          "origin": "titulo",
+          "confirmed": true
+        },
+        {
+          "t": 32.7,
+          "state": "aguardando",
+          "origin": "hook",
+          "confirmed": true,
+          "detail": "Edit"
+        },
+        {
+          "t": 34.41,
+          "state": "trabalhando",
+          "origin": "titulo",
+          "confirmed": true
+        },
+        {
+          "t": 36.41,
+          "state": "terminou",
+          "origin": "hook",
+          "confirmed": true
+        }
+      ]
+    }
+  ],
+  "hookEvents": [
+    {
+      "t": 1.53,
+      "source": "claude-hook",
+      "event": "SessionStart"
+    },
+    {
+      "t": 4.95,
+      "source": "claude-hook",
+      "event": "Stop"
+    },
+    {
+      "t": 13.03,
+      "source": "claude-hook",
+      "event": "PermissionRequest"
+    },
+    {
+      "t": 18.76,
+      "source": "claude-hook",
+      "event": "Stop"
+    },
+    {
+      "t": 30.33,
+      "source": "claude-hook",
+      "event": "Stop"
+    },
+    {
+      "t": 32.7,
+      "source": "claude-hook",
+      "event": "PermissionRequest"
+    },
+    {
+      "t": 36.41,
+      "source": "claude-hook",
+      "event": "Stop"
+    }
+  ],
+  "titles": [
+    "C:\\Users\\Henrique Aurelio\\.local\\bin\\claude.exe",
+    "claude",
+    "✳ Claude Code",
+    "◐ Claude Code",
+    "◐ Resposta com a palavra ok",
+    "◑ Resposta com a palavra ok",
+    "✳ Resposta com a palavra ok",
+    "◑ Resposta com a palavra ok",
+    "◐ Resposta com a palavra ok",
+    "✳ Resposta com a palavra ok",
+    "◐ Resposta com a palavra ok",
+    "◑ Resposta com a palavra ok",
+    "✳ Resposta com a palavra ok",
+    "◑ Resposta com a palavra ok",
+    "◐ Resposta com a palavra ok",
+    "◑ Resposta com a palavra ok",
+    "◐ Resposta com a palavra ok",
+    "✳ Resposta com a palavra ok",
+    "◐ Resposta com a palavra ok",
+    "◑ Resposta com a palavra ok",
+    "◐ Resposta com a palavra ok",
+    "✳ Resposta com a palavra ok",
+    "◐ Resposta com a palavra ok",
+    "◑ Resposta com a palavra ok",
+    "✳ Resposta com a palavra ok",
+    "◑ Resposta com a palavra ok",
+    "◐ Resposta com a palavra ok",
+    "◑ Resposta com a palavra ok",
+    "✳ Resposta com a palavra ok",
+    ""
+  ],
+  "orphans": []
+}

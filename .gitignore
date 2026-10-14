@@ -1,0 +1,15 @@
+node_modules/
+out/
+dist/
+coverage/
+test-results/
+# Telas de evidência: são anexadas ao pull request, não entram no repositório.
+evidences/
+playwright-report/
+*.log
+*.stackdump
+raw.bin
+tools/agent-probe/events.log
+tools/agent-probe/results/*.raw
+.DS_Store
+dist-linux/
