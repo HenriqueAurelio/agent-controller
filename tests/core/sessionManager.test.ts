@@ -350,7 +350,8 @@ describe('SessionManager', () => {
       const s = create();
       manager.start(s.id, SIZE);
       await until(s.id, 'aguardando');
-      const write = vi.spyOn(ptys, 'write');
+      // What the app writes is what is checked: the bytes do not need to reach the real PTY.
+      const write = vi.spyOn(ptys, 'write').mockImplementation(() => {});
 
       // No line break that could send it, and nothing that could end the paste or act as a key.
       manager.paste(s.id, 'linha um\r\n  indentada\n\n\x1b[201~fim\x03\rúltima\t ');
