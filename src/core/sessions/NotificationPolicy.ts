@@ -1,10 +1,11 @@
+import { summarizeRun, type ChecksRun } from '@shared/checks';
 import { translator } from '@shared/i18n';
 import type { Preferences } from '@shared/prefs';
 import { statusDetail, statusLabel, type SessionStatus, type SessionView } from '@shared/session';
 
 export interface NotificationRequest {
   sessionId: string;
-  kind: 'waiting' | 'done';
+  kind: 'waiting' | 'done' | 'checks';
   title: string;
   body: string;
   silent: boolean;
@@ -59,6 +60,29 @@ export class NotificationPolicy {
         kind === 'done'
           ? t('notification.done')
           : `${statusLabel(t, session.status)}${detail ? `: ${detail}` : '.'}`,
+      silent: !context.prefs.notifySound,
+    };
+  }
+
+  /**
+   * The checks that run when a turn ends failed. "Terminou" was already told, but it said nothing
+   * about whether the work is good: this does, and only when it is not.
+   */
+  evaluateChecks(
+    session: SessionView,
+    run: ChecksRun,
+    context: { focused: boolean; prefs: Preferences },
+  ): NotificationRequest | null {
+    if (run.state !== 'done' || run.trigger !== 'turnEnd') return null;
+    const summary = summarizeRun(run);
+    if (summary.state !== 'failed') return null;
+    if (context.focused || !context.prefs.notifyDone) return null;
+    const t = translator(context.prefs.language);
+    return {
+      sessionId: session.id,
+      kind: 'checks',
+      title: session.name,
+      body: t('notification.checksFailed', { failed: summary.failed, total: summary.total }),
       silent: !context.prefs.notifySound,
     };
   }

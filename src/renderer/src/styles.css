@@ -1233,3 +1233,134 @@ button.path:hover:not(:disabled) {
     animation: none;
   }
 }
+
+/* Checks: the latest run in a few characters, and the dialog that configures and shows them. */
+.checks-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  vertical-align: middle;
+}
+.checks-badge.checks-passed {
+  color: var(--done);
+  border: 1px solid var(--done);
+}
+.checks-badge.checks-failed {
+  color: #fff;
+  background: var(--error);
+}
+.checks-badge.checks-queued,
+.checks-badge.checks-running {
+  color: var(--working);
+  border: 1px dashed var(--working);
+}
+.checks-badge.checks-cancelled {
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.dialog.checks-dialog {
+  width: min(820px, 94vw);
+}
+.checks-intro,
+.checks-folder {
+  margin: 0 0 6px;
+  font-size: 12px;
+}
+.checks-folder {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.checks-section {
+  margin: 14px 0 6px;
+  font-size: 13px;
+}
+.checks-list,
+.checks-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.checks-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 72px auto auto;
+  align-items: center;
+  gap: 6px;
+}
+.checks-row .check {
+  margin: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.checks-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.checks-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.checks-suggestion {
+  font-size: 12px;
+}
+.checks-run-head {
+  margin: 0 0 6px;
+}
+.checks-result summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.checks-result-label {
+  font-weight: 600;
+}
+.checks-result .command {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.checks-mark {
+  width: 14px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--muted);
+}
+.checks-mark.checks-passed {
+  color: var(--done);
+}
+.checks-mark.checks-failed,
+.checks-mark.checks-timedOut,
+.checks-mark.checks-error,
+.checks-failed-text {
+  color: var(--error);
+}
+.checks-output {
+  max-height: 260px;
+  margin: 4px 0 0;
+  padding: 8px;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  user-select: text;
+}

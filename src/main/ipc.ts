@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { app, clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'electron';
+import type { CheckService } from '@core/checks/CheckService';
+import { failureReport } from '@core/checks/report';
+import { suggestChecks } from '@core/checks/suggest';
 import type { ChangesService } from '@core/git/ChangesService';
 import type { SessionManager } from '@core/sessions/SessionManager';
 import type { AppData } from '@core/store/appStore';
@@ -9,8 +12,9 @@ import {
   PREFS_FILE_MAX_BYTES,
   serializePreferences,
 } from '@core/store/prefsFile';
-import { rememberFolder } from '@core/store/recentFolders';
+import { folderKey, rememberFolder } from '@core/store/recentFolders';
 import { AGENT_COMMAND_LIMIT, sanitizeAgentCommand, type AgentAvailability } from '@shared/agents';
+import { CHECKS_LIMIT, sanitizeChecks, type ChecksInfo } from '@shared/checks';
 import { errorText, translate, UserError, type MessageKey } from '@shared/i18n';
 import type { CommandChannel, EventChannel, IpcCommands, IpcEvents } from '@shared/ipc';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
@@ -19,6 +23,7 @@ import { AGENT_PROFILE_IDS, type TerminalSize } from '@shared/session';
 export interface IpcContext {
   manager: SessionManager;
   changes: ChangesService;
+  checks: CheckService;
   data: AppData;
   testMode: boolean;
   gpuMode: 'fast' | 'safe';
@@ -62,7 +67,7 @@ const size = (value: unknown): TerminalSize => {
 const base = (value: unknown) => (value === 'session' ? 'session' : 'head');
 
 export function registerIpc(context: IpcContext): void {
-  const { manager, changes } = context;
+  const { manager, changes, checks } = context;
 
   // Read at each use: the language may change at any moment.
   const language = () => context.data.prefs.language;
@@ -268,5 +273,43 @@ export function registerIpc(context: IpcContext): void {
   handle('files:list', (id, dir, showHidden) => {
     const s = session(id);
     return changes.list(s.id, s.cwd, str(dir, 'folder'), showHidden === true);
+  });
+
+  const checksInfo = (sessionId: string): ChecksInfo => {
+    const s = session(sessionId);
+    const configured = context.data.checks[folderKey(s.cwd)] ?? [];
+    const commands = new Set(configured.map((check) => check.command));
+    return {
+      folder: s.cwd,
+      checks: configured,
+      suggestions: suggestChecks(s.cwd).filter((check) => !commands.has(check.command)),
+      run: checks.get(s.id),
+    };
+  };
+  handle('checks:get', (id) => checksInfo(str(id, 'session', 64)));
+  handle('checks:configure', (id, list) => {
+    const s = session(id);
+    // Commands the app will run: each one goes through the same check as an agent's command.
+    if (!Array.isArray(list) || list.length > CHECKS_LIMIT) {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.checks' } });
+    }
+    const clean = sanitizeChecks(list);
+    if (clean.length !== list.length) {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.checks' } });
+    }
+    const key = folderKey(s.cwd);
+    if (clean.length) context.data.checks[key] = clean;
+    else delete context.data.checks[key];
+    manager.flushPersist();
+    return checksInfo(s.id);
+  });
+  handle('checks:run', (id) => checks.runNow(session(id).id));
+  handle('checks:cancel', (id) => checks.cancel(session(id).id));
+  handle('checks:sendFailure', (id) => {
+    const s = session(id);
+    const run = checks.get(s.id);
+    const report = run && failureReport(run, language());
+    if (!report) throw new UserError('error.checks.nothingFailed');
+    manager.paste(s.id, report);
   });
 }

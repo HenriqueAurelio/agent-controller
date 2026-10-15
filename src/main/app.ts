@@ -10,14 +10,16 @@ import {
   wrapInShell,
 } from '@core/agents';
 import type { LaunchCommand } from '@core/agents';
+import { CheckService } from '@core/checks/CheckService';
 import { ChangesService } from '@core/git/ChangesService';
 import { MetricsSampler } from '@core/metrics/MetricsSampler';
 import { PtyManager } from '@core/pty/PtyManager';
-import { NotificationPolicy } from '@core/sessions/NotificationPolicy';
+import { NotificationPolicy, type NotificationRequest } from '@core/sessions/NotificationPolicy';
 import { SessionManager } from '@core/sessions/SessionManager';
 import { installAgentctl } from '@core/signals/agentctlInstall';
 import { createSocketPath, HookServer } from '@core/signals/HookServer';
 import { createAppStore, type AppData } from '@core/store/appStore';
+import { folderKey } from '@core/store/recentFolders';
 import {
   chooseGpuMode,
   confirmHealthy,
@@ -25,6 +27,7 @@ import {
   type GpuMode,
 } from '@core/store/gpuGuard';
 import type { AgentAvailability } from '@shared/agents';
+import { summarizeRun } from '@shared/checks';
 import { translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import type { Session } from '@shared/session';
 import { registerIpc, type IpcContext } from './ipc';
@@ -160,6 +163,35 @@ export async function startApp(): Promise<void> {
   });
 
   const notifications = new NotificationPolicy();
+  const notify = (request: NotificationRequest) =>
+    showNotification(request, () => {
+      if (!window || window.isDestroyed()) return;
+      if (window.isMinimized()) window.restore();
+      window.show();
+      window.focus();
+      manager.select(request.sessionId);
+      send('app:focusSession', request.sessionId);
+    });
+
+  const checks = new CheckService({
+    targetOf: (sessionId) => {
+      const session = manager.get(sessionId);
+      if (!session) return null;
+      return { cwd: session.cwd, checks: data.checks[folderKey(session.cwd)] ?? [] };
+    },
+  });
+  checks.on('changed', (sessionId, run) => {
+    manager.setChecks(sessionId, run ? summarizeRun(run) : undefined);
+    send('checks:changed', sessionId);
+    const session = run && manager.list().find((s) => s.id === sessionId);
+    const request =
+      session &&
+      notifications.evaluateChecks(session, run, {
+        focused: manager.isFocused(sessionId),
+        prefs: data.prefs,
+      });
+    if (request) notify(request);
+  });
 
   manager.on('sessions', () =>
     send('sessions:changed', { sessions: manager.list(), selectedId: manager.selected }),
@@ -169,22 +201,21 @@ export async function startApp(): Promise<void> {
   manager.on('started', (session) => void changes.sessionStarted(session.id, session.cwd));
   manager.on('removed', (id) => {
     notifications.forget(id);
+    checks.forget(id);
     void changes.sessionClosed(id);
   });
   manager.on('transition', ({ session, previous }) => {
+    // A turn that ended is when the work can be checked; a new one makes any check stale.
+    const { state } = session.status;
+    if (state === 'terminou' && previous.state !== 'terminou') void checks.turnEnded(session.id);
+    if (state === 'trabalhando' && previous.state !== 'trabalhando') {
+      checks.turnStarted(session.id);
+    }
     const request = notifications.evaluate(session, previous, {
       focused: manager.isFocused(session.id),
       prefs: data.prefs,
     });
-    if (!request) return;
-    showNotification(request, () => {
-      if (!window || window.isDestroyed()) return;
-      if (window.isMinimized()) window.restore();
-      window.show();
-      window.focus();
-      manager.select(request.sessionId);
-      send('app:focusSession', request.sessionId);
-    });
+    if (request) notify(request);
   });
 
   let agentsCache: Promise<AgentAvailability[]> | null = null;
@@ -212,6 +243,7 @@ export async function startApp(): Promise<void> {
   registerIpc({
     manager,
     changes,
+    checks,
     data,
     send,
     testMode: TEST_SHELL,
@@ -261,6 +293,7 @@ export async function startApp(): Promise<void> {
     closing = true;
     metrics.stop();
     changes.dispose();
+    checks.dispose();
     if (window && !window.isDestroyed()) saveWindowState(window, data.window);
     // Every agent, and whatever it started, ends with the app (ADR 0006).
     await manager.dispose();

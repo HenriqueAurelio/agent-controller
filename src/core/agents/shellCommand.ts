@@ -51,3 +51,29 @@ export function wrapInShell(
   const line = [command, ...launch.args.map(quotePosix)].join(' ');
   return { ...launch, file: env.SHELL || '/bin/bash', args: ['-i', '-c', line] };
 }
+
+/**
+ * The same, for a process read through pipes instead of shown in a terminal. Given a script by
+ * `-EncodedCommand`, PowerShell writes its own errors and progress to a pipe as CLIXML, and in the
+ * code page of the console. A script that decodes itself crosses the command line just as safely,
+ * runs through `-Command`, and says what it has to say as text, in UTF-8.
+ */
+export function wrapInShellForPipes(
+  launch: LaunchCommand,
+  command: string,
+  options: ShellOptions = {},
+): LaunchCommand {
+  const { platform = process.platform, env = process.env } = options;
+  if (platform !== 'win32') return wrapInShell(launch, command, options);
+  const shell = findOnPath('pwsh', env) ?? 'powershell.exe';
+  const script = [
+    "$ProgressPreference = 'SilentlyContinue'",
+    '[Console]::OutputEncoding = [Text.Encoding]::UTF8',
+    powerShellScript(command, launch.args),
+  ].join('\n');
+  const encoded = Buffer.from(script, 'utf16le').toString('base64');
+  const decoder =
+    `$s = [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('${encoded}')); ` +
+    '. ([ScriptBlock]::Create($s))';
+  return { ...launch, file: shell, args: ['-NoLogo', '-NonInteractive', '-Command', decoder] };
+}

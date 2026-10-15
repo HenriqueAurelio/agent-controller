@@ -8,6 +8,7 @@ import {
 } from '@shared/shortcuts';
 import { ChangeFolderDialog } from './components/ChangeFolderDialog';
 import { ChangesPanel, type PanelMode } from './components/ChangesPanel';
+import { ChecksBadge, ChecksDialog } from './components/ChecksDialog';
 import { CommandPalette, type Command } from './components/CommandPalette';
 import { Dialog } from './components/Dialog';
 import { NewSessionDialog } from './components/NewSessionDialog';
@@ -19,7 +20,7 @@ import { rich, useT } from './lib/i18n';
 import { shortcutRecording } from './lib/shortcuts';
 import { store, useAppState } from './lib/store';
 
-type Overlay = 'new' | 'prefs' | 'palette' | 'folder' | null;
+type Overlay = 'new' | 'prefs' | 'palette' | 'folder' | 'checks' | null;
 
 export function App() {
   const sessions = useAppState((s) => s.sessions);
@@ -315,6 +316,16 @@ export function App() {
           run: changeFolder,
         },
         {
+          id: 'checks',
+          title: t('command.checks', { name: selected.name }),
+          run: () => setOverlay('checks'),
+        },
+        {
+          id: 'run-checks',
+          title: t('command.runChecks', { name: selected.name }),
+          run: () => void window.api.invoke('checks:run', selected.id),
+        },
+        {
           id: 'duplicate',
           title: t('command.duplicate', { name: selected.name }),
           run: () => duplicate(selected),
@@ -432,6 +443,14 @@ export function App() {
             >
               {t('common.files')}
             </button>
+            <button
+              className="checks-button"
+              onClick={() => setOverlay('checks')}
+              title={t('app.checksHint')}
+            >
+              {t('app.checks')}
+              {selected.checks && <ChecksBadge summary={selected.checks} />}
+            </button>
           </header>
         )}
         {selected?.running && selected.hooks === 'inactive' && (
@@ -480,6 +499,17 @@ export function App() {
       )}
       {dropping && <div className="drop-hint">{t('app.dropHint')}</div>}
       {overlay === 'prefs' && <PreferencesDialog onClose={closeOverlay} />}
+      {overlay === 'checks' && selected && (
+        <ChecksDialog
+          key={selected.id}
+          session={selected}
+          onClose={closeOverlay}
+          onSent={() => {
+            closeOverlay();
+            focusTerminal(true);
+          }}
+        />
+      )}
       {overlay === 'palette' && <CommandPalette commands={commands} onClose={closeOverlay} />}
       {closing && (
         <Dialog title={t('app.closeSession.title')} onClose={() => setClosing(null)}>

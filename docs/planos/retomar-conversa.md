@@ -72,7 +72,7 @@ conversation: {
 
 ## Decisão registrada
 
-ADR 0014, "A sessão retoma a conversa do agente", que emenda a 0006 (o que é persistido) e o item 2.1 de `DECISOES-E-RISCOS.md` (as sessões voltam paradas, mas a conversa volta com elas). Continua sem daemon: o agente é reaberto, não mantido vivo.
+Uma ADR nova (a próxima livre; a 0014 já é a das verificações ao fim do turno), "A sessão retoma a conversa do agente", que emenda a 0006 (o que é persistido) e o item 2.1 de `DECISOES-E-RISCOS.md` (as sessões voltam paradas, mas a conversa volta com elas). Continua sem daemon: o agente é reaberto, não mantido vivo.
 
 ## Testes
 
@@ -89,7 +89,7 @@ Tudo no Windows e no Linux (`npm run test:core:docker`, e2e no CI).
 
 ## Ordem de entrega
 
-1. **PR 1, Claude Code:** dados, perfil, `--session-id` e `--resume`, falha ao retomar, ADR 0014, README.
+1. **PR 1, Claude Code:** dados, perfil, `--session-id` e `--resume`, falha ao retomar, ADR nova, README.
 2. **PR 2, Codex:** id pelo `notify` e pelo hook, `codex resume`.
 3. **PR 3:** "Nova conversa" na paleta.
 

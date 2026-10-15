@@ -6,9 +6,10 @@
 
 ---
 
-## [ ] 4.1 ToolRunner
+## [x] 4.1 ToolRunner
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** nada
+- **Situação em 2026-10-15:** Pronta. `src/core/tools/ToolRunner.ts`: `runTool` (direto) e `runInShell` (pelo `wrapInShell` do comando de uma sessão, sem mover código de `src/core/agents`). No POSIX o processo abre numa sessão própria, para o shell interativo não disputar o terminal e o grupo inteiro ser encerrado. Testes em `tests/core/toolRunner.test.ts`.
 
 **O que fazer**
 
@@ -22,9 +23,10 @@
 
 ---
 
-## [ ] 4.2 Configuração por repositório
+## [x] 4.2 Configuração por pasta
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** nada
+- **Situação em 2026-10-15:** Pronta, com dois desvios do plano: as verificações ficam **por pasta da sessão** (não pela raiz do repositório), e em `sessions.json` (`AppData.checks`), não nas preferências. Fora das preferências, elas não vão no arquivo de exportação sem precisar de exceção. O campo `when` virou `onTurnEnd: boolean`. Sugestões em `src/core/checks/suggest.ts`, com `npm`, `pnpm`, `yarn` e `bun`; o `test` de exemplo do `npm init` não é sugerido.
 
 **O que fazer**
 
@@ -36,9 +38,10 @@
 
 ---
 
-## [ ] 4.3 CheckService
+## [x] 4.3 CheckService
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** 4.1, 4.2
+- **Situação em 2026-10-15:** Pronta. `src/core/checks/CheckService.ts`. "O turno mudou arquivos" é a comparação de `folderFingerprint` (commit, `git status` e tamanho e data de cada arquivo listado) com a da última rodada completa; fora de um repositório, roda sempre. O fim do turno é a passagem para "terminou".
 
 **O que fazer**
 
@@ -51,9 +54,10 @@
 
 ---
 
-## [ ] 4.4 Estado na sessão e IPC
+## [x] 4.4 Estado na sessão e IPC
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** 4.3
+- **Situação em 2026-10-15:** Pronta. `SessionView.checks` (só em memória). Canais `checks:get`, `checks:configure`, `checks:run`, `checks:cancel`, `checks:sendFailure` e o evento `checks:changed`. O aviso de falha é um segundo aviso, que substitui o de "terminou" da mesma sessão; não houve espera de alguns segundos para juntar os dois.
 
 **O que fazer**
 
@@ -65,9 +69,10 @@
 
 ---
 
-## [ ] 4.5 Interface
+## [x] 4.5 Interface
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 4.4; biblioteca de prompts 6.2 para "Mandar o erro ao agente"
+- **Situação em 2026-10-15:** Pronta. A configuração e o resultado ficam num diálogo só (botão **Verificações** no topo da sessão e paleta), não numa aba. A saída é texto sem cores. Para não esperar a proposta 6, o envio ao terminal entrou aqui na forma mínima: `SessionManager.paste` (uma linha só, com `⏎` no lugar das quebras, em colagem em bloco, sem Enter; ver 4.6) e o canal `checks:sendFailure`, que monta o texto no main. A fila "enviar quando terminar" e o canal genérico `terminal:sendText` continuam na proposta 6.
 
 **O que fazer**
 
@@ -81,10 +86,14 @@
 
 ---
 
-## [ ] 4.6 Smoke com os agentes reais
+## [x] 4.6 Smoke com os agentes reais
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** 4.5
 - **Autorizado** pelo dono do produto em 2026-10-14, para esta funcionalidade. O Claude Code roda pelo comando **`claude-personal`**.
+- **Situação em 2026-10-15:** Pronta. Roteiro em `tests/smoke/checks.smoke.ts`, aprovado no Windows com o Claude Code 2.1.300 (pelo `claude-personal`) e com o Codex 0.162.1; registros em `tools/agent-probe/results/*-verificacoes.json`. O WSL não foi rodado. O smoke mudou três coisas no código:
+  - no Windows, o PowerShell com `-EncodedCommand` escrevia os próprios erros e o progresso em CLIXML, que chegava ao agente: as verificações passaram a usar `wrapInShellForPipes` (`-Command`, UTF-8, sem progresso);
+  - o ConPTY tira os marcadores da colagem em bloco: com quebras de linha, um texto curto era enviado sozinho e um longo não era enviado nem pelo Enter. O texto vai numa linha só;
+  - o driver passou a reconhecer a pergunta de confiança do Codex 0.162 ("Trust this folder?"), a esperar a tela parar de mudar antes de digitar, e a repetir o Enter quando o Codex o toma como parte da digitação.
 
 **O que fazer**
 
@@ -97,9 +106,10 @@
 
 ---
 
-## [ ] 4.7 ADR, README e medição
+## [x] 4.7 ADR, README e medição
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 4.5
+- **Situação em 2026-10-15:** Pronta. [ADR 0014](../../../adr/0014-verificacoes-ao-fim-do-turno.md), README ("Verificações ao fim do turno") e `DECISOES-E-RISCOS.md` 3.6. `npm run measure` (que estava quebrado desde a saída do botão Iniciar e foi corrigido) não mostra aumento: no mesmo Windows, com o build de desenvolvimento, a `main` deu 419 MB com 10 sessões e 502 MB no pior caso, e a branch 427 MB e 485 MB. Os dois passam do teto de 450 MB nesse build; isso já acontecia antes e fica como pendência à parte.
 
 **O que fazer**
 

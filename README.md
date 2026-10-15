@@ -114,6 +114,28 @@ Em **Preferências** (`Ctrl+,`) dá para desligar cada tipo de aviso e o som.
 - **Ocultos** (caixa no painel, `Ctrl+Shift+H`, ou em Preferências) mostra também o que normalmente fica de fora: arquivos e pastas que começam com ponto (`.env`, `.github`, a própria `.git`) e o que o `.gitignore` cobre (`node_modules`, saídas de build). Eles aparecem esmaecidos. A escolha fica guardada.
 - Os arquivos que mudaram continuam marcados com a mesma letra da lista de mudanças.
 
+### Verificações ao fim do turno
+
+"Terminou" diz que o agente parou, não que o trabalho está certo. As **verificações** são os comandos que dizem isso: `npm run lint`, `npm test`, o que o projeto usar. O app os roda sozinho quando o agente termina um turno que mudou arquivos, e mostra o resultado na sessão.
+
+1. Clique em **Verificações** no topo da sessão (ou "Verificações de “X”" na paleta de comandos).
+2. Se a pasta tem um `package.json`, os scripts `lint`, `typecheck`, `check` e `test` aparecem como sugestão, já com o gerenciador do projeto (`npm`, `pnpm`, `yarn`, `bun`). Clique para adicionar, ou escreva os seus em **+ Adicionar verificação**.
+3. **Salvar.** Só os comandos salvos rodam; uma sugestão sozinha nunca roda.
+
+Cada verificação tem um nome, o comando (uma linha, como no terminal), um limite de tempo em segundos e a caixa **Ao fim do turno**. Desmarcada, ela só roda quando você pedir.
+
+Daí em diante:
+
+- **Quando roda:** ao fim de cada turno do agente, se algum arquivo da pasta mudou desde a última rodada (o app compara o commit, o `git status` e a data de cada arquivo alterado). Fora de um repositório git, roda a cada turno. **Rodar agora**, no mesmo diálogo ou na paleta, roda todas na hora.
+- **Onde roda:** no seu shell, na pasta da sessão, como o comando de um agente: PowerShell com o seu perfil no Windows, `$SHELL` no Linux. Sem terminal e com `CI=1`, uma depois da outra.
+- **O resultado** aparece na barra lateral e no botão: **✓** tudo passou, **✗ 2** duas falharam, **…** na fila ou rodando, **–** cancelada. O diálogo mostra cada comando, quanto tempo levou e a saída (só o final, se for longa).
+- **O agente voltou a trabalhar:** a rodada em andamento é cancelada, porque o resultado já estaria velho. A próxima vem no fim desse turno.
+- **Aviso:** se as verificações de um turno falham numa sessão que você não está olhando, o app avisa ("Verificações falharam: 1 de 2."). Segue a preferência do aviso de "terminou".
+- **Mandar o erro ao agente:** com uma rodada que falhou, o botão cola no prompt do agente o que falhou (o comando e as últimas linhas da saída), numa linha só, com **⏎** onde havia quebra de linha. Ele **não envia**: confira no terminal e aperte **Enter**. Uma linha só porque, no Windows, uma quebra de linha colada no agente pode enviar o texto antes da hora.
+- No máximo duas sessões rodam verificações ao mesmo tempo; as outras esperam a vez.
+
+As verificações ficam guardadas **por pasta**: toda sessão naquela pasta usa as mesmas, e elas voltam ao reabrir o app. O resultado da última rodada não volta. Elas **não vão** no arquivo de exportação das preferências: são comandos que o app roda sozinho, e importar um arquivo não deve trazê-los.
+
 ### Layout
 
 Em **Preferências → Layout** você escolhe onde fica cada parte da janela. As três escolhas são independentes e combinam entre si, e uma miniatura mostra o resultado antes de fechar:
@@ -136,7 +158,7 @@ Este README descreve o app em português; em inglês, os nomes dos botões e men
 
 Em **Preferências → Importar e exportar**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
 
-As sessões não vão no arquivo. Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Agentes** depois.
+As sessões e as verificações de cada pasta não vão no arquivo. Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Agentes** depois.
 
 ### Atalhos
 
