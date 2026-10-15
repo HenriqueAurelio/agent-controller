@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { NotificationPolicy } from '@core/sessions/NotificationPolicy';
+import type { ChecksRun } from '@shared/checks';
 import { DEFAULT_PREFERENCES, sanitizePreferences } from '@shared/prefs';
 import {
   STATUS_DETAIL,
@@ -120,6 +121,61 @@ describe('NotificationPolicy', () => {
     expect(
       policy.evaluate(session('aguardando'), status('trabalhando'), { focused: false, prefs }),
     ).toMatchObject({ kind: 'waiting', silent: true });
+  });
+});
+
+describe('NotificationPolicy for checks', () => {
+  const run = (outcomes: ('passed' | 'failed')[], extra: Partial<ChecksRun> = {}): ChecksRun => ({
+    trigger: 'turnEnd',
+    state: 'done',
+    startedAt: 0,
+    checks: outcomes.map((_, i) => ({ id: `c${i}`, label: `c${i}`, command: 'x' })),
+    results: outcomes.map((outcome, i) => ({
+      id: `c${i}`,
+      label: `c${i}`,
+      command: 'x',
+      outcome,
+      exitCode: outcome === 'passed' ? 0 : 1,
+      durationMs: 1,
+      output: '',
+      truncated: false,
+    })),
+    ...extra,
+  });
+
+  it('tells when the checks of a turn failed, and how many', () => {
+    const policy = new NotificationPolicy();
+    expect(
+      policy.evaluateChecks(session('terminou'), run(['passed', 'failed', 'failed']), background),
+    ).toEqual({
+      sessionId: 's1',
+      kind: 'checks',
+      title: 'API de pagamentos',
+      body: 'Verificações falharam: 2 de 3.',
+      silent: false,
+    });
+  });
+
+  it('stays quiet when they passed, ran by hand, are not over, or the session is in sight', () => {
+    const policy = new NotificationPolicy();
+    expect(policy.evaluateChecks(session('terminou'), run(['passed']), background)).toBeNull();
+    expect(
+      policy.evaluateChecks(
+        session('terminou'),
+        run(['failed'], { trigger: 'manual' }),
+        background,
+      ),
+    ).toBeNull();
+    expect(
+      policy.evaluateChecks(session('terminou'), run(['failed'], { state: 'running' }), background),
+    ).toBeNull();
+    expect(
+      policy.evaluateChecks(session('terminou'), run(['failed']), { ...background, focused: true }),
+    ).toBeNull();
+    const prefs = sanitizePreferences({ notifyDone: false });
+    expect(
+      policy.evaluateChecks(session('terminou'), run(['failed']), { focused: false, prefs }),
+    ).toBeNull();
   });
 });
 

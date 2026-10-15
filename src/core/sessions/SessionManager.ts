@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import { sanitizeAgentCommand } from '@shared/agents';
+import type { ChecksSummary } from '@shared/checks';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import type { Preferences } from '@shared/prefs';
 import {
@@ -80,6 +81,7 @@ interface Entry {
   aggregator: SignalAggregator;
   hooks: HooksMode;
   unread: boolean;
+  checks?: ChecksSummary;
   /** A visual terminal exists for this session, whether or not the agent is running. */
   mounted: boolean;
   visible: boolean;
@@ -146,7 +148,16 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       running: entry.runtime?.running ?? false,
       hooks: entry.hooks,
       unread: entry.unread,
+      ...(entry.checks && { checks: entry.checks }),
     };
+  }
+
+  /** What the list shows of the checks of a session. Not persisted: it lasts while the app does. */
+  setChecks(id: string, checks: ChecksSummary | undefined): void {
+    const entry = this.entries.get(id);
+    if (!entry) return;
+    entry.checks = checks;
+    this.changed();
   }
 
   list(): SessionView[] {
@@ -637,6 +648,33 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     }
     runtime.adapter.onUserInput(data);
     this.options.ptys.write(id, data);
+  }
+
+  /**
+   * Text the app hands the agent on the user's behalf. It is not sent: it waits at the agent's
+   * prompt for the user to read it and press Enter.
+   *
+   * It goes as one line, with `⏎` where the breaks were. On Windows, ConPTY drops the markers of a
+   * bracketed paste, and with them what tells a line break from Enter: measured with Claude Code
+   * 2.1.300, a short text with breaks is sent at once, and a long one ends up where Enter no
+   * longer sends it. A text with no break in it cannot be sent by anything but the user's Enter.
+   */
+  paste(id: string, text: string): void {
+    const runtime = this.entries.get(id)?.runtime;
+    if (!runtime?.running) throw new UserError('error.session.notRunning');
+    // Nor may anything in it end the paste early or act as a key.
+    const line = text
+      .split(/\r\n?|\n/)
+      .map((part) =>
+        [...part]
+          .filter((ch) => ch.charCodeAt(0) >= 0x20 && ch.charCodeAt(0) !== 0x7f)
+          .join('')
+          .trim(),
+      )
+      .filter(Boolean)
+      .join(' ⏎ ');
+    this.options.ptys.write(id, `\x1b[200~${line}\x1b[201~`);
+    runtime.adapter.onUserInput(line);
   }
 
   resize(id: string, size: TerminalSize): void {

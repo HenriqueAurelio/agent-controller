@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isAlive } from '@core/pty/killTree';
 import { PtyManager } from '@core/pty/PtyManager';
 import {
@@ -342,6 +342,41 @@ describe('SessionManager', () => {
       const pids = [manager.pidOf(a.id)!, manager.pidOf(b.id)!];
       await manager.dispose(200);
       await waitFor(() => pids.every((pid) => !isAlive(pid)));
+    });
+  });
+
+  describe('text pasted for the user', () => {
+    it('goes to the agent as one line, in one paste, and waits there for Enter', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      const write = vi.spyOn(ptys, 'write');
+
+      // No line break that could send it, and nothing that could end the paste or act as a key.
+      manager.paste(s.id, 'linha um\r\n  indentada\n\n\x1b[201~fim\x03\rúltima\t ');
+      expect(write.mock.calls).toEqual([
+        [s.id, '\x1b[200~linha um ⏎ indentada ⏎ [201~fim ⏎ última\x1b[201~'],
+      ]);
+      write.mockRestore();
+      await sleep(300);
+      expect(state(s.id)).toBe('aguardando');
+    });
+
+    it('is refused when the agent is not running', () => {
+      const s = create();
+      expect(() => manager.paste(s.id, 'oi')).toThrow(UserError);
+    });
+  });
+
+  describe('checks', () => {
+    it('the latest run shows in the list until the app closes, and is not persisted', () => {
+      const s = create();
+      manager.setChecks(s.id, { state: 'failed', failed: 1, total: 2 });
+      expect(manager.list()[0]!.checks).toEqual({ state: 'failed', failed: 1, total: 2 });
+      manager.flushPersist();
+      expect(persisted.at(-1)!.sessions[0]).not.toHaveProperty('checks');
+      manager.setChecks(s.id, undefined);
+      expect(manager.list()[0]).not.toHaveProperty('checks');
     });
   });
 

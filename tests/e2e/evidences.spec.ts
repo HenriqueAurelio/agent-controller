@@ -1,5 +1,5 @@
-// The screens of folders, theme of the editor, layout, settings, language, command of the agent and
-// tabs of the preferences,
+// The screens of folders, theme of the editor, layout, settings, language, command of the agent,
+// tabs of the preferences and checks at the end of a turn,
 // to attach to the pull request: the same scenario photographed before and after the change. They
 // go to evidences/, which git ignores. It only runs when asked:
 //
@@ -9,8 +9,9 @@
 // and leaves out the steps that did not exist yet.
 import fs from 'node:fs';
 import path from 'node:path';
-import { test, type Page } from '@playwright/test';
-import { createSession, launch, makeRepo, removeDir, ROOT, tempDir } from './harness';
+import { expect, test, type Page } from '@playwright/test';
+import { createSession, launch, makeRepo, removeDir, ROOT, screenText, tempDir } from './harness';
+import { configureSuggested, makeProject, turn } from './project';
 
 const PHASE = process.env.EVIDENCES_PHASE === 'antes' ? 'antes' : 'depois';
 const AFTER = PHASE === 'depois';
@@ -362,5 +363,61 @@ test('evidences: no start and stop button', async () => {
   } finally {
     await running.close();
     for (const dir of [userData, loja]) removeDir(dir);
+  }
+});
+
+test('evidences: checks at the end of a turn', async () => {
+  test.setTimeout(240_000);
+  const userData = tempDir('ac-evid-data-');
+  const repo = makeProject();
+  const running = await launch(userData);
+  const { page } = running;
+  const shot = async (name: string) => {
+    fs.mkdirSync(path.join(OUT, 'verificacoes'), { recursive: true });
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: path.join(OUT, 'verificacoes', `${name}-${PHASE}.png`) });
+  };
+  const header = () =>
+    page.locator('.session-header').getByRole('button', { name: /^Verificações/ });
+  const badge = page.locator('.session-item').getByTestId('checks-badge');
+
+  try {
+    const id = await createSession(page, 'Projeto', repo);
+
+    // 1. Before anything else, the checks of the folder: the ones package.json suggests, saved.
+    if (AFTER) {
+      const dialog = await configureSuggested(page);
+      await shot('01-configurar');
+      await dialog.getByRole('button', { name: 'Fechar' }).click();
+    }
+
+    // 2. A turn of the agent that changed a file, with a test that fails.
+    await turn(page, id);
+    if (AFTER) await badge.and(page.locator('[data-checks="failed"]')).waitFor({ timeout: 90_000 });
+    await shot('02-fim-do-turno');
+
+    if (AFTER) {
+      // 3. What failed, and why.
+      await header().click();
+      await page
+        .getByTestId('checks-run')
+        .locator('[data-outcome="failed"] .checks-output')
+        .waitFor();
+      await shot('03-resultado');
+
+      // 4. The failure in the agent's prompt, waiting for Enter.
+      await page.getByRole('button', { name: 'Mandar o erro ao agente' }).click();
+      await expect.poll(() => screenText(page, id), { timeout: 15_000 }).toContain('esperava 5');
+      await shot('04-erro-no-agente');
+
+      // 5. Fixed and checked again.
+      fs.writeFileSync(path.join(repo, 'soma.cjs'), 'module.exports = (a, b) => a + b;\n');
+      await page.evaluate((s) => window.api.invoke('checks:run', s), id);
+      await badge.and(page.locator('[data-checks="passed"]')).waitFor({ timeout: 90_000 });
+      await shot('05-tudo-passou');
+    }
+  } finally {
+    await running.close();
+    for (const dir of [userData, repo]) removeDir(dir);
   }
 });

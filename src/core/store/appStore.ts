@@ -1,10 +1,11 @@
 import path from 'node:path';
 import { sanitizeAgentCommand } from '@shared/agents';
+import { sanitizeChecks, type CheckConfig } from '@shared/checks';
 import { translate } from '@shared/i18n';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
 import { AGENT_PROFILE_IDS, type AgentProfileId, type Session } from '@shared/session';
 import { JsonStore, type Migration } from './JsonStore';
-import { sanitizeRecentFolders } from './recentFolders';
+import { folderKey, sanitizeRecentFolders } from './recentFolders';
 
 export interface WindowState {
   x?: number;
@@ -20,6 +21,11 @@ export interface AppData {
   selectedSessionId: string | null;
   /** Folders of the latest sessions, most recent first: offered when a folder is asked for. */
   recentFolders: string[];
+  /**
+   * The checks of each folder, by `folderKey`. Kept here and not in the preferences: they are
+   * commands to run, and importing a file of preferences must never bring commands in.
+   */
+  checks: Record<string, CheckConfig[]>;
   window: WindowState;
   prefs: Preferences;
 }
@@ -34,6 +40,7 @@ export function defaultAppData(): AppData {
     sessions: [],
     selectedSessionId: null,
     recentFolders: [],
+    checks: {},
     window: { ...DEFAULT_WINDOW },
     prefs: sanitizePreferences(undefined),
   };
@@ -46,6 +53,20 @@ const migrations: Record<number, Migration> = {
 
 function isProfile(value: unknown): value is AgentProfileId {
   return AGENT_PROFILE_IDS.includes(value as AgentProfileId);
+}
+
+export const CHECKED_FOLDERS_LIMIT = 200;
+
+export function sanitizeFolderChecks(value: unknown): Record<string, CheckConfig[]> {
+  const result: Record<string, CheckConfig[]> = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return result;
+  for (const [folder, checks] of Object.entries(value)) {
+    if (!folder || folder.length > 4096) continue;
+    const clean = sanitizeChecks(checks);
+    if (clean.length) result[folderKey(folder)] = clean;
+    if (Object.keys(result).length === CHECKED_FOLDERS_LIMIT) break;
+  }
+  return result;
 }
 
 function validate(raw: unknown): AppData {
@@ -83,6 +104,7 @@ function validate(raw: unknown): AppData {
         ? data.selectedSessionId
         : null,
     recentFolders: sanitizeRecentFolders(data.recentFolders),
+    checks: sanitizeFolderChecks(data.checks),
     window: {
       x: num(w.x),
       y: num(w.y),

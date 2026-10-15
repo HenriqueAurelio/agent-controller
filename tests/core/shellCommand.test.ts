@@ -8,6 +8,7 @@ import {
   quotePosix,
   quotePowerShell,
   wrapInShell,
+  wrapInShellForPipes,
   type LaunchCommand,
 } from '@core/agents';
 
@@ -125,6 +126,62 @@ describe('a command of the user in place of the agent', () => {
       );
       expect((await run(shell, args('cmd.exe /c exit 7', []))).code).toBe(7);
       expect((await run(shell, args('no-such-command-here', []))).code).toBe(1);
+    },
+    120_000,
+  );
+});
+
+describe('a command of the user read through pipes', () => {
+  it('is the same on POSIX', () => {
+    const options = { platform: 'linux' as const, env: { SHELL: '/bin/zsh' } };
+    expect(wrapInShellForPipes(launch, 'npm test', options)).toEqual(
+      wrapInShell(launch, 'npm test', options),
+    );
+  });
+
+  it('on Windows goes through -Command, as a script that decodes itself', () => {
+    const wrapped = wrapInShellForPipes(launch, 'npm test', {
+      platform: 'win32',
+      env: { PATH: '' },
+    });
+    expect(wrapped.file).toBe('powershell.exe');
+    expect(wrapped.args.slice(0, 3)).toEqual(['-NoLogo', '-NonInteractive', '-Command']);
+    const encoded = /FromBase64String\('([A-Za-z0-9+/=]+)'\)/.exec(wrapped.args[3]!)![1]!;
+    const script = decode(encoded);
+    expect(script).toContain("$ProgressPreference = 'SilentlyContinue'");
+    expect(script).toContain('[Console]::OutputEncoding = [Text.Encoding]::UTF8');
+    expect(script).toContain(powerShellScript('npm test', launch.args));
+    expect(wrapped.env).toEqual(launch.env);
+  });
+
+  it.runIf(process.platform === 'win32')(
+    'Windows: what PowerShell says of itself arrives as text, in UTF-8, with the exit code',
+    async () => {
+      const wrapped = wrapInShellForPipes(
+        { ...launch, args: AWKWARD },
+        // A function, as the ones of a profile, with the arguments of the app after it.
+        "function my-check { Write-Progress -Activity 'Preparando módulos' -Status x; " +
+          'foreach ($a in $args) { "[$a]" }; ' +
+          "Write-Error 'falhou em ação'; cmd.exe /c exit 5 }; my-check",
+      );
+      const result = await new Promise<{ code: number; stdout: string; stderr: string }>(
+        (resolve) => {
+          const child = execFile(
+            wrapped.file,
+            wrapped.args,
+            { windowsHide: true, timeout: 60_000 },
+            (err, stdout, stderr) =>
+              resolve({ code: typeof err?.code === 'number' ? err.code : 0, stdout, stderr }),
+          );
+          child.stdin?.end();
+        },
+      );
+      expect(result.code).toBe(5);
+      expect(result.stdout.split(/\r?\n/).slice(0, AWKWARD.length)).toEqual(
+        AWKWARD.map((a) => `[${a}]`),
+      );
+      expect(result.stderr).toContain('falhou em ação');
+      expect(result.stderr).not.toMatch(/CLIXML|<Objs|�/);
     },
     120_000,
   );

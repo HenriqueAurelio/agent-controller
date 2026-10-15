@@ -1,6 +1,7 @@
 // IPC contract shared by main, preload and renderer.
 // This is the meeting point of the core and interface fronts: change it only together.
 import type { AgentAvailability } from './agents';
+import type { CheckConfig, ChecksInfo } from './checks';
 import type { DiffBase, FileDiff, FileListing, GitOverview } from './git';
 import type { Preferences } from './prefs';
 import type { NewSessionInput, SessionView, TerminalSize } from './session';
@@ -91,6 +92,15 @@ export interface IpcCommands {
   'git:count': (sessionId: string) => number | null;
   /** One folder of the session, relative to its root (the repository, or the session folder). */
   'files:list': (sessionId: string, dir: string, showHidden: boolean) => FileListing;
+
+  /** The checks of the session's folder, the ones its project suggests, and the latest run. */
+  'checks:get': (sessionId: string) => ChecksInfo;
+  /** Replaces the checks of the session's folder. */
+  'checks:configure': (sessionId: string, checks: CheckConfig[]) => ChecksInfo;
+  'checks:run': (sessionId: string) => void;
+  'checks:cancel': (sessionId: string) => void;
+  /** Pastes what failed in the latest run into the agent's prompt, without sending it. */
+  'checks:sendFailure': (sessionId: string) => void;
 }
 
 /** Main → renderer, one way. */
@@ -102,6 +112,8 @@ export interface IpcEvents {
   'metrics:update': (metrics: Record<string, SessionMetrics>) => void;
   'prefs:changed': (prefs: Preferences) => void;
   'app:focusSession': (id: string) => void;
+  /** The run of the checks of a session changed. */
+  'checks:changed': (sessionId: string) => void;
 }
 
 export type CommandChannel = keyof IpcCommands;
@@ -146,6 +158,11 @@ export const COMMAND_CHANNELS = [
   'git:save',
   'git:count',
   'files:list',
+  'checks:get',
+  'checks:configure',
+  'checks:run',
+  'checks:cancel',
+  'checks:sendFailure',
 ] as const satisfies readonly CommandChannel[];
 
 export const EVENT_CHANNELS = [
@@ -156,6 +173,7 @@ export const EVENT_CHANNELS = [
   'metrics:update',
   'prefs:changed',
   'app:focusSession',
+  'checks:changed',
 ] as const satisfies readonly EventChannel[];
 
 // Compile-time check that the runtime lists cover every channel of the contract.

@@ -1,0 +1,132 @@
+{
+  "agent": "claude-code",
+  "version": "2.1.300",
+  "platform": "win32",
+  "date": "2026-10-15T03:51:40.826Z",
+  "hooks": "active",
+  "ok": true,
+  "scenarios": [
+    {
+      "name": "verificações ao fim do turno",
+      "ok": true,
+      "states": [
+        {
+          "t": 8.59,
+          "state": "trabalhando",
+          "origin": "titulo",
+          "confirmed": true
+        },
+        {
+          "t": 14.23,
+          "state": "terminou",
+          "origin": "hook",
+          "confirmed": true
+        },
+        {
+          "t": 17.51,
+          "state": "trabalhando",
+          "origin": "titulo",
+          "confirmed": true
+        },
+        {
+          "t": 34.86,
+          "state": "terminou",
+          "origin": "hook",
+          "confirmed": true
+        }
+      ]
+    }
+  ],
+  "hookEvents": [
+    {
+      "t": 3.3,
+      "source": "claude-hook",
+      "event": "SessionStart"
+    },
+    {
+      "t": 14.23,
+      "source": "claude-hook",
+      "event": "Stop"
+    },
+    {
+      "t": 34.86,
+      "source": "claude-hook",
+      "event": "Stop"
+    }
+  ],
+  "titles": [
+    "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "claude",
+    "✳ Claude Code",
+    "◐ Claude Code",
+    "◑ Claude Code",
+    "◑ Arquivo NOTAS.md",
+    "◐ Arquivo NOTAS.md",
+    "◑ Arquivo NOTAS.md",
+    "◐ Arquivo NOTAS.md",
+    "◑ Arquivo NOTAS.md",
+    "✳ Arquivo NOTAS.md",
+    "◑ Arquivo NOTAS.md",
+    "◐ Arquivo NOTAS.md",
+    "◑ Arquivo NOTAS.md",
+    "◐ Arquivo NOTAS.md",
+    "◑ Arquivo NOTAS.md",
+    "◐ Arquivo NOTAS.md",
+    "◑ Arquivo NOTAS.md",
+    "◐ Arquivo NOTAS.md",
+    "◑ Arquivo NOTAS.md",
+    "◐ Arquivo NOTAS.md",
+    "◑ Arquivo NOTAS.md",
+    "◐ Arquivo NOTAS.md",
+    "◑ Arquivo NOTAS.md",
+    "◐ Arquivo NOTAS.md",
+    "◑ Arquivo NOTAS.md",
+    "◐ Arquivo NOTAS.md",
+    "◑ Arquivo NOTAS.md",
+    "◐ Arquivo NOTAS.md",
+    "◑ Arquivo NOTAS.md",
+    "✳ Arquivo NOTAS.md",
+    "",
+    "C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+  ],
+  "command": "claude-personal",
+  "checks": [
+    {
+      "state": "failed",
+      "failed": 1,
+      "total": 1,
+      "trigger": "turnEnd",
+      "results": [
+        {
+          "id": "test",
+          "label": "test",
+          "command": "npm test",
+          "outcome": "failed",
+          "exitCode": 1,
+          "durationMs": 821,
+          "output": "\n> test\n> node test.cjs\n\nsoma(2, 3) deu -1, esperava 5\n",
+          "truncated": false
+        }
+      ]
+    },
+    {
+      "state": "passed",
+      "failed": 0,
+      "total": 1,
+      "trigger": "turnEnd",
+      "results": [
+        {
+          "id": "test",
+          "label": "test",
+          "command": "npm test",
+          "outcome": "passed",
+          "exitCode": 0,
+          "durationMs": 894,
+          "output": "\n> test\n> node test.cjs\n\nteste: ok\n",
+          "truncated": false
+        }
+      ]
+    }
+  ],
+  "orphans": []
+}

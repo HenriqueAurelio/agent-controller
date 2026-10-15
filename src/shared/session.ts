@@ -1,3 +1,4 @@
+import type { ChecksSummary } from './checks';
 import type { Translate } from './i18n';
 
 export type AgentProfileId = 'claude-code' | 'codex';
@@ -55,6 +56,8 @@ export interface SessionView extends Session {
   hooks: HooksMode;
   /** Unseen "aguardando"/"terminou" since the session was last focused. */
   unread: boolean;
+  /** The latest run of the checks of the folder, while the app is open. */
+  checks?: ChecksSummary;
 }
 
 export interface NewSessionInput {

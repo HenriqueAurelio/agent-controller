@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { buildLaunchCommand, detectAgent, getProfile } from '@core/agents';
+import { buildLaunchCommand, detectAgent, getProfile, wrapInShell } from '@core/agents';
 import { PtyManager } from '@core/pty/PtyManager';
 import { isAlive } from '@core/pty/killTree';
-import { SessionManager } from '@core/sessions/SessionManager';
+import { SessionManager, type SessionTransition } from '@core/sessions/SessionManager';
 import { installAgentctl } from '@core/signals/agentctlInstall';
 import { createSocketPath, HookServer, type HookMessage } from '@core/signals/HookServer';
 import { StreamParser } from '@core/signals/StreamParser';
@@ -98,11 +98,24 @@ export class AgentDriver {
   private pid = 0;
   private readonly titleParser = new StreamParser();
   cwd = '';
+  /** Keeps the report of one script from overwriting another's. */
+  reportSuffix = '';
+
+  /**
+   * The command the agent runs through, as in a session that has one (ADR 0013):
+   * `SMOKE_COMMAND_CLAUDE_CODE=claude-personal`, `SMOKE_COMMAND_CODEX=...`. Empty: the executable.
+   */
+  readonly command: string;
 
   constructor(
     readonly profileId: AgentProfileId,
     private readonly extraArgs: string[],
-  ) {}
+    /** Fills the folder before the agent opens in it. */
+    private readonly prepare?: (cwd: string) => void,
+  ) {
+    const variable = `SMOKE_COMMAND_${profileId.toUpperCase().replace(/-/g, '_')}`;
+    this.command = (process.env[variable] ?? '').trim();
+  }
 
   private log(message: string): void {
     const t = this.startedAt
@@ -114,11 +127,13 @@ export class AgentDriver {
   async start(): Promise<boolean> {
     const profile = getProfile(this.profileId);
     const availability = await detectAgent(profile);
-    if (!availability.usable || !availability.path) {
+    // With a command, the user's shell finds the agent: as in the app, it need not be on the PATH.
+    if (!this.command && (!availability.usable || !availability.path)) {
       this.log(`não instalado: ${availability.installCommand}`);
       return false;
     }
     this.version = availability.version ?? 'desconhecida';
+    if (this.command) this.log(`pelo comando: ${this.command}`);
 
     this.workDir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'ac-smoke-')));
     const temporaryCwd = !process.env.SMOKE_CWD;
@@ -126,6 +141,7 @@ export class AgentDriver {
       ? path.resolve(process.env.SMOKE_CWD)
       : path.join(this.workDir, 'projeto');
     fs.mkdirSync(this.cwd, { recursive: true });
+    this.prepare?.(this.cwd);
     this.guard = new ConfigGuard(this.cwd, temporaryCwd);
 
     const agentctl = installAgentctl({
@@ -161,7 +177,8 @@ export class AgentDriver {
           executablePath: availability.path,
           codexHooks: true,
         });
-        return { ...launch, args: [...launch.args, ...this.extraArgs] };
+        const full = { ...launch, args: [...launch.args, ...this.extraArgs] };
+        return this.command ? wrapInShell(full, this.command) : full;
       },
     });
     this.manager.on('transition', ({ session }) => {
@@ -192,6 +209,20 @@ export class AgentDriver {
     return Number(((Date.now() - this.startedAt) / 1000).toFixed(2));
   }
 
+  get id(): string {
+    return this.sessionId;
+  }
+
+  onTransition(listener: (transition: SessionTransition) => void): void {
+    this.manager.on('transition', listener);
+  }
+
+  /** Text handed to the agent the way the app does it: one bracketed paste, not sent. */
+  paste(text: string): void {
+    this.log(`colado: ${text.split('\n')[0]}…`);
+    this.manager.paste(this.sessionId, text);
+  }
+
   screen(): Promise<string> {
     return this.manager.screenText(this.sessionId);
   }
@@ -219,8 +250,14 @@ export class AgentDriver {
       }
       quietSince = Date.now();
     };
+    // An agent still drawing its first screen is quiet too: ready means the screen stopped changing.
+    let lastScreen = '';
     while (Date.now() < deadline) {
       const screen = await this.screen();
+      if (screen !== lastScreen) {
+        lastScreen = screen;
+        quietSince = Date.now();
+      }
       if (/Skip until next version/i.test(screen)) {
         answered.delete('hooks');
         await answer('update', 'atualização disponível → pular', [ESC]);
@@ -242,9 +279,14 @@ export class AgentDriver {
           this.send(DOWN);
           quietSince = Date.now();
         }
-      } else if (/trust the (contents|files) (of|in) this (directory|folder)/i.test(screen)) {
+      } else if (
+        // The wording of Codex 0.158, and the one of 0.162 ("Folder access").
+        /trust the (contents|files) (of|in) this (directory|folder)|Trust this folder\?/i.test(
+          screen,
+        )
+      ) {
         await answer('trust-codex', 'confiança na pasta (Codex) → sim', ['1', ENTER]);
-      } else if (this.state === 'aguardando' && Date.now() - quietSince > 3000) {
+      } else if (screen.trim() && this.state === 'aguardando' && Date.now() - quietSince > 3000) {
         return;
       }
       await sleep(500);
@@ -312,7 +354,10 @@ export class AgentDriver {
   /** One file per agent version and platform. */
   writeReport(extra: Record<string, unknown> = {}): string {
     fs.mkdirSync(RESULTS, { recursive: true });
-    const file = path.join(RESULTS, `${this.profileId}-${this.version}-${process.platform}.json`);
+    const file = path.join(
+      RESULTS,
+      `${this.profileId}-${this.version}-${process.platform}${this.reportSuffix}.json`,
+    );
     const report = {
       agent: this.profileId,
       version: this.version,

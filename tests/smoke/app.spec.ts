@@ -2,6 +2,8 @@
 // delivers hooks and notify to the right session. On demand only (uses the account):
 //   npm run test:smoke:app
 // SMOKE_CWD must be a folder both agents already trust; AGENT_CONTROLLER_EXE tests a packaged app.
+// SMOKE_COMMAND_CLAUDE_CODE / SMOKE_COMMAND_CODEX: the command of the agent in the preferences
+// (an alias or function of the user's shell, such as `claude-personal`).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,6 +13,10 @@ import type { SessionView } from '../../src/shared/session';
 const ROOT = path.resolve(__dirname, '../..');
 const CWD = path.resolve(process.env.SMOKE_CWD ?? ROOT);
 const profiles = (process.env.SMOKE_PROFILES ?? 'claude-code,codex').split(',');
+const agentCommands = {
+  'claude-code': process.env.SMOKE_COMMAND_CLAUDE_CODE?.trim() ?? '',
+  codex: process.env.SMOKE_COMMAND_CODEX?.trim() ?? '',
+};
 
 const sessions = (page: Page) =>
   page.evaluate(() => window.api.invoke('sessions:list')).then((s) => s.sessions as SessionView[]);
@@ -56,6 +62,12 @@ for (const [label, profile, origin] of [
     try {
       const page = await app.firstWindow();
       await page.waitForSelector('.sidebar');
+      if (agentCommands[profile]) {
+        await page.evaluate(
+          (commands) => window.api.invoke('prefs:set', { agentCommands: commands }),
+          agentCommands,
+        );
+      }
 
       // The profile is offered because the agent was found on the PATH.
       await page.getByRole('button', { name: '+ Nova sessão' }).click();

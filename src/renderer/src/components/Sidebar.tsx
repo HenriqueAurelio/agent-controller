@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 
 import { isHorizontal } from '@shared/layout';
 import { statusLabel, type SessionView } from '@shared/session';
 import { formatCpu, formatMemory, hint, PROFILE_LABEL } from '../lib/format';
+import { ChecksBadge } from './ChecksDialog';
 import { useT } from '../lib/i18n';
 import { store, useAppState } from '../lib/store';
 
@@ -189,6 +190,7 @@ export function Sidebar({ onNew, onPreferences, onClose, onDuplicate, onDone }: 
                   >
                     {label}
                   </span>
+                  {session.checks && <ChecksBadge summary={session.checks} />}
                 </span>
                 {m && (
                   <span

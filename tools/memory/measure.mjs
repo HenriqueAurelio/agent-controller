@@ -89,9 +89,16 @@ async function addSession() {
     ([cwd, agent, name]) => window.api.invoke('sessions:create', { name, cwd, profile: agent }),
     [cwd, agent, `Sessão ${created}`],
   );
-  // Let the interface mount the terminal, then start the agent at its size.
+  // A new session is selected, and opening a stopped session starts its agent at the size of its
+  // terminal: there is no button for it since the start button left.
   await page.waitForSelector(`.terminal-host.visible[data-session-id="${session.id}"]`);
-  await page.getByRole('button', { name: 'Iniciar' }).click();
+  await page.waitForFunction(
+    (id) =>
+      window.api
+        .invoke('sessions:list')
+        .then(({ sessions }) => sessions.find((s) => s.id === id)?.running === true),
+    session.id,
+  );
   await sleep(profile === 'shell' ? 500 : 4000);
 }
 
