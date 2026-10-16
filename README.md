@@ -55,6 +55,19 @@ Outros caminhos para o mesmo lugar:
 - **Trocar a pasta** de uma sessão que já existe: clique no caminho no topo da sessão, ou use a paleta de comandos. O agente trabalha na pasta em que foi aberto; se estiver rodando, o app avisa, encerra e abre de novo na nova pasta, e a conversa em andamento não continua.
 - **Parar e iniciar o agente** não tem botão: abrir uma sessão parada inicia o agente dela, e um agente que saiu com a sessão aberta inicia de novo com **Enter** no terminal. Para parar sem fechar a sessão, use "parar o agente" na paleta de comandos, ou peça ao próprio agente que saia (`/exit`).
 
+### Grupos de sessões
+
+Com várias sessões no mesmo repositório, dá para juntá-las num **grupo** (por exemplo, `XXX-REPO`) e ver cada repositório como um bloco na barra lateral.
+
+- **Criar:** o botão **⊞** no topo da barra lateral, ou "Novo grupo de sessões" na paleta. O nome já vem com a pasta da sessão aberta, e as sessões abertas nessa pasta já vêm marcadas; ajuste e clique em **Criar grupo**.
+- **Pôr e tirar sessões:** arraste a sessão para o cabeçalho do grupo, ou para entre as sessões dele. Para tirá-la, arraste para a faixa **Solte aqui para tirar do grupo**, que aparece no topo da lista durante o arraste. Pela paleta, "Mover … para o grupo …" e "Tirar … do grupo …". Com o teclado, `Alt+↑` / `Alt+↓` além da borda do grupo leva a sessão para o grupo vizinho, ou para fora.
+- **Nova sessão já no grupo:** o **+** no cabeçalho do grupo. Em **Nova sessão**, o campo **Grupo** também escolhe; **Duplicar** mantém a cópia no mesmo grupo.
+- **Recolher:** clique no cabeçalho. Recolhido, o grupo mostra quantas sessões tem e, em laranja, quantas estão aguardando você; a sessão aberta continua à vista mesmo dentro de um grupo recolhido.
+- **Renomear:** clique duas vezes no nome do grupo (ou `F2` com o cabeçalho focado). **✎** edita o nome e as sessões de uma vez.
+- **Desfazer:** o **×** no cabeçalho desfaz o grupo. **As sessões continuam abertas**, só deixam de estar agrupadas.
+
+As sessões sem grupo ficam no topo da lista, e os grupos vêm em seguida, na ordem que você escolher (arraste um cabeçalho sobre o outro, ou `Alt+↑` / `Alt+↓` com ele focado). `Ctrl+1` … `Ctrl+9` seguem a lista como ela aparece. Os grupos são guardados com as sessões e voltam ao reabrir o app, recolhidos ou não; não vão no arquivo de exportação das configurações.
+
 ### Comando do agente
 
 Quem usa o mesmo agente de mais de um jeito costuma ter aliases ou funções no perfil do shell: `claude-work` e `claude-personal`, por exemplo, uma conta em cada um. O app abre o executável do agente direto, sem shell, e por isso não os enxerga. Para usá-los, diga qual comando a sessão roda:
@@ -250,6 +263,7 @@ Esses são os atalhos de fábrica. Em **Preferências → Atalhos** cada ação 
 Na barra lateral, com uma sessão focada: `F2` renomeia, `Delete` fecha, `Alt+↑` / `Alt+↓` reordena. Também dá para arrastar. `Ctrl+clique` marca várias sessões para enviar um prompt a todas.
 
 Cada prompt guardado pode ter o seu atalho, em **Preferências → Prompts**, com as mesmas regras.
+Na barra lateral, com uma sessão focada: `F2` renomeia, `Delete` fecha, `Alt+↑` / `Alt+↓` reordena (e, na borda de um grupo, leva a sessão para fora dele ou para o vizinho). Também dá para arrastar. Com o cabeçalho de um grupo focado: `Enter` recolhe ou abre, `F2` renomeia, `Alt+↑` / `Alt+↓` muda o grupo de lugar.
 
 ## Codex: o passo de confiança dos hooks
 

@@ -57,6 +57,10 @@ export const es: Record<keyof typeof ptBR, string> = {
   'command.runChecks': 'Ejecutar ahora las verificaciones de “{name}”',
   'command.openAux': 'Terminal auxiliar: abrir un shell en la carpeta de «{name}»',
   'command.closeAux': 'Terminal auxiliar: cerrar el shell de «{name}»',
+  'command.newGroup': 'Nuevo grupo de sesiones',
+  'command.editGroup': 'Editar el grupo “{name}”',
+  'command.moveToGroup': 'Mover “{name}” al grupo “{group}”',
+  'command.leaveGroup': 'Sacar “{name}” del grupo “{group}”',
 
   'checks.title': 'Verificaciones',
   'checks.intro':
@@ -172,6 +176,27 @@ export const es: Record<keyof typeof ptBR, string> = {
   'sidebar.duplicate': 'Duplicar {name}',
   'sidebar.close': 'Cerrar {name}',
   'sidebar.new': '+ Nueva sesión',
+  'sidebar.newGroup': 'Nuevo grupo: reúne las sesiones de un repositorio',
+  'sidebar.ungroupedDrop': 'Suelta aquí para sacarla del grupo',
+  'group.expand': 'Mostrar las sesiones de {name}',
+  'group.collapse': 'Contraer {name}',
+  'group.count': '{count} sesión(es)',
+  'group.waiting': '{count} esperándote',
+  'group.unread': 'Una sesión del grupo tiene novedades',
+  'group.newSession': 'Nueva sesión en {name}',
+  'group.edit': 'Editar el grupo {name}',
+  'group.remove': 'Deshacer el grupo {name}: las sesiones siguen abiertas',
+  'group.empty': 'Arrastra sesiones aquí',
+  'group.name': 'Nombre del grupo',
+  'groupDialog.createTitle': 'Nuevo grupo',
+  'groupDialog.editTitle': 'Editar grupo',
+  'groupDialog.name': 'Nombre del grupo',
+  'groupDialog.namePlaceholder': 'Por ejemplo, el nombre del repositorio',
+  'groupDialog.sessions': 'Sesiones del grupo',
+  'groupDialog.noSessions': 'Todavía no hay sesiones. Pueden entrar al grupo más tarde.',
+  'groupDialog.inOther': 'ahora en {group}',
+  'groupDialog.create': 'Crear grupo',
+  'groupDialog.save': 'Guardar',
 
   'terminal.empty.title': 'Ninguna sesión',
   'terminal.empty.body': 'Crea una sesión para abrir Claude Code o Codex en una carpeta.',
@@ -197,6 +222,8 @@ export const es: Record<keyof typeof ptBR, string> = {
   'newSession.worktreeSetup': 'Antes de abrir la sesión, la app ejecuta {command} en ella.',
   'newSession.creatingCopy': 'Creando la copia…',
   'newSession.submit': 'Crear e iniciar',
+  'newSession.group': 'Grupo',
+  'newSession.noGroup': 'Ninguno',
 
   'agent.missing': '{name} no se encontró en el PATH. Instálalo con: {command}',
   'agent.outdated':
@@ -467,6 +494,9 @@ export const es: Record<keyof typeof ptBR, string> = {
   'error.onlyHttp': 'Solo enlaces http(s)',
   'error.unknownProfile': 'Perfil desconocido',
   'error.invalidOrder': 'Orden no válido',
+  'error.group.noName': 'Ponle un nombre al grupo.',
+  'error.group.notFound': 'Grupo no encontrado',
+  'error.group.tooMany': 'Ya hay demasiados grupos: deshaz alguno antes de crear otro.',
 
   'arg.session': 'sesión',
   'arg.message': 'mensaje',
@@ -540,4 +570,5 @@ export const es: Record<keyof typeof ptBR, string> = {
   'error.prompt.tooLarge':
     'El texto quedó demasiado grande para enviarlo al agente (más de {limit} caracteres).',
   'arg.branch': 'rama',
+  'arg.group': 'grupo',
 };

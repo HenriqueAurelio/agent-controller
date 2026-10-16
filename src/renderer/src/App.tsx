@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { statusDetail, statusLabel, type SessionView } from '@shared/session';
+import { statusDetail, statusLabel, type SessionGroup, type SessionView } from '@shared/session';
 import {
   bindingFromEvent,
   bindingIndex,
@@ -11,6 +11,7 @@ import { ChangesPanel, type PanelMode } from './components/ChangesPanel';
 import { ChecksBadge, ChecksDialog } from './components/ChecksDialog';
 import { CloseSessionDialog } from './components/CloseSessionDialog';
 import { CommandPalette, type Command } from './components/CommandPalette';
+import { GroupDialog } from './components/GroupDialog';
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { PromptDialog, type PromptContext } from './components/PromptDialog';
@@ -21,7 +22,7 @@ import { rich, useT } from './lib/i18n';
 import { shortcutRecording } from './lib/shortcuts';
 import { store, useAppState } from './lib/store';
 
-type Overlay = 'new' | 'prefs' | 'palette' | 'folder' | 'checks' | 'prompt' | null;
+type Overlay = 'new' | 'prefs' | 'palette' | 'folder' | 'checks' | 'prompt' | 'group' | null;
 
 interface PromptRequest {
   promptId?: string;
@@ -31,6 +32,7 @@ interface PromptRequest {
 
 export function App() {
   const sessions = useAppState((s) => s.sessions);
+  const groups = useAppState((s) => s.groups);
   const selectedId = useAppState((s) => s.selectedId);
   const theme = useAppState((s) => s.prefs.theme);
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
@@ -42,6 +44,10 @@ export function App() {
   const [overlay, setOverlay] = useState<Overlay>(null);
   /** The folder a new session was asked for, when it came from one dropped on the window. */
   const [newFolder, setNewFolder] = useState<string | undefined>(undefined);
+  /** The group a new session was asked for from. */
+  const [newGroup, setNewGroup] = useState<string | undefined>(undefined);
+  /** The group being edited in the group dialog; none, a new one. */
+  const [editedGroup, setEditedGroup] = useState<SessionGroup | undefined>(undefined);
   const [dropping, setDropping] = useState(false);
   const [closing, setClosing] = useState<SessionView | null>(null);
   const [changesOpen, setChangesOpen] = useState(false);
@@ -186,9 +192,14 @@ export function App() {
     if (session && !session.running) startWhenMounted(session.id);
   }, [selectedId, startWhenMounted]);
 
-  const openNew = useCallback((folder?: string) => {
+  const openNew = useCallback((folder?: string, groupId?: string) => {
     setNewFolder(folder);
+    setNewGroup(groupId);
     setOverlay('new');
+  }, []);
+  const editGroup = useCallback((group?: SessionGroup) => {
+    setEditedGroup(group);
+    setOverlay('group');
   }, []);
 
   // Both leave the open file of the changes panel behind.
@@ -344,7 +355,15 @@ export function App() {
       action('nextWaiting'),
       action('focusSidebar'),
       action('preferences'),
+      { id: 'new-group', title: t('command.newGroup'), run: () => editGroup() },
     ];
+    for (const group of groups) {
+      list.push({
+        id: `edit-group-${group.id}`,
+        title: t('command.editGroup', { name: group.name }),
+        run: () => editGroup(group),
+      });
+    }
     if (selected) {
       list.unshift(
         action('toggleChanges', t('command.seeChanges'), () => showPanel('changes')),
@@ -393,6 +412,21 @@ export function App() {
           run: () => requestClose(selected),
         },
       );
+      for (const group of groups) {
+        if (group.id === selected.groupId) {
+          list.push({
+            id: `leave-group-${group.id}`,
+            title: t('command.leaveGroup', { name: selected.name, group: group.name }),
+            run: () => void store.moveToGroup(selected.id, null),
+          });
+        } else {
+          list.push({
+            id: `move-to-group-${group.id}`,
+            title: t('command.moveToGroup', { name: selected.name, group: group.name }),
+            run: () => void store.moveToGroup(selected.id, group.id),
+          });
+        }
+      }
     }
     for (const prompt of prompts) {
       list.push({
@@ -413,6 +447,7 @@ export function App() {
     return list;
   }, [
     sessions,
+    groups,
     selected,
     shortcuts,
     runAction,
@@ -422,6 +457,7 @@ export function App() {
     duplicate,
     prompts,
     openPrompt,
+    editGroup,
     t,
   ]);
 
@@ -463,7 +499,8 @@ export function App() {
   return (
     <div className="app" data-sessions={layout.sessions}>
       <Sidebar
-        onNew={() => openNew()}
+        onNew={(groupId) => openNew(undefined, groupId)}
+        onEditGroup={editGroup}
         onPreferences={() => setOverlay('prefs')}
         onClose={requestClose}
         onDuplicate={duplicate}
@@ -583,6 +620,7 @@ export function App() {
           // A folder dropped while the dialog is open starts it over, in that folder.
           key={newFolder ?? ''}
           initialCwd={newFolder}
+          initialGroupId={newGroup}
           onClose={closeOverlay}
           onCreated={(session) => {
             closeOverlay();
@@ -602,6 +640,7 @@ export function App() {
       )}
       {dropping && <div className="drop-hint">{t('app.dropHint')}</div>}
       {overlay === 'prefs' && <PreferencesDialog onClose={closeOverlay} />}
+      {overlay === 'group' && <GroupDialog group={editedGroup} onClose={closeOverlay} />}
       {overlay === 'checks' && selected && (
         <ChecksDialog
           key={selected.id}

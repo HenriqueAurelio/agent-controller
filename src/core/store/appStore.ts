@@ -7,7 +7,10 @@ import {
   AGENT_PROFILE_IDS,
   type AgentProfileId,
   type Session,
+  type SessionGroup,
   type SessionWorktree,
+  GROUP_NAME_LIMIT,
+  GROUPS_LIMIT,
 } from '@shared/session';
 import { JsonStore, type Migration } from './JsonStore';
 import { folderKey, sanitizeRecentFolders } from './recentFolders';
@@ -23,6 +26,8 @@ export interface WindowState {
 export interface AppData {
   version: number;
   sessions: Session[];
+  /** The groups of the list, in the order they are shown. */
+  groups: SessionGroup[];
   selectedSessionId: string | null;
   /** Folders of the latest sessions, most recent first: offered when a folder is asked for. */
   recentFolders: string[];
@@ -74,6 +79,7 @@ export function defaultAppData(): AppData {
   return {
     version: APP_DATA_VERSION,
     sessions: [],
+    groups: [],
     selectedSessionId: null,
     recentFolders: [],
     checks: {},
@@ -106,9 +112,25 @@ export function sanitizeFolderChecks(value: unknown): Record<string, CheckConfig
   return result;
 }
 
+export function sanitizeGroups(value: unknown): SessionGroup[] {
+  const groups: SessionGroup[] = [];
+  const seen = new Set<string>();
+  for (const g of Array.isArray(value) ? (value as Partial<SessionGroup>[]) : []) {
+    if (!g || typeof g.id !== 'string' || !g.id || g.id.length > 64 || seen.has(g.id)) continue;
+    const name = typeof g.name === 'string' ? g.name.trim().slice(0, GROUP_NAME_LIMIT) : '';
+    if (!name) continue;
+    seen.add(g.id);
+    groups.push({ id: g.id, name, collapsed: g.collapsed === true });
+    if (groups.length === GROUPS_LIMIT) break;
+  }
+  return groups;
+}
+
 function validate(raw: unknown): AppData {
   const data = raw as Partial<AppData>;
   const prefs = sanitizePreferences(data.prefs);
+  const groups = sanitizeGroups(data.groups);
+  const groupIds = new Set(groups.map((g) => g.id));
   const sessions: Session[] = [];
   const seen = new Set<string>();
   for (const s of Array.isArray(data.sessions) ? data.sessions : []) {
@@ -117,6 +139,8 @@ function validate(raw: unknown): AppData {
     seen.add(s.id);
     const command = sanitizeAgentCommand(s.command);
     const worktree = sanitizeWorktree(s.worktree);
+    // A session of a group that is gone is listed on its own.
+    const groupId = typeof s.groupId === 'string' && groupIds.has(s.groupId) ? s.groupId : '';
     // Only the documented fields are kept: anything else (state, env) is dropped on purpose.
     sessions.push({
       id: s.id,
@@ -128,6 +152,7 @@ function validate(raw: unknown): AppData {
       profile: s.profile,
       ...(command && { command }),
       ...(worktree && { worktree }),
+      ...(groupId && { groupId }),
       order: typeof s.order === 'number' ? s.order : sessions.length,
     });
   }
@@ -138,6 +163,7 @@ function validate(raw: unknown): AppData {
   return {
     version: APP_DATA_VERSION,
     sessions,
+    groups,
     selectedSessionId:
       typeof data.selectedSessionId === 'string' && seen.has(data.selectedSessionId)
         ? data.selectedSessionId

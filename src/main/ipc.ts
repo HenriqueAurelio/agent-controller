@@ -33,6 +33,7 @@ import type {
   EventChannel,
   IpcCommands,
   IpcEvents,
+  SessionsSnapshot,
   WorktreeCopy,
   WorktreesInfo,
 } from '@shared/ipc';
@@ -45,7 +46,12 @@ import {
   type PromptValues,
   type SendOutcome,
 } from '@shared/prompts';
-import { AGENT_PROFILE_IDS, type TerminalSize } from '@shared/session';
+import {
+  AGENT_PROFILE_IDS,
+  GROUP_NAME_LIMIT,
+  type GroupUpdate,
+  type TerminalSize,
+} from '@shared/session';
 
 export interface IpcContext {
   manager: SessionManager;
@@ -111,6 +117,26 @@ const promptValues = (value: unknown): PromptValues => {
 };
 const base = (value: unknown): DiffBase =>
   value === 'session' || value === 'branchBase' ? value : 'head';
+/** Ids of sessions or groups: whatever is not one is left out, and the manager skips unknown ones. */
+const ids = (value: unknown): string[] => {
+  if (!Array.isArray(value) || value.length > 1000) throw new UserError('error.invalidOrder');
+  return value.filter((id): id is string => typeof id === 'string' && id.length <= 64);
+};
+const groupUpdate = (value: unknown): GroupUpdate => {
+  const v = value as Record<string, unknown> | null;
+  if (!v || typeof v !== 'object') {
+    throw new UserError('error.invalidArgument', { name: { key: 'arg.group' } });
+  }
+  return {
+    ...(v.name !== undefined && { name: str(v.name, 'name', GROUP_NAME_LIMIT * 4) }),
+    ...(v.collapsed !== undefined && { collapsed: v.collapsed === true }),
+    ...(v.sessionIds !== undefined && { sessionIds: ids(v.sessionIds) }),
+  };
+};
+
+export function snapshotOf(manager: SessionManager): SessionsSnapshot {
+  return { sessions: manager.list(), groups: manager.listGroups(), selectedId: manager.selected };
+}
 
 export function registerIpc(context: IpcContext): void {
   const { manager, changes, checks } = context;
@@ -244,7 +270,7 @@ export function registerIpc(context: IpcContext): void {
     await shell.openExternal(url);
   });
 
-  handle('sessions:list', () => ({ sessions: manager.list(), selectedId: manager.selected }));
+  handle('sessions:list', () => snapshotOf(manager));
   handle('sessions:create', async (input) => {
     const profile = input?.profile;
     if (!AGENT_PROFILE_IDS.includes(profile)) throw new UserError('error.unknownProfile');
@@ -254,6 +280,7 @@ export function registerIpc(context: IpcContext): void {
       cwd: str(input.cwd, 'folder'),
       profile,
       command: input.command === undefined ? undefined : command(input.command),
+      groupId: input.groupId == null ? undefined : str(input.groupId, 'group', 64),
       ...(wanted !== undefined && {
         worktree: {
           branch: str(wanted?.branch, 'branch', 200),
@@ -294,10 +321,19 @@ export function registerIpc(context: IpcContext): void {
     if (removeCopy) changes.close(s.id);
     await manager.remove(s.id, { worktree: removeCopy ? 'remove' : 'keep' });
   });
-  handle('sessions:reorder', (ids) => {
-    if (!Array.isArray(ids)) throw new UserError('error.invalidOrder');
-    manager.reorder(ids.filter((id): id is string => typeof id === 'string'));
-  });
+  handle('sessions:reorder', (list) => manager.reorder(ids(list)));
+  handle('sessions:setGroup', (list, groupId) =>
+    manager.setGroup(ids(list), groupId === null ? null : str(groupId, 'group', 64)),
+  );
+
+  handle('groups:create', (name, sessionIds) =>
+    manager.createGroup(str(name, 'name', GROUP_NAME_LIMIT * 4), ids(sessionIds ?? [])),
+  );
+  handle('groups:update', (id, update) =>
+    manager.updateGroup(str(id, 'group', 64), groupUpdate(update)),
+  );
+  handle('groups:remove', (id) => manager.removeGroup(str(id, 'group', 64)));
+  handle('groups:reorder', (list) => manager.reorderGroups(ids(list)));
   handle('sessions:select', (id) => manager.select(id === null ? null : session(id).id));
   handle('sessions:start', (id, terminalSize) => manager.start(session(id).id, size(terminalSize)));
   handle('sessions:stop', (id) => manager.stop(session(id).id));

@@ -515,3 +515,85 @@ test('evidences: saved prompts', async () => {
     for (const dir of [userData, base]) removeDir(dir);
   }
 });
+
+test('evidences: groups of sessions', async () => {
+  test.setTimeout(180_000);
+  const userData = tempDir('ac-evid-data-');
+  // Short, stable paths: they are in the pictures.
+  const base = tempDir('ac-');
+  for (const dir of ['api-repo', 'web-repo', 'docs']) fs.mkdirSync(path.join(base, dir));
+  const folder = (name: string) => path.join(base, name);
+  const running = await launch(userData);
+  const { page } = running;
+  const shot = async (name: string) => {
+    fs.mkdirSync(path.join(OUT, 'grupos'), { recursive: true });
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: path.join(OUT, 'grupos', `${name}-${PHASE}.png`) });
+  };
+  const select = (name: string) =>
+    page
+      .locator('.session-item', { has: page.locator('.session-name', { hasText: name }) })
+      .click();
+
+  try {
+    // Sessions of two repositories, opened in the order work came up: mixed in the list.
+    await createSession(page, 'Back', folder('api-repo'));
+    await createSession(page, 'Loja', folder('web-repo'));
+    await createSession(page, 'Front', folder('api-repo'));
+    await createSession(page, 'Admin', folder('web-repo'));
+    await createSession(page, 'Docs', folder('docs'));
+
+    if (AFTER) {
+      // 2. A new group from a session of the repository: its name and its sessions come ready.
+      await select('Loja');
+      await page.getByRole('button', { name: /^Novo grupo/ }).click();
+      await shot('02-novo-grupo');
+      const dialog = page.getByRole('dialog', { name: 'Novo grupo' });
+      await dialog.getByLabel('Nome do grupo').fill('WEB-REPO');
+      await dialog.getByRole('button', { name: 'Criar grupo' }).click();
+      await select('Back');
+      await page.getByRole('button', { name: /^Novo grupo/ }).click();
+      await dialog.getByLabel('Nome do grupo').fill('API-REPO');
+      await dialog.getByRole('button', { name: 'Criar grupo' }).click();
+      await expect(dialog).toBeHidden();
+    }
+    // 1. The list: mixed before, one group per repository after.
+    await select('Docs');
+    await shot('01-lista');
+
+    if (AFTER) {
+      // 3. A group folded: its count stays in sight.
+      await page.getByRole('group', { name: 'WEB-REPO' }).locator('.group-header').click();
+      await shot('03-grupo-recolhido');
+      await page.getByRole('group', { name: 'WEB-REPO' }).locator('.group-header').click();
+    }
+
+    // 4. A new session, from the group's header: it goes into the group.
+    if (AFTER) {
+      await page.getByRole('group', { name: 'API-REPO' }).locator('.group-header').hover();
+      await page.getByRole('button', { name: 'Nova sessão em API-REPO' }).click();
+    } else {
+      await page.getByRole('button', { name: '+ Nova sessão' }).click();
+    }
+    await page
+      .getByRole('dialog', { name: 'Nova sessão' })
+      .getByLabel('Pasta')
+      .fill(folder('api-repo'));
+    await shot('04-nova-sessao');
+    await page
+      .getByRole('dialog', { name: 'Nova sessão' })
+      .getByRole('button', { name: 'Cancelar' })
+      .click();
+
+    // 5. Sessions on top: the groups run sideways too.
+    await page.evaluate(() =>
+      window.api.invoke('prefs:set', {
+        layout: { sessions: 'top', panel: 'cover', files: 'left' },
+      } as never),
+    );
+    await shot('05-sessoes-em-cima');
+  } finally {
+    await running.close();
+    for (const dir of [userData, base]) removeDir(dir);
+  }
+});

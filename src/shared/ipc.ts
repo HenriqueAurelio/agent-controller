@@ -5,7 +5,14 @@ import type { CheckConfig, ChecksInfo } from './checks';
 import type { DiffBase, FileChange, FileDiff, FileListing, GitOverview } from './git';
 import type { Preferences } from './prefs';
 import type { PromptValues, SendOutcome, SendTextOptions } from './prompts';
-import type { NewSessionInput, SessionView, TerminalSize, WorktreeOnClose } from './session';
+import type {
+  GroupUpdate,
+  NewSessionInput,
+  SessionGroup,
+  SessionView,
+  TerminalSize,
+  WorktreeOnClose,
+} from './session';
 
 export interface AppInfo {
   version: string;
@@ -17,7 +24,9 @@ export interface AppInfo {
 }
 
 export interface SessionsSnapshot {
+  /** In the order they are listed: the ones with no group, then each group's. */
   sessions: SessionView[];
+  groups: SessionGroup[];
   selectedId: string | null;
 }
 
@@ -101,10 +110,20 @@ export interface IpcCommands {
   'sessions:duplicate': (id: string) => SessionView;
   /** `worktree`, for a session in a copy of its repository: keep the copy (default) or remove it. */
   'sessions:remove': (id: string, options?: { worktree?: WorktreeOnClose }) => void;
+  /** The order within each group; a session never leaves its group by being reordered. */
   'sessions:reorder': (orderedIds: string[]) => void;
+  /** Moves sessions to the end of a group; `null` takes them out of their group. */
+  'sessions:setGroup': (sessionIds: string[], groupId: string | null) => void;
   'sessions:select': (id: string | null) => void;
   'sessions:start': (id: string, size: TerminalSize) => void;
   'sessions:stop': (id: string) => void;
+
+  /** A group, listed last, with the sessions given moved into it. */
+  'groups:create': (name: string, sessionIds: string[]) => SessionGroup;
+  'groups:update': (id: string, update: GroupUpdate) => void;
+  /** Ends the group; its sessions stay, with no group. */
+  'groups:remove': (id: string) => void;
+  'groups:reorder': (orderedIds: string[]) => void;
 
   'terminal:attach': (id: string, size: TerminalSize) => TerminalSnapshot;
   'terminal:detach': (id: string) => void;
@@ -213,9 +232,14 @@ export const COMMAND_CHANNELS = [
   'sessions:duplicate',
   'sessions:remove',
   'sessions:reorder',
+  'sessions:setGroup',
   'sessions:select',
   'sessions:start',
   'sessions:stop',
+  'groups:create',
+  'groups:update',
+  'groups:remove',
+  'groups:reorder',
   'terminal:attach',
   'terminal:detach',
   'terminal:setVisible',

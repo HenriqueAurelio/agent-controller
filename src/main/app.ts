@@ -32,8 +32,8 @@ import {
 import type { AgentAvailability } from '@shared/agents';
 import { summarizeRun } from '@shared/checks';
 import { translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
-import type { Session } from '@shared/session';
-import { registerIpc, type IpcContext } from './ipc';
+import type { Session, SessionGroup } from '@shared/session';
+import { registerIpc, snapshotOf, type IpcContext } from './ipc';
 import { showNotification } from './notifications';
 import { createMainWindow, saveWindowState } from './window';
 
@@ -125,8 +125,13 @@ export async function startApp(): Promise<void> {
     return buildLaunchCommand(profile, session, { ...context, executablePath });
   };
 
-  const persist = (sessions: Session[], selectedSessionId: string | null) => {
+  const persist = (
+    sessions: Session[],
+    selectedSessionId: string | null,
+    groups: SessionGroup[],
+  ) => {
     data.sessions = sessions;
+    data.groups = groups;
     data.selectedSessionId = selectedSessionId;
     try {
       store.save(data);
@@ -138,6 +143,7 @@ export async function startApp(): Promise<void> {
   const manager = new SessionManager({
     ptys,
     sessions: data.sessions,
+    groups: data.groups,
     selectedId: data.selectedSessionId,
     prefs: data.prefs,
     resolveLaunch,
@@ -209,9 +215,7 @@ export async function startApp(): Promise<void> {
     if (request) notify(request);
   });
 
-  manager.on('sessions', () =>
-    send('sessions:changed', { sessions: manager.list(), selectedId: manager.selected }),
-  );
+  manager.on('sessions', () => send('sessions:changed', snapshotOf(manager)));
   manager.on('data', (id, chunk) => send('terminal:data', id, chunk));
   manager.on('reset', (id) => send('terminal:reset', id));
   manager.on('started', (session) => void changes.sessionStarted(session.id, session.cwd));
