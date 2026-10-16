@@ -25,7 +25,7 @@ Pela ADR 0007, item novo de escopo exige uma ADR. Cada proposta diz qual.
 | 7 | [Uso e custo](uso-e-custo/README.md) | Tokens, custo e contexto ocupado por sessão | Médio | M | Sim |
 | 8 | [Terminal auxiliar](terminal-auxiliar/README.md) | Um shell na pasta da sessão, ao lado do agente | Médio | M | Sim |
 | 9 | [Operações de git no painel](operacoes-git/README.md) | Stage, commit e descartar por arquivo, com confirmação | Médio | M | Sim (revê a 0012) |
-| 11 | [Realce de sintaxe e temas](realce-de-sintaxe/README.md) | Gramáticas TextMate e temas do VS Code no painel: funções, parâmetros e propriedades com cor própria | Médio | M | Sim ([0015](../../adr/0019-realce-textmate-e-temas.md)) |
+| 11 | [Realce de sintaxe e temas](realce-de-sintaxe/README.md) | Gramáticas TextMate e temas do VS Code no painel: funções, parâmetros e propriedades com cor própria | Médio | M | Sim ([0019](../../adr/0019-realce-textmate-e-temas.md)) |
 
 Já existe um plano detalhado para **retomar a conversa** de uma sessão: [`docs/planos/retomar-conversa.md`](../planos/retomar-conversa.md). Ele não foi repetido aqui e entra na ordem abaixo.
 
