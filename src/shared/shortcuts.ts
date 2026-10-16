@@ -15,6 +15,8 @@ export const SHORTCUT_ACTIONS = [
   'toggleFiles',
   'toggleHidden',
   'toggleAux',
+  'sendPrompt',
+  'newGroup',
   'preferences',
 ] as const;
 
@@ -35,6 +37,8 @@ export const DEFAULT_SHORTCUTS: ShortcutMap = {
   toggleHidden: ['Ctrl+Shift+H'],
   // Shift+' gives `"` on the US and ABNT2 layouts; the other is for those where it does not.
   toggleAux: ['Ctrl+Shift+"', "Ctrl+Shift+'"],
+  sendPrompt: ['Ctrl+Shift+M'],
+  newGroup: [],
   preferences: ['Ctrl+,'],
 };
 
@@ -62,7 +66,8 @@ const NOT_A_KEY = new Set([
   'OS',
 ]);
 
-// What the terminal and the editor of the changes panel need for themselves.
+// What the terminal and the editor of the changes panel need for themselves, and the keys that
+// move around the panel (F6) and pick sessions in the list (Ctrl+Space).
 const RESERVED = new Set([
   'Ctrl+C',
   'Ctrl+V',
@@ -71,6 +76,9 @@ const RESERVED = new Set([
   'Ctrl+S',
   'F2',
   'F12',
+  'F6',
+  'Shift+F6',
+  'Ctrl+Space',
 ]);
 
 export interface KeyPress {

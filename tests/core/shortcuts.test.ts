@@ -50,11 +50,13 @@ describe('which bindings are accepted', () => {
     expect(problem('Ctrl+C')).toMatch(/terminal/);
     expect(problem('Ctrl+S')).toMatch(/editor/);
     expect(problem('F12')).not.toBeNull();
+    // The changes panel moves with F6, and the list of sessions picks with Ctrl+Space.
+    for (const binding of ['F6', 'Shift+F6', 'Ctrl+Space']) expect(problem(binding)).not.toBeNull();
     expect(problem('Ctrl+3')).toMatch(/sessão 3/);
   });
 
   it('accepts a modifier with a key, and function keys alone', () => {
-    for (const binding of ['Ctrl+K', 'Alt+ArrowRight', 'Ctrl+Shift+Tab', 'F6', 'Ctrl+Plus']) {
+    for (const binding of ['Ctrl+K', 'Alt+ArrowRight', 'Ctrl+Shift+Tab', 'F7', 'Ctrl+Plus']) {
       expect(bindingProblem(binding), binding).toBeNull();
     }
   });

@@ -16,8 +16,13 @@ export interface TerminalAreaHandle {
   focus(): void;
   /** Starts the agent of a session at the size of its terminal. */
   start(sessionId: string): void;
-  /** Opens the shell beside the agent, or closes it when it is open. */
-  toggleAux(): void;
+  /**
+   * Opens the shell beside the agent, or closes it. From the shortcut (`fromKey`), an open shell
+   * that does not have the keyboard gets it instead: one key for the three, as in VS Code.
+   */
+  toggleAux(fromKey?: boolean): void;
+  /** Gives the shell beside the agent more room (positive) or less (negative), in steps. */
+  resizeAux(steps: number): void;
 }
 
 interface Props {
@@ -30,6 +35,8 @@ const DEFAULT_SIZE = { cols: 100, rows: 30 };
 /** Share of the area the agent's terminal keeps when the shell opens, in percent. */
 const DEFAULT_SPLIT = 62;
 const SPLIT_LIMITS = { min: 20, max: 85 };
+/** How far one arrow key moves the edge between the two terminals, in percent. */
+const SPLIT_STEP = 5;
 
 /** Hosts the xterm.js instances, which live outside the React render cycle. */
 export function TerminalArea({ session, sessionIds, ref }: Props) {
@@ -75,8 +82,17 @@ export function TerminalArea({ session, sessionIds, ref }: Props) {
       void window.api.invoke('sessions:start', id, size);
       poolRef.current?.get(id)?.focus();
     },
-    toggleAux: () => {
+    resizeAux: (steps) =>
+      setSplit((v) =>
+        Math.min(SPLIT_LIMITS.max, Math.max(SPLIT_LIMITS.min, v - steps * SPLIT_STEP)),
+      ),
+    toggleAux: (fromKey = false) => {
       if (!session) return;
+      // The button and the palette open and close; the key goes to the shell first.
+      if (fromKey && session.auxOpen && !document.activeElement?.closest('.aux-pane')) {
+        auxRef.current?.focus();
+        return;
+      }
       if (session.auxOpen) {
         void window.api.invoke('aux:close', session.id);
         poolRef.current?.get(session.id)?.focus();
@@ -176,8 +192,23 @@ export function TerminalArea({ session, sessionIds, ref }: Props) {
             role="separator"
             aria-orientation={auxPlace === 'bottom' ? 'horizontal' : 'vertical'}
             aria-label={t('aux.divider')}
+            aria-valuenow={Math.round(split)}
+            aria-valuemin={SPLIT_LIMITS.min}
+            aria-valuemax={SPLIT_LIMITS.max}
+            tabIndex={0}
             style={auxStyle}
             onPointerDown={startDrag}
+            onKeyDown={(e) => {
+              // The arrows move the edge between the two terminals, as dragging it does.
+              const keys =
+                auxPlace === 'bottom' ? ['ArrowUp', 'ArrowDown'] : ['ArrowLeft', 'ArrowRight'];
+              const step = keys.indexOf(e.key);
+              if (step < 0) return;
+              e.preventDefault();
+              e.stopPropagation();
+              const delta = (step === 0 ? -1 : 1) * SPLIT_STEP;
+              setSplit((v) => Math.min(SPLIT_LIMITS.max, Math.max(SPLIT_LIMITS.min, v + delta)));
+            }}
           />
           <section className="aux-pane" style={auxStyle} aria-label={t('aux.title')}>
             <header className="aux-header">

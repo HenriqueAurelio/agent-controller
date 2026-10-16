@@ -719,6 +719,10 @@ button.path:hover:not(:disabled) {
   margin-left: -3px;
   cursor: col-resize;
 }
+.aux-divider:focus-visible {
+  outline: none;
+  background: var(--accent);
+}
 .aux-divider:hover {
   background: color-mix(in srgb, var(--aux) 40%, transparent);
 }

@@ -280,6 +280,7 @@ window.addEventListener('message', (event: MessageEvent<ParentMessage>) => {
     delete document.body.dataset.path;
   } else if (message?.type === 'shortcuts') appBindings = new Set(message.bindings);
   else if (message?.type === 'request-save') save(message.overwrite);
+  else if (message?.type === 'focus') editor.getModifiedEditor().focus();
   else if (message?.type === 'request-selection') {
     post({ type: 'selection', selection: selectedText() });
   } else if (message?.type === 'saved' && message.path === shownPath) {
@@ -302,8 +303,10 @@ window.addEventListener(
       return;
     }
     const binding = bindingFromEvent(event);
+    // F6 moves the keyboard between the parts of the panel, out of the editor too.
     const shortcut =
-      binding !== null && (appBindings.has(binding) || SESSION_BINDING.test(binding));
+      event.key === 'F6' ||
+      (binding !== null && (appBindings.has(binding) || SESSION_BINDING.test(binding)));
     // Esc closes the panel, but not while there is something to lose.
     if (!shortcut && !(event.key === 'Escape' && !dirty)) return;
     if (shortcut) {

@@ -120,3 +120,37 @@ test('the side terminal goes where the layout says, and comes back closed after 
     removeDir(folder);
   }
 });
+
+test('one click on × closes the side terminal at once, and it opens again right away', async () => {
+  test.setTimeout(120_000);
+  const userData = tempDir('ac-e2e-aux-x-');
+  const folder = tempDir('ac-e2e-aux-x-pasta-');
+  const running = await launch(userData);
+  const { page } = running;
+  try {
+    const id = await createSession(page, 'Fecha', folder);
+    const pane = page.getByRole('region', { name: 'Terminal auxiliar' });
+    for (let round = 0; round < 2; round++) {
+      await page.keyboard.press('Control+Shift+Quote');
+      await expect(pane).toBeVisible();
+      await expect.poll(() => screenText(page, auxId(id)), { timeout: 20_000 }).toMatch(/[>$]/);
+      const clicked = Date.now();
+      await pane.getByRole('button', { name: 'Fechar o terminal auxiliar' }).click();
+      // Ending the shell takes about two seconds on Windows; the pane does not wait for it.
+      await expect(pane).toBeHidden({ timeout: 1_000 });
+      expect(Date.now() - clicked).toBeLessThan(1_000);
+    }
+    // Opened right after a close, it is a working shell.
+    await page.keyboard.press('Control+Shift+Quote');
+    await expect(pane).toBeVisible();
+    await page.keyboard.type('echo depois-de-fechar');
+    await page.keyboard.press('Enter');
+    await expect
+      .poll(() => screenText(page, auxId(id)), { timeout: 20_000 })
+      .toContain('depois-de-fechar');
+  } finally {
+    await running.close();
+    removeDir(userData);
+    removeDir(folder);
+  }
+});
