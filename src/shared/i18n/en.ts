@@ -330,6 +330,28 @@ export const en: Record<keyof typeof ptBR, string> = {
   'changes.none.title': 'No changes',
   'changes.none.session': 'Nothing has changed since the session started.',
   'changes.none.branchBase': 'Nothing has changed since the branch left its base.',
+  'changes.section.staged': 'In the commit ({count})',
+  'changes.section.unstaged': 'Not in the commit ({count})',
+  'changes.stageOf': 'Mark {file} for the commit',
+  'changes.stageHint':
+    'Marked goes into the next commit (stage). Unmarking does not change the file.',
+  'changes.stagePartial': 'Only part of the changes is marked. Click to mark all of them.',
+  'changes.discardOf': 'Discard the changes of {file}',
+  'changes.discardHint':
+    'Discard the changes of this file. The app keeps a copy first, and it can be undone.',
+  'changes.discardConfirm':
+    'Discard the changes of {file}? The file goes back to the last commit (or away, if it is new). The app keeps a copy first, and you can undo.',
+  'changes.agentWorking': 'The agent is working in this folder right now. Go on anyway?',
+  'changes.discarded': 'Changes of {file} discarded.',
+  'changes.undo': 'Undo',
+  'changes.committed': 'Commit {commit} made. Nothing was sent (no push).',
+  'changes.commitArea': 'Commit',
+  'changes.goingIn': 'Going into the commit ({count}): {files}',
+  'changes.commitRepo': 'Repository of the commit',
+  'changes.commitMessage': 'Commit message',
+  'changes.commitHint':
+    'Commits what is marked (Ctrl+Enter). The hooks of the repository run. No push.',
+  'changes.commit': 'Commit',
   'changes.none.repos':
     'The {count} repositories in the folder are the same as their last commit: {names}.',
   'changes.none.head': 'The folder is the same as the last commit.',
@@ -418,6 +440,20 @@ export const en: Record<keyof typeof ptBR, string> = {
   'error.worktree.setupFailed':
     'The copy was created in {folder}, but {command} failed, and the session was not opened. The copy and the branch stayed; they can be removed in Preferences → Sessions.\n{output}',
   'error.worktree.folderNotAbsolute': 'The folder of the copies must be a full path: {folder}',
+  'error.git.locked':
+    'git is busy (index.lock): another process, maybe the agent, is using the repository. Try again in a moment.',
+  'error.git.failed': 'git refused: {error}',
+  'error.git.emptyMessage': 'Write the commit message.',
+  'error.git.nothingStaged': 'Nothing is marked for the commit.',
+  'error.git.commitTimedOut':
+    'The commit went over its time limit (a hook took too long) and was cancelled.',
+  'error.git.commitFailed': 'The commit was not made:\n{output}',
+  'error.git.noHead':
+    'The repository has no commits yet: there is nothing to bring the file back to.',
+  'error.git.discardGone': 'The copy of that file no longer exists.',
+  'error.git.undoChanged':
+    'The file changed after it was discarded; undoing would erase what was written to it.',
+  'error.git.notInRepo': '{file} is not in a repository of this session.',
   'error.session.notRunning': "The session's agent is not running.",
   'error.checks.nothingFailed': 'No check failed in the latest run.',
   'error.folder.missing': 'The folder does not exist: {folder}',

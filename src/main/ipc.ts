@@ -52,6 +52,8 @@ export interface IpcContext {
   changes: ChangesService;
   checks: CheckService;
   data: AppData;
+  /** Where the copies of discarded files go. */
+  discardDir: string;
   testMode: boolean;
   gpuMode: 'fast' | 'safe';
   send<K extends EventChannel>(channel: K, ...args: Parameters<IpcEvents[K]>): void;
@@ -466,6 +468,29 @@ export function registerIpc(context: IpcContext): void {
     );
     return { saved: result.saved };
   });
+  const files = (value: unknown) => {
+    if (!Array.isArray(value) || value.length === 0 || value.length > 1000) {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.file' } });
+    }
+    return value.map((file) => str(file, 'file'));
+  };
+  handle('git:stage', (id, list) => changes.stage(session(id).id, files(list)));
+  handle('git:unstage', (id, list) => changes.unstage(session(id).id, files(list)));
+  handle('git:commit', async (id, repo, message) => {
+    const result = await changes.commit(
+      session(id).id,
+      str(repo, 'path'),
+      str(message, 'message', 64 * 1024),
+    );
+    return { commit: result.commit };
+  });
+  handle('git:discard', async (id, file) => {
+    const record = await changes.discard(session(id).id, str(file, 'file'), context.discardDir);
+    return { id: record.id };
+  });
+  handle('git:undoDiscard', (id, discardId) =>
+    changes.undoDiscard(session(id).id, str(discardId, 'text', 64), context.discardDir),
+  );
   handle('git:count', (id) => {
     const s = session(id);
     return changes.count(s.id, s.cwd);

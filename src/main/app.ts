@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { app, dialog, type BrowserWindow } from 'electron';
 import {
@@ -13,6 +14,7 @@ import {
 import type { LaunchCommand } from '@core/agents';
 import { CheckService } from '@core/checks/CheckService';
 import { ChangesService } from '@core/git/ChangesService';
+import { cleanDiscarded } from '@core/git/GitWriteService';
 import { MetricsSampler } from '@core/metrics/MetricsSampler';
 import { PtyManager } from '@core/pty/PtyManager';
 import { NotificationPolicy, type NotificationRequest } from '@core/sessions/NotificationPolicy';
@@ -158,6 +160,11 @@ export async function startApp(): Promise<void> {
   });
   // Snapshots of a previous run are useless: sessions always come back stopped.
   fs.rmSync(path.join(userData, 'snapshots'), { recursive: true, force: true });
+  // Copies of what the panel discarded, kept a month for "undo". The tests keep theirs apart.
+  const discardDir = TEST_SHELL
+    ? path.join(userData, 'descartados')
+    : path.join(os.homedir(), '.agent-controller', 'descartados');
+  void cleanDiscarded(discardDir);
 
   const metrics = new MetricsSampler({
     roots: () => {
@@ -254,6 +261,7 @@ export async function startApp(): Promise<void> {
     changes,
     checks,
     data,
+    discardDir,
     send,
     testMode: TEST_SHELL,
     gpuMode,

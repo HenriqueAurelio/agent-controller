@@ -95,6 +95,12 @@ export async function repositoryRoot(dir: string): Promise<string | null> {
   }
 }
 
+/** What of a change is in the index, from the XY of `git status --porcelain=v2`. */
+function stagedFromXY(xy: string): Pick<FileChange, 'staged'> {
+  if (xy[0] === '.' || xy[0] === undefined) return {};
+  return { staged: xy[1] === '.' ? 'all' : 'partial' };
+}
+
 function kindFromXY(xy: string): ChangeKind {
   const [x, y] = [xy[0], xy[1]];
   if (x === 'D' || y === 'D') return 'removed';
@@ -120,7 +126,11 @@ export function parseStatus(output: string): FileChange[] {
       // when untracked: by a path that ends with a slash.
       const sub = parts[2]!;
       const dirty = sub[0] === 'S' && (sub[2] === 'M' || sub[3] === 'U');
-      changes.push({ path: dirty ? `${file}/` : file, kind: kindFromXY(parts[1]!) });
+      changes.push({
+        path: dirty ? `${file}/` : file,
+        kind: kindFromXY(parts[1]!),
+        ...stagedFromXY(parts[1]!),
+      });
     } else if (type === '2') {
       // 2 XY sub mH mI mW hH hI Xscore path, then the original path as the next record.
       const parts = record.split(' ');
@@ -128,8 +138,13 @@ export function parseStatus(output: string): FileChange[] {
       const copied = parts[8]?.startsWith('C');
       changes.push(
         copied
-          ? { path: parts.slice(9).join(' '), kind: 'added' }
-          : { path: parts.slice(9).join(' '), origPath, kind: 'renamed' },
+          ? { path: parts.slice(9).join(' '), kind: 'added', ...stagedFromXY(parts[1]!) }
+          : {
+              path: parts.slice(9).join(' '),
+              origPath,
+              kind: 'renamed',
+              ...stagedFromXY(parts[1]!),
+            },
       );
     } else if (type === 'u') {
       // u XY sub m1 m2 m3 mW h1 h2 h3 path
