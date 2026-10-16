@@ -13,6 +13,7 @@ import { CloseSessionDialog } from './components/CloseSessionDialog';
 import { CommandPalette, type Command } from './components/CommandPalette';
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { PreferencesDialog } from './components/PreferencesDialog';
+import { PromptDialog, type PromptContext } from './components/PromptDialog';
 import { Sidebar } from './components/Sidebar';
 import { TerminalArea, type TerminalAreaHandle } from './components/TerminalArea';
 import { hint, PROFILE_LABEL } from './lib/format';
@@ -20,7 +21,13 @@ import { rich, useT } from './lib/i18n';
 import { shortcutRecording } from './lib/shortcuts';
 import { store, useAppState } from './lib/store';
 
-type Overlay = 'new' | 'prefs' | 'palette' | 'folder' | 'checks' | null;
+type Overlay = 'new' | 'prefs' | 'palette' | 'folder' | 'checks' | 'prompt' | null;
+
+interface PromptRequest {
+  promptId?: string;
+  targets: string[];
+  context: PromptContext;
+}
 
 export function App() {
   const sessions = useAppState((s) => s.sessions);
@@ -30,6 +37,7 @@ export function App() {
   const layout = useAppState((s) => s.prefs.layout);
   const language = useAppState((s) => s.prefs.language);
   const agentCommands = useAppState((s) => s.prefs.agentCommands);
+  const prompts = useAppState((s) => s.prefs.prompts);
   const t = useT();
   const [overlay, setOverlay] = useState<Overlay>(null);
   /** The folder a new session was asked for, when it came from one dropped on the window. */
@@ -40,6 +48,11 @@ export function App() {
   const [panelMode, setPanelMode] = useState<PanelMode>('changes');
   const [changeCount, setChangeCount] = useState<number | null>(null);
   const terminals = useRef<TerminalAreaHandle>(null);
+  /** Sessions picked in the list with Ctrl+click. */
+  const [marked, setMarked] = useState<string[]>([]);
+  const [promptRequest, setPromptRequest] = useState<PromptRequest | null>(null);
+  /** The file open in the changes panel, which a prompt may name. */
+  const panelFile = useRef<string | null>(null);
 
   // Unsaved edits in the changes panel: anything that would close the panel asks first.
   const unsavedRef = useRef<string | null>(null);
@@ -87,6 +100,24 @@ export function App() {
   // What the session runs in place of the agent, when it is not the agent itself.
   const agentCommand = selected && (selected.command || agentCommands[selected.profile]);
   const sessionIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
+  // A session that was closed is no longer picked.
+  const liveMarked = marked.filter((id) => sessionIds.includes(id));
+
+  /** Opens the dialog that sends a prompt: to the picked sessions, or to the one in sight. */
+  const openPrompt = useCallback(
+    (promptId?: string, context: PromptContext = {}, targets?: string[]) => {
+      const { selectedId: current, sessions: list } = store.get();
+      const picked = marked.filter((id) => list.some((s) => s.id === id));
+      const to = targets ?? (picked.length ? picked : current ? [current] : []);
+      setPromptRequest({
+        promptId,
+        targets: to,
+        context: { file: panelFile.current ?? undefined, ...context },
+      });
+      setOverlay('prompt');
+    },
+    [marked],
+  );
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -274,11 +305,29 @@ export function App() {
         toggleFiles: () => togglePanel('files'),
         toggleHidden: () =>
           void window.api.invoke('prefs:set', { showHiddenFiles: !prefs.showHiddenFiles }),
+        toggleAux: () => {
+          if (!session) return;
+          // The shell lives under the panel when the panel covers the terminal.
+          if (changesOpenRef.current && prefs.layout.panel === 'cover') {
+            if (!mayDiscardEdits()) return;
+            setChangesOpen(false);
+          }
+          setOverlay(null);
+          terminals.current?.toggleAux();
+        },
         preferences: () => setOverlay('prefs'),
       };
       run[action]();
     },
-    [selectByOffset, selectNextWaiting, requestClose, focusTerminal, togglePanel, openNew],
+    [
+      selectByOffset,
+      selectNextWaiting,
+      requestClose,
+      focusTerminal,
+      togglePanel,
+      openNew,
+      mayDiscardEdits,
+    ],
   );
 
   const commands = useMemo<Command[]>(() => {
@@ -301,6 +350,10 @@ export function App() {
         action('toggleChanges', t('command.seeChanges'), () => showPanel('changes')),
         action('toggleFiles', t('command.files'), () => showPanel('files')),
         action('toggleHidden', t('command.toggleHidden')),
+        action(
+          'toggleAux',
+          t(selected.auxOpen ? 'command.closeAux' : 'command.openAux', { name: selected.name }),
+        ),
       );
       list.push(
         selected.running
@@ -341,6 +394,14 @@ export function App() {
         },
       );
     }
+    for (const prompt of prompts) {
+      list.push({
+        id: `prompt-${prompt.id}`,
+        title: t('command.prompt', { name: prompt.name }),
+        shortcut: prompt.shortcut,
+        run: () => openPrompt(prompt.id),
+      });
+    }
     sessions.forEach((s, i) =>
       list.push({
         id: `go-${s.id}`,
@@ -359,11 +420,17 @@ export function App() {
     requestClose,
     changeFolder,
     duplicate,
+    prompts,
+    openPrompt,
     t,
   ]);
 
   // Global shortcuts are taken in the capture phase, before the terminal sees the key.
   const bindings = useMemo(() => bindingIndex(shortcuts), [shortcuts]);
+  const promptBindings = useMemo(
+    () => new Map(prompts.flatMap((p) => (p.shortcut ? [[p.shortcut, p.id] as const] : []))),
+    [prompts],
+  );
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       // The preferences are asking which keys a shortcut should have.
@@ -376,13 +443,14 @@ export function App() {
         const target = store.get().sessions[Number(position) - 1];
         if (target) store.select(target.id);
       } else if (action) runAction(action);
+      else if (promptBindings.has(binding)) openPrompt(promptBindings.get(binding));
       else return;
       event.preventDefault();
       event.stopPropagation();
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [bindings, runAction]);
+  }, [bindings, promptBindings, runAction, openPrompt]);
 
   // Whenever nothing is on top of it, the terminal has the keyboard.
   useEffect(() => {
@@ -400,6 +468,9 @@ export function App() {
         onClose={requestClose}
         onDuplicate={duplicate}
         onDone={() => focusTerminal(true)}
+        marked={liveMarked}
+        onMarkedChange={setMarked}
+        onSendPrompt={(ids) => openPrompt(undefined, {}, ids)}
       />
       <main className="main">
         {selected && (
@@ -461,6 +532,14 @@ export function App() {
               {t('common.files')}
             </button>
             <button
+              className={selected.auxOpen ? 'active' : ''}
+              aria-pressed={selected.auxOpen === true}
+              onClick={() => runAction('toggleAux')}
+              title={hint(t('app.auxHint'), shortcuts.toggleAux[0])}
+            >
+              {t('app.aux')}
+            </button>
+            <button
               className="checks-button"
               onClick={() => setOverlay('checks')}
               title={t('app.checksHint')}
@@ -492,6 +571,8 @@ export function App() {
               onClose={() => setChangesOpen(false)}
               onCount={setChangeCount}
               onUnsavedChange={setUnsaved}
+              onOpenFile={(file) => (panelFile.current = file)}
+              onSendSelection={(file, selection) => openPrompt(undefined, { file, selection })}
             />
           )}
         </div>
@@ -533,6 +614,19 @@ export function App() {
         />
       )}
       {overlay === 'palette' && <CommandPalette commands={commands} onClose={closeOverlay} />}
+      {overlay === 'prompt' && promptRequest && (
+        <PromptDialog
+          promptId={promptRequest.promptId}
+          targets={promptRequest.targets}
+          context={promptRequest.context}
+          onClose={closeOverlay}
+          onSent={() => {
+            closeOverlay();
+            setMarked([]);
+            focusTerminal(true);
+          }}
+        />
+      )}
       {closing && <CloseSessionDialog session={closing} onClose={() => setClosing(null)} />}
     </div>
   );

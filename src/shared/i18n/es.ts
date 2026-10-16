@@ -37,6 +37,8 @@ export const es: Record<keyof typeof ptBR, string> = {
 
   'app.checks': 'Verificaciones',
   'app.checksHint': 'Comandos que revisan el trabajo del agente: lint, typecheck, pruebas',
+  'app.aux': 'Terminal',
+  'app.auxHint': 'Un shell en la carpeta de la sesión, junto al agente',
   'app.worktreeHint': 'Copia aislada de {repo}, en la rama {branch} (salió de {base})',
   'app.worktreeShared':
     'Esta copia aislada también la usa «{name}»: las dos sesiones tocan los mismos archivos.',
@@ -53,6 +55,8 @@ export const es: Record<keyof typeof ptBR, string> = {
 
   'command.checks': 'Verificaciones de “{name}”: lo que corre al final del turno',
   'command.runChecks': 'Ejecutar ahora las verificaciones de “{name}”',
+  'command.openAux': 'Terminal auxiliar: abrir un shell en la carpeta de «{name}»',
+  'command.closeAux': 'Terminal auxiliar: cerrar el shell de «{name}»',
 
   'checks.title': 'Verificaciones',
   'checks.intro':
@@ -122,6 +126,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'shortcut.toggleChanges': 'Abrir o cerrar el panel de cambios',
   'shortcut.toggleFiles': 'Abrir o cerrar todos los archivos de la carpeta',
   'shortcut.toggleHidden': 'Mostrar u ocultar los archivos ocultos',
+  'shortcut.toggleAux': 'Abrir o cerrar el terminal auxiliar',
   'shortcut.preferences': 'Preferencias',
 
   'shortcuts.title': 'Atajos',
@@ -170,6 +175,10 @@ export const es: Record<keyof typeof ptBR, string> = {
 
   'terminal.empty.title': 'Ninguna sesión',
   'terminal.empty.body': 'Crea una sesión para abrir Claude Code o Codex en una carpeta.',
+  'aux.title': 'Terminal auxiliar',
+  'aux.close': 'Cerrar el terminal auxiliar',
+  'aux.closeHint': 'Cierra el shell y todo lo que esté ejecutando',
+  'aux.divider': 'Divisor entre el terminal del agente y el auxiliar',
 
   'newSession.folderPlaceholder': 'Carpeta donde el agente va a trabajar',
   'newSession.name': 'Nombre',
@@ -200,6 +209,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'changeFolder.running':
     'El agente de {name} está en ejecución. Cambiar la carpeta lo terminará, junto con lo que haya iniciado, y lo abrirá de nuevo en la nueva carpeta: la conversación actual no continúa.',
   'changeFolder.confirmRunning': 'Terminar y cambiar',
+  'changeFolder.aux': 'El terminal auxiliar está en la carpeta anterior: se cerrará.',
 
   'folder.favorite': 'Guardar en favoritos',
   'folder.favoriteHint': 'Guardar esta carpeta en favoritos',
@@ -235,6 +245,10 @@ export const es: Record<keyof typeof ptBR, string> = {
   'layout.files.right': 'A la derecha del texto',
   'layout.files.top': 'Encima del texto',
   'layout.files.bottom': 'Debajo del texto',
+  'layout.auxLabel': 'Terminal auxiliar',
+  'layout.aux.bottom': 'Debajo del agente',
+  'layout.aux.right': 'A la derecha del agente',
+  'layout.auxShort': 'Auxiliar',
 
   'prefs.sections': 'Secciones de las preferencias',
   'prefs.tab.geral': 'General',
@@ -375,6 +389,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'notice.stopped': 'Sesión terminada.',
   'notice.exited': 'El agente salió (código {code}).',
   'notice.pressEnter': 'Presiona Enter para iniciarlo de nuevo.',
+  'error.aux.startFailed': 'No se pudo abrir el terminal auxiliar: {error}',
 
   'session.fallbackName': 'Sesión',
 
@@ -430,5 +445,63 @@ export const es: Record<keyof typeof ptBR, string> = {
   'arg.command': 'comando',
   'arg.expected': 'contenido esperado',
   'arg.checks': 'verificaciones',
+
+  'prefs.tab.prompts': 'Prompts',
+  'command.prompt': 'Prompt: {name}',
+  'prompts.factory.review.name': 'Revisar el diff',
+  'prompts.factory.review.text':
+    'Revisa los cambios aún sin commit en esta carpeta buscando bugs, casos olvidados y código que se pueda simplificar. Enumera lo que encuentres, de lo más grave a lo menos grave, sin cambiar nada todavía.',
+  'prompts.factory.tests.name': 'Escribir tests',
+  'prompts.factory.tests.text':
+    'Escribe los tests que faltan para {arquivo}, siguiendo el patrón de los tests que ya tiene el proyecto. Ejecútalos y dime el resultado.',
+  'prompts.factory.readme.name': 'Actualizar el README',
+  'prompts.factory.readme.text':
+    'Actualiza el README con lo que cambió en la rama {branch}: lo que necesita saber quien lo usa y lo que dejó de valer.',
+  'prompts.title': 'Prompts guardados',
+  'prompts.intro':
+    'Pedidos que repites. Envíalos desde la paleta (Ctrl+Shift+P → “Prompt: …”), con un atajo, desde el menú del editor del panel o a varias sesiones, marcadas con Ctrl+clic en la lista.',
+  'prompts.none': 'Ningún prompt guardado.',
+  'prompts.name': 'Nombre',
+  'prompts.text': 'Texto',
+  'prompts.variablesHint':
+    'Variables: {sessao}, {pasta}, {branch}, {arquivo} (el abierto en el panel), {selecao} (el texto seleccionado en él) y {?pregunta}, que pide un valor al enviar.',
+  'prompts.shortcut': 'Atajo',
+  'prompts.shortcutAdd': 'Definir atajo',
+  'prompts.shortcutChange': 'Cambiar atajo',
+  'prompts.shortcutRemove': 'Quitar el atajo del prompt',
+  'prompts.shortcutTaken': '{binding} ya es de “{action}”.',
+  'prompts.add': '+ Nuevo prompt',
+  'prompts.remove': 'Borrar',
+  'prompts.restore': 'Restaurar los de fábrica',
+  'prompts.newName': 'Nuevo prompt',
+  'prompts.sending': 'Envío',
+  'prompts.submit': 'Enviar con Enter',
+  'prompts.submitHint':
+    'Apagado, el texto queda en el prompt del agente para que lo revises y lo envíes.',
+  'prompts.send.title': 'Enviar prompt',
+  'prompts.send.prompt': 'Prompt',
+  'prompts.send.text': 'Texto a enviar',
+  'prompts.send.selectionCut':
+    'La selección es demasiado grande y se corta en sus primeros {limit} caracteres.',
+  'prompts.send.targets': 'Sesiones',
+  'prompts.send.notRunning': 'detenida',
+  'prompts.send.busy': 'trabajando',
+  'prompts.send.preview': 'Cómo llega a “{name}”',
+  'prompts.send.waiting':
+    '{count} de las sesiones están ocupadas: lo reciben cuando el agente termine su turno.',
+  'prompts.send.now': 'Enviar ahora de todos modos',
+  'prompts.send.hint': 'Ctrl+Enter también envía',
+  'prompts.send.submit': 'Enviar',
+  'prompts.send.submitMany': 'Enviar a {count} sesiones',
+  'sidebar.pendingSend': '{count} envío(s) esperando el turno',
+  'sidebar.cancelSend': 'Cancelar el envío pendiente de {name}',
+  'sidebar.marked': '{count} seleccionadas',
+  'sidebar.sendPrompt': 'Enviar prompt',
+  'sidebar.unmark': 'Limpiar',
+  'diff.sendToAgent': 'Mandar al agente con el prompt…',
+  'diff.sendToAgentHint': 'Abre un prompt con este archivo y el texto seleccionado',
+  'error.prompt.selectionTooLarge': 'La selección supera los {limit} caracteres.',
+  'error.prompt.tooLarge':
+    'El texto quedó demasiado grande para enviarlo al agente (más de {limit} caracteres).',
   'arg.branch': 'rama',
 };

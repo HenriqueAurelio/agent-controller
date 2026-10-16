@@ -4,6 +4,7 @@ import type { AgentAvailability } from './agents';
 import type { CheckConfig, ChecksInfo } from './checks';
 import type { DiffBase, FileChange, FileDiff, FileListing, GitOverview } from './git';
 import type { Preferences } from './prefs';
+import type { PromptValues, SendOutcome, SendTextOptions } from './prompts';
 import type { NewSessionInput, SessionView, TerminalSize, WorktreeOnClose } from './session';
 
 export interface AppInfo {
@@ -112,6 +113,24 @@ export interface IpcCommands {
   'terminal:resize': (id: string, size: TerminalSize) => void;
   'terminal:ack': (id: string, chars: number) => void;
   'terminal:screenText': (id: string) => string;
+  /**
+   * Sends a prompt to the agents of some sessions. Its variables are filled in for each session,
+   * here in the main process; a session whose agent is busy gets it when its turn ends.
+   */
+  'terminal:sendText': (
+    sessionIds: string[],
+    prompt: { text: string; values?: PromptValues },
+    options: SendTextOptions,
+  ) => Record<string, SendOutcome>;
+  /** Drops what was waiting for the end of the turn to be sent. */
+  'terminal:cancelSend': (sessionId: string) => void;
+  /** A prompt as it would reach the agent of a session, variables filled in. */
+  'prompts:preview': (sessionId: string, text: string, values: PromptValues) => string;
+  /** Opens a plain shell in the folder of the session, beside its agent. Its id on the terminal
+   * channels is `auxTerminalId(sessionId)`. */
+  'aux:open': (sessionId: string, size: TerminalSize) => void;
+  /** Ends that shell and whatever it started. */
+  'aux:close': (sessionId: string) => void;
 
   /** Whether a copy of the repository of a folder can be made, and from which branches. */
   'worktrees:inspect': (folder: string) => WorktreeOrigin;
@@ -196,6 +215,11 @@ export const COMMAND_CHANNELS = [
   'terminal:resize',
   'terminal:ack',
   'terminal:screenText',
+  'terminal:sendText',
+  'terminal:cancelSend',
+  'prompts:preview',
+  'aux:open',
+  'aux:close',
   'worktrees:inspect',
   'worktrees:status',
   'worktrees:list',

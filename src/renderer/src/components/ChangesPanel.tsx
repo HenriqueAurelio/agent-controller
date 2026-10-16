@@ -24,6 +24,10 @@ interface Props {
   onCount(count: number | null): void;
   /** The file with unsaved edits, or null: the app asks before anything discards them. */
   onUnsavedChange(file: string | null): void;
+  /** The file open in the panel, which a prompt may name; null when none is. */
+  onOpenFile(file: string | null): void;
+  /** "Send to the agent with a prompt…" on a selection of the editor. */
+  onSendSelection(file: string, selection: string): void;
 }
 
 interface Group {
@@ -98,6 +102,8 @@ export function ChangesPanel({
   onClose,
   onCount,
   onUnsavedChange,
+  onOpenFile,
+  onSendSelection,
 }: Props) {
   const t = useT();
   const prefs = useAppState((s) => s.prefs);
@@ -176,6 +182,10 @@ export function ChangesPanel({
     onUnsavedChange(dirty ? current : null);
   }, [dirty, current, onUnsavedChange]);
   useEffect(() => () => onUnsavedChange(null), [onUnsavedChange]);
+  useEffect(() => {
+    onOpenFile(current);
+  }, [current, onOpenFile]);
+  useEffect(() => () => onOpenFile(null), [onOpenFile]);
 
   /** Leaving the open file (another file, another base, closing) would lose unsaved edits. */
   const mayLeave = () =>
@@ -329,6 +339,7 @@ export function ChangesPanel({
               fontSize={prefs.fontSize}
               plain={overview !== null && !overview.ok}
               onDirtyChange={setDirty}
+              onSendSelection={onSendSelection}
             />
           ) : (
             <div className="panel-message">{t('changes.pickFile')}</div>
@@ -414,6 +425,7 @@ export function ChangesPanel({
               theme={prefs.theme}
               fontSize={prefs.fontSize}
               onDirtyChange={setDirty}
+              onSendSelection={onSendSelection}
             />
           )}
         </div>

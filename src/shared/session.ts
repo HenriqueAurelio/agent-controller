@@ -71,6 +71,10 @@ export interface SessionView extends Session {
   unread: boolean;
   /** The latest run of the checks of the folder, while the app is open. */
   checks?: ChecksSummary;
+  /** Texts waiting for the agent to finish its turn before they are sent to it. */
+  pendingSends?: number;
+  /** The plain shell beside the agent is open. It never outlives the app. */
+  auxOpen?: boolean;
 }
 
 export interface NewSessionInput {
@@ -82,6 +86,20 @@ export interface NewSessionInput {
   worktree?: { branch: string; base: string };
 }
 
+/**
+ * The terminal channels carry either a session id, for its agent, or this id, for the plain shell
+ * beside it.
+ */
+/** The shell beside the agent keeps less history: it is for a quick command, not a long run. */
+export const AUX_SCROLLBACK = 500;
+
+export const auxTerminalId = (sessionId: string): string => `${sessionId}:aux`;
+
+export function parseTerminalId(id: string): { sessionId: string; aux: boolean } {
+  return id.endsWith(':aux')
+    ? { sessionId: id.slice(0, -':aux'.length), aux: true }
+    : { sessionId: id, aux: false };
+}
 /** What happens to the copy of a session in a worktree when it is closed. */
 export type WorktreeOnClose = 'keep' | 'remove';
 
@@ -110,6 +128,16 @@ export function statusDetail(t: Translate, detail: string | undefined): string |
   if (detail === STATUS_DETAIL.idle) return t('detail.idle');
   if (detail === STATUS_DETAIL.unconfirmed) return t('detail.unconfirmed');
   return detail;
+}
+
+/**
+ * Whether text sent to the agent must wait: it is working, or asking something that is not its
+ * prompt (a permission), where pasted text would answer the question instead.
+ */
+export function isBusyForText(status: SessionStatus): boolean {
+  if (status.state === 'trabalhando') return true;
+  if (status.state !== 'aguardando' || !status.confirmed) return false;
+  return status.detail !== STATUS_DETAIL.ready && status.detail !== STATUS_DETAIL.idle;
 }
 
 export function initialStatus(at = 0): SessionStatus {

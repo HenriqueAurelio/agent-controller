@@ -10,7 +10,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { createSession, launch, makeRepo, removeDir, ROOT, screenText, tempDir } from './harness';
+import {
+  createSession,
+  launch,
+  makeRepo,
+  removeDir,
+  ROOT,
+  screenText,
+  setTitle,
+  tempDir,
+} from './harness';
 import { configureSuggested, makeProject, turn } from './project';
 
 const PHASE = process.env.EVIDENCES_PHASE === 'antes' ? 'antes' : 'depois';
@@ -419,5 +428,90 @@ test('evidences: checks at the end of a turn', async () => {
   } finally {
     await running.close();
     for (const dir of [userData, repo]) removeDir(dir);
+  }
+});
+
+test('evidences: saved prompts', async () => {
+  test.setTimeout(240_000);
+  const userData = tempDir('ac-evid-data-');
+  const base = tempDir('ac-');
+  const folders = ['api', 'web', 'docs'].map((name) => path.join(base, name));
+  for (const folder of folders) fs.mkdirSync(folder);
+  const running = await launch(userData);
+  const { page } = running;
+  const shot = async (name: string) => {
+    fs.mkdirSync(path.join(OUT, 'prompts'), { recursive: true });
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: path.join(OUT, 'prompts', `${name}-${PHASE}.png`) });
+  };
+
+  try {
+    const ids: string[] = [];
+    for (const [index, name] of ['API', 'Web', 'Docs'].entries()) {
+      ids.push(await createSession(page, name, folders[index]!));
+    }
+
+    // 1. Preferences: where the prompts are kept. Before, the tab did not exist.
+    await page.keyboard.press('Control+,');
+    const prefs = page.getByRole('dialog', { name: 'Preferências' });
+    if (AFTER) {
+      await prefs.getByRole('tab', { name: 'Prompts' }).click();
+      await prefs.getByRole('option', { name: 'Escrever testes' }).click();
+    }
+    await shot('01-preferencias');
+    await prefs.getByRole('button', { name: 'Fechar' }).click();
+
+    // 2. Three sessions picked with Ctrl+click, and the prompt on its way to all of them.
+    if (AFTER) {
+      await page.locator('.session-item', { hasText: 'API' }).click({ modifiers: ['Control'] });
+      await page.locator('.session-item', { hasText: 'Web' }).click({ modifiers: ['Control'] });
+      await page.getByRole('button', { name: 'Enviar prompt' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Enviar prompt' });
+      await dialog
+        .getByLabel('Texto a enviar')
+        .fill('Rode os testes de {sessao} e diga o que quebrou. Foco: {?Foco}');
+      await dialog.getByLabel('Foco').fill('login');
+      await expect(dialog.getByTestId('prompt-preview')).toContainText('testes de API');
+    }
+    await shot('02-enviar-a-varias');
+
+    // 3. What reached the terminal of one of them, waiting for Enter.
+    if (AFTER) {
+      await page
+        .getByRole('dialog', { name: 'Enviar prompt' })
+        .getByRole('button', { name: 'Enviar a 3 sessões' })
+        .click();
+      await expect
+        .poll(() => screenText(page, ids[1]!), { timeout: 15_000 })
+        .toContain('Foco: login');
+      await page.locator('.session-item', { hasText: 'Web' }).click();
+    }
+    await shot('03-no-terminal');
+
+    // 4. A prompt for a session whose agent is working waits for the end of the turn.
+    await page.locator('.session-item', { hasText: 'API' }).click();
+    await setTitle(page, '◐ tarefa');
+    await expect(page.locator('.session-item', { hasText: 'API' })).toHaveAttribute(
+      'data-state',
+      'trabalhando',
+      { timeout: 15_000 },
+    );
+    if (AFTER) {
+      await page.evaluate(
+        (s) =>
+          window.api.invoke(
+            'terminal:sendText',
+            [s],
+            { text: 'Atualize o README.' },
+            { submit: false },
+          ),
+        ids[0]!,
+      );
+      await page.locator('.session-item', { hasText: 'API' }).getByTestId('pending-send').waitFor();
+    }
+    await shot('04-esperando-o-turno');
+  } finally {
+    await running.close();
+    for (const dir of [userData, base]) removeDir(dir);
   }
 });

@@ -37,6 +37,8 @@ export const en: Record<keyof typeof ptBR, string> = {
 
   'app.checks': 'Checks',
   'app.checksHint': "Commands that check the agent's work: lint, typecheck, tests",
+  'app.aux': 'Terminal',
+  'app.auxHint': "A shell in the session's folder, beside the agent",
   'app.worktreeHint': 'Isolated copy of {repo}, on branch {branch} (from {base})',
   'app.worktreeShared':
     'This isolated copy is also used by “{name}”: both sessions touch the same files.',
@@ -53,6 +55,8 @@ export const en: Record<keyof typeof ptBR, string> = {
 
   'command.checks': 'Checks of “{name}”: what runs at the end of a turn',
   'command.runChecks': 'Run the checks of “{name}” now',
+  'command.openAux': 'Side terminal: open a shell in the folder of “{name}”',
+  'command.closeAux': 'Side terminal: close the shell of “{name}”',
 
   'checks.title': 'Checks',
   'checks.intro':
@@ -122,6 +126,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'shortcut.toggleChanges': 'Open or close the changes panel',
   'shortcut.toggleFiles': 'Open or close all files in the folder',
   'shortcut.toggleHidden': 'Show or hide hidden files',
+  'shortcut.toggleAux': 'Open or close the side terminal',
   'shortcut.preferences': 'Preferences',
 
   'shortcuts.title': 'Shortcuts',
@@ -170,6 +175,10 @@ export const en: Record<keyof typeof ptBR, string> = {
 
   'terminal.empty.title': 'No sessions',
   'terminal.empty.body': 'Create a session to open Claude Code or Codex in a folder.',
+  'aux.title': 'Side terminal',
+  'aux.close': 'Close the side terminal',
+  'aux.closeHint': 'Closes the shell and everything it is running',
+  'aux.divider': "Divider between the agent's terminal and the side one",
 
   'newSession.folderPlaceholder': 'Folder the agent will work in',
   'newSession.name': 'Name',
@@ -200,6 +209,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'changeFolder.running':
     'The agent of {name} is running. Changing the folder will end it, along with whatever it has started, and open it again in the new folder: the current conversation does not continue.',
   'changeFolder.confirmRunning': 'End and change',
+  'changeFolder.aux': 'The side terminal is in the old folder: it will be closed.',
 
   'folder.favorite': 'Add to favorites',
   'folder.favoriteHint': 'Add this folder to the favorites',
@@ -235,6 +245,10 @@ export const en: Record<keyof typeof ptBR, string> = {
   'layout.files.right': 'Right of the text',
   'layout.files.top': 'Above the text',
   'layout.files.bottom': 'Below the text',
+  'layout.auxLabel': 'Side terminal',
+  'layout.aux.bottom': 'Below the agent',
+  'layout.aux.right': 'Right of the agent',
+  'layout.auxShort': 'Side',
 
   'prefs.sections': 'Preferences sections',
   'prefs.tab.geral': 'General',
@@ -375,6 +389,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'notice.stopped': 'Session ended.',
   'notice.exited': 'The agent exited (code {code}).',
   'notice.pressEnter': 'Press Enter to start it again.',
+  'error.aux.startFailed': 'Could not open the side terminal: {error}',
 
   'session.fallbackName': 'Session',
 
@@ -429,5 +444,61 @@ export const en: Record<keyof typeof ptBR, string> = {
   'arg.command': 'command',
   'arg.expected': 'expected content',
   'arg.checks': 'checks',
+
+  'prefs.tab.prompts': 'Prompts',
+  'command.prompt': 'Prompt: {name}',
+  'prompts.factory.review.name': 'Review the diff',
+  'prompts.factory.review.text':
+    'Review the uncommitted changes in this folder looking for bugs, missed cases and code that could be simpler. List what you find, most serious first, without changing anything yet.',
+  'prompts.factory.tests.name': 'Write tests',
+  'prompts.factory.tests.text':
+    'Write the missing tests for {arquivo}, following the pattern of the tests the project already has. Run them and tell me the result.',
+  'prompts.factory.readme.name': 'Update the README',
+  'prompts.factory.readme.text':
+    'Update the README with what changed on the {branch} branch: what users need to know and what no longer applies.',
+  'prompts.title': 'Saved prompts',
+  'prompts.intro':
+    "Requests you repeat. Send them from the palette (Ctrl+Shift+P → “Prompt: …”), with a shortcut, from the menu of the panel's editor, or to several sessions picked with Ctrl+click in the list.",
+  'prompts.none': 'No saved prompts.',
+  'prompts.name': 'Name',
+  'prompts.text': 'Text',
+  'prompts.variablesHint':
+    'Variables: {sessao}, {pasta}, {branch}, {arquivo} (the file open in the panel), {selecao} (the text selected in it) and {?question}, which asks for a value when sending.',
+  'prompts.shortcut': 'Shortcut',
+  'prompts.shortcutAdd': 'Set shortcut',
+  'prompts.shortcutChange': 'Change shortcut',
+  'prompts.shortcutRemove': 'Remove the shortcut of the prompt',
+  'prompts.shortcutTaken': '{binding} already belongs to “{action}”.',
+  'prompts.add': '+ New prompt',
+  'prompts.remove': 'Delete',
+  'prompts.restore': 'Restore the factory ones',
+  'prompts.newName': 'New prompt',
+  'prompts.sending': 'Sending',
+  'prompts.submit': 'Send with Enter',
+  'prompts.submitHint': "Off, the text waits at the agent's prompt for you to check and send.",
+  'prompts.send.title': 'Send prompt',
+  'prompts.send.prompt': 'Prompt',
+  'prompts.send.text': 'Text to send',
+  'prompts.send.selectionCut':
+    'The selection is too large and is cut to its first {limit} characters.',
+  'prompts.send.targets': 'Sessions',
+  'prompts.send.notRunning': 'stopped',
+  'prompts.send.busy': 'working',
+  'prompts.send.preview': 'How it reaches “{name}”',
+  'prompts.send.waiting':
+    '{count} of the sessions are busy: they get it when the agent finishes its turn.',
+  'prompts.send.now': 'Send right away anyway',
+  'prompts.send.hint': 'Ctrl+Enter also sends',
+  'prompts.send.submit': 'Send',
+  'prompts.send.submitMany': 'Send to {count} sessions',
+  'sidebar.pendingSend': '{count} send(s) waiting for the turn',
+  'sidebar.cancelSend': 'Cancel the pending send of {name}',
+  'sidebar.marked': '{count} selected',
+  'sidebar.sendPrompt': 'Send prompt',
+  'sidebar.unmark': 'Clear',
+  'diff.sendToAgent': 'Send to the agent with a prompt…',
+  'diff.sendToAgentHint': 'Opens a prompt with this file and the selected text',
+  'error.prompt.selectionTooLarge': 'The selection is over {limit} characters.',
+  'error.prompt.tooLarge': 'The text is too large to send to the agent (over {limit} characters).',
   'arg.branch': 'branch',
 };
