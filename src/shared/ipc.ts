@@ -91,6 +91,11 @@ export interface IpcCommands {
   'terminal:cancelSend': (sessionId: string) => void;
   /** A prompt as it would reach the agent of a session, variables filled in. */
   'prompts:preview': (sessionId: string, text: string, values: PromptValues) => string;
+  /** Opens a plain shell in the folder of the session, beside its agent. Its id on the terminal
+   * channels is `auxTerminalId(sessionId)`. */
+  'aux:open': (sessionId: string, size: TerminalSize) => void;
+  /** Ends that shell and whatever it started. */
+  'aux:close': (sessionId: string) => void;
 
   'git:open': (sessionId: string, base: DiffBase) => GitOverview;
   'git:refresh': (sessionId: string, base: DiffBase) => GitOverview;
@@ -168,6 +173,8 @@ export const COMMAND_CHANNELS = [
   'terminal:sendText',
   'terminal:cancelSend',
   'prompts:preview',
+  'aux:open',
+  'aux:close',
   'git:open',
   'git:refresh',
   'git:close',

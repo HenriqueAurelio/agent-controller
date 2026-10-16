@@ -13,6 +13,7 @@
   --done: #3fb950;
   --error: #e5534b;
   --stopped: #6b7280;
+  --aux: #c678dd;
   color-scheme: dark;
 }
 
@@ -31,6 +32,7 @@
   --done: #1a7f37;
   --error: #cf222e;
   --stopped: #8c959f;
+  --aux: #8250df;
   color-scheme: light;
 }
 
@@ -454,6 +456,71 @@ button.path:hover:not(:disabled) {
   position: absolute;
   inset: 0;
 }
+
+/* The shell beside the agent: its own label and border colour, so the two are never confused,
+   and the one with the keyboard is marked. */
+.aux-pane {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 2px solid var(--aux);
+}
+.terminal-area[data-aux='right'] .aux-pane {
+  border-top: none;
+  border-left: 2px solid var(--aux);
+}
+.aux-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px 2px 10px;
+  background: color-mix(in srgb, var(--aux) 16%, var(--bg-raised));
+  font-size: 12px;
+}
+.aux-header strong {
+  white-space: nowrap;
+}
+.aux-header .path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.aux-header button {
+  padding: 0 6px;
+}
+.aux-terminal {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.aux-pane:focus-within .aux-header {
+  background: color-mix(in srgb, var(--aux) 32%, var(--bg-raised));
+}
+.terminal-area[data-aux] .terminal-container:focus-within {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+/* Wide enough to grab, drawn over the edge between the two. */
+.aux-divider {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  height: 6px;
+  margin-top: -3px;
+  cursor: row-resize;
+  touch-action: none;
+}
+.terminal-area[data-aux='right'] .aux-divider {
+  height: auto;
+  width: 6px;
+  margin-top: 0;
+  margin-left: -3px;
+  cursor: col-resize;
+}
+.aux-divider:hover {
+  background: color-mix(in srgb, var(--aux) 40%, transparent);
+}
 .terminal-container {
   position: absolute;
   inset: 0;
@@ -806,8 +873,23 @@ button.path:hover:not(:disabled) {
 .layout-panel[data-files='bottom'] {
   flex-direction: column-reverse;
 }
-.layout-main[data-panel='cover'] .layout-terminal {
+.layout-main[data-panel='cover'] .layout-terminals {
   display: none;
+}
+.layout-terminals {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  min-height: 0;
+}
+.layout-terminals[data-aux='right'] {
+  flex-direction: row;
+}
+.layout-aux {
+  flex: 0 0 34%;
+  border: 1px dashed var(--aux);
 }
 
 /* Shortcuts in the preferences */

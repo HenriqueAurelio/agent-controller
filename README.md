@@ -167,16 +167,26 @@ Como o texto chega:
 - **Agente ocupado:** se ele está trabalhando, ou pedindo uma permissão, o texto **espera o fim do turno**. A sessão mostra "1 envio(s) esperando o turno", com **Cancelar**. **Enviar agora mesmo assim**, no diálogo, não espera. Com vários textos esperando, sai um turno de cada vez.
 
 Os prompts são só texto e **vão no arquivo de exportação** das preferências.
+### Terminal auxiliar
+
+Para rodar algo na pasta da sessão sem sair do app e sem atrapalhar o agente (subir o servidor, olhar um log, `git log`), abra o **terminal auxiliar**: `Ctrl+Shift+"` (a tecla `'` com `Shift`), o botão **Terminal** no topo da sessão ou "Terminal auxiliar: abrir um shell…" na paleta.
+
+- É o **seu shell**, na pasta da sessão, como o seu terminal o abre: PowerShell com o seu perfil no Windows, `$SHELL` no Linux.
+- Fica **embaixo** do terminal do agente, com uma divisória que se arrasta. Em **Preferências → Layout** ele pode ir para a **direita**.
+- O que você digita nele **não chega ao agente** nem muda o estado da sessão. Ele tem rótulo e cor de borda próprios, e o terminal que está com o teclado fica marcado. `Ctrl+Shift+T` volta ao terminal do agente.
+- **Fecha** pelo **×** do cabeçalho, pelo mesmo atalho ou botão, ou com `exit`. Fechar o auxiliar encerra o shell e tudo o que ele estiver rodando. Ele também fecha junto com a sessão, ao trocar a pasta da sessão e ao fechar o app; ao reabrir, volta fechado. Parar o agente não fecha o auxiliar.
+- É **um por sessão**. Ao trocar de sessão, cada uma mostra o seu, com o que estava na tela.
 
 ### Layout
 
-Em **Preferências → Layout** você escolhe onde fica cada parte da janela. As três escolhas são independentes e combinam entre si, e uma miniatura mostra o resultado antes de fechar:
+Em **Preferências → Layout** você escolhe onde fica cada parte da janela. As escolhas são independentes e combinam entre si, e uma miniatura mostra o resultado antes de fechar:
 
 | Parte | Onde pode ficar |
 |---|---|
 | **Sessões** | À esquerda, à direita, em cima ou embaixo. Em cima e embaixo a lista corre de lado, e as setas `←` / `→` andam por ela |
 | **Painel de mudanças e arquivos** | Por cima do terminal (o padrão) ou ao lado dele: à esquerda, à direita, em cima ou embaixo. Ao lado, o terminal continua à vista e usável |
 | **Lista de arquivos do painel** | À esquerda, à direita, em cima ou embaixo do texto do arquivo |
+| **Terminal auxiliar** | Embaixo do terminal do agente (o padrão) ou à direita dele |
 
 A mudança vale na hora e fica guardada. **Restaurar padrão** volta ao arranjo de fábrica.
 
@@ -204,6 +214,7 @@ As sessões e as verificações de cada pasta não vão no arquivo. Caminhos de 
 | `Ctrl+Shift+G` | Abrir ou fechar o painel de mudanças |
 | `Ctrl+Shift+E` | Abrir ou fechar todos os arquivos da pasta |
 | `Ctrl+Shift+H` | Mostrar ou esconder arquivos ocultos |
+| `Ctrl+Shift+"` | Abrir ou fechar o terminal auxiliar (a tecla `'` com `Shift`) |
 | `Ctrl+Shift+P` | Paleta de comandos |
 | `Ctrl+,` | Preferências |
 | sem atalho de fábrica | Próxima sessão aguardando você; fechar a sessão atual |
@@ -244,7 +255,7 @@ O Claude Code não tem essa tela: os avisos funcionam sem você fazer nada. Os d
 - **O painel de mudanças edita arquivos, mas não opera o git.** Não há "stage", "commit" nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar com o agente parado.
 - **O painel de mudanças exige git**, instalado e com a pasta da sessão dentro de um repositório. Sem isso, ele explica o que falta.
 - **"Aguardando você" não é infalível.** Ver "Possivelmente aguardando" acima.
-- **Só Claude Code e Codex.** Sem outras IAs, shell puro, SSH, divisão de tela ou macOS. O comando de uma sessão pode ser trocado, mas o agente por trás dele tem que ser um dos dois.
+- **Só Claude Code e Codex.** Sem outras IAs, SSH ou macOS. Um shell comum só existe como o [terminal auxiliar](#terminal-auxiliar) de uma sessão: um por sessão, sem abas nem divisão livre da tela. O comando de uma sessão pode ser trocado, mas o agente por trás dele tem que ser um dos dois.
 - **O comando de uma sessão não é editável depois de criada.** Para trocar, crie outra sessão (ou mude o comando do agente nas preferências, se a sessão não tiver um só dela).
 - **O comando da sessão fica em um arquivo de texto.** O app guarda nome, pasta, agente e comando de cada sessão em `sessions.json`, na pasta de dados do app. Ele não guarda o histórico do terminal nem variáveis de ambiente.
 

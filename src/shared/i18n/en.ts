@@ -26,6 +26,8 @@ export const en: Record<keyof typeof ptBR, string> = {
 
   'app.checks': 'Checks',
   'app.checksHint': "Commands that check the agent's work: lint, typecheck, tests",
+  'app.aux': 'Terminal',
+  'app.auxHint': "A shell in the session's folder, beside the agent",
 
   'command.seeChanges': 'See changes: what changed in the session',
   'command.files': 'Files: view all files in the folder',
@@ -39,6 +41,8 @@ export const en: Record<keyof typeof ptBR, string> = {
 
   'command.checks': 'Checks of “{name}”: what runs at the end of a turn',
   'command.runChecks': 'Run the checks of “{name}” now',
+  'command.openAux': 'Side terminal: open a shell in the folder of “{name}”',
+  'command.closeAux': 'Side terminal: close the shell of “{name}”',
 
   'checks.title': 'Checks',
   'checks.intro':
@@ -108,6 +112,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'shortcut.toggleChanges': 'Open or close the changes panel',
   'shortcut.toggleFiles': 'Open or close all files in the folder',
   'shortcut.toggleHidden': 'Show or hide hidden files',
+  'shortcut.toggleAux': 'Open or close the side terminal',
   'shortcut.preferences': 'Preferences',
 
   'shortcuts.title': 'Shortcuts',
@@ -156,6 +161,10 @@ export const en: Record<keyof typeof ptBR, string> = {
 
   'terminal.empty.title': 'No sessions',
   'terminal.empty.body': 'Create a session to open Claude Code or Codex in a folder.',
+  'aux.title': 'Side terminal',
+  'aux.close': 'Close the side terminal',
+  'aux.closeHint': 'Closes the shell and everything it is running',
+  'aux.divider': "Divider between the agent's terminal and the side one",
 
   'newSession.folderPlaceholder': 'Folder the agent will work in',
   'newSession.name': 'Name',
@@ -178,6 +187,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'changeFolder.running':
     'The agent of {name} is running. Changing the folder will end it, along with whatever it has started, and open it again in the new folder: the current conversation does not continue.',
   'changeFolder.confirmRunning': 'End and change',
+  'changeFolder.aux': 'The side terminal is in the old folder: it will be closed.',
 
   'folder.favorite': 'Add to favorites',
   'folder.favoriteHint': 'Add this folder to the favorites',
@@ -213,6 +223,10 @@ export const en: Record<keyof typeof ptBR, string> = {
   'layout.files.right': 'Right of the text',
   'layout.files.top': 'Above the text',
   'layout.files.bottom': 'Below the text',
+  'layout.auxLabel': 'Side terminal',
+  'layout.aux.bottom': 'Below the agent',
+  'layout.aux.right': 'Right of the agent',
+  'layout.auxShort': 'Side',
 
   'prefs.sections': 'Preferences sections',
   'prefs.tab.geral': 'General',
@@ -328,6 +342,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'notice.stopped': 'Session ended.',
   'notice.exited': 'The agent exited (code {code}).',
   'notice.pressEnter': 'Press Enter to start it again.',
+  'error.aux.startFailed': 'Could not open the side terminal: {error}',
 
   'session.fallbackName': 'Session',
 

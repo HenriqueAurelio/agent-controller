@@ -51,7 +51,7 @@ describe('preferences file', () => {
     fontSize: 16,
     defaultFolder: '/src',
     favoriteFolders: ['/src/api', '/src/web'],
-    layout: { sessions: 'top', panel: 'right', files: 'bottom' },
+    layout: { sessions: 'top', panel: 'right', files: 'bottom', aux: 'right' },
     shortcuts: { ...DEFAULT_PREFERENCES.shortcuts, newSession: ['Ctrl+Alt+N'] },
   });
 

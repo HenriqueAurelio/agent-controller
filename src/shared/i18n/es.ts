@@ -26,6 +26,8 @@ export const es: Record<keyof typeof ptBR, string> = {
 
   'app.checks': 'Verificaciones',
   'app.checksHint': 'Comandos que revisan el trabajo del agente: lint, typecheck, pruebas',
+  'app.aux': 'Terminal',
+  'app.auxHint': 'Un shell en la carpeta de la sesión, junto al agente',
 
   'command.seeChanges': 'Ver cambios: lo que cambió en la sesión',
   'command.files': 'Archivos: ver todos los archivos de la carpeta',
@@ -39,6 +41,8 @@ export const es: Record<keyof typeof ptBR, string> = {
 
   'command.checks': 'Verificaciones de “{name}”: lo que corre al final del turno',
   'command.runChecks': 'Ejecutar ahora las verificaciones de “{name}”',
+  'command.openAux': 'Terminal auxiliar: abrir un shell en la carpeta de «{name}»',
+  'command.closeAux': 'Terminal auxiliar: cerrar el shell de «{name}»',
 
   'checks.title': 'Verificaciones',
   'checks.intro':
@@ -108,6 +112,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'shortcut.toggleChanges': 'Abrir o cerrar el panel de cambios',
   'shortcut.toggleFiles': 'Abrir o cerrar todos los archivos de la carpeta',
   'shortcut.toggleHidden': 'Mostrar u ocultar los archivos ocultos',
+  'shortcut.toggleAux': 'Abrir o cerrar el terminal auxiliar',
   'shortcut.preferences': 'Preferencias',
 
   'shortcuts.title': 'Atajos',
@@ -156,6 +161,10 @@ export const es: Record<keyof typeof ptBR, string> = {
 
   'terminal.empty.title': 'Ninguna sesión',
   'terminal.empty.body': 'Crea una sesión para abrir Claude Code o Codex en una carpeta.',
+  'aux.title': 'Terminal auxiliar',
+  'aux.close': 'Cerrar el terminal auxiliar',
+  'aux.closeHint': 'Cierra el shell y todo lo que esté ejecutando',
+  'aux.divider': 'Divisor entre el terminal del agente y el auxiliar',
 
   'newSession.folderPlaceholder': 'Carpeta donde el agente va a trabajar',
   'newSession.name': 'Nombre',
@@ -178,6 +187,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'changeFolder.running':
     'El agente de {name} está en ejecución. Cambiar la carpeta lo terminará, junto con lo que haya iniciado, y lo abrirá de nuevo en la nueva carpeta: la conversación actual no continúa.',
   'changeFolder.confirmRunning': 'Terminar y cambiar',
+  'changeFolder.aux': 'El terminal auxiliar está en la carpeta anterior: se cerrará.',
 
   'folder.favorite': 'Guardar en favoritos',
   'folder.favoriteHint': 'Guardar esta carpeta en favoritos',
@@ -213,6 +223,10 @@ export const es: Record<keyof typeof ptBR, string> = {
   'layout.files.right': 'A la derecha del texto',
   'layout.files.top': 'Encima del texto',
   'layout.files.bottom': 'Debajo del texto',
+  'layout.auxLabel': 'Terminal auxiliar',
+  'layout.aux.bottom': 'Debajo del agente',
+  'layout.aux.right': 'A la derecha del agente',
+  'layout.auxShort': 'Auxiliar',
 
   'prefs.sections': 'Secciones de las preferencias',
   'prefs.tab.geral': 'General',
@@ -328,6 +342,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'notice.stopped': 'Sesión terminada.',
   'notice.exited': 'El agente salió (código {code}).',
   'notice.pressEnter': 'Presiona Enter para iniciarlo de nuevo.',
+  'error.aux.startFailed': 'No se pudo abrir el terminal auxiliar: {error}',
 
   'session.fallbackName': 'Sesión',
 

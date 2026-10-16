@@ -60,6 +60,8 @@ export interface SessionView extends Session {
   checks?: ChecksSummary;
   /** Texts waiting for the agent to finish its turn before they are sent to it. */
   pendingSends?: number;
+  /** The plain shell beside the agent is open. It never outlives the app. */
+  auxOpen?: boolean;
 }
 
 export interface NewSessionInput {
@@ -67,6 +69,21 @@ export interface NewSessionInput {
   cwd: string;
   profile: AgentProfileId;
   command?: string;
+}
+
+/**
+ * The terminal channels carry either a session id, for its agent, or this id, for the plain shell
+ * beside it.
+ */
+/** The shell beside the agent keeps less history: it is for a quick command, not a long run. */
+export const AUX_SCROLLBACK = 500;
+
+export const auxTerminalId = (sessionId: string): string => `${sessionId}:aux`;
+
+export function parseTerminalId(id: string): { sessionId: string; aux: boolean } {
+  return id.endsWith(':aux')
+    ? { sessionId: id.slice(0, -':aux'.length), aux: true }
+    : { sessionId: id, aux: false };
 }
 
 export interface TerminalSize {

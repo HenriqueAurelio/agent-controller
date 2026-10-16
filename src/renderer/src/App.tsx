@@ -301,11 +301,29 @@ export function App() {
         toggleFiles: () => togglePanel('files'),
         toggleHidden: () =>
           void window.api.invoke('prefs:set', { showHiddenFiles: !prefs.showHiddenFiles }),
+        toggleAux: () => {
+          if (!session) return;
+          // The shell lives under the panel when the panel covers the terminal.
+          if (changesOpenRef.current && prefs.layout.panel === 'cover') {
+            if (!mayDiscardEdits()) return;
+            setChangesOpen(false);
+          }
+          setOverlay(null);
+          terminals.current?.toggleAux();
+        },
         preferences: () => setOverlay('prefs'),
       };
       run[action]();
     },
-    [selectByOffset, selectNextWaiting, requestClose, focusTerminal, togglePanel, openNew],
+    [
+      selectByOffset,
+      selectNextWaiting,
+      requestClose,
+      focusTerminal,
+      togglePanel,
+      openNew,
+      mayDiscardEdits,
+    ],
   );
 
   const commands = useMemo<Command[]>(() => {
@@ -328,6 +346,10 @@ export function App() {
         action('toggleChanges', t('command.seeChanges'), () => showPanel('changes')),
         action('toggleFiles', t('command.files'), () => showPanel('files')),
         action('toggleHidden', t('command.toggleHidden')),
+        action(
+          'toggleAux',
+          t(selected.auxOpen ? 'command.closeAux' : 'command.openAux', { name: selected.name }),
+        ),
       );
       list.push(
         selected.running
@@ -491,6 +513,14 @@ export function App() {
               title={hint(t('app.allFilesHint'), shortcuts.toggleFiles[0])}
             >
               {t('common.files')}
+            </button>
+            <button
+              className={selected.auxOpen ? 'active' : ''}
+              aria-pressed={selected.auxOpen === true}
+              onClick={() => runAction('toggleAux')}
+              title={hint(t('app.auxHint'), shortcuts.toggleAux[0])}
+            >
+              {t('app.aux')}
             </button>
             <button
               className="checks-button"

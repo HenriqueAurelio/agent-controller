@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LAYOUT, PANEL_PLACES, SIDES, sanitizeLayout } from '@shared/layout';
+import { AUX_PLACES, DEFAULT_LAYOUT, PANEL_PLACES, SIDES, sanitizeLayout } from '@shared/layout';
 import { DEFAULT_PREFERENCES, sanitizePreferences } from '@shared/prefs';
 
 describe('layout', () => {
@@ -7,7 +7,10 @@ describe('layout', () => {
     for (const sessions of SIDES) {
       for (const panel of PANEL_PLACES) {
         for (const files of SIDES) {
-          expect(sanitizeLayout({ sessions, panel, files })).toEqual({ sessions, panel, files });
+          for (const aux of AUX_PLACES) {
+            const layout = { sessions, panel, files, aux };
+            expect(sanitizeLayout(layout)).toEqual(layout);
+          }
         }
       }
     }
@@ -23,6 +26,10 @@ describe('layout', () => {
     });
     // The sessions have no "cover": that is a place of the panel only.
     expect(sanitizeLayout({ sessions: 'cover', panel: 'cover' })).toEqual(DEFAULT_LAYOUT);
+    // The side terminal goes below or to the right of the agent, nowhere else.
+    expect(sanitizeLayout({ aux: 'left' })).toEqual(DEFAULT_LAYOUT);
+    // Layouts saved before the side terminal existed get its default place.
+    expect(sanitizeLayout({ sessions: 'top', panel: 'right', files: 'left' }).aux).toBe('bottom');
   });
 
   it('is part of the preferences, and survives preferences saved before it existed', () => {
