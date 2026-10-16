@@ -26,6 +26,8 @@ export const ptBR = {
 
   'app.checks': 'Verificações',
   'app.checksHint': 'Comandos que conferem o trabalho do agente: lint, typecheck, testes',
+  'app.aux': 'Terminal',
+  'app.auxHint': 'Um shell na pasta da sessão, ao lado do agente',
 
   'command.seeChanges': 'Ver mudanças: o que mudou na sessão',
   'command.files': 'Arquivos: ver todos os arquivos da pasta',
@@ -39,6 +41,8 @@ export const ptBR = {
 
   'command.checks': 'Verificações de “{name}”: o que roda ao fim do turno',
   'command.runChecks': 'Rodar agora as verificações de “{name}”',
+  'command.openAux': 'Terminal auxiliar: abrir um shell na pasta de “{name}”',
+  'command.closeAux': 'Terminal auxiliar: fechar o shell de “{name}”',
 
   'checks.title': 'Verificações',
   'checks.intro':
@@ -108,6 +112,7 @@ export const ptBR = {
   'shortcut.toggleChanges': 'Abrir ou fechar o painel de mudanças',
   'shortcut.toggleFiles': 'Abrir ou fechar todos os arquivos da pasta',
   'shortcut.toggleHidden': 'Mostrar ou esconder arquivos ocultos',
+  'shortcut.toggleAux': 'Abrir ou fechar o terminal auxiliar',
   'shortcut.preferences': 'Preferências',
 
   'shortcuts.title': 'Atalhos',
@@ -156,6 +161,10 @@ export const ptBR = {
 
   'terminal.empty.title': 'Nenhuma sessão',
   'terminal.empty.body': 'Crie uma sessão para abrir o Claude Code ou o Codex em uma pasta.',
+  'aux.title': 'Terminal auxiliar',
+  'aux.close': 'Fechar o terminal auxiliar',
+  'aux.closeHint': 'Fecha o shell e tudo o que ele estiver rodando',
+  'aux.divider': 'Divisória entre o terminal do agente e o auxiliar',
 
   'newSession.folderPlaceholder': 'Pasta onde o agente vai trabalhar',
   'newSession.name': 'Nome',
@@ -178,6 +187,7 @@ export const ptBR = {
   'changeFolder.running':
     'O agente de {name} está rodando. Trocar a pasta vai encerrá-lo, junto com o que ele tiver iniciado, e abri-lo de novo na nova pasta: a conversa atual não continua.',
   'changeFolder.confirmRunning': 'Encerrar e trocar',
+  'changeFolder.aux': 'O terminal auxiliar está na pasta antiga: ele será fechado.',
 
   'folder.favorite': 'Guardar nos favoritos',
   'folder.favoriteHint': 'Guardar esta pasta nos favoritos',
@@ -213,6 +223,10 @@ export const ptBR = {
   'layout.files.right': 'À direita do texto',
   'layout.files.top': 'Em cima do texto',
   'layout.files.bottom': 'Embaixo do texto',
+  'layout.auxLabel': 'Terminal auxiliar',
+  'layout.aux.bottom': 'Embaixo do agente',
+  'layout.aux.right': 'À direita do agente',
+  'layout.auxShort': 'Auxiliar',
 
   'prefs.sections': 'Seções das preferências',
   'prefs.tab.geral': 'Geral',
@@ -327,6 +341,7 @@ export const ptBR = {
   'notice.stopped': 'Sessão encerrada.',
   'notice.exited': 'O agente saiu (código {code}).',
   'notice.pressEnter': 'Pressione Enter para iniciar de novo.',
+  'error.aux.startFailed': 'Não foi possível abrir o terminal auxiliar: {error}',
 
   'session.fallbackName': 'Sessão',
 

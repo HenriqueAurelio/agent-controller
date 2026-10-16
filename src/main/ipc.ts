@@ -93,6 +93,12 @@ export function registerIpc(context: IpcContext): void {
     if (!found) throw new UserError('error.session.notFound');
     return found;
   };
+  /** A terminal of the channels: a session's agent, or the shell beside it while it is open. */
+  const terminal = (id: unknown) => {
+    const value = str(id, 'session', 64);
+    if (!manager.hasTerminal(value)) throw new UserError('error.session.notFound');
+    return value;
+  };
   const isFolder = (folder: string) =>
     fs.promises.stat(folder).then(
       (stat) => stat.isDirectory(),
@@ -227,15 +233,13 @@ export function registerIpc(context: IpcContext): void {
   handle('sessions:start', (id, terminalSize) => manager.start(session(id).id, size(terminalSize)));
   handle('sessions:stop', (id) => manager.stop(session(id).id));
 
-  handle('terminal:attach', (id, terminalSize) =>
-    manager.attach(session(id).id, size(terminalSize)),
-  );
+  handle('terminal:attach', (id, terminalSize) => manager.attach(terminal(id), size(terminalSize)));
   handle('terminal:detach', (id) => manager.detach(str(id, 'session', 64)));
   handle('terminal:setVisible', (id, visible) =>
     manager.setVisible(str(id, 'session', 64), visible === true),
   );
   handle('terminal:input', (id, data) =>
-    manager.input(str(id, 'session', 64), str(data, 'data', 16 * 1024 * 1024)),
+    manager.input(terminal(id), str(data, 'data', 16 * 1024 * 1024)),
   );
   handle('terminal:resize', (id, terminalSize) =>
     manager.resize(str(id, 'session', 64), size(terminalSize)),
@@ -243,7 +247,9 @@ export function registerIpc(context: IpcContext): void {
   handle('terminal:ack', (id, chars) => {
     if (typeof chars === 'number' && chars > 0) manager.ack(str(id, 'session', 64), chars);
   });
-  handle('terminal:screenText', (id) => manager.screenText(str(id, 'session', 64)));
+  handle('terminal:screenText', (id) => manager.screenText(terminal(id)));
+  handle('aux:open', (id, terminalSize) => manager.openAux(session(id).id, size(terminalSize)));
+  handle('aux:close', (id) => manager.closeAux(session(id).id));
 
   handle('git:open', (id, diffBase) => {
     const s = session(id);

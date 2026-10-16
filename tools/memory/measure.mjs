@@ -109,6 +109,13 @@ try {
     while (created < count) await addSession();
     rows.push(await measure(`${count} ${count === 1 ? 'sessão' : 'sessões'}`));
   }
+  // The shell beside the agent of the session in sight: one more terminal, only while open.
+  await page.keyboard.press('Control+Shift+Quote');
+  await page.waitForSelector('.aux-pane .terminal-host.visible');
+  await sleep(profile === 'shell' ? 500 : 2000);
+  rows.push(await measure(`${created} sessões + terminal auxiliar`));
+  await page.keyboard.press('Control+Shift+Quote');
+  await page.waitForSelector('.aux-pane', { state: 'detached' });
   await page.keyboard.press('Control+Shift+G');
   await page.waitForSelector('.changes-panel');
   await sleep(3000);

@@ -77,6 +77,11 @@ export interface IpcCommands {
   'terminal:resize': (id: string, size: TerminalSize) => void;
   'terminal:ack': (id: string, chars: number) => void;
   'terminal:screenText': (id: string) => string;
+  /** Opens a plain shell in the folder of the session, beside its agent. Its id on the terminal
+   * channels is `auxTerminalId(sessionId)`. */
+  'aux:open': (sessionId: string, size: TerminalSize) => void;
+  /** Ends that shell and whatever it started. */
+  'aux:close': (sessionId: string) => void;
 
   'git:open': (sessionId: string, base: DiffBase) => GitOverview;
   'git:refresh': (sessionId: string, base: DiffBase) => GitOverview;
@@ -151,6 +156,8 @@ export const COMMAND_CHANNELS = [
   'terminal:resize',
   'terminal:ack',
   'terminal:screenText',
+  'aux:open',
+  'aux:close',
   'git:open',
   'git:refresh',
   'git:close',

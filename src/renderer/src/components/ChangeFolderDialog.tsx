@@ -40,6 +40,7 @@ export function ChangeFolderDialog({ session, onClose, onChanged }: Props) {
             {rich(t('changeFolder.running'), { name: <strong>{session.name}</strong> })}
           </p>
         )}
+        {session.auxOpen && <p className="form-note">{t('changeFolder.aux')}</p>}
         {error && (
           <p className="form-error" role="alert">
             {error}
