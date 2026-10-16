@@ -17,6 +17,7 @@ import {
   GitMissingError,
   gitVersion,
   hasHead,
+  mergeBase,
   MIN_GIT_VERSION,
   repositoryRoot,
   saveWorkingTreeFile,
@@ -25,6 +26,15 @@ import {
   statusChanges,
   treeChanges,
 } from './GitService';
+import {
+  commit,
+  discard,
+  stage,
+  undoDiscard,
+  unstage,
+  type CommitResult,
+  type DiscardRecord,
+} from './GitWriteService';
 import { RepoWatcher } from './RepoWatcher';
 import { findRepositories, isRepository, MAX_REPOSITORIES } from './Workspace';
 
@@ -59,6 +69,11 @@ interface SessionGit {
   workDir: string;
   watcher: RepoWatcher | null;
   lastChanges: FileChange[];
+  /**
+   * In a copy of the repository: the commit where its branch left the base, which "compare with
+   * the base" compares against. Found again at each look, since the base may move.
+   */
+  mergeBase: string | null;
 }
 
 export interface ChangesServiceOptions {
@@ -95,6 +110,7 @@ export class ChangesService {
         workDir: path.join(this.options.workDirectory, sessionId),
         watcher: null,
         lastChanges: [],
+        mergeBase: null,
       };
       this.sessions.set(sessionId, entry);
     }
@@ -186,12 +202,18 @@ export class ChangesService {
             else own.push({ ...change, path: folder });
           }
         }
-        if (base === 'session' && state.baseTree) {
+        const from =
+          base === 'session'
+            ? state.baseTree
+            : base === 'branchBase' && prefix === ''
+              ? entry.mergeBase
+              : null;
+        if (from) {
           state.currentTree = await snapshotTree(
             repoRoot,
             this.indexFile(entry, prefix, 'current'),
           );
-          own = (await treeChanges(repoRoot, state.baseTree, state.currentTree)).filter(
+          own = (await treeChanges(repoRoot, from, state.currentTree)).filter(
             (change) => !nested.includes(change.path),
           );
         }
@@ -262,7 +284,11 @@ export class ChangesService {
     sessionId: string,
     cwd: string,
     base: DiffBase,
-    options: { watch?: boolean } = {},
+    options: {
+      watch?: boolean;
+      /** The base of the branch, for a session in a copy of the repository. */
+      branchBase?: string;
+    } = {},
   ): Promise<GitOverview> {
     const entry = this.entry(sessionId, cwd);
     // Without git the panel still lists the files of the folder, and follows them.
@@ -304,8 +330,17 @@ export class ChangesService {
 
     const hasSessionBase = () =>
       entry.active.some((prefix) => entry.repos.get(prefix)?.baseTree != null);
-    const useSession = base === 'session' && hasSessionBase();
-    const { changes, repos } = await this.scan(entry, useSession ? 'session' : 'head');
+    entry.mergeBase =
+      options.branchBase && entry.inRepository
+        ? await mergeBase(entry.root, options.branchBase).catch(() => null)
+        : null;
+    const used: DiffBase =
+      base === 'session' && hasSessionBase()
+        ? 'session'
+        : base === 'branchBase' && entry.mergeBase
+          ? 'branchBase'
+          : 'head';
+    const { changes, repos } = await this.scan(entry, used);
     entry.lastChanges = changes;
     // The branch only matters to tell repositories apart.
     if (repos.length > 1) {
@@ -323,8 +358,9 @@ export class ChangesService {
       root: entry.root,
       changes,
       repos,
-      base: useSession ? 'session' : 'head',
+      base: used,
       hasSessionBase: hasSessionBase(),
+      hasBranchBase: entry.mergeBase !== null,
     };
   }
 
@@ -389,9 +425,11 @@ export class ChangesService {
     const treeish =
       base === 'session' && repo.baseTree
         ? repo.baseTree
-        : (await hasHead(repo.root))
-          ? 'HEAD'
-          : null;
+        : base === 'branchBase' && repo.prefix === '' && entry.mergeBase
+          ? entry.mergeBase
+          : (await hasHead(repo.root))
+            ? 'HEAD'
+            : null;
     return { ...(await fileDiff(repo.root, change, treeish)), path: file };
   }
 
@@ -406,6 +444,69 @@ export class ChangesService {
     const root = entry?.root ?? entry?.browseRoot;
     if (!root) throw new UserError('error.panel.notOpen');
     return saveWorkingTreeFile(root, file, content, expected);
+  }
+
+  /**
+   * The repository a path of the panel is in, and the path inside it. Only paths the panel lists
+   * (or could list) are taken: the panel must be open for the session.
+   */
+  private target(sessionId: string, file: string): { repo: RepoState; inside: string } {
+    const entry = this.sessions.get(sessionId);
+    if (!entry?.root) throw new UserError('error.panel.notOpen');
+    const repo = this.repoOf(entry, file);
+    if (!repo) throw new UserError('error.git.notInRepo', { file });
+    return { repo, inside: repo.prefix ? file.slice(repo.prefix.length + 1) : file };
+  }
+
+  private byRepo(sessionId: string, files: string[]): Map<RepoState, string[]> {
+    const groups = new Map<RepoState, string[]>();
+    for (const file of files) {
+      const { repo, inside } = this.target(sessionId, file);
+      groups.set(repo, [...(groups.get(repo) ?? []), inside]);
+    }
+    return groups;
+  }
+
+  /** Puts the changes of these files in the index of their repositories. */
+  async stage(sessionId: string, files: string[]): Promise<void> {
+    for (const [repo, inside] of this.byRepo(sessionId, files)) await stage(repo.root, inside);
+    this.options.onChange(sessionId);
+  }
+
+  async unstage(sessionId: string, files: string[]): Promise<void> {
+    for (const [repo, inside] of this.byRepo(sessionId, files)) await unstage(repo.root, inside);
+    this.options.onChange(sessionId);
+  }
+
+  /** Commits what is staged in one repository of the session: `''` is the one at its root. */
+  async commit(sessionId: string, repoPath: string, message: string): Promise<CommitResult> {
+    const entry = this.sessions.get(sessionId);
+    if (!entry?.root) throw new UserError('error.panel.notOpen');
+    const repo = entry.active.includes(repoPath) ? entry.repos.get(repoPath) : undefined;
+    if (!repo) throw new UserError('error.git.notInRepo', { file: repoPath });
+    const result = await commit(repo.root, message);
+    this.options.onChange(sessionId);
+    return result;
+  }
+
+  /** Discards the changes of one file, keeping a copy of it in `trashDir` first. */
+  async discard(sessionId: string, file: string, trashDir: string): Promise<DiscardRecord> {
+    const { repo, inside } = this.target(sessionId, file);
+    const known = this.sessions.get(sessionId)!.lastChanges.find((c) => c.path === file);
+    const origPath =
+      known?.kind === 'renamed' && known.origPath
+        ? repo.prefix
+          ? known.origPath.slice(repo.prefix.length + 1)
+          : known.origPath
+        : undefined;
+    const record = await discard(repo.root, inside, trashDir, origPath);
+    this.options.onChange(sessionId);
+    return record;
+  }
+
+  async undoDiscard(sessionId: string, id: string, trashDir: string): Promise<void> {
+    await undoDiscard(trashDir, id);
+    this.options.onChange(sessionId);
   }
 
   /** Stops watching; the snapshot of the session start is kept. */

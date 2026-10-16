@@ -371,6 +371,102 @@ describe('SessionManager', () => {
     it('is refused when the agent is not running', () => {
       const s = create();
       expect(() => manager.paste(s.id, 'oi')).toThrow(UserError);
+      expect(() => manager.sendText(s.id, 'oi', { submit: false })).toThrow(UserError);
+    });
+  });
+
+  describe('prompts sent to agents', () => {
+    const PASTE = (text: string) => `\x1b[200~${text}\x1b[201~`;
+
+    it('go at once to a free agent, wait for the turn of a busy one, and can be cancelled', async () => {
+      const free = create('Livre');
+      const busy = create('Ocupada');
+      const dropped = create('Cancelada');
+      for (const s of [free, busy, dropped]) manager.start(s.id, SIZE);
+      for (const s of [free, busy, dropped]) await until(s.id, 'aguardando');
+      manager.input(busy.id, 'work\r');
+      manager.input(dropped.id, 'work\r');
+      await until(busy.id, 'trabalhando');
+      await until(dropped.id, 'trabalhando');
+
+      // Recorded, and still written: the fake agent ignores a line it does not know.
+      const write = vi.spyOn(ptys, 'write');
+      const sent = (id: string) => write.mock.calls.filter(([to]) => to === id).map(([, d]) => d);
+
+      expect(manager.sendText(free.id, 'revise\no diff', { submit: false })).toBe('sent');
+      expect(manager.sendText(busy.id, 'rode os testes', { submit: false })).toBe('queued');
+      expect(manager.sendText(dropped.id, 'nunca', { submit: false })).toBe('queued');
+      expect(sent(free.id)).toEqual([PASTE('revise ⏎ o diff')]);
+      expect(sent(busy.id)).toEqual([]);
+      const pending = () => manager.list().map((s) => [s.name, s.pendingSends]);
+      expect(pending()).toEqual([
+        ['Livre', undefined],
+        ['Ocupada', 1],
+        ['Cancelada', 1],
+      ]);
+
+      manager.cancelPending(dropped.id);
+      await until(busy.id, 'terminou');
+      await until(dropped.id, 'terminou');
+      expect(sent(busy.id)).toEqual([PASTE('rode os testes')]);
+      expect(sent(dropped.id)).toEqual([]);
+      expect(pending()).toEqual([
+        ['Livre', undefined],
+        ['Ocupada', undefined],
+        ['Cancelada', undefined],
+      ]);
+      write.mockRestore();
+    });
+
+    it('press Enter a moment after the paste when asked, and wait for nothing when told to', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      manager.input(s.id, 'work\r');
+      await until(s.id, 'trabalhando');
+      const write = vi.spyOn(ptys, 'write').mockImplementation(() => {});
+
+      expect(manager.sendText(s.id, 'já', { submit: true, now: true })).toBe('sent');
+      expect(write.mock.calls).toEqual([[s.id, PASTE('já')]]);
+      await waitFor(() => write.mock.calls.length === 2);
+      expect(write.mock.calls[1]).toEqual([s.id, '\r']);
+      write.mockRestore();
+    });
+
+    it('release one submitted text per turn, in order, and are dropped when the agent exits', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      manager.input(s.id, 'work\r');
+      await until(s.id, 'trabalhando');
+      const write = vi.spyOn(ptys, 'write').mockImplementation(() => {});
+      manager.sendText(s.id, 'primeiro', { submit: false });
+      manager.sendText(s.id, 'segundo', { submit: true });
+      manager.sendText(s.id, 'terceiro', { submit: true });
+      await until(s.id, 'terminou');
+      await waitFor(() => write.mock.calls.some(([, data]) => data === '\r'));
+      // The third would land in the middle of the turn the second starts.
+      expect(write.mock.calls.map(([, data]) => data)).toEqual([
+        PASTE('primeiro'),
+        PASTE('segundo'),
+        '\r',
+      ]);
+      expect(manager.list()[0]!.pendingSends).toBe(1);
+      write.mockRestore();
+
+      manager.input(s.id, 'exit 0\r');
+      await until(s.id, 'terminou');
+      await waitFor(() => !manager.isRunning(s.id));
+      expect(manager.list()[0]!.pendingSends).toBeUndefined();
+    });
+
+    it('wait while the agent asks for a permission, where a paste would answer it', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      manager.input(s.id, 'perm\r');
+      await waitFor(() => manager.statusOf(s.id).detail === 'Bash');
+      expect(manager.sendText(s.id, 'depois', { submit: false })).toBe('queued');
     });
   });
 

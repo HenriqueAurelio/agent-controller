@@ -1,6 +1,6 @@
 # Terminal auxiliar
 
-- **Estado:** proposta, escolhida para a primeira leva.
+- **Estado:** implementada ([ADR 0016](../../../adr/0016-terminal-auxiliar.md)). O atalho de fábrica ficou `Ctrl+Shift+"` (a tecla `'` com `Shift`, que é o que o teclado entrega nos layouts US e ABNT2), com `Ctrl+Shift+'` como segundo.
 - **ADR:** nova; revê dois itens que a [ADR 0007](../../../adr/0007-escopo-do-v1.md) deixou de fora (shell puro e divisão de tela), só no formato descrito aqui.
 
 ## O problema

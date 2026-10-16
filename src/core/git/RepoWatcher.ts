@@ -15,6 +15,23 @@ export interface RepoWatcherOptions {
 const GIT_FOLDER = /(^|\/)\.git(\/|$)/;
 const GIT_RELEVANT = /(^|\/)\.git\/(HEAD|index|ORIG_HEAD|MERGE_HEAD|refs\/heads\/.*)$/;
 
+// In the private folder of a linked worktree, the same files, at its top.
+const WORKTREE_RELEVANT = /^(HEAD|index|ORIG_HEAD|MERGE_HEAD|logs\/HEAD)$/;
+
+/**
+ * The private git folder of a linked worktree (a copy made with `git worktree add`): its `.git` is
+ * a file that points there, and that is where its index and HEAD are. Null for anything else.
+ */
+export function linkedGitDir(root: string): string | null {
+  try {
+    const marker = fs.readFileSync(path.join(root, '.git'), 'utf8');
+    const match = /^gitdir:\s*(.+?)\s*$/m.exec(marker);
+    return match ? path.resolve(root, match[1]!) : null;
+  } catch {
+    return null;
+  }
+}
+
 function normalize(file: string): string {
   return file.split(path.sep).join('/');
 }
@@ -25,6 +42,8 @@ function normalize(file: string): string {
  */
 export class RepoWatcher {
   private watcher: fs.FSWatcher | null = null;
+  /** For a linked worktree: its private git folder, outside the watched one. */
+  private gitWatcher: fs.FSWatcher | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private pending = new Set<string>();
   private overflow = false;
@@ -46,7 +65,31 @@ export class RepoWatcher {
     } catch {
       // The folder is gone or cannot be watched; the manual refresh still works.
       this.watcher = null;
+      return;
     }
+    // A commit in a copy moves its index and its reflog, which live in the repository it came
+    // from: without this, the panel would not see it.
+    const gitDir = linkedGitDir(this.options.root);
+    if (!gitDir) return;
+    try {
+      this.gitWatcher = fs.watch(gitDir, { recursive: true }, (_event, file) => {
+        const name = file ? normalize(file.toString()) : null;
+        if (name !== null && !WORKTREE_RELEVANT.test(name)) return;
+        this.overflow = true;
+        this.schedule();
+      });
+      this.gitWatcher.on('error', () => {
+        this.gitWatcher?.close();
+        this.gitWatcher = null;
+      });
+    } catch {
+      this.gitWatcher = null;
+    }
+  }
+
+  private schedule(): void {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => void this.flush(), this.debounceMs);
   }
 
   private onEvent(file: string | null): void {
@@ -60,8 +103,7 @@ export class RepoWatcher {
     } else {
       this.pending.add(file);
     }
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => void this.flush(), this.debounceMs);
+    this.schedule();
   }
 
   private async flush(): Promise<void> {
@@ -83,5 +125,7 @@ export class RepoWatcher {
     this.pending.clear();
     this.watcher?.close();
     this.watcher = null;
+    this.gitWatcher?.close();
+    this.gitWatcher = null;
   }
 }

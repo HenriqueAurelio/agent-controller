@@ -1,6 +1,6 @@
 # Worktree por sessão
 
-- **Estado:** proposta, escolhida para a primeira leva.
+- **Estado:** implementada ([ADR 0017](../../../adr/0017-sessoes-em-worktree.md)). Dois ajustes no caminho: a pasta das cópias e o comando de preparação ficam no `sessions.json`, não nas preferências (não vão na exportação), e o vigia do painel passou a olhar a pasta privada da cópia dentro do `.git` de origem, onde ficam o índice e o HEAD dela.
 - **ADR:** nova, "Sessões em worktree"; emenda a 0012 (o app passa a criar e remover worktrees, que são operações do git).
 
 ## O problema

@@ -467,6 +467,12 @@ test.describe('see changes', () => {
       'data-path',
       'adicionado.txt',
     );
+    // What is staged comes first ("Para o commit"), the rest after.
+    await page.keyboard.press('ArrowDown');
+    await expect(panel.locator('.change-item.selected')).toHaveAttribute(
+      'data-path',
+      'renomeado.txt',
+    );
     await page.keyboard.press('ArrowDown');
     await expect(panel.locator('.change-item.selected')).toHaveAttribute('data-path', 'criado.txt');
     await expect(panel.locator('.diff-note')).toHaveText('Arquivo novo');

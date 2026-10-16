@@ -1,6 +1,6 @@
 # Operações de git no painel
 
-- **Estado:** proposta, para discutir. A [ADR 0012](../../../adr/0012-see-changes-permite-editar.md) recusou essa ideia ("é outro produto, e descartar apaga trabalho sem volta"). Esta proposta só faz sentido se aquela razão for revista.
+- **Estado:** implementada, a proposta completa ([ADR 0018](../../../adr/0018-operacoes-de-git-no-painel.md), que substitui a parte da [ADR 0012](../../../adr/0012-see-changes-permite-editar.md) sobre operações de git). O descarte usa `git reset` + `git checkout` em vez de `git restore`, que exige git 2.23.
 - **ADR:** nova, que substitui a parte da 0012 sobre operações de git.
 
 ## O problema

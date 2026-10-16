@@ -15,6 +15,10 @@ interface Props {
   onEditGroup(group?: SessionGroup): void;
   /** The keyboard goes back to the terminal after an action in the list. */
   onDone(): void;
+  /** Sessions picked with Ctrl+click, to send a prompt to all of them. */
+  marked: string[];
+  onMarkedChange(ids: string[]): void;
+  onSendPrompt(ids: string[]): void;
 }
 
 type Dragging = { kind: 'session'; id: string } | { kind: 'group'; id: string };
@@ -63,6 +67,9 @@ export function Sidebar({
   onDuplicate,
   onEditGroup,
   onDone,
+  marked,
+  onMarkedChange,
+  onSendPrompt,
 }: Props) {
   const sessions = useAppState((s) => s.sessions);
   const groups = useAppState((s) => s.groups);
@@ -228,7 +235,9 @@ export function Sidebar({
           session.id === selectedId ? 'selected' : '',
           dropTarget === session.id ? 'drop-target' : '',
           dragging?.id === session.id ? 'dragging' : '',
+          marked.includes(session.id) ? 'marked' : '',
         ].join(' ')}
+        data-marked={marked.includes(session.id) || undefined}
         draggable={renaming !== session.id}
         onDragStart={(e) => {
           e.stopPropagation();
@@ -247,7 +256,18 @@ export function Sidebar({
           e.stopPropagation();
           onDropOnSession(e, session);
         }}
-        onClick={() => {
+        onClick={(e) => {
+          if (e.ctrlKey || e.metaKey) {
+            // The session in sight counts as picked: Ctrl+click adds the others to it.
+            const start = marked.length === 0 && selectedId ? [selectedId] : marked;
+            onMarkedChange(
+              start.includes(session.id)
+                ? start.filter((id) => id !== session.id)
+                : [...start, session.id],
+            );
+            return;
+          }
+          onMarkedChange([]);
           store.select(session.id);
           onDone();
         }}
@@ -284,6 +304,21 @@ export function Sidebar({
             </span>
             {session.checks && <ChecksBadge summary={session.checks} />}
           </span>
+          {session.pendingSends ? (
+            <span className="pending-send" data-testid="pending-send">
+              {t('sidebar.pendingSend', { count: session.pendingSends })}
+              <button
+                className="link-button"
+                aria-label={t('sidebar.cancelSend', { name: session.name })}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void window.api.invoke('terminal:cancelSend', session.id);
+                }}
+              >
+                {t('common.cancel')}
+              </button>
+            </span>
+          ) : null}
           {m && (
             <span
               className={`session-metrics ${showHeaviest && heaviest === session.id ? 'heaviest' : ''}`}
@@ -481,6 +516,15 @@ export function Sidebar({
         {ungrouped.map(renderSession)}
         {groups.map(renderGroup)}
       </ul>
+      {marked.length > 0 && (
+        <div className="marked-bar" role="status">
+          <span>{t('sidebar.marked', { count: marked.length })}</span>
+          <button className="primary" onClick={() => onSendPrompt(marked)}>
+            {t('sidebar.sendPrompt')}
+          </button>
+          <button onClick={() => onMarkedChange([])}>{t('sidebar.unmark')}</button>
+        </div>
+      )}
       <button
         className="new-session-button"
         onClick={() => onNew()}

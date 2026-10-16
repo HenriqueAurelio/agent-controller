@@ -5,10 +5,15 @@ import { sanitizeAgentCommand } from '@shared/agents';
 import type { ChecksSummary } from '@shared/checks';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import type { Preferences } from '@shared/prefs';
+import type { SendOutcome, SendTextOptions } from '@shared/prompts';
 import {
+  AUX_SCROLLBACK,
+  auxTerminalId,
+  initialStatus,
+  isBusyForText,
+  parseTerminalId,
   GROUP_NAME_LIMIT,
   GROUPS_LIMIT,
-  initialStatus,
   type GroupUpdate,
   type HooksMode,
   type NewSessionInput,
@@ -17,15 +22,31 @@ import {
   type SessionStatus,
   type SessionView,
   type Signal,
+  type WorktreeOnClose,
   type TerminalSize,
 } from '@shared/session';
-import { createAdapter, getProfile, type AgentAdapter, type LaunchCommand } from '../agents';
+import {
+  createAdapter,
+  getProfile,
+  interactiveShell,
+  type AgentAdapter,
+  type LaunchCommand,
+} from '../agents';
+import { repositoryRoot } from '../git/GitService';
+import {
+  checkBranchName,
+  createWorktree,
+  removeWorktree,
+  suggestWorktreeFolder,
+} from '../git/WorktreeService';
 import { ScreenHistory } from '../history/ScreenHistory';
 import type { PtyManager } from '../pty/PtyManager';
 import { toLongPath } from '../pty/longPath';
 import type { HookMessage } from '../signals/HookServer';
 import { SilenceDetector } from '../signals/SilenceDetector';
+import { folderKey } from '../store/recentFolders';
 import { StreamParser } from '../signals/StreamParser';
+import { runInShell, type RunResult } from '../tools/ToolRunner';
 import { SignalAggregator } from './SignalAggregator';
 
 export interface TerminalSnapshotData {
@@ -59,16 +80,34 @@ export interface SessionManagerOptions {
   prefs: Preferences;
   /** How to open the agent of a session. Throws with a message for the user when it cannot. */
   resolveLaunch: (session: Session) => LaunchCommand;
+  /** The shell for the terminal beside the agent. Default: the user's own. */
+  resolveAuxShell?: (session: Session) => LaunchCommand;
   /** Called (debounced) whenever what is persisted changed. */
   persist: (sessions: Session[], selectedId: string | null, groups: SessionGroup[]) => void;
+  /** How the command that prepares a new copy runs. The default is the user's shell. */
+  runSetup?: (command: string, cwd: string) => Promise<RunResult>;
   now?: () => number;
 }
 
-interface Runtime {
+/** How a session in a copy of its repository is made. */
+export interface WorktreeCreation {
+  /** The folder the copies of every repository go into. */
+  parent: string;
+  /** Run once in the new copy, in the user's shell, before the session exists (`npm ci`). */
+  setup?: string;
+}
+
+export const SETUP_TIMEOUT_MS = 15 * 60 * 1000;
+/** Lines of the output of a setup that failed that the error carries. */
+const SETUP_ERROR_LINES = 15;
+
+const defaultSetup = (command: string, cwd: string): Promise<RunResult> =>
+  // Tools print less color and no prompts when they know nobody is at the keyboard.
+  runInShell(command, { cwd, env: { ...process.env, CI: '1' }, timeoutMs: SETUP_TIMEOUT_MS });
+
+/** A process in a PTY as the renderer sees it: its screen, and what is on the way to it. */
+interface Stream {
   history: ScreenHistory;
-  parser: StreamParser;
-  adapter: AgentAdapter;
-  silence: SilenceDetector;
   running: boolean;
   stopRequested: boolean;
   /** `pending`: an attach is waiting for the history to catch up. */
@@ -82,16 +121,32 @@ interface Runtime {
   paused: boolean;
 }
 
+interface PendingSend {
+  text: string;
+  submit: boolean;
+}
+
+/** The agent's process, plus what reads its signals. */
+interface Runtime extends Stream {
+  parser: StreamParser;
+  adapter: AgentAdapter;
+  silence: SilenceDetector;
+}
+
 interface Entry {
   session: Session;
   aggregator: SignalAggregator;
   hooks: HooksMode;
   unread: boolean;
   checks?: ChecksSummary;
+  /** Texts the user sent while the agent worked: they go when the turn ends, in order. */
+  pending: PendingSend[];
   /** A visual terminal exists for this session, whether or not the agent is running. */
   mounted: boolean;
   visible: boolean;
   runtime: Runtime | null;
+  /** The plain shell beside the agent, while it is open. No signals, no state of its own. */
+  aux: Stream | null;
 }
 
 const DEFAULT_SIZE: TerminalSize = { cols: 100, rows: 30 };
@@ -99,6 +154,11 @@ const DEFAULT_SIZE: TerminalSize = { cols: 100, rows: 30 };
 export const FOREGROUND_FLUSH_MS = 8;
 export const BACKGROUND_FLUSH_MS = 250;
 const FLUSH_NOW_CHARS = 128 * 1024;
+/**
+ * Between a paste and the Enter that sends it. Where ConPTY drops the paste markers, an Enter in
+ * the same burst of keys reads as a line break inside the paste.
+ */
+export const SUBMIT_DELAY_MS = 200;
 // Backpressure thresholds, in characters waiting on the renderer plus the history.
 export const HIGH_WATER = 256 * 1024;
 export const LOW_WATER = 32 * 1024;
@@ -143,9 +203,11 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       aggregator: new SignalAggregator({ priorities: getProfile(session.profile).priorities }),
       hooks: 'unknown',
       unread: false,
+      pending: [],
       mounted: false,
       visible: false,
       runtime: null,
+      aux: null,
     };
   }
 
@@ -160,6 +222,8 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       hooks: entry.hooks,
       unread: entry.unread,
       ...(entry.checks && { checks: entry.checks }),
+      ...(entry.pending.length > 0 && { pendingSends: entry.pending.length }),
+      ...(entry.aux && { auxOpen: true }),
     };
   }
 
@@ -218,12 +282,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   }
 
   create(input: NewSessionInput): SessionView {
-    const name = input.name.trim();
-    if (!name) throw new UserError('error.session.noName');
-    const cwd = this.folder(input.cwd);
-    getProfile(input.profile); // Throws on an unknown profile.
-    const command = sanitizeAgentCommand(input.command);
-    const groupId = input.groupId ? this.group(input.groupId).id : undefined;
+    const { name, cwd, command, groupId } = this.checkInput(input);
 
     const session: Session = {
       id: randomUUID(),
@@ -241,6 +300,67 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.selectedId = session.id;
     this.changed(true);
     return this.view(entry);
+  }
+
+  /** What a new session would refuse, checked before anything is created for it. */
+  private checkInput(input: NewSessionInput) {
+    const name = input.name.trim();
+    if (!name) throw new UserError('error.session.noName');
+    const cwd = this.folder(input.cwd);
+    getProfile(input.profile); // Throws on an unknown profile.
+    // A group that is gone throws here, before any copy of the repository is made for it.
+    const groupId = input.groupId ? this.group(input.groupId).id : undefined;
+    return { name, cwd, command: sanitizeAgentCommand(input.command), groupId };
+  }
+
+  /**
+   * A session in a new copy of the repository of `input.cwd` (`git worktree`), on a new branch.
+   * The copy is made, and prepared when there is a command for it, before the session exists:
+   * when either fails, there is no session and the error says why.
+   */
+  async createInWorktree(input: NewSessionInput, creation: WorktreeCreation): Promise<SessionView> {
+    const wanted = input.worktree;
+    if (!wanted) return this.create(input);
+    const { cwd } = this.checkInput(input);
+    const repoRoot = await repositoryRoot(cwd);
+    if (!repoRoot) throw new UserError('error.worktree.notRepo', { folder: cwd });
+    const branch = await checkBranchName(repoRoot, wanted.branch);
+    const created = await createWorktree({
+      repo: repoRoot,
+      branch,
+      base: wanted.base,
+      folder: suggestWorktreeFolder(creation.parent, repoRoot, branch),
+    });
+    const setup = creation.setup?.trim();
+    if (setup) {
+      const result = await (this.options.runSetup ?? defaultSetup)(setup, created.folder);
+      if (result.exitCode !== 0 || result.timedOut || result.error !== undefined) {
+        const output = (result.error ?? result.output).trimEnd().split('\n');
+        // The copy and its branch stay: nothing is deleted without being asked.
+        throw new UserError('error.worktree.setupFailed', {
+          command: setup,
+          folder: created.folder,
+          output: output.slice(-SETUP_ERROR_LINES).join('\n'),
+        });
+      }
+    }
+    const view = this.create({ ...input, cwd: created.folder, worktree: undefined });
+    const entry = this.entries.get(view.id)!;
+    entry.session = {
+      ...entry.session,
+      worktree: { repoRoot: created.repoRoot, branch: created.branch, base: created.base },
+    };
+    this.changed(true);
+    return this.view(entry);
+  }
+
+  /** Other sessions working in the same folder: a copy they share is not removed under them. */
+  sharing(id: string): Session[] {
+    const cwd = this.entries.get(id)?.session.cwd;
+    if (!cwd) return [];
+    return [...this.entries.values()]
+      .filter((e) => e.session.id !== id && folderKey(e.session.cwd) === folderKey(cwd))
+      .map((e) => e.session);
   }
 
   /** The folder as a session keeps it. Throws a `UserError` when it cannot be one. */
@@ -289,7 +409,8 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     const folder = this.folder(cwd);
     if (folder === entry.session.cwd) return false;
     const wasRunning = entry.runtime?.running ?? false;
-    await this.stop(id);
+    // The shell beside the agent is in the old folder too.
+    await Promise.all([this.stop(id), this.closeAux(id)]);
     if (this.entries.get(id) !== entry) return false; // Closed in the meantime.
     entry.session = { ...entry.session, cwd: folder };
     this.changed(true);
@@ -447,10 +568,22 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     return this.windowFocused && this.selectedId === id;
   }
 
-  async remove(id: string): Promise<void> {
+  /**
+   * Closes a session. For one in a copy of its repository, `worktree: 'remove'` also removes the
+   * copy, but only when nothing in it is uncommitted and no other session works in it; otherwise
+   * it throws, and the session stays (stopped). The branch is never deleted.
+   */
+  async remove(id: string, options: { worktree?: WorktreeOnClose } = {}): Promise<void> {
     const entry = this.entries.get(id);
     if (!entry) return;
-    await this.stop(id);
+    if (options.worktree === 'remove' && entry.session.worktree) {
+      const other = this.sharing(id)[0];
+      if (other) throw new UserError('error.worktree.inUse', { name: other.name });
+    }
+    await Promise.all([this.stop(id), this.closeAux(id)]);
+    if (options.worktree === 'remove' && entry.session.worktree) {
+      await removeWorktree(entry.session.cwd);
+    }
     this.disposeRuntime(entry);
     this.entries.delete(id);
     const index = this.order.indexOf(id);
@@ -466,6 +599,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.prefs = prefs;
     for (const entry of this.entries.values()) {
       entry.runtime?.history.setScrollback(prefs.scrollback);
+      entry.aux?.history.setScrollback(Math.min(prefs.scrollback, AUX_SCROLLBACK));
       entry.runtime?.silence.setWindow(prefs.silenceSeconds * 1000);
     }
   }
@@ -553,7 +687,76 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   }
 
   async stopAll(graceMs?: number): Promise<void> {
-    await Promise.all(this.order.map((id) => this.stop(id, graceMs)));
+    await Promise.all(this.order.flatMap((id) => [this.stop(id, graceMs), this.closeAux(id)]));
+  }
+
+  // ---- the shell beside the agent ---------------------------------------------------------------
+
+  /**
+   * Opens a plain shell of the user in the folder of the session, beside its agent. It has no
+   * adapter and no signals: what is typed into it never reaches the agent, nor its state.
+   */
+  openAux(id: string, size: TerminalSize = DEFAULT_SIZE): void {
+    const entry = this.entries.get(id);
+    if (!entry || entry.aux) return;
+    const stream: Stream = {
+      history: new ScreenHistory({
+        ...size,
+        scrollback: Math.min(this.prefs.scrollback, AUX_SCROLLBACK),
+      }),
+      running: false,
+      stopRequested: false,
+      attached: 'no',
+      visible: false,
+      buffer: [],
+      bufferedChars: 0,
+      flushTimer: null,
+      unacked: 0,
+      paused: false,
+    };
+    const auxId = auxTerminalId(id);
+    stream.history.onReply((reply) => {
+      if (stream.attached === 'no' && stream.running) this.options.ptys.write(auxId, reply);
+    });
+    try {
+      const launch = this.options.resolveAuxShell?.(entry.session) ?? interactiveShell();
+      this.options.ptys.create({
+        id: auxId,
+        file: launch.file,
+        args: launch.args,
+        env: launch.env,
+        cwd: entry.session.cwd,
+        cols: size.cols,
+        rows: size.rows,
+      });
+    } catch (err) {
+      stream.history.dispose();
+      throw new UserError('error.aux.startFailed', {
+        error: errorText(this.prefs.language, err),
+      });
+    }
+    stream.running = true;
+    entry.aux = stream;
+    this.changed();
+  }
+
+  /** Ends the shell beside the agent, and whatever it started. */
+  async closeAux(id: string): Promise<void> {
+    const entry = this.entries.get(id);
+    const stream = entry?.aux;
+    if (!entry || !stream) return;
+    stream.stopRequested = true;
+    // A shell does not leave on Ctrl+C: the tree goes at once.
+    await this.options.ptys.kill(auxTerminalId(id), { graceMs: 0 });
+    this.disposeAux(entry, stream);
+  }
+
+  private disposeAux(entry: Entry, stream: Stream): void {
+    if (entry.aux !== stream) return;
+    if (stream.flushTimer) clearTimeout(stream.flushTimer);
+    stream.history.dispose();
+    entry.aux = null;
+    this.changed();
   }
 
   private disposeRuntime(entry: Entry): void {
@@ -567,11 +770,20 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   }
 
   private readonly onPtyExit = (id: string, exit: { exitCode: number }): void => {
+    const target = parseTerminalId(id);
+    if (target.aux) {
+      // The user left the shell (`exit`): it closes, as a terminal window would.
+      const entry = this.entries.get(target.sessionId);
+      if (entry?.aux) this.disposeAux(entry, entry.aux);
+      return;
+    }
     const entry = this.entries.get(id);
     const runtime = entry?.runtime;
     if (!entry || !runtime) return;
     runtime.running = false;
     runtime.paused = false;
+    // Nobody is left to receive them.
+    entry.pending = [];
     runtime.adapter.dispose();
     runtime.silence.dispose();
     this.writeNotice(
@@ -627,6 +839,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       entry.unread = true;
     }
     if (next.state === 'trabalhando' || next.state === 'parada') entry.unread = false;
+    this.releasePending(entry);
     this.changed();
     this.emit('transition', { session: this.view(entry), previous });
     return true;
@@ -639,7 +852,30 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
 
   // ---- terminal stream ----------------------------------------------------------------------------
 
+  /**
+   * The stream behind a terminal id: the agent's, or the shell's beside it. `mounted` and
+   * `visible` of the entry are the agent's terminal only.
+   */
+  private streamOf(id: string): { entry: Entry; stream: Stream | null; aux: boolean } | null {
+    const target = parseTerminalId(id);
+    const entry = this.entries.get(target.sessionId);
+    if (!entry) return null;
+    return { entry, stream: target.aux ? entry.aux : entry.runtime, aux: target.aux };
+  }
+
+  /** Whether a terminal id stands for something that exists: a session, or its open shell. */
+  hasTerminal(id: string): boolean {
+    const found = this.streamOf(id);
+    return found !== null && (!found.aux || found.stream !== null);
+  }
+
   private readonly onPtyData = (id: string, chunk: string): void => {
+    const target = parseTerminalId(id);
+    if (target.aux) {
+      const aux = this.entries.get(target.sessionId)?.aux;
+      if (aux) this.deliver(id, aux, chunk);
+      return;
+    }
     const runtime = this.entries.get(id)?.runtime;
     if (!runtime) return;
     // The signal parser reads everything, with no throttling, whatever the terminal is doing.
@@ -650,7 +886,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.deliver(id, runtime, chunk);
   };
 
-  private deliver(id: string, runtime: Runtime, chunk: string): void {
+  private deliver(id: string, runtime: Stream, chunk: string): void {
     runtime.history.write(chunk, () => this.relieve(id, runtime));
     if (runtime.attached !== 'no') {
       runtime.buffer.push(chunk);
@@ -660,7 +896,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.applyPressure(id, runtime);
   }
 
-  private scheduleFlush(id: string, runtime: Runtime): void {
+  private scheduleFlush(id: string, runtime: Stream): void {
     if (runtime.bufferedChars >= FLUSH_NOW_CHARS) {
       this.flush(id, runtime);
       return;
@@ -672,7 +908,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     );
   }
 
-  private flush(id: string, runtime: Runtime): void {
+  private flush(id: string, runtime: Stream): void {
     if (runtime.flushTimer) clearTimeout(runtime.flushTimer);
     runtime.flushTimer = null;
     if (runtime.attached !== 'yes' || runtime.buffer.length === 0) return;
@@ -684,11 +920,11 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.applyPressure(id, runtime);
   }
 
-  private pressure(runtime: Runtime): number {
+  private pressure(runtime: Stream): number {
     return runtime.unacked + runtime.bufferedChars + runtime.history.pending;
   }
 
-  private applyPressure(id: string, runtime: Runtime): void {
+  private applyPressure(id: string, runtime: Stream): void {
     if (runtime.paused || !runtime.running) return;
     if (this.pressure(runtime) > HIGH_WATER) {
       runtime.paused = true;
@@ -696,7 +932,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     }
   }
 
-  private relieve(id: string, runtime: Runtime): void {
+  private relieve(id: string, runtime: Stream): void {
     if (!runtime.paused || this.pressure(runtime) > LOW_WATER) return;
     runtime.paused = false;
     this.options.ptys.resume(id);
@@ -704,7 +940,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
 
   /** The renderer finished drawing `chars` characters. */
   ack(id: string, chars: number): void {
-    const runtime = this.entries.get(id)?.runtime;
+    const runtime = this.streamOf(id)?.stream;
     if (!runtime) return;
     runtime.unacked = Math.max(0, runtime.unacked - chars);
     this.relieve(id, runtime);
@@ -715,10 +951,10 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
    * output is sent as `data` events, with nothing lost or duplicated in between.
    */
   async attach(id: string, size: TerminalSize): Promise<TerminalSnapshotData> {
-    const entry = this.entries.get(id);
-    if (!entry) return { data: '', ...size };
-    entry.mounted = true;
-    const runtime = entry.runtime;
+    const found = this.streamOf(id);
+    if (!found) return { data: '', ...size };
+    if (!found.aux) found.entry.mounted = true;
+    const runtime = found.stream;
     if (!runtime) return { data: '', ...size };
     this.resize(id, size);
     runtime.buffer = [];
@@ -728,7 +964,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     // will not be part of the snapshot.
     runtime.attached = 'pending';
     await runtime.history.flush();
-    if (this.entries.get(id)?.runtime !== runtime) return { data: '', ...size };
+    if (this.streamOf(id)?.stream !== runtime) return { data: '', ...size };
     const snapshot = {
       data: runtime.history.serialize(),
       cols: runtime.history.cols,
@@ -740,11 +976,13 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   }
 
   detach(id: string): void {
-    const entry = this.entries.get(id);
-    if (!entry) return;
-    entry.mounted = false;
-    entry.visible = false;
-    const runtime = entry.runtime;
+    const found = this.streamOf(id);
+    if (!found) return;
+    if (!found.aux) {
+      found.entry.mounted = false;
+      found.entry.visible = false;
+    }
+    const runtime = found.stream;
     if (!runtime) return;
     if (runtime.flushTimer) clearTimeout(runtime.flushTimer);
     runtime.flushTimer = null;
@@ -758,17 +996,23 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
 
   /** Terminals mounted but not on screen are fed at a lower rate. */
   setVisible(id: string, visible: boolean): void {
-    const entry = this.entries.get(id);
-    if (!entry) return;
-    entry.visible = visible;
-    const runtime = entry.runtime;
+    const found = this.streamOf(id);
+    if (!found) return;
+    if (!found.aux) found.entry.visible = visible;
+    const runtime = found.stream;
     if (!runtime || runtime.visible === visible) return;
     runtime.visible = visible;
     if (visible) this.flush(id, runtime);
   }
 
   input(id: string, data: string): void {
-    const runtime = this.entries.get(id)?.runtime;
+    const found = this.streamOf(id);
+    if (found?.aux) {
+      // Straight to the shell: the agent and its state never see it.
+      if (found.stream?.running) this.options.ptys.write(id, data);
+      return;
+    }
+    const runtime = found?.entry.runtime;
     if (!runtime) return;
     if (!runtime.running) {
       // The way back for an agent that exited: there is no button for it.
@@ -808,15 +1052,66 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     runtime.adapter.onUserInput(line);
   }
 
+  /**
+   * Text the user asked to send to the agent: right away, or, while the agent is busy, when it
+   * finishes its turn. With `submit`, an Enter follows it, a moment later.
+   */
+  sendText(id: string, text: string, options: SendTextOptions): SendOutcome {
+    const entry = this.entries.get(id);
+    if (!entry) throw new UserError('error.session.notFound');
+    if (!entry.runtime?.running) throw new UserError('error.session.notRunning');
+    if (!options.now && (entry.pending.length > 0 || isBusyForText(entry.aggregator.status))) {
+      entry.pending.push({ text, submit: options.submit });
+      this.changed();
+      return 'queued';
+    }
+    this.deliverText(id, text, options.submit);
+    return 'sent';
+  }
+
+  /** Drops the texts waiting for the end of the turn. */
+  cancelPending(id: string): void {
+    const entry = this.entries.get(id);
+    if (!entry?.pending.length) return;
+    entry.pending = [];
+    this.changed();
+  }
+
+  private deliverText(id: string, text: string, submit: boolean): void {
+    this.paste(id, text);
+    if (!submit) return;
+    setTimeout(() => {
+      const runtime = this.entries.get(id)?.runtime;
+      if (!runtime?.running) return;
+      runtime.adapter.onUserInput('\r');
+      this.options.ptys.write(id, '\r');
+    }, SUBMIT_DELAY_MS);
+  }
+
+  /**
+   * The agent is free again: what was waiting goes, up to the first text that is submitted. The
+   * ones after it would land in the middle of the turn that one starts.
+   */
+  private releasePending(entry: Entry): void {
+    if (!entry.pending.length || !entry.runtime?.running) return;
+    if (isBusyForText(entry.aggregator.status)) return;
+    const id = entry.session.id;
+    while (entry.pending.length) {
+      const next = entry.pending.shift()!;
+      this.deliverText(id, next.text, next.submit);
+      if (next.submit) break;
+    }
+  }
+
   resize(id: string, size: TerminalSize): void {
-    const runtime = this.entries.get(id)?.runtime;
+    const runtime = this.streamOf(id)?.stream;
     if (!runtime) return;
     runtime.history.resize(size.cols, size.rows);
     if (runtime.running) this.options.ptys.resize(id, size.cols, size.rows);
   }
 
   async screenText(id: string): Promise<string> {
-    const runtime = this.entries.get(id)?.runtime;
+    const runtime = this.streamOf(id)?.stream;
     if (!runtime) return '';
     await runtime.history.flush();
     return runtime.history.screenText();
