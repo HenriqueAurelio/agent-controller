@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { createSession, launch, removeDir, screenText, setTitle, tempDir } from './harness';
+import {
+  createSession,
+  launch,
+  removeDir,
+  runInTerminal,
+  screenText,
+  setTitle,
+  tempDir,
+} from './harness';
 
 test('a saved prompt reaches three sessions, each with its own variables', async () => {
   test.setTimeout(180_000);
@@ -72,6 +80,8 @@ test('a prompt sent while the agent works waits for the end of the turn', async 
   try {
     const id = await createSession(page, 'Ocupada', folder);
     const item = page.locator('.session-item', { hasText: 'Ocupada' });
+    // The shell answers first: keys typed before it is up are lost on a slow machine.
+    await runInTerminal(page, id, 'echo pronta', 'pronta');
     // A spinner in the title, as Claude Code shows while it works.
     await setTitle(page, '◐ tarefa');
     await expect(item).toHaveAttribute('data-state', 'trabalhando', { timeout: 15_000 });

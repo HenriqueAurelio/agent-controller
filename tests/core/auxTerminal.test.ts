@@ -161,11 +161,26 @@ describe('the terminal beside the agent', () => {
     manager.openAux(s.id, SIZE);
     const aux = auxTerminalId(s.id);
     await run(aux, 'echo de-volta', 'de-volta');
-    const first = await manager.attach(aux, SIZE);
-    expect(first.data).toContain('de-volta');
-    manager.detach(aux);
+    // The shell prints its prompt a moment after the output: the screen settles first.
+    const screen = async () => {
+      const { data } = await manager.attach(aux, SIZE);
+      manager.detach(aux);
+      return data;
+    };
+    let first = await screen();
+    await waitFor(
+      async () => {
+        await sleep(300);
+        const now = await screen();
+        const settled = now === first;
+        first = now;
+        return settled;
+      },
+      { message: 'a tela do shell parar de mudar' },
+    );
+    expect(first).toContain('de-volta');
     const again = await manager.attach(aux, SIZE);
-    expect(again.data).toBe(first.data);
+    expect(again.data).toBe(first);
     // Attaching the shell does not count as mounting the agent's terminal.
     expect(manager.attachedCount()).toBe(0);
   });

@@ -100,7 +100,10 @@ export async function stop(page: Page, name: string) {
 export const screenText = (page: Page, sessionId: string) =>
   page.evaluate((id) => window.api.invoke('terminal:screenText', id), sessionId);
 
-/** Types into the visible terminal and waits for `expected` to show up on its screen. */
+/**
+ * Types into the visible terminal and waits for `expected` to show up on its screen. A line
+ * longer than the terminal is wrapped on screen, so the line breaks are not compared.
+ */
 export async function runInTerminal(
   page: Page,
   sessionId: string,
@@ -110,7 +113,11 @@ export async function runInTerminal(
   await page.locator('.terminal-host.visible').click();
   await page.keyboard.type(command);
   await page.keyboard.press('Enter');
-  await expect.poll(() => screenText(page, sessionId), { timeout: 20_000 }).toContain(expected);
+  await expect
+    .poll(async () => (await screenText(page, sessionId)).replace(/\r?\n/g, ''), {
+      timeout: 20_000,
+    })
+    .toContain(expected);
 }
 
 /** Sets the title of the test shell, which is what tells a working agent from an idle one. */
