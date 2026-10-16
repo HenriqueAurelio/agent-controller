@@ -113,6 +113,17 @@ export async function runInTerminal(
   await expect.poll(() => screenText(page, sessionId), { timeout: 20_000 }).toContain(expected);
 }
 
+/** Sets the title of the test shell, which is what tells a working agent from an idle one. */
+export async function setTitle(page: Page, title: string) {
+  await page.locator('.terminal-host.visible').click();
+  // Whatever a prompt left on the line goes away first.
+  await page.keyboard.press(process.platform === 'win32' ? 'Escape' : 'Control+U');
+  await page.keyboard.type(
+    process.platform === 'win32' ? `title ${title}` : `printf '\\033]0;%s\\007' '${title}'`,
+  );
+  await page.keyboard.press('Enter');
+}
+
 export function git(cwd: string, ...args: string[]): string {
   return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
