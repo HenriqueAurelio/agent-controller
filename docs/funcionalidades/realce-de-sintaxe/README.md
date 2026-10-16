@@ -1,7 +1,7 @@
 # Realce de sintaxe e temas de cores
 
 - **Estado:** implementada (2026-10-16).
-- **ADR:** [0015](../../../adr/0015-realce-textmate-e-temas.md), "Realce TextMate e temas de cores no painel", emendando a [0004](../../../adr/0004-diff-monaco-e-git-cli.md).
+- **ADR:** [0015](../../../adr/0019-realce-textmate-e-temas.md), "Realce TextMate e temas de cores no painel", emendando a [0004](../../../adr/0004-diff-monaco-e-git-cli.md).
 
 > **O que mudou em relação a esta proposta ao implementar:** a ponte com o Monaco é própria (`src/renderer/src/lib/highlight/textmate.ts`), porque a do `@shikijs/monaco` registra tudo na partida; o limite do TextMate ficou em 30 000 linhas (não 5 000), já que o Monaco colore a parte visível primeiro; a lista tem 33 temas; as preferências salvam na hora, como as outras; a paleta ganhou um comando por tema ("Tema do código: Nord") em vez de uma lista com prévia; e a meta de memória da ADR 0009 deixou de ser limite para esta funcionalidade, por decisão de 2026-10-16: o que conta é ficar mais leve que o VS Code e ser útil.
 

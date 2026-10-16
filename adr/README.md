@@ -7,10 +7,10 @@ Registro das decisões de arquitetura do agent-controller. Cada arquivo traz o c
 | [0001](0001-shell-do-app-tauri-2.md) | Shell do app: Tauri 2 | Substituída pela 0010 |
 | [0002](0002-terminal-xterm-e-node-pty.md) | Terminal: xterm.js + node-pty | Aceita |
 | [0003](0003-ui-react-typescript-vite.md) | UI: React + TypeScript + Vite | Aceita |
-| [0004](0004-diff-monaco-e-git-cli.md) | See changes: Monaco diff + binário git | Aceita, emendada pela 0012 e pela 0015 |
+| [0004](0004-diff-monaco-e-git-cli.md) | See changes: Monaco diff + binário git | Aceita, emendada pela 0012 e pela 0019 |
 | [0005](0005-deteccao-de-estado-em-tres-camadas.md) | Detecção de "terminou" e "tem dúvida" em três camadas | Aceita |
 | [0006](0006-persistencia-json-sem-daemon.md) | Persistência em JSON, sem daemon | Aceita |
-| [0007](0007-escopo-do-v1.md) | Escopo do v1 | Aceita, emendada pela 0013, pela 0014 e pela 0015 |
+| [0007](0007-escopo-do-v1.md) | Escopo do v1 | Aceita, emendada pela 0013, pela 0014 e pela 0019 |
 | [0008](0008-teste-em-linux-docker-e-wsl2.md) | Teste em Linux: Docker + WSL2 | Aceita |
 | [0009](0009-meta-de-consumo-de-recursos.md) | Meta de consumo de recursos | Aceita |
 | [0010](0010-shell-do-app-electron.md) | Shell do app: Electron | Aceita |
@@ -18,7 +18,7 @@ Registro das decisões de arquitetura do agent-controller. Cada arquivo traz o c
 | [0012](0012-see-changes-permite-editar.md) | "See changes" permite editar o arquivo | Aceita, emendada pela 0014 |
 | [0013](0013-comando-do-usuario-no-lugar-do-agente.md) | Comando do usuário no lugar do executável do agente | Aceita |
 | [0014](0014-verificacoes-ao-fim-do-turno.md) | Verificações do projeto ao fim do turno | Aceita |
-| [0015](0015-realce-textmate-e-temas.md) | Realce TextMate e temas de cores no painel de mudanças | Aceita |
+| [0019](0019-realce-textmate-e-temas.md) | Realce TextMate e temas de cores no painel de mudanças | Aceita |
 
 ## Status
 
