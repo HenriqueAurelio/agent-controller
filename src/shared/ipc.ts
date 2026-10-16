@@ -90,6 +90,14 @@ export interface IpcCommands {
     expected: string | null,
   ) => { saved: boolean };
   'git:count': (sessionId: string) => number | null;
+  /** Puts the changes of these files (paths of the panel) in the index. */
+  'git:stage': (sessionId: string, files: string[]) => void;
+  'git:unstage': (sessionId: string, files: string[]) => void;
+  /** Commits what is staged in one repository of the session (`''`: the one at its root). */
+  'git:commit': (sessionId: string, repo: string, message: string) => { commit: string };
+  /** Discards the changes of one file, after keeping a copy of it; the id gives it back. */
+  'git:discard': (sessionId: string, file: string) => { id: string };
+  'git:undoDiscard': (sessionId: string, id: string) => void;
   /** One folder of the session, relative to its root (the repository, or the session folder). */
   'files:list': (sessionId: string, dir: string, showHidden: boolean) => FileListing;
 
@@ -157,6 +165,11 @@ export const COMMAND_CHANNELS = [
   'git:diff',
   'git:save',
   'git:count',
+  'git:stage',
+  'git:unstage',
+  'git:commit',
+  'git:discard',
+  'git:undoDiscard',
   'files:list',
   'checks:get',
   'checks:configure',

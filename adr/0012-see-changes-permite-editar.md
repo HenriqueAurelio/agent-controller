@@ -3,6 +3,7 @@
 - **Status:** Aceita
 - **Data:** 2026-10-13
 - **Emenda:** [ADR 0004](0004-diff-monaco-e-git-cli.md), na parte em que o painel era somente leitura. O restante da 0004 (Monaco para o diff, binário do git para os dados) continua valendo.
+- **Revisão (2026-10-16):** a parte em que o painel não opera o git foi substituída pela [ADR 0018](0018-operacoes-de-git-no-painel.md): marcar para o commit, commit e descartar com cópia e Desfazer. O resto desta ADR continua valendo.
 
 ## Contexto
 

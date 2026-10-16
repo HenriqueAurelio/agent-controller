@@ -269,6 +269,29 @@ export const es: Record<keyof typeof ptBR, string> = {
   'changes.loading': 'Cargando…',
   'changes.none.title': 'Ningún cambio',
   'changes.none.session': 'Nada cambió desde que empezó la sesión.',
+  'changes.section.staged': 'Para el commit ({count})',
+  'changes.section.unstaged': 'Fuera del commit ({count})',
+  'changes.stageOf': 'Marcar {file} para el commit',
+  'changes.stageHint':
+    'Lo marcado entra en el próximo commit (stage). Desmarcar no cambia el archivo.',
+  'changes.stagePartial': 'Solo parte de los cambios está marcada. Haz clic para marcarlos todos.',
+  'changes.discardOf': 'Descartar los cambios de {file}',
+  'changes.discardHint':
+    'Descartar los cambios de este archivo. La app guarda una copia antes, y se puede deshacer.',
+  'changes.discardConfirm':
+    '¿Descartar los cambios de {file}? El archivo vuelve a ser el del último commit (o desaparece, si es nuevo). La app guarda una copia antes, y puedes deshacer.',
+  'changes.agentWorking':
+    'El agente está trabajando en esta carpeta ahora. ¿Seguir de todos modos?',
+  'changes.discarded': 'Cambios de {file} descartados.',
+  'changes.undo': 'Deshacer',
+  'changes.committed': 'Commit {commit} hecho. No se envió nada (sin push).',
+  'changes.commitArea': 'Commit',
+  'changes.goingIn': 'Entran en el commit ({count}): {files}',
+  'changes.commitRepo': 'Repositorio del commit',
+  'changes.commitMessage': 'Mensaje del commit',
+  'changes.commitHint':
+    'Hace commit de lo marcado (Ctrl+Enter). Los hooks del repositorio se ejecutan. Sin push.',
+  'changes.commit': 'Commit',
   'changes.none.repos':
     'Los {count} repositorios de la carpeta están iguales a su último commit: {names}.',
   'changes.none.head': 'La carpeta está igual al último commit.',
@@ -343,6 +366,19 @@ export const es: Record<keyof typeof ptBR, string> = {
   'error.save.tooLarge': 'El archivo quedó demasiado grande para guardarlo desde el panel',
   'error.session.noName': 'Ponle un nombre a la sesión.',
   'error.session.notFound': 'Sesión no encontrada',
+  'error.git.locked':
+    'git está ocupado (index.lock): otro proceso, tal vez el agente, está usando el repositorio. Inténtalo de nuevo en un momento.',
+  'error.git.failed': 'git rechazó: {error}',
+  'error.git.emptyMessage': 'Escribe el mensaje del commit.',
+  'error.git.nothingStaged': 'No hay nada marcado para el commit.',
+  'error.git.commitTimedOut':
+    'El commit pasó del tiempo límite (un hook tardó demasiado) y se canceló.',
+  'error.git.commitFailed': 'El commit no se hizo:\n{output}',
+  'error.git.noHead': 'El repositorio todavía no tiene commits: no hay a dónde volver el archivo.',
+  'error.git.discardGone': 'La copia de ese archivo ya no existe.',
+  'error.git.undoChanged':
+    'El archivo cambió después de descartarlo; deshacer borraría lo que se escribió en él.',
+  'error.git.notInRepo': '{file} no está en un repositorio de esta sesión.',
   'error.session.notRunning': 'El agente de la sesión no está corriendo.',
   'error.checks.nothingFailed': 'Ninguna verificación falló en la última ejecución.',
   'error.folder.missing': 'La carpeta no existe: {folder}',

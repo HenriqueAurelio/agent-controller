@@ -7,6 +7,11 @@ export interface FileChange {
   origPath?: string;
   kind: ChangeKind;
   /**
+   * In the index, for the comparison with the last commit: `all` when the whole change is staged,
+   * `partial` when part of it is and part is not. Absent: nothing of it is staged.
+   */
+  staged?: 'all' | 'partial';
+  /**
    * The repository the file is in, as a path from the root, when it is not the root itself: a
    * session may hold more than one repository.
    */

@@ -102,6 +102,11 @@ Em **Preferências** (`Ctrl+,`) dá para desligar cada tipo de aviso e o som.
 - O antes e depois do arquivo selecionado, lado a lado ou em linha.
 - **Edição:** o lado direito é o arquivo como está na pasta. Dá para digitar nele e salvar com `Ctrl+S` ou o botão **Salvar**; a seta entre os dois lados desfaz um trecho. Se o agente escrever no mesmo arquivo enquanto você edita, o app não grava por cima: avisa e deixa você escolher entre recarregar e sobrescrever.
 - **Comparar com**: o último commit, ou o início da sessão (só o que mudou desde que o agente foi aberto).
+- **Git, comparando com o último commit:**
+  - **Marcar para o commit:** a caixa ao lado de cada arquivo faz o *stage* dele; desmarcar desfaz, sem mexer no arquivo. A lista se divide em **Para o commit** e **Fora do commit**. Uma caixa pela metade quer dizer que só parte das mudanças do arquivo está marcada.
+  - **Commit:** com algo marcado, o rodapé mostra o que entra e pede a mensagem; **Commit** (ou `Ctrl+Enter`) faz o commit do que está marcado. Os hooks do repositório rodam; se um falhar, o que ele disse aparece no painel e nada é feito. O app não faz push nem `--amend`.
+  - **Descartar:** o botão **↺** de um arquivo (aparece ao passar o mouse) devolve o arquivo ao que o último commit tem, ou o apaga se for novo. O app pergunta antes, guarda uma cópia em `~/.agent-controller/descartados/` e mostra **Desfazer** logo em seguida. As cópias ficam 30 dias. Desfazer não funciona se o arquivo mudou depois de descartado, para não apagar o que foi escrito nele.
+  - Com o agente trabalhando, descartar e fazer commit pedem uma confirmação a mais. Se o agente estiver usando o git ao mesmo tempo, o app avisa que o repositório está ocupado; é só tentar de novo.
 - A lista se atualiza sozinha enquanto o painel está aberto.
 - **Vários repositórios:** se a pasta da sessão guarda mais de um repositório (lado a lado numa pasta comum, ou um dentro do outro), a lista ganha um cabeçalho por repositório, com a branch e a contagem de cada um, e o contador do botão soma todos. Com um repositório só, nada muda.
 
@@ -207,7 +212,7 @@ O Claude Code não tem essa tela: os avisos funcionam sem você fazer nada. Os d
 ## Limitações do v1
 
 - **Fechar o app encerra todos os agentes**, mesmo no meio de uma tarefa. O app pede confirmação antes, listando as sessões que serão encerradas. Ao reabrir, as sessões voltam com nome, pasta e agente, paradas, e cada uma inicia quando você a abre (numa conversa nova). Encerrar os agentes leva alguns segundos, com a janela já fechada; se você abrir o app nesse meio-tempo, ele abre assim que o anterior terminar de sair.
-- **O painel de mudanças edita arquivos, mas não opera o git.** Não há "stage", "commit" nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar com o agente parado.
+- **O painel de mudanças faz pouco no git, de propósito.** Marca para o commit, faz commit e descarta um arquivo por vez. Não há push, pull, branch, merge, stash, `--amend`, stage de trechos nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar e operar com o agente parado.
 - **O painel de mudanças exige git**, instalado e com a pasta da sessão dentro de um repositório. Sem isso, ele explica o que falta.
 - **"Aguardando você" não é infalível.** Ver "Possivelmente aguardando" acima.
 - **Só Claude Code e Codex.** Sem outras IAs, shell puro, SSH, divisão de tela ou macOS. O comando de uma sessão pode ser trocado, mas o agente por trás dele tem que ser um dos dois.
