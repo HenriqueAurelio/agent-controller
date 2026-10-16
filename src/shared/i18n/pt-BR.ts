@@ -61,6 +61,7 @@ export const ptBR = {
   'command.editGroup': 'Editar o grupo “{name}”',
   'command.moveToGroup': 'Mover “{name}” para o grupo “{group}”',
   'command.leaveGroup': 'Tirar “{name}” do grupo “{group}”',
+  'command.codeTheme': 'Tema do código: {name}',
 
   'checks.title': 'Verificações',
   'checks.intro':
@@ -306,6 +307,7 @@ export const ptBR = {
   'worktrees.removeOf': 'Remover a cópia {branch}',
   'worktrees.removeConfirm': 'Remover a cópia em {folder}? A branch {branch} continua.',
   'prefs.tab.configuracoes': 'Importar e exportar',
+  'prefs.tab.editor': 'Editor',
   'prefs.language': 'Idioma',
   'prefs.languageLabel': 'Idioma da interface',
   'prefs.notices': 'Avisos',
@@ -335,6 +337,25 @@ export const ptBR = {
   'prefs.import': 'Importar…',
   'prefs.exported': 'Configurações exportadas para {file}',
   'prefs.imported': 'Configurações importadas.',
+  'prefs.codeTheme': 'Cores do código',
+  'prefs.codeThemeHint':
+    'O painel de mudanças colore o código como o VS Code. Cada tema do app tem o seu tema de código.',
+  'prefs.codeThemeDark': 'Com o app escuro',
+  'prefs.codeThemeLight': 'Com o app claro',
+  'prefs.codeThemePreview': 'Prévia do tema do código',
+  'prefs.customThemes': 'Temas importados',
+  'prefs.customThemesHint':
+    'Um arquivo de tema do VS Code (.json), como os que vêm nas extensões de tema.',
+  'prefs.noCustomThemes': 'Nenhum tema importado.',
+  'prefs.importTheme': 'Importar tema do VS Code…',
+  'prefs.themeImported': 'Tema “{name}” importado.',
+  'prefs.removeTheme': 'Remover o tema “{name}”',
+  'prefs.associations': 'Linguagem por arquivo',
+  'prefs.associationsHint':
+    'Uma por linha, padrão = linguagem. Ex.: *.mdc = markdown. Vale antes da extensão.',
+  'prefs.associationsInvalid': 'Linhas ignoradas: {lines}',
+  'codeTheme.app-dark': 'Agent Controller escuro',
+  'codeTheme.app-light': 'Agent Controller claro',
 
   'changes.title': 'Mudanças',
   'changes.allFiles': 'Todos os arquivos',
@@ -411,6 +432,9 @@ export const ptBR = {
   'diff.overwrite': 'Sobrescrever com a minha versão',
   'diff.saveError': 'Não foi possível salvar: {error}',
   'diff.frameTitle': 'Comparação do arquivo',
+  'diff.language': 'Linguagem do arquivo',
+  'diff.languageAuto': 'Automático: {name}',
+  'diff.plainText': 'Texto simples',
 
   'tree.error': 'Não foi possível listar a pasta: {error}',
   'tree.empty': 'A pasta está vazia.',
@@ -428,6 +452,8 @@ export const ptBR = {
   'main.import.title': 'Importar configurações',
   'main.settingsFilter': 'Configurações do Agent Controller',
   'main.pickFolder': 'Pasta da sessão',
+  'main.importTheme.title': 'Importar tema do VS Code',
+  'main.importTheme.filter': 'Tema do VS Code',
 
   'notification.done': 'O agente terminou.',
   'notification.checksFailed': 'Verificações falharam: {failed} de {total}.',
@@ -446,6 +472,13 @@ export const ptBR = {
     'O arquivo veio de uma versão mais nova do app. Atualize o app para importar.',
   'error.prefs.empty': 'O arquivo não tem configurações.',
   'error.prefs.tooLarge': 'O arquivo é grande demais.',
+  'error.theme.notJson': 'O arquivo de tema não é um JSON válido.',
+  'error.theme.notTheme': 'O arquivo não é um tema de cores do VS Code.',
+  'error.theme.include':
+    'Este tema só estende outro (ou aponta para um .tmTheme) e não traz cores próprias.',
+  'error.theme.tooLarge': 'O arquivo de tema é grande demais.',
+  'error.theme.tooMany': 'Há temas importados demais. Remova algum antes.',
+  'error.theme.notFound': 'Tema não encontrado.',
   'error.save.outside': 'O arquivo está fora do repositório',
   'error.save.gitInternal': 'Arquivos internos do git não podem ser editados',
   'error.save.notFile': 'Só arquivos comuns podem ser editados',
@@ -503,6 +536,7 @@ export const ptBR = {
   'arg.url': 'url',
   'arg.name': 'nome',
   'arg.folder': 'pasta',
+  'arg.theme': 'tema',
   'arg.data': 'dados',
   'arg.content': 'conteúdo',
   'arg.command': 'comando',

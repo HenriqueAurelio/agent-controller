@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { CODE_LANGUAGES, codeLanguage, PLAIN_TEXT } from '@shared/codeLanguages';
 import type { DiffBase, FileDiff, SideContent } from '@shared/git';
 import type { Translate } from '@shared/i18n';
 import type { ThemeName } from '@shared/prefs';
 import type { FrameMessage, ParentMessage } from '../lib/diffProtocol';
+import { useCodeTheme } from '../lib/codeThemes';
 import { errorMessage, formatBytes } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { useAppState } from '../lib/store';
@@ -32,6 +34,40 @@ function unavailable(t: Translate, side: SideContent): string | null {
 
 const textOf = (side: SideContent) => (side.kind === 'text' ? side.text : '');
 
+const LANGUAGES_BY_NAME = [...CODE_LANGUAGES].sort((a, b) => a.name.localeCompare(b.name));
+
+/** Which grammar colors the file: the one its name points to, or one the user picks. */
+function LanguagePicker({
+  detected,
+  value,
+  onChange,
+}: {
+  detected: string | null;
+  value: string;
+  onChange(language: string): void;
+}) {
+  const t = useT();
+  const name = (id: string | null) =>
+    !id || id === PLAIN_TEXT ? t('diff.plainText') : (codeLanguage(id)?.name ?? id);
+  return (
+    <select
+      className="diff-language"
+      aria-label={t('diff.language')}
+      title={t('diff.language')}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">{t('diff.languageAuto', { name: name(detected) })}</option>
+      <option value={PLAIN_TEXT}>{t('diff.plainText')}</option>
+      {LANGUAGES_BY_NAME.map((language) => (
+        <option key={language.id} value={language.id}>
+          {language.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 /**
  * The Monaco diff editor, inside an iframe. The iframe only exists while the panel is open:
  * Monaco is loaded on demand and, when the panel closes, its memory is really given back.
@@ -52,6 +88,13 @@ export function DiffView({
 }: Props) {
   const t = useT();
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
+  const associations = useAppState((s) => s.prefs.fileAssociations);
+  const codeTheme = useCodeTheme(theme);
+  // The language the user picked per file, while the panel is open; the file name decides the rest.
+  const [languages, setLanguages] = useState<Record<string, string>>({});
+  const [highlight, setHighlight] = useState<Extract<FrameMessage, { type: 'language' }> | null>(
+    null,
+  );
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [diff, setDiff] = useState<FileDiff | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +167,7 @@ export function DiffView({
           selection: message.selection,
         });
       } else if (message?.type === 'selection') onSendSelection(path, message.selection);
+      else if (message?.type === 'language') setHighlight(message);
       else if (message?.type === 'key') {
         // Replayed here so Esc and the global shortcuts behave the same everywhere.
         const { key, ctrlKey, shiftKey, altKey, metaKey } = message;
@@ -155,7 +199,7 @@ export function DiffView({
   const removed = diff?.modified.kind === 'missing';
 
   useEffect(() => {
-    if (!ready || !diff || diff.path !== path || blocked) return;
+    if (!ready || !diff || diff.path !== path || blocked || !codeTheme) return;
     send({
       type: 'show',
       path,
@@ -164,11 +208,26 @@ export function DiffView({
       editable: diff.modified.kind === 'text',
       inline,
       theme,
+      codeTheme,
+      language: languages[path] ?? null,
+      associations,
       fontSize,
       discardEdits: discardNext.current,
     });
     discardNext.current = false;
-  }, [ready, diff, path, blocked, inline, theme, fontSize, send]);
+  }, [
+    ready,
+    diff,
+    path,
+    blocked,
+    inline,
+    theme,
+    codeTheme,
+    languages,
+    associations,
+    fontSize,
+    send,
+  ]);
 
   const discard = () => {
     discardNext.current = true;
@@ -196,6 +255,18 @@ export function DiffView({
           >
             {t('diff.sendToAgent')}
           </button>
+          <LanguagePicker
+            detected={highlight?.path === path ? highlight.detected : null}
+            value={languages[path] ?? ''}
+            onChange={(language) =>
+              setLanguages((current) => {
+                const next = { ...current };
+                if (language) next[path] = language;
+                else delete next[path];
+                return next;
+              })
+            }
+          />
           {dirty && (
             <button onClick={discard} title={t('diff.discardHint')}>
               {t('diff.discard')}

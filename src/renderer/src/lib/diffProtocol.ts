@@ -1,4 +1,12 @@
+import type { CodeThemeData } from '@shared/codeThemes';
 import type { ThemeName } from '@shared/prefs';
+
+/** A color theme of the code by id, with its colors when the user imported it. */
+export interface CodeThemeRequest {
+  id: string;
+  kind: ThemeName;
+  data?: CodeThemeData | null;
+}
 
 /** Parent → diff frame. */
 export type ParentMessage =
@@ -11,6 +19,10 @@ export type ParentMessage =
       editable: boolean;
       inline: boolean;
       theme: ThemeName;
+      codeTheme: CodeThemeRequest;
+      /** The language the user picked for this file; null lets the file name decide. */
+      language: string | null;
+      associations: Record<string, string>;
       fontSize: number;
       /** Replace the editor's content even if it has unsaved edits. */
       discardEdits?: boolean;
@@ -26,6 +38,9 @@ export type ParentMessage =
   /** Ask the frame for the text selected in the editor. */
   | { type: 'request-selection' };
 
+/** How the file is being colored. */
+export type HighlightEngine = 'textmate' | 'monarch' | 'plain';
+
 /** Diff frame → parent. */
 export type FrameMessage =
   | { type: 'ready' }
@@ -36,6 +51,14 @@ export type FrameMessage =
   | { type: 'contextmenu'; x: number; y: number; selection: string }
   /** The answer to `request-selection`. */
   | { type: 'selection'; selection: string }
+  /** The language the file name points to (null: none known), and the one in use. */
+  | {
+      type: 'language';
+      path: string;
+      detected: string | null;
+      language: string | null;
+      engine: HighlightEngine;
+    }
   /** Keys the app handles globally, pressed while the focus was inside the frame. */
   | {
       type: 'key';

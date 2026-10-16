@@ -61,6 +61,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'command.editGroup': 'Editar el grupo “{name}”',
   'command.moveToGroup': 'Mover “{name}” al grupo “{group}”',
   'command.leaveGroup': 'Sacar “{name}” del grupo “{group}”',
+  'command.codeTheme': 'Tema del código: {name}',
 
   'checks.title': 'Verificaciones',
   'checks.intro':
@@ -306,6 +307,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'worktrees.removeOf': 'Eliminar la copia {branch}',
   'worktrees.removeConfirm': '¿Eliminar la copia en {folder}? La rama {branch} sigue.',
   'prefs.tab.configuracoes': 'Importar y exportar',
+  'prefs.tab.editor': 'Editor',
   'prefs.language': 'Idioma',
   'prefs.languageLabel': 'Idioma de la interfaz',
   'prefs.notices': 'Avisos',
@@ -335,6 +337,25 @@ export const es: Record<keyof typeof ptBR, string> = {
   'prefs.import': 'Importar…',
   'prefs.exported': 'Configuración exportada a {file}',
   'prefs.imported': 'Configuración importada.',
+  'prefs.codeTheme': 'Colores del código',
+  'prefs.codeThemeHint':
+    'El panel de cambios colorea el código como VS Code. Cada tema de la app tiene su tema de código.',
+  'prefs.codeThemeDark': 'Con la app oscura',
+  'prefs.codeThemeLight': 'Con la app clara',
+  'prefs.codeThemePreview': 'Vista previa del tema del código',
+  'prefs.customThemes': 'Temas importados',
+  'prefs.customThemesHint':
+    'Un archivo de tema de VS Code (.json), como los que traen las extensiones de temas.',
+  'prefs.noCustomThemes': 'Ningún tema importado.',
+  'prefs.importTheme': 'Importar tema de VS Code…',
+  'prefs.themeImported': 'Tema “{name}” importado.',
+  'prefs.removeTheme': 'Quitar el tema “{name}”',
+  'prefs.associations': 'Lenguaje por archivo',
+  'prefs.associationsHint':
+    'Uno por línea, patrón = lenguaje. Ej.: *.mdc = markdown. Va antes de la extensión.',
+  'prefs.associationsInvalid': 'Líneas ignoradas: {lines}',
+  'codeTheme.app-dark': 'Agent Controller oscuro',
+  'codeTheme.app-light': 'Agent Controller claro',
 
   'changes.title': 'Cambios',
   'changes.allFiles': 'Todos los archivos',
@@ -414,6 +435,9 @@ export const es: Record<keyof typeof ptBR, string> = {
   'diff.overwrite': 'Sobrescribir con mi versión',
   'diff.saveError': 'No se pudo guardar: {error}',
   'diff.frameTitle': 'Comparación del archivo',
+  'diff.language': 'Lenguaje del archivo',
+  'diff.languageAuto': 'Automático: {name}',
+  'diff.plainText': 'Texto sin formato',
 
   'tree.error': 'No se pudo listar la carpeta: {error}',
   'tree.empty': 'La carpeta está vacía.',
@@ -431,6 +455,8 @@ export const es: Record<keyof typeof ptBR, string> = {
   'main.import.title': 'Importar configuración',
   'main.settingsFilter': 'Configuración de Agent Controller',
   'main.pickFolder': 'Carpeta de la sesión',
+  'main.importTheme.title': 'Importar tema de VS Code',
+  'main.importTheme.filter': 'Tema de VS Code',
 
   'notification.done': 'El agente terminó.',
   'notification.checksFailed': 'Fallaron verificaciones: {failed} de {total}.',
@@ -449,6 +475,13 @@ export const es: Record<keyof typeof ptBR, string> = {
     'El archivo viene de una versión más nueva de la app. Actualiza la app para importarlo.',
   'error.prefs.empty': 'El archivo no tiene configuración.',
   'error.prefs.tooLarge': 'El archivo es demasiado grande.',
+  'error.theme.notJson': 'El archivo de tema no es un JSON válido.',
+  'error.theme.notTheme': 'El archivo no es un tema de colores de VS Code.',
+  'error.theme.include':
+    'Este tema solo extiende otro (o apunta a un .tmTheme) y no trae colores propios.',
+  'error.theme.tooLarge': 'El archivo de tema es demasiado grande.',
+  'error.theme.tooMany': 'Hay demasiados temas importados. Quite alguno antes.',
+  'error.theme.notFound': 'Tema no encontrado.',
   'error.save.outside': 'El archivo está fuera del repositorio',
   'error.save.gitInternal': 'Los archivos internos de git no se pueden editar',
   'error.save.notFile': 'Solo se pueden editar archivos comunes',
@@ -506,6 +539,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'arg.url': 'url',
   'arg.name': 'nombre',
   'arg.folder': 'carpeta',
+  'arg.theme': 'tema',
   'arg.data': 'datos',
   'arg.content': 'contenido',
   'arg.command': 'comando',

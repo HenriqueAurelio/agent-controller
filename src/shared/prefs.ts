@@ -1,3 +1,5 @@
+import { sanitizeAssociations } from './codeLanguages';
+import { sanitizeCodeThemeId } from './codeThemes';
 import { NO_AGENT_COMMANDS, sanitizeAgentCommands, type AgentCommands } from './agents';
 import { DEFAULT_LANGUAGE, sanitizeLanguage, type Language } from './i18n';
 import { DEFAULT_LAYOUT, sanitizeLayout, type Layout } from './layout';
@@ -33,6 +35,12 @@ export interface Preferences {
   prompts: PromptTemplate[];
   /** A prompt sent to an agent is also submitted (Enter), instead of waiting at its prompt. */
   promptSubmit: boolean;
+  /** Color theme of the code in the changes panel while the app is dark. */
+  codeThemeDark: string;
+  /** Color theme of the code in the changes panel while the app is light. */
+  codeThemeLight: string;
+  /** File name pattern → language of the code, ahead of what the extension says. */
+  fileAssociations: Record<string, string>;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -53,6 +61,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
   shortcuts: DEFAULT_SHORTCUTS,
   prompts: factoryPrompts(DEFAULT_LANGUAGE),
   promptSubmit: false,
+  codeThemeDark: 'app-dark',
+  codeThemeLight: 'app-light',
+  fileAssociations: {},
 };
 
 export const SCROLLBACK_LIMITS = { min: 200, max: 20000 } as const;
@@ -123,5 +134,8 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
       new Set(Object.values(shortcuts).flat()),
     ),
     promptSubmit: p.promptSubmit === true,
+    codeThemeDark: sanitizeCodeThemeId(p.codeThemeDark, 'dark'),
+    codeThemeLight: sanitizeCodeThemeId(p.codeThemeLight, 'light'),
+    fileAssociations: sanitizeAssociations(p.fileAssociations),
   };
 }

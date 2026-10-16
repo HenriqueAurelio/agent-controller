@@ -12,6 +12,7 @@ import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import {
   createSession,
+  git,
   launch,
   makeRepo,
   removeDir,
@@ -595,5 +596,124 @@ test('evidences: groups of sessions', async () => {
   } finally {
     await running.close();
     for (const dir of [userData, base]) removeDir(dir);
+  }
+});
+
+test('evidences: syntax highlighting and code themes', async () => {
+  test.setTimeout(180_000);
+  const userData = tempDir('ac-evid-data-');
+  const repo = makeRepo();
+  const write = (name: string, text: string) => fs.writeFileSync(path.join(repo, name), text);
+  write(
+    'funcoes.ts',
+    [
+      "import { formatar } from './formatar';",
+      '',
+      'interface Pedido {',
+      '  itens: number[];',
+      '  desconto?: number;',
+      '}',
+      '',
+      '/** Soma os itens do pedido. */',
+      'export function total(pedido: Pedido): string {',
+      '  const bruto = pedido.itens.reduce((soma, item) => soma + item, 0);',
+      '  return formatar(bruto);',
+      '}',
+      '',
+    ].join('\n'),
+  );
+  write('config.toml', '[pacote]\nnome = "loja"\nversao = "1.0.0"\n');
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-q', '-m', 'base');
+  write(
+    'funcoes.ts',
+    [
+      "import { formatar } from './formatar';",
+      '',
+      'interface Pedido {',
+      '  itens: number[];',
+      '  desconto?: number;',
+      '}',
+      '',
+      '/** Soma os itens do pedido. */',
+      'export function total(pedido: Pedido): string {',
+      '  const bruto = pedido.itens.reduce((soma, item) => soma + item, 0);',
+      '  const liquido = bruto * (1 - (pedido.desconto ?? 0));',
+      '  return formatar(liquido, { casas: 2 });',
+      '}',
+      '',
+    ].join('\n'),
+  );
+  write('config.toml', '[pacote]\nnome = "loja"\nversao = "1.1.0"\n\n[deps]\nzod = "3"\n');
+
+  const running = await launch(userData);
+  const { page } = running;
+  const frame = page.frameLocator('[data-testid="diff-frame"]');
+  // `editor`: only the editor, where the colors are; otherwise the whole window.
+  const shot = async (name: string, editor = false) => {
+    fs.mkdirSync(path.join(OUT, 'realce-de-sintaxe'), { recursive: true });
+    await page.waitForTimeout(900);
+    const file = path.join(OUT, 'realce-de-sintaxe', `${name}-${PHASE}.png`);
+    if (editor) await page.locator('[data-testid="diff-frame"]').screenshot({ path: file });
+    else await page.screenshot({ path: file });
+  };
+  const setPrefs = (patch: object) =>
+    page.evaluate((p) => window.api.invoke('prefs:set', p as never), patch);
+  const open = async (name: string, text: string) => {
+    await page.locator('.change-item', { hasText: name }).click();
+    await frame.locator('.view-line', { hasText: text }).first().waitFor();
+    if (AFTER) await frame.locator('body[data-engine="textmate"]').waitFor();
+  };
+
+  try {
+    await createSession(page, 'Loja', repo);
+    // Larger letters and the diff in one column, so whole lines and their colors show.
+    await setPrefs({ fontSize: 19 });
+    await page.keyboard.press('Control+Shift+G');
+    await page.getByRole('button', { name: 'Lado a lado' }).click();
+
+    // 1. TypeScript: functions, parameters, properties and types.
+    await open('funcoes.ts', 'liquido');
+    await shot('01-typescript-escuro', true);
+
+    // 2. TOML, which Monaco has no grammar for.
+    await open('config.toml', 'zod');
+    await shot('02-toml', true);
+
+    // 3. The light theme of the app.
+    await setPrefs({ theme: 'light' });
+    await open('funcoes.ts', 'liquido');
+    await shot('03-typescript-claro', true);
+    await setPrefs({ theme: 'dark' });
+
+    // 4. Another code theme (new: before, the only one there was).
+    if (AFTER) {
+      await setPrefs({ codeThemeDark: 'monokai' });
+      await frame.locator('body[data-code-theme="monokai"]').waitFor();
+    }
+    await shot('04-tema-monokai');
+    if (AFTER) {
+      await setPrefs({ codeThemeDark: 'one-dark-pro' });
+      await frame.locator('body[data-code-theme="one-dark-pro"]').waitFor();
+    }
+    await shot('05-tema-one-dark-pro');
+    if (AFTER) await setPrefs({ codeThemeDark: 'app-dark' });
+
+    // 5. Where it is chosen (new: before, the preferences had no such tab).
+    await page.keyboard.press('Control+,');
+    const prefs = page.getByRole('dialog', { name: 'Preferências' });
+    if (AFTER) {
+      await prefs.getByRole('tab', { name: 'Editor' }).click();
+      await prefs.getByLabel('Com o app escuro').selectOption({ label: 'Dracula' });
+      await prefs
+        .frameLocator('[data-testid="code-theme-preview"]')
+        .locator('body[data-code-theme="dracula"]')
+        .waitFor();
+    }
+    await shot('06-preferencias-editor');
+  } finally {
+    await running.close();
+    removeDir(userData);
+    removeDir(repo);
   }
 });

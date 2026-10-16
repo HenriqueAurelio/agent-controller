@@ -17,6 +17,7 @@ import {
 } from '@core/git/WorktreeService';
 import type { SessionManager } from '@core/sessions/SessionManager';
 import type { AppData } from '@core/store/appStore';
+import type { CodeThemeStore } from '@core/store/codeThemeStore';
 import {
   parsePreferencesFile,
   PREFS_FILE_MAX_BYTES,
@@ -26,6 +27,7 @@ import { folderKey, rememberFolder } from '@core/store/recentFolders';
 import { sanitizeWorktreeSettings } from '@core/store/appStore';
 import { AGENT_COMMAND_LIMIT, sanitizeAgentCommand, type AgentAvailability } from '@shared/agents';
 import { CHECKS_LIMIT, sanitizeChecks, type ChecksInfo } from '@shared/checks';
+import { CODE_THEME_MAX_BYTES } from '@shared/codeThemes';
 import { errorText, translate, UserError, type MessageKey } from '@shared/i18n';
 import type { DiffBase } from '@shared/git';
 import type {
@@ -60,6 +62,7 @@ export interface IpcContext {
   data: AppData;
   /** Where the copies of discarded files go. */
   discardDir: string;
+  codeThemes: CodeThemeStore;
   testMode: boolean;
   gpuMode: 'fast' | 'safe';
   send<K extends EventChannel>(channel: K, ...args: Parameters<IpcEvents[K]>): void;
@@ -236,6 +239,29 @@ export function registerIpc(context: IpcContext): void {
     const prefs = parsePreferencesFile(await fs.promises.readFile(file, 'utf8'));
     context.savePrefs(prefs);
     return prefs;
+  });
+
+  handle('themes:list', () => context.codeThemes.list());
+  handle('themes:get', (id) => context.codeThemes.get(str(id, 'theme', 100)));
+  handle('themes:remove', (id) => context.codeThemes.remove(str(id, 'theme', 100)));
+  handle('themes:import', async () => {
+    const window = context.getWindow();
+    let file = context.testMode
+      ? (process.env.AGENT_CONTROLLER_TEST_THEME_FILE ?? null)
+      : undefined;
+    if (file === undefined) {
+      if (!window) return null;
+      const result = await dialog.showOpenDialog(window, {
+        title: t('main.importTheme.title'),
+        filters: [{ name: t('main.importTheme.filter'), extensions: ['json', 'jsonc'] }],
+        properties: ['openFile'],
+      });
+      file = result.canceled ? null : (result.filePaths[0] ?? null);
+    }
+    if (!file) return null;
+    const { size } = await fs.promises.stat(file);
+    if (size > CODE_THEME_MAX_BYTES) throw new UserError('error.theme.tooLarge');
+    return context.codeThemes.import(await fs.promises.readFile(file, 'utf8'));
   });
 
   handle('agents:detect', (refresh) => context.detectAgents(refresh === true));

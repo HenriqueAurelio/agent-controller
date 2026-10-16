@@ -61,6 +61,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'command.editGroup': 'Edit the group “{name}”',
   'command.moveToGroup': 'Move “{name}” to the group “{group}”',
   'command.leaveGroup': 'Take “{name}” out of the group “{group}”',
+  'command.codeTheme': 'Code theme: {name}',
 
   'checks.title': 'Checks',
   'checks.intro':
@@ -306,6 +307,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'worktrees.removeOf': 'Remove the copy {branch}',
   'worktrees.removeConfirm': 'Remove the copy in {folder}? The branch {branch} stays.',
   'prefs.tab.configuracoes': 'Import and export',
+  'prefs.tab.editor': 'Editor',
   'prefs.language': 'Language',
   'prefs.languageLabel': 'Interface language',
   'prefs.notices': 'Notices',
@@ -335,6 +337,25 @@ export const en: Record<keyof typeof ptBR, string> = {
   'prefs.import': 'Import…',
   'prefs.exported': 'Settings exported to {file}',
   'prefs.imported': 'Settings imported.',
+  'prefs.codeTheme': 'Code colors',
+  'prefs.codeThemeHint':
+    'The changes panel colors code the way VS Code does. Each theme of the app has its own code theme.',
+  'prefs.codeThemeDark': 'With the dark app',
+  'prefs.codeThemeLight': 'With the light app',
+  'prefs.codeThemePreview': 'Preview of the code theme',
+  'prefs.customThemes': 'Imported themes',
+  'prefs.customThemesHint':
+    'A VS Code theme file (.json), like the ones that come in theme extensions.',
+  'prefs.noCustomThemes': 'No imported theme.',
+  'prefs.importTheme': 'Import VS Code theme…',
+  'prefs.themeImported': 'Theme “{name}” imported.',
+  'prefs.removeTheme': 'Remove the theme “{name}”',
+  'prefs.associations': 'Language by file',
+  'prefs.associationsHint':
+    'One per line, pattern = language. E.g.: *.mdc = markdown. Comes before the extension.',
+  'prefs.associationsInvalid': 'Lines ignored: {lines}',
+  'codeTheme.app-dark': 'Agent Controller dark',
+  'codeTheme.app-light': 'Agent Controller light',
 
   'changes.title': 'Changes',
   'changes.allFiles': 'All files',
@@ -413,6 +434,9 @@ export const en: Record<keyof typeof ptBR, string> = {
   'diff.overwrite': 'Overwrite with my version',
   'diff.saveError': 'Could not save: {error}',
   'diff.frameTitle': 'File comparison',
+  'diff.language': 'Language of the file',
+  'diff.languageAuto': 'Automatic: {name}',
+  'diff.plainText': 'Plain text',
 
   'tree.error': 'Could not list the folder: {error}',
   'tree.empty': 'The folder is empty.',
@@ -430,6 +454,8 @@ export const en: Record<keyof typeof ptBR, string> = {
   'main.import.title': 'Import settings',
   'main.settingsFilter': 'Agent Controller settings',
   'main.pickFolder': 'Session folder',
+  'main.importTheme.title': 'Import VS Code theme',
+  'main.importTheme.filter': 'VS Code theme',
 
   'notification.done': 'The agent finished.',
   'notification.checksFailed': 'Checks failed: {failed} of {total}.',
@@ -448,6 +474,13 @@ export const en: Record<keyof typeof ptBR, string> = {
     'The file came from a newer version of the app. Update the app to import it.',
   'error.prefs.empty': 'The file has no settings.',
   'error.prefs.tooLarge': 'The file is too large.',
+  'error.theme.notJson': 'The theme file is not valid JSON.',
+  'error.theme.notTheme': 'The file is not a VS Code color theme.',
+  'error.theme.include':
+    'This theme only extends another one (or points at a .tmTheme) and has no colors of its own.',
+  'error.theme.tooLarge': 'The theme file is too large.',
+  'error.theme.tooMany': 'There are too many imported themes. Remove one first.',
+  'error.theme.notFound': 'Theme not found.',
   'error.save.outside': 'The file is outside the repository',
   'error.save.gitInternal': 'Internal git files cannot be edited',
   'error.save.notFile': 'Only regular files can be edited',
@@ -505,6 +538,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'arg.url': 'url',
   'arg.name': 'name',
   'arg.folder': 'folder',
+  'arg.theme': 'theme',
   'arg.data': 'data',
   'arg.content': 'content',
   'arg.command': 'command',

@@ -26,10 +26,14 @@ Pela ADR 0007, item novo de escopo exige uma ADR. Cada proposta diz qual.
 | 8 | [Terminal auxiliar](terminal-auxiliar/README.md) | Um shell na pasta da sessão, ao lado do agente | Médio | M | Sim |
 | 9 | [Operações de git no painel](operacoes-git/README.md) | Stage, commit e descartar por arquivo, com confirmação | Médio | M | Sim (revê a 0012) |
 | 10 | [Grupos de sessões](grupos-de-sessoes/README.md) | Sessões agrupadas por repositório na barra lateral, com nome, recolher e arrastar | Médio | P | Não |
+| 11 | [Realce de sintaxe e temas](realce-de-sintaxe/README.md) | Gramáticas TextMate e temas do VS Code no painel: funções, parâmetros e propriedades com cor própria | Médio | M | Sim ([0019](../../adr/0019-realce-textmate-e-temas.md)) |
 
 Já existe um plano detalhado para **retomar a conversa** de uma sessão: [`docs/planos/retomar-conversa.md`](../planos/retomar-conversa.md). Ele não foi repetido aqui e entra na ordem abaixo.
 
 ## Ordem escolhida
+
+A proposta **11** (realce de sintaxe e temas) veio em 2026-10-16, a pedido, e foi feita fora da ordem abaixo: não depende de nenhuma outra.
+
 
 Decisão de 2026-10-14: começar pelas propostas **4, 5, 6, 7 e 8**. As outras (1, 2, 3 e 9) ficam para depois e passam a reaproveitar o que estas criarem.
 

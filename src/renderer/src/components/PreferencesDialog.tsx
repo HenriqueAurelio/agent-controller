@@ -13,6 +13,7 @@ import { useAppState } from '../lib/store';
 import { errorMessage, PROFILE_LABEL } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Dialog } from './Dialog';
+import { EditorPreferences } from './EditorPreferences';
 import { FavoriteFolders } from './FavoriteFolders';
 import { LayoutEditor } from './LayoutEditor';
 import { PromptsEditor } from './PromptsEditor';
@@ -25,6 +26,7 @@ const TABS = [
   'geral',
   'agentes',
   'prompts',
+  'editor',
   'atalhos',
   'layout',
   'sessoes',
@@ -106,6 +108,7 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
         role="tabpanel"
         aria-labelledby={`prefs-tab-${tab}`}
       >
+        {tab === 'editor' && <EditorPreferences />}
         {tab === 'layout' && (
           <LayoutEditor layout={prefs.layout} onChange={(layout) => set({ layout })} />
         )}

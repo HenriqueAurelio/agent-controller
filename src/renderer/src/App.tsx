@@ -12,6 +12,7 @@ import { ChecksBadge, ChecksDialog } from './components/ChecksDialog';
 import { CloseSessionDialog } from './components/CloseSessionDialog';
 import { CommandPalette, type Command } from './components/CommandPalette';
 import { GroupDialog } from './components/GroupDialog';
+import { codeThemeName, themesOfKind, useCustomThemes } from './lib/codeThemes';
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { PromptDialog, type PromptContext } from './components/PromptDialog';
@@ -41,6 +42,7 @@ export function App() {
   const agentCommands = useAppState((s) => s.prefs.agentCommands);
   const prompts = useAppState((s) => s.prefs.prompts);
   const t = useT();
+  const customThemes = useCustomThemes();
   const [overlay, setOverlay] = useState<Overlay>(null);
   /** The folder a new session was asked for, when it came from one dropped on the window. */
   const [newFolder, setNewFolder] = useState<string | undefined>(undefined);
@@ -436,6 +438,17 @@ export function App() {
         run: () => openPrompt(prompt.id),
       });
     }
+    // The code themes of the current kind, to switch from the keyboard.
+    for (const codeTheme of themesOfKind(theme, customThemes)) {
+      list.push({
+        id: `code-theme-${codeTheme.id}`,
+        title: t('command.codeTheme', { name: codeThemeName(t, codeTheme) }),
+        run: () =>
+          void window.api.invoke('prefs:set', {
+            [theme === 'light' ? 'codeThemeLight' : 'codeThemeDark']: codeTheme.id,
+          }),
+      });
+    }
     sessions.forEach((s, i) =>
       list.push({
         id: `go-${s.id}`,
@@ -458,6 +471,8 @@ export function App() {
     prompts,
     openPrompt,
     editGroup,
+    theme,
+    customThemes,
     t,
   ]);
 

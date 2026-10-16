@@ -3,6 +3,7 @@
 - **Status:** Aceita
 - **Data:** 2026-10-12
 - **Emendada por:** [ADR 0012](0012-see-changes-permite-editar.md), de 2026-10-13: o painel deixou de ser somente leitura e passou a permitir editar e salvar o arquivo. O que esta ADR diz sobre "somente leitura" não vale mais; o restante vale.
+- **Emendada por:** [ADR 0019](0019-realce-textmate-e-temas.md), de 2026-10-16: o realce de sintaxe passou a usar as gramáticas TextMate do VS Code e temas de cores; as gramáticas do Monaco ficaram como recuo.
 
 ## Contexto
 
