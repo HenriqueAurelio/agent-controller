@@ -76,9 +76,11 @@ test('sessions are gathered in groups that fold, move, and come back after a res
     // With the keyboard: Alt+arrow past the edge of the group takes it out.
     await item(page, 'Docs').focus();
     await page.keyboard.press('Alt+ArrowUp');
-    expect(await listed(page)).toEqual(['Docs', 'XXX-REPO', 'Back', 'Front']);
+    await expect.poll(() => listed(page)).toEqual(['Docs', 'XXX-REPO', 'Back', 'Front']);
+    // The moved session gets the keyboard back on the next frame.
+    await expect(item(page, 'Docs')).toBeFocused();
     await page.keyboard.press('Alt+ArrowDown');
-    expect(await listed(page)).toEqual(['XXX-REPO', 'Docs', 'Back', 'Front']);
+    await expect.poll(() => listed(page)).toEqual(['XXX-REPO', 'Docs', 'Back', 'Front']);
     await palette(page, 'Tirar “Docs” do grupo “XXX-REPO”');
 
     // A new session from the group's header goes into it.

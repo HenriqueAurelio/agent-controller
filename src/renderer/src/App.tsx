@@ -296,7 +296,8 @@ export function App() {
   }, []);
 
   const runAction = useCallback(
-    (action: ShortcutAction) => {
+    /** `fromKey`: pressed as a shortcut, not picked from a button or the palette. */
+    (action: ShortcutAction, fromKey = false) => {
       const { sessions: list, selectedId: current, prefs } = store.get();
       const session = list.find((s) => s.id === current);
       const run: Record<ShortcutAction, () => void> = {
@@ -326,8 +327,10 @@ export function App() {
             setChangesOpen(false);
           }
           setOverlay(null);
-          terminals.current?.toggleAux();
+          terminals.current?.toggleAux(fromKey);
         },
+        sendPrompt: () => openPrompt(),
+        newGroup: () => editGroup(),
         preferences: () => setOverlay('prefs'),
       };
       run[action]();
@@ -340,6 +343,8 @@ export function App() {
       togglePanel,
       openNew,
       mayDiscardEdits,
+      openPrompt,
+      editGroup,
     ],
   );
 
@@ -357,7 +362,7 @@ export function App() {
       action('nextWaiting'),
       action('focusSidebar'),
       action('preferences'),
-      { id: 'new-group', title: t('command.newGroup'), run: () => editGroup() },
+      action('newGroup', t('command.newGroup')),
     ];
     for (const group of groups) {
       list.push({
@@ -376,6 +381,20 @@ export function App() {
           t(selected.auxOpen ? 'command.closeAux' : 'command.openAux', { name: selected.name }),
         ),
       );
+      if (selected.auxOpen) {
+        list.push(
+          {
+            id: 'aux-grow',
+            title: t('command.auxGrow'),
+            run: () => terminals.current?.resizeAux(1),
+          },
+          {
+            id: 'aux-shrink',
+            title: t('command.auxShrink'),
+            run: () => terminals.current?.resizeAux(-1),
+          },
+        );
+      }
       list.push(
         selected.running
           ? {
@@ -430,6 +449,7 @@ export function App() {
         }
       }
     }
+    if (prompts.length > 0) list.push(action('sendPrompt'));
     for (const prompt of prompts) {
       list.push({
         id: `prompt-${prompt.id}`,
@@ -493,7 +513,7 @@ export function App() {
       if (position) {
         const target = store.get().sessions[Number(position) - 1];
         if (target) store.select(target.id);
-      } else if (action) runAction(action);
+      } else if (action) runAction(action, true);
       else if (promptBindings.has(binding)) openPrompt(promptBindings.get(binding));
       else return;
       event.preventDefault();

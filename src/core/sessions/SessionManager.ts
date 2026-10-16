@@ -169,6 +169,8 @@ export const LOW_WATER = 32 * 1024;
  */
 export class SessionManager extends EventEmitter<ManagerEvents> {
   private readonly entries = new Map<string, Entry>();
+  /** Shells beside an agent that were closed and are still ending, by session. */
+  private readonly auxClosing = new Map<string, Promise<void>>();
   private order: string[] = [];
   private groups: SessionGroup[] = [];
   private selectedId: string | null;
@@ -696,7 +698,10 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
    * Opens a plain shell of the user in the folder of the session, beside its agent. It has no
    * adapter and no signals: what is typed into it never reaches the agent, nor its state.
    */
-  openAux(id: string, size: TerminalSize = DEFAULT_SIZE): void {
+  openAux(id: string, size: TerminalSize = DEFAULT_SIZE): void | Promise<void> {
+    // The shell closed a moment ago is still on its way out, under the same terminal id.
+    const closing = this.auxClosing.get(id);
+    if (closing) return closing.then(() => this.openAux(id, size));
     const entry = this.entries.get(id);
     if (!entry || entry.aux) return;
     const stream: Stream = {
@@ -746,9 +751,17 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     const stream = entry?.aux;
     if (!entry || !stream) return;
     stream.stopRequested = true;
-    // A shell does not leave on Ctrl+C: the tree goes at once.
-    await this.options.ptys.kill(auxTerminalId(id), { graceMs: 0 });
+    // The pane goes at once: ending the process tree takes about two seconds on Windows, and a
+    // pane that lingers that long reads as a click that did not take.
     this.disposeAux(entry, stream);
+    // A shell does not leave on Ctrl+C: the tree goes at once.
+    const done: Promise<void> = this.options.ptys
+      .kill(auxTerminalId(id), { graceMs: 0 })
+      .finally(() => {
+        if (this.auxClosing.get(id) === done) this.auxClosing.delete(id);
+      });
+    this.auxClosing.set(id, done);
+    await done;
   }
 
   private disposeAux(entry: Entry, stream: Stream): void {

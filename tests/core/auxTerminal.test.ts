@@ -98,6 +98,26 @@ describe('the terminal beside the agent', () => {
     expect(data[s.id] ?? '').not.toContain('marca-do-auxiliar');
   });
 
+  it('closing hides it at once, and opening it again right away waits for the old shell', async () => {
+    const s = create();
+    const aux = auxTerminalId(s.id);
+    manager.openAux(s.id, SIZE);
+    await run(aux, 'echo primeiro', 'primeiro');
+    const oldPid = ptys.pid(aux)!;
+
+    const closing = manager.closeAux(s.id);
+    // Before the process tree is gone, the session already says it is closed.
+    expect(manager.list()[0]!.auxOpen).toBeUndefined();
+    const reopened = manager.openAux(s.id, SIZE);
+    await Promise.all([closing, reopened]);
+
+    expect(manager.list()[0]!.auxOpen).toBe(true);
+    const newPid = ptys.pid(aux)!;
+    expect(newPid).not.toBe(oldPid);
+    await waitFor(() => !isAlive(oldPid));
+    await run(aux, 'echo segundo', 'segundo');
+  });
+
   it('closing it ends the shell and what it started; the agent goes on', async () => {
     const s = create();
     manager.start(s.id, SIZE);

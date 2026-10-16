@@ -36,7 +36,9 @@ export type ParentMessage =
   /** The content was written to disk: it is the new starting point. */
   | { type: 'saved'; path: string; content: string }
   /** Ask the frame for the text selected in the editor. */
-  | { type: 'request-selection' };
+  | { type: 'request-selection' }
+  /** The keyboard goes to the editor, on the side that can be edited. */
+  | { type: 'focus' };
 
 /** How the file is being colored. */
 export type HighlightEngine = 'textmate' | 'monarch' | 'plain';

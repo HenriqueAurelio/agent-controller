@@ -7,6 +7,7 @@ import {
   type RepoInfo,
 } from '@shared/git';
 import type { SessionView } from '@shared/session';
+import type { ParentMessage } from '../lib/diffProtocol';
 import { errorMessage } from '../lib/format';
 import { rich, useT } from '../lib/i18n';
 import { useAppState } from '../lib/store';
@@ -129,6 +130,7 @@ export function ChangesPanel({
   const [marking, setMarking] = useState<Record<string, boolean>>({});
   const listRef = useRef<HTMLUListElement>(null);
   const panelRef = useRef<HTMLElement>(null);
+  const commitRef = useRef<HTMLTextAreaElement>(null);
   const sessionId = session.id;
 
   const apply = useCallback(
@@ -299,6 +301,32 @@ export function ChangesPanel({
     });
   };
 
+  const editorFrame = () =>
+    panelRef.current?.querySelector<HTMLIFrameElement>('iframe.diff-editor') ?? null;
+  /** The keyboard goes into the editor of the open file, on the side that can be edited. */
+  const focusEditor = () => {
+    const frame = editorFrame();
+    if (!frame || frame.style.visibility === 'hidden') return;
+    frame.focus();
+    frame.contentWindow?.postMessage({ type: 'focus' } satisfies ParentMessage, '*');
+  };
+  /** F6 and Shift+F6: the list (or the tree), the editor, the commit message, in turn. */
+  const cycleFocus = (delta: number) => {
+    const list = listRef.current ?? panelRef.current?.querySelector<HTMLElement>('[role="tree"]');
+    const frame = editorFrame();
+    const parts = [
+      list,
+      frame?.style.visibility === 'hidden' ? null : frame,
+      commitRef.current,
+    ].filter((part): part is HTMLElement => Boolean(part));
+    if (parts.length === 0) return;
+    const active = document.activeElement;
+    const at = parts.findIndex((part) => part === active || part.contains(active));
+    const next = parts[(at + delta + parts.length) % parts.length]!;
+    if (next === frame) focusEditor();
+    else next.focus();
+  };
+
   const moveSelection = (delta: number) => {
     if (flat.length === 0) return;
     const index = flat.findIndex((c) => c.path === selected);
@@ -316,7 +344,11 @@ export function ChangesPanel({
       data-files={prefs.layout.files}
       aria-label={t('changes.title')}
       onKeyDown={(e) => {
-        if (e.key === 'Escape') {
+        if (e.key === 'F6') {
+          e.preventDefault();
+          e.stopPropagation();
+          cycleFocus(e.shiftKey ? -1 : 1);
+        } else if (e.key === 'Escape') {
           e.stopPropagation();
           close();
         }
@@ -461,6 +493,19 @@ export function ChangesPanel({
               } else if (e.key === 'Home' || e.key === 'End') {
                 e.preventDefault();
                 moveSelection(e.key === 'Home' ? -flat.length : flat.length);
+              } else if (e.key === 'Enter' && e.ctrlKey) {
+                // Straight to the message of the commit, when something is marked for it.
+                e.preventDefault();
+                commitRef.current?.focus();
+              } else if (e.key === 'Enter') {
+                e.preventDefault();
+                focusEditor();
+              } else if (operable && !operating && (e.key === ' ' || e.key === 'Delete')) {
+                const change = changes.find((c) => c.path === selected);
+                if (!change) return;
+                e.preventDefault();
+                if (e.key === ' ') toggleStaged(change);
+                else if (change.kind !== 'conflict') discardFile(change);
               }
             }}
           >
@@ -629,6 +674,7 @@ export function ChangesPanel({
               </select>
             )}
             <textarea
+              ref={commitRef}
               aria-label={t('changes.commitMessage')}
               placeholder={t('changes.commitMessage')}
               value={message}

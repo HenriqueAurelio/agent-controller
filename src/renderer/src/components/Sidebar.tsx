@@ -138,8 +138,24 @@ export function Sidebar({
     endDrag();
   };
 
-  const focusSession = (i: number) =>
-    document.querySelector<HTMLElement>(`[data-session-index="${i}"]`)?.focus();
+  /**
+   * The arrows walk the rows as they are drawn: the headers of the groups and the sessions in
+   * sight, so a group can be reached, folded and left without the mouse.
+   */
+  const focusRow = (from: HTMLElement, delta: number) => {
+    const rows = [...document.querySelectorAll<HTMLElement>('.session-list [data-nav-row]')];
+    const at = rows.indexOf(from);
+    rows[Math.max(0, Math.min(rows.length - 1, at + delta))]?.focus();
+  };
+
+  /** Ctrl+click and Ctrl+Space: picks the session, or leaves it out, for a prompt to several. */
+  const toggleMarked = (session: SessionView) => {
+    // The session in sight counts as picked: the others are added to it.
+    const start = marked.length === 0 && selectedId ? [selectedId] : marked;
+    onMarkedChange(
+      start.includes(session.id) ? start.filter((id) => id !== session.id) : [...start, session.id],
+    );
+  };
 
   /**
    * Alt+arrow moves a session past its neighbour. Past the edge of its group, it goes to the next
@@ -170,7 +186,7 @@ export function Sidebar({
     );
   };
 
-  const onKeyDown = (event: KeyboardEvent, session: SessionView, index: number) => {
+  const onKeyDown = (event: KeyboardEvent, session: SessionView) => {
     if (renaming) return;
     const [back, forward] = horizontal ? ['ArrowLeft', 'ArrowRight'] : ['ArrowUp', 'ArrowDown'];
     const arrow = event.key === back || event.key === forward;
@@ -178,12 +194,15 @@ export function Sidebar({
     if (arrow && (event.altKey || (event.ctrlKey && event.shiftKey))) {
       event.preventDefault();
       moveBy(session, event.key === back ? -1 : 1);
-    } else if (event.key === forward) {
+    } else if (event.key === forward || event.key === back) {
       event.preventDefault();
-      focusSession(Math.min(visible.length - 1, index + 1));
-    } else if (event.key === back) {
+      focusRow(event.currentTarget as HTMLElement, event.key === forward ? 1 : -1);
+    } else if (event.key === ' ' && event.ctrlKey) {
       event.preventDefault();
-      focusSession(Math.max(0, index - 1));
+      toggleMarked(session);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      onDone();
     } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       store.select(session.id);
@@ -207,12 +226,23 @@ export function Sidebar({
       const from = groups.findIndex((g) => g.id === group.id);
       ids.splice(Math.max(0, from + (event.key === back ? -1 : 1)), 0, group.id);
       store.reorderGroups(ids);
+    } else if (arrow) {
+      event.preventDefault();
+      focusRow(event.currentTarget as HTMLElement, event.key === forward ? 1 : -1);
     } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       store.setCollapsed(group.id, !group.collapsed);
     } else if (event.key === 'F2') {
       event.preventDefault();
       setRenaming(group.id);
+    } else if (event.key === 'Delete') {
+      // The sessions stay, out of any group, as with the × of the header.
+      event.preventDefault();
+      focusRow(event.currentTarget as HTMLElement, 1);
+      void window.api.invoke('groups:remove', group.id);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      onDone();
     }
   };
 
@@ -227,6 +257,7 @@ export function Sidebar({
         aria-selected={session.id === selectedId}
         tabIndex={0}
         data-session-index={index}
+        data-nav-row
         data-session-id={session.id}
         data-state={session.status.state}
         data-confirmed={session.status.confirmed}
@@ -258,13 +289,7 @@ export function Sidebar({
         }}
         onClick={(e) => {
           if (e.ctrlKey || e.metaKey) {
-            // The session in sight counts as picked: Ctrl+click adds the others to it.
-            const start = marked.length === 0 && selectedId ? [selectedId] : marked;
-            onMarkedChange(
-              start.includes(session.id)
-                ? start.filter((id) => id !== session.id)
-                : [...start, session.id],
-            );
+            toggleMarked(session);
             return;
           }
           onMarkedChange([]);
@@ -272,7 +297,7 @@ export function Sidebar({
           onDone();
         }}
         onDoubleClick={() => setRenaming(session.id)}
-        onKeyDown={(e) => onKeyDown(e, session, index)}
+        onKeyDown={(e) => onKeyDown(e, session)}
       >
         <span
           className={`state-dot state-${session.status.state} ${session.status.confirmed ? '' : 'inferred'}`}
@@ -377,6 +402,7 @@ export function Sidebar({
             dragging?.id === group.id ? 'dragging' : '',
           ].join(' ')}
           tabIndex={0}
+          data-nav-row
           aria-expanded={!group.collapsed}
           aria-label={group.name}
           title={group.collapsed ? t('group.expand', { name: group.name }) : undefined}

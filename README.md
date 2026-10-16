@@ -266,18 +266,29 @@ As sessões, as verificações de cada pasta e os temas importados não vão no 
 | `Ctrl+Shift+G` | Abrir ou fechar o painel de mudanças |
 | `Ctrl+Shift+E` | Abrir ou fechar todos os arquivos da pasta |
 | `Ctrl+Shift+H` | Mostrar ou esconder arquivos ocultos |
-| `Ctrl+Shift+"` | Abrir ou fechar o terminal auxiliar (a tecla `'` com `Shift`) |
+| `Ctrl+Shift+"` | Terminal auxiliar: abre; se já está aberto, leva o teclado para ele; se já está nele, fecha (a tecla `'` com `Shift`) |
+| `Ctrl+Shift+M` | Enviar um prompt às sessões marcadas, ou à atual |
 | `Ctrl+Shift+P` | Paleta de comandos |
 | `Ctrl+,` | Preferências |
-| sem atalho de fábrica | Próxima sessão aguardando você; fechar a sessão atual |
+| sem atalho de fábrica | Próxima sessão aguardando você; fechar a sessão atual; novo grupo de sessões |
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copiar / colar no terminal. No Windows, `Ctrl+C` com texto selecionado e `Ctrl+V` também |
 
-Esses são os atalhos de fábrica. Em **Preferências → Atalhos** cada ação pode ter os seus: clique em **+**, pressione as teclas e pronto; o **×** ao lado de um atalho o remove, e **Restaurar padrões** desfaz tudo. Uma ação aceita até quatro atalhos. Se a combinação já era de outra ação, ela muda de dono. Para não atrapalhar o que você digita no terminal, um atalho precisa de `Ctrl`, `Alt` ou de uma tecla de função, e não pode ser um dos que o terminal e o editor usam (`Ctrl+C`, `Ctrl+V`, `Ctrl+S`, `F2`, `F12`).
+Esses são os atalhos de fábrica. Em **Preferências → Atalhos** cada ação pode ter os seus: clique em **+**, pressione as teclas e pronto; o **×** ao lado de um atalho o remove, e **Restaurar padrões** desfaz tudo. Uma ação aceita até quatro atalhos. Se a combinação já era de outra ação, ela muda de dono. Para não atrapalhar o que você digita no terminal, um atalho precisa de `Ctrl`, `Alt` ou de uma tecla de função, e não pode ser um dos que o terminal, o editor e o painel usam (`Ctrl+C`, `Ctrl+V`, `Ctrl+S`, `F2`, `F6`, `F12`, `Ctrl+Espaço`).
 
-Na barra lateral, com uma sessão focada: `F2` renomeia, `Delete` fecha, `Alt+↑` / `Alt+↓` reordena. Também dá para arrastar. `Ctrl+clique` marca várias sessões para enviar um prompt a todas.
+#### Sem mouse
+
+Tudo o que o app faz tem caminho pelo teclado.
+
+- **Barra lateral** (`Ctrl+0`): as setas passam pelas sessões e pelos cabeçalhos dos grupos; `Esc` volta ao terminal.
+  - Sessão focada: `Enter` abre, `F2` renomeia, `Delete` fecha, `Alt+↑` / `Alt+↓` reordena (e, na borda de um grupo, leva a sessão para fora dele ou para o vizinho), `Ctrl+Espaço` marca ou desmarca para enviar um prompt a várias (como o `Ctrl+clique`).
+  - Cabeçalho de grupo focado: `Enter` recolhe ou abre, `F2` renomeia, `Alt+↑` / `Alt+↓` muda o grupo de lugar, `Delete` desfaz o grupo (as sessões ficam). `Tab` chega aos botões do cabeçalho (nova sessão no grupo, editar).
+- **Painel de mudanças** (`Ctrl+Shift+G`): na lista, `↑` / `↓` escolhe o arquivo, `Espaço` marca ou desmarca para o commit, `Delete` descarta as mudanças do arquivo (com a pergunta de sempre), `Enter` leva ao editor e `Ctrl+Enter` à mensagem do commit, onde `Ctrl+Enter` faz o commit. `F6` / `Shift+F6` passam entre a lista, o editor e a mensagem do commit. `Esc` fecha o painel.
+- **Terminal auxiliar**: o mesmo `Ctrl+Shift+"` abre, vai para ele e fecha; `Ctrl+Shift+T` volta ao terminal do agente. Na paleta, "Terminal auxiliar: aumentar" e "diminuir" mudam o tamanho; com a divisória focada, as setas também.
+- **Paleta** (`Ctrl+Shift+P`): grupos (novo, editar, mover a sessão), prompts, temas do código e tudo o que tem atalho.
+
+Também dá para arrastar sessões e grupos com o mouse.
 
 Cada prompt guardado pode ter o seu atalho, em **Preferências → Prompts**, com as mesmas regras.
-Na barra lateral, com uma sessão focada: `F2` renomeia, `Delete` fecha, `Alt+↑` / `Alt+↓` reordena (e, na borda de um grupo, leva a sessão para fora dele ou para o vizinho). Também dá para arrastar. Com o cabeçalho de um grupo focado: `Enter` recolhe ou abre, `F2` renomeia, `Alt+↑` / `Alt+↓` muda o grupo de lugar.
 
 ## Codex: o passo de confiança dos hooks
 
