@@ -35,7 +35,7 @@ export function Dialog({ title, onClose, children, className }: Props) {
           if (event.key !== 'Tab') return;
           const items = [
             ...ref.current!.querySelectorAll<HTMLElement>(
-              'button:not(:disabled), input:not(:disabled), select, [tabindex="0"]',
+              'button:not(:disabled), input:not(:disabled), select, textarea, [tabindex="0"]',
             ),
           ];
           if (items.length === 0) return;

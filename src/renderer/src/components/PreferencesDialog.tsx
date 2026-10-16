@@ -15,11 +15,12 @@ import { useT } from '../lib/i18n';
 import { Dialog } from './Dialog';
 import { FavoriteFolders } from './FavoriteFolders';
 import { LayoutEditor } from './LayoutEditor';
+import { PromptsEditor } from './PromptsEditor';
 import { ShortcutsEditor } from './ShortcutsEditor';
 
 const set = (patch: Partial<Preferences>) => void window.api.invoke('prefs:set', patch);
 
-const TABS = ['geral', 'agentes', 'atalhos', 'layout', 'configuracoes'] as const;
+const TABS = ['geral', 'agentes', 'prompts', 'atalhos', 'layout', 'configuracoes'] as const;
 type TabId = (typeof TABS)[number];
 
 export function PreferencesDialog({ onClose }: { onClose(): void }) {
@@ -99,6 +100,7 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
         {tab === 'layout' && (
           <LayoutEditor layout={prefs.layout} onChange={(layout) => set({ layout })} />
         )}
+        {tab === 'prompts' && <PromptsEditor prefs={prefs} onChange={set} />}
         {tab === 'atalhos' && (
           <ShortcutsEditor
             shortcuts={prefs.shortcuts}
