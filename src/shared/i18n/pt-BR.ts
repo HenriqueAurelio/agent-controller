@@ -39,6 +39,10 @@ export const ptBR = {
 
   'command.checks': 'Verificações de “{name}”: o que roda ao fim do turno',
   'command.runChecks': 'Rodar agora as verificações de “{name}”',
+  'command.newGroup': 'Novo grupo de sessões',
+  'command.editGroup': 'Editar o grupo “{name}”',
+  'command.moveToGroup': 'Mover “{name}” para o grupo “{group}”',
+  'command.leaveGroup': 'Tirar “{name}” do grupo “{group}”',
 
   'checks.title': 'Verificações',
   'checks.intro':
@@ -153,6 +157,27 @@ export const ptBR = {
   'sidebar.duplicate': 'Duplicar {name}',
   'sidebar.close': 'Fechar {name}',
   'sidebar.new': '+ Nova sessão',
+  'sidebar.newGroup': 'Novo grupo: junte as sessões de um repositório',
+  'sidebar.ungroupedDrop': 'Solte aqui para tirar do grupo',
+  'group.expand': 'Mostrar as sessões de {name}',
+  'group.collapse': 'Recolher {name}',
+  'group.count': '{count} sessão(ões)',
+  'group.waiting': '{count} aguardando você',
+  'group.unread': 'Uma sessão do grupo tem novidade',
+  'group.newSession': 'Nova sessão em {name}',
+  'group.edit': 'Editar o grupo {name}',
+  'group.remove': 'Desfazer o grupo {name}: as sessões continuam abertas',
+  'group.empty': 'Arraste sessões para cá',
+  'group.name': 'Nome do grupo',
+  'groupDialog.createTitle': 'Novo grupo',
+  'groupDialog.editTitle': 'Editar grupo',
+  'groupDialog.name': 'Nome do grupo',
+  'groupDialog.namePlaceholder': 'Por exemplo, o nome do repositório',
+  'groupDialog.sessions': 'Sessões do grupo',
+  'groupDialog.noSessions': 'Ainda não há sessões. Elas podem entrar no grupo depois.',
+  'groupDialog.inOther': 'hoje em {group}',
+  'groupDialog.create': 'Criar grupo',
+  'groupDialog.save': 'Salvar',
 
   'terminal.empty.title': 'Nenhuma sessão',
   'terminal.empty.body': 'Crie uma sessão para abrir o Claude Code ou o Codex em uma pasta.',
@@ -166,6 +191,8 @@ export const ptBR = {
   'newSession.commandHint':
     'Opcional. Roda no seu shell, então os aliases e as funções do seu perfil valem (por exemplo, claude-work). Vazio: {command}.',
   'newSession.submit': 'Criar e iniciar',
+  'newSession.group': 'Grupo',
+  'newSession.noGroup': 'Nenhum',
 
   'agent.missing': '{name} não foi encontrado no PATH. Instale com: {command}',
   'agent.outdated':
@@ -354,6 +381,9 @@ export const ptBR = {
   'error.onlyHttp': 'Apenas links http(s)',
   'error.unknownProfile': 'Perfil desconhecido',
   'error.invalidOrder': 'Ordem inválida',
+  'error.group.noName': 'Dê um nome ao grupo.',
+  'error.group.notFound': 'Grupo não encontrado',
+  'error.group.tooMany': 'Já há grupos demais: desfaça algum antes de criar outro.',
 
   'arg.session': 'sessão',
   'arg.message': 'mensagem',
@@ -368,4 +398,5 @@ export const ptBR = {
   'arg.command': 'comando',
   'arg.expected': 'conteúdo esperado',
   'arg.checks': 'verificações',
+  'arg.group': 'grupo',
 } as const;

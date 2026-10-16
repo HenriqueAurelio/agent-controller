@@ -44,7 +44,27 @@ export interface Session {
    * theirs works. Absent: the command of the preferences, or the agent's own.
    */
   command?: string;
+  /** The group the session is listed in. Absent: listed on its own, above the groups. */
+  groupId?: string;
   order: number;
+}
+
+/** A named set of sessions in the list, such as the ones of one repository. */
+export interface SessionGroup {
+  id: string;
+  name: string;
+  /** Only the header shows, with a summary of the sessions inside. */
+  collapsed: boolean;
+}
+
+export const GROUP_NAME_LIMIT = 100;
+export const GROUPS_LIMIT = 100;
+
+/** What may change in a group. `sessionIds` replaces the sessions it holds. */
+export interface GroupUpdate {
+  name?: string;
+  collapsed?: boolean;
+  sessionIds?: string[];
 }
 
 export type HooksMode = 'unknown' | 'active' | 'inactive' | 'unsupported';
@@ -65,6 +85,7 @@ export interface NewSessionInput {
   cwd: string;
   profile: AgentProfileId;
   command?: string;
+  groupId?: string;
 }
 
 export interface TerminalSize {

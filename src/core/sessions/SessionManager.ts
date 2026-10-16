@@ -6,10 +6,14 @@ import type { ChecksSummary } from '@shared/checks';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import type { Preferences } from '@shared/prefs';
 import {
+  GROUP_NAME_LIMIT,
+  GROUPS_LIMIT,
   initialStatus,
+  type GroupUpdate,
   type HooksMode,
   type NewSessionInput,
   type Session,
+  type SessionGroup,
   type SessionStatus,
   type SessionView,
   type Signal,
@@ -49,12 +53,14 @@ interface ManagerEvents {
 export interface SessionManagerOptions {
   ptys: PtyManager;
   sessions: Session[];
+  /** In the order they are listed. */
+  groups?: SessionGroup[];
   selectedId: string | null;
   prefs: Preferences;
   /** How to open the agent of a session. Throws with a message for the user when it cannot. */
   resolveLaunch: (session: Session) => LaunchCommand;
   /** Called (debounced) whenever what is persisted changed. */
-  persist: (sessions: Session[], selectedId: string | null) => void;
+  persist: (sessions: Session[], selectedId: string | null, groups: SessionGroup[]) => void;
   now?: () => number;
 }
 
@@ -104,6 +110,7 @@ export const LOW_WATER = 32 * 1024;
 export class SessionManager extends EventEmitter<ManagerEvents> {
   private readonly entries = new Map<string, Entry>();
   private order: string[] = [];
+  private groups: SessionGroup[] = [];
   private selectedId: string | null;
   private windowFocused = true;
   private prefs: Preferences;
@@ -114,10 +121,14 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     super();
     this.now = options.now ?? Date.now;
     this.prefs = options.prefs;
+    this.groups = (options.groups ?? []).map((group) => ({ ...group }));
     for (const session of [...options.sessions].sort((a, b) => a.order - b.order)) {
-      this.entries.set(session.id, this.newEntry(session));
+      const { groupId, ...rest } = session;
+      const known = groupId && this.groups.some((group) => group.id === groupId);
+      this.entries.set(session.id, this.newEntry(known ? session : rest));
       this.order.push(session.id);
     }
+    this.normalize();
     this.selectedId =
       options.selectedId && this.entries.has(options.selectedId)
         ? options.selectedId
@@ -160,8 +171,13 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.changed();
   }
 
+  /** In the order they are listed: the sessions with no group, then each group's, in turn. */
   list(): SessionView[] {
     return this.order.map((id) => this.view(this.entries.get(id)!));
+  }
+
+  listGroups(): SessionGroup[] {
+    return this.groups.map((group) => ({ ...group }));
   }
 
   get selected(): string | null {
@@ -198,7 +214,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     if (this.persistTimer) clearTimeout(this.persistTimer);
     this.persistTimer = null;
     const sessions = this.order.map((id, order) => ({ ...this.entries.get(id)!.session, order }));
-    this.options.persist(sessions, this.selectedId);
+    this.options.persist(sessions, this.selectedId, this.listGroups());
   }
 
   create(input: NewSessionInput): SessionView {
@@ -207,6 +223,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     const cwd = this.folder(input.cwd);
     getProfile(input.profile); // Throws on an unknown profile.
     const command = sanitizeAgentCommand(input.command);
+    const groupId = input.groupId ? this.group(input.groupId).id : undefined;
 
     const session: Session = {
       id: randomUUID(),
@@ -214,11 +231,13 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       cwd,
       profile: input.profile,
       ...(command && { command }),
+      ...(groupId && { groupId }),
       order: this.order.length,
     };
     const entry = this.newEntry(session);
     this.entries.set(session.id, entry);
     this.order.push(session.id);
+    this.normalize();
     this.selectedId = session.id;
     this.changed(true);
     return this.view(entry);
@@ -285,11 +304,123 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.changed(true);
   }
 
+  /** A session keeps its group: within the list, it only moves among the sessions of that group. */
   reorder(orderedIds: string[]): void {
     const known = orderedIds.filter((id) => this.entries.has(id));
     const rest = this.order.filter((id) => !known.includes(id));
     this.order = [...new Set([...known, ...rest])];
+    this.normalize();
     this.changed(true);
+  }
+
+  // ---- groups ---------------------------------------------------------------------------------
+
+  /**
+   * Keeps the sessions of each group together, groups in their order, and the ones with no group
+   * first. Sorting is stable: within a group, the sessions keep the order they had.
+   */
+  private normalize(): void {
+    const position = new Map(this.groups.map((group, index) => [group.id, index]));
+    const rank = (id: string) => {
+      const groupId = this.entries.get(id)!.session.groupId;
+      return groupId === undefined ? -1 : (position.get(groupId) ?? -1);
+    };
+    this.order = [...this.order].sort((a, b) => rank(a) - rank(b));
+  }
+
+  private group(id: string): SessionGroup {
+    const found = this.groups.find((group) => group.id === id);
+    if (!found) throw new UserError('error.group.notFound');
+    return found;
+  }
+
+  private groupName(name: string): string {
+    const trimmed = name.trim().slice(0, GROUP_NAME_LIMIT);
+    if (!trimmed) throw new UserError('error.group.noName');
+    return trimmed;
+  }
+
+  /** A new group, listed last, holding the sessions given. */
+  createGroup(name: string, sessionIds: string[] = []): SessionGroup {
+    const clean = this.groupName(name);
+    if (this.groups.length >= GROUPS_LIMIT) throw new UserError('error.group.tooMany');
+    const group: SessionGroup = { id: randomUUID(), name: clean, collapsed: false };
+    this.groups.push(group);
+    this.assign(sessionIds, group.id);
+    this.normalize();
+    this.changed(true);
+    return { ...group };
+  }
+
+  updateGroup(id: string, update: GroupUpdate): void {
+    const group = this.group(id);
+    const name = update.name === undefined ? group.name : this.groupName(update.name);
+    group.name = name;
+    if (update.collapsed !== undefined) group.collapsed = update.collapsed;
+    if (update.sessionIds) {
+      const keep = new Set(update.sessionIds);
+      for (const entry of this.entries.values()) {
+        if (entry.session.groupId === id && !keep.has(entry.session.id)) this.ungroup(entry);
+      }
+      this.assign(update.sessionIds, id);
+      this.normalize();
+    }
+    this.changed(true);
+  }
+
+  /** Ends the group, not its sessions: they go back to the list on their own. */
+  removeGroup(id: string): void {
+    this.group(id);
+    for (const entry of this.entries.values()) {
+      if (entry.session.groupId === id) this.ungroup(entry);
+    }
+    this.groups = this.groups.filter((group) => group.id !== id);
+    this.normalize();
+    this.changed(true);
+  }
+
+  reorderGroups(orderedIds: string[]): void {
+    const byId = new Map(this.groups.map((group) => [group.id, group]));
+    const known = [...new Set(orderedIds)].flatMap((id) => byId.get(id) ?? []);
+    this.groups = [...known, ...this.groups.filter((group) => !known.includes(group))];
+    this.normalize();
+    this.changed(true);
+  }
+
+  /** Moves sessions into a group, after the ones it has; `null` takes them out of any group. */
+  setGroup(sessionIds: string[], groupId: string | null): void {
+    if (groupId === null) {
+      for (const id of sessionIds) {
+        const entry = this.entries.get(id);
+        if (entry) this.ungroup(entry);
+      }
+    } else {
+      this.assign(sessionIds, this.group(groupId).id);
+    }
+    this.normalize();
+    this.changed(true);
+  }
+
+  /**
+   * Sessions that join a group go to its end, whatever their place was, in the order they had in
+   * the list.
+   */
+  private assign(sessionIds: string[], groupId: string): void {
+    const asked = new Set(sessionIds);
+    const joining = this.order.filter((id) => {
+      if (!asked.has(id)) return false;
+      const entry = this.entries.get(id);
+      if (!entry || entry.session.groupId === groupId) return false;
+      entry.session = { ...entry.session, groupId };
+      return true;
+    });
+    this.order = [...this.order.filter((id) => !joining.includes(id)), ...joining];
+  }
+
+  private ungroup(entry: Entry): void {
+    if (entry.session.groupId === undefined) return;
+    const { groupId: _left, ...session } = entry.session;
+    entry.session = session;
   }
 
   select(id: string | null): void {

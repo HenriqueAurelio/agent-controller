@@ -39,6 +39,10 @@ export const en: Record<keyof typeof ptBR, string> = {
 
   'command.checks': 'Checks of “{name}”: what runs at the end of a turn',
   'command.runChecks': 'Run the checks of “{name}” now',
+  'command.newGroup': 'New session group',
+  'command.editGroup': 'Edit the group “{name}”',
+  'command.moveToGroup': 'Move “{name}” to the group “{group}”',
+  'command.leaveGroup': 'Take “{name}” out of the group “{group}”',
 
   'checks.title': 'Checks',
   'checks.intro':
@@ -153,6 +157,27 @@ export const en: Record<keyof typeof ptBR, string> = {
   'sidebar.duplicate': 'Duplicate {name}',
   'sidebar.close': 'Close {name}',
   'sidebar.new': '+ New session',
+  'sidebar.newGroup': 'New group: gather the sessions of a repository',
+  'sidebar.ungroupedDrop': 'Drop here to take it out of the group',
+  'group.expand': 'Show the sessions of {name}',
+  'group.collapse': 'Collapse {name}',
+  'group.count': '{count} session(s)',
+  'group.waiting': '{count} waiting for you',
+  'group.unread': 'A session of the group has news',
+  'group.newSession': 'New session in {name}',
+  'group.edit': 'Edit the group {name}',
+  'group.remove': 'Ungroup {name}: the sessions stay open',
+  'group.empty': 'Drag sessions here',
+  'group.name': 'Group name',
+  'groupDialog.createTitle': 'New group',
+  'groupDialog.editTitle': 'Edit group',
+  'groupDialog.name': 'Group name',
+  'groupDialog.namePlaceholder': 'For instance, the name of the repository',
+  'groupDialog.sessions': 'Sessions of the group',
+  'groupDialog.noSessions': 'There are no sessions yet. They can join the group later.',
+  'groupDialog.inOther': 'now in {group}',
+  'groupDialog.create': 'Create group',
+  'groupDialog.save': 'Save',
 
   'terminal.empty.title': 'No sessions',
   'terminal.empty.body': 'Create a session to open Claude Code or Codex in a folder.',
@@ -166,6 +191,8 @@ export const en: Record<keyof typeof ptBR, string> = {
   'newSession.commandHint':
     'Optional. It runs in your shell, so the aliases and functions of your profile work (for example, claude-work). Empty: {command}.',
   'newSession.submit': 'Create and start',
+  'newSession.group': 'Group',
+  'newSession.noGroup': 'None',
 
   'agent.missing': '{name} was not found on the PATH. Install it with: {command}',
   'agent.outdated':
@@ -355,6 +382,9 @@ export const en: Record<keyof typeof ptBR, string> = {
   'error.onlyHttp': 'Only http(s) links',
   'error.unknownProfile': 'Unknown profile',
   'error.invalidOrder': 'Invalid order',
+  'error.group.noName': 'Give the group a name.',
+  'error.group.notFound': 'Group not found',
+  'error.group.tooMany': 'There are too many groups: ungroup one before creating another.',
 
   'arg.session': 'session',
   'arg.message': 'message',
@@ -369,4 +399,5 @@ export const en: Record<keyof typeof ptBR, string> = {
   'arg.command': 'command',
   'arg.expected': 'expected content',
   'arg.checks': 'checks',
+  'arg.group': 'group',
 };

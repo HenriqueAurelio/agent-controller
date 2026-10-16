@@ -10,7 +10,7 @@ import {
 import { createSocketPath, HookServer } from '@core/signals/HookServer';
 import { UserError } from '@shared/i18n';
 import { DEFAULT_PREFERENCES } from '@shared/prefs';
-import type { Session, SessionState } from '@shared/session';
+import type { Session, SessionGroup, SessionState } from '@shared/session';
 import { AGENTCTL_SCRIPT, FIXTURES, removeDir, sleep, tempDir, waitFor } from './helpers';
 
 const SIZE = { cols: 100, rows: 30 };
@@ -21,18 +21,23 @@ describe('SessionManager', () => {
   let ptys: PtyManager;
   let hooks: HookServer;
   let manager: SessionManager;
-  let persisted: { sessions: Session[]; selectedId: string | null }[];
+  let persisted: { sessions: Session[]; selectedId: string | null; groups: SessionGroup[] }[];
   let transitions: SessionTransition[];
   let data: Record<string, string>;
   let launch: (session: Session) => { file: string; args: string[] };
 
-  const build = (sessions: Session[] = [], selectedId: string | null = null) => {
+  const build = (
+    sessions: Session[] = [],
+    selectedId: string | null = null,
+    groups: SessionGroup[] = [],
+  ) => {
     manager = new SessionManager({
       ptys,
       sessions,
+      groups,
       selectedId,
       prefs: { ...DEFAULT_PREFERENCES, silenceSeconds: 0 },
-      persist: (s, selected) => persisted.push({ sessions: s, selectedId: selected }),
+      persist: (s, selected, g) => persisted.push({ sessions: s, selectedId: selected, groups: g }),
       resolveLaunch: (session) => ({
         ...launch(session),
         env: {
@@ -366,6 +371,114 @@ describe('SessionManager', () => {
     it('is refused when the agent is not running', () => {
       const s = create();
       expect(() => manager.paste(s.id, 'oi')).toThrow(UserError);
+    });
+  });
+
+  describe('groups', () => {
+    const names = () => manager.list().map((s) => [s.name, s.groupId ?? null]);
+    const nameOf = (id: string | undefined) =>
+      manager.listGroups().find((g) => g.id === id)?.name ?? null;
+    const layout = () => manager.list().map((s) => `${nameOf(s.groupId) ?? '-'}/${s.name}`);
+
+    it('lists the sessions with no group first, then each group with its own, in order', () => {
+      const a = create('A');
+      const b = create('B');
+      const c = create('C');
+      const d = create('D');
+      const api = manager.createGroup('  api-repo  ', [c.id, a.id]);
+      const web = manager.createGroup('web', [b.id]);
+      expect(manager.listGroups()).toEqual([
+        { id: api.id, name: 'api-repo', collapsed: false },
+        { id: web.id, name: 'web', collapsed: false },
+      ]);
+      // Joining keeps the order the sessions had among themselves.
+      expect(layout()).toEqual(['-/D', 'api-repo/A', 'api-repo/C', 'web/B']);
+      expect(manager.list().map((s) => s.order)).toEqual([0, 1, 2, 3]);
+
+      manager.reorderGroups([web.id, api.id]);
+      expect(layout()).toEqual(['-/D', 'web/B', 'api-repo/A', 'api-repo/C']);
+
+      // A reorder never takes a session out of its group.
+      manager.reorder([c.id, d.id, b.id, a.id]);
+      expect(layout()).toEqual(['-/D', 'web/B', 'api-repo/C', 'api-repo/A']);
+    });
+
+    it('moves sessions in and out of a group; one that joins goes to its end', () => {
+      const a = create('A');
+      const b = create('B');
+      const c = create('C');
+      const g = manager.createGroup('repo', [b.id, c.id]);
+      manager.setGroup([a.id], g.id);
+      expect(layout()).toEqual(['repo/B', 'repo/C', 'repo/A']);
+      manager.setGroup([c.id], null);
+      expect(layout()).toEqual(['-/C', 'repo/B', 'repo/A']);
+      expect(manager.list()[0]).not.toHaveProperty('groupId');
+      expect(() => manager.setGroup([a.id], 'nope')).toThrow(UserError);
+    });
+
+    it('edits a group: its name, folding, and exactly the sessions it holds', () => {
+      const a = create('A');
+      const b = create('B');
+      const c = create('C');
+      const g = manager.createGroup('repo', [a.id, b.id]);
+      manager.updateGroup(g.id, { name: 'repo-novo', collapsed: true, sessionIds: [b.id, c.id] });
+      expect(manager.listGroups()).toEqual([{ id: g.id, name: 'repo-novo', collapsed: true }]);
+      expect(layout()).toEqual(['-/A', 'repo-novo/B', 'repo-novo/C']);
+      expect(() => manager.updateGroup(g.id, { name: '   ' })).toThrow(UserError);
+      expect(() => manager.createGroup('')).toThrow(UserError);
+      expect(manager.listGroups()[0]!.name).toBe('repo-novo');
+    });
+
+    it('removing a group keeps its sessions, with no group', () => {
+      const a = create('A');
+      const b = create('B');
+      const g = manager.createGroup('repo', [a.id]);
+      manager.removeGroup(g.id);
+      expect(manager.listGroups()).toEqual([]);
+      // They stay where they were seen: below the ones that had no group.
+      expect(names()).toEqual([
+        ['B', null],
+        ['A', null],
+      ]);
+      expect(manager.has(a.id) && manager.has(b.id)).toBe(true);
+    });
+
+    it('a session is created in a group, and its duplicate stays in it', () => {
+      create('Solta');
+      const g = manager.createGroup('repo');
+      const s = manager.create({ name: 'Nova', cwd: dir, profile: 'codex', groupId: g.id });
+      expect(s.groupId).toBe(g.id);
+      manager.duplicate(s.id);
+      expect(layout()).toEqual(['-/Solta', 'repo/Nova', 'repo/Nova (2)']);
+      expect(() =>
+        manager.create({ name: 'X', cwd: dir, profile: 'codex', groupId: 'nope' }),
+      ).toThrow(UserError);
+    });
+
+    it('persists the groups and comes back with them; a group that is gone drops its sessions out', async () => {
+      const a = create('A');
+      create('B');
+      const g = manager.createGroup('repo', [a.id]);
+      manager.updateGroup(g.id, { collapsed: true });
+      manager.flushPersist();
+      const saved = persisted.at(-1)!;
+      expect(saved.groups).toEqual([{ id: g.id, name: 'repo', collapsed: true }]);
+      expect(saved.sessions.map((s) => [s.name, s.groupId ?? null])).toEqual([
+        ['B', null],
+        ['A', g.id],
+      ]);
+
+      await manager.dispose(0);
+      build(saved.sessions, null, saved.groups);
+      expect(layout()).toEqual(['-/B', 'repo/A']);
+      expect(manager.listGroups()[0]!.collapsed).toBe(true);
+
+      await manager.dispose(0);
+      build(saved.sessions, null, []);
+      expect(names()).toEqual([
+        ['B', null],
+        ['A', null],
+      ]);
     });
   });
 

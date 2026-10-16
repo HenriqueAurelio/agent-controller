@@ -11,6 +11,8 @@ import { FolderField } from './FolderField';
 interface Props {
   /** The folder the dialog opens with, when it was asked for one (a folder dropped on the app). */
   initialCwd?: string;
+  /** The group the session goes into, when it was asked for from one. */
+  initialGroupId?: string;
   onClose(): void;
   onCreated(session: SessionView): void;
 }
@@ -30,12 +32,13 @@ function availabilityNote(t: Translate, agent: AgentAvailability): string | null
   return null;
 }
 
-export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
+export function NewSessionDialog({ initialCwd, initialGroupId, onClose, onCreated }: Props) {
   const t = useT();
   const agents = useAppState((s) => s.agents);
   const defaultFolder = useAppState((s) => s.prefs.defaultFolder);
   const agentCommands = useAppState((s) => s.prefs.agentCommands);
   const sessions = useAppState((s) => s.sessions);
+  const groups = useAppState((s) => s.groups);
   // With no folder asked for and none set as the initial one, the latest one used is offered.
   const [suggested] = useState(
     () => initialCwd || defaultFolder || (store.get().recentFolders[0] ?? ''),
@@ -45,6 +48,7 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
   const [cwd, setCwd] = useState(suggested);
   const [profile, setProfile] = useState<AgentProfileId | null>(null);
   const [command, setCommand] = useState('');
+  const [groupId, setGroupId] = useState(initialGroupId ?? '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -79,6 +83,8 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
         cwd: cwd.trim(),
         profile: chosen,
         command: command.trim() || undefined,
+        // A group closed in the meantime is not one to go into.
+        groupId: groups.some((g) => g.id === groupId) ? groupId : undefined,
       });
       onCreated(session);
     } catch (err) {
@@ -162,6 +168,24 @@ export function NewSessionDialog({ initialCwd, onClose, onCreated }: Props) {
           </datalist>
           <span className="muted">{t('newSession.commandHint', { command: defaultCommand })}</span>
         </label>
+
+        {groups.length > 0 && (
+          <label className="field">
+            <span>{t('newSession.group')}</span>
+            <select
+              aria-label={t('newSession.group')}
+              value={groupId}
+              onChange={(e) => setGroupId(e.target.value)}
+            >
+              <option value="">{t('newSession.noGroup')}</option>
+              {groups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         {error && (
           <p className="form-error" role="alert">

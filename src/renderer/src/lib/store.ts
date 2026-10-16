@@ -2,11 +2,13 @@ import { useSyncExternalStore } from 'react';
 import type { AgentAvailability } from '@shared/agents';
 import type { AppInfo, SessionMetrics } from '@shared/ipc';
 import { DEFAULT_PREFERENCES, type Preferences } from '@shared/prefs';
-import type { SessionView } from '@shared/session';
+import type { SessionGroup, SessionView } from '@shared/session';
 
 export interface AppState {
   info: AppInfo;
+  /** In the order they are listed: the ones with no group, then each group's. */
   sessions: SessionView[];
+  groups: SessionGroup[];
   selectedId: string | null;
   metrics: Record<string, SessionMetrics>;
   prefs: Preferences;
@@ -18,6 +20,7 @@ export interface AppState {
 let state: AppState = {
   info: { version: '', platform: 'win32', testMode: false, gpuMode: 'fast' },
   sessions: [],
+  groups: [],
   selectedId: null,
   metrics: {},
   prefs: DEFAULT_PREFERENCES,
@@ -92,6 +95,33 @@ export const store = {
     const byId = new Map(state.sessions.map((s) => [s.id, s]));
     set({ sessions: ids.flatMap((id) => byId.get(id) ?? []) });
     void window.api.invoke('sessions:reorder', ids);
+  },
+
+  /**
+   * Puts a session in a group (`null`: in none) and, with `ids`, in that place of the list. Shown
+   * at once, as a reorder is.
+   */
+  async moveToGroup(id: string, groupId: string | null, ids?: string[]): Promise<void> {
+    const moved = state.sessions.map((s) => {
+      if (s.id !== id) return s;
+      const { groupId: _left, ...rest } = s;
+      return groupId === null ? rest : { ...rest, groupId };
+    });
+    const byId = new Map(moved.map((s) => [s.id, s]));
+    set({ sessions: ids ? ids.flatMap((other) => byId.get(other) ?? []) : moved });
+    await window.api.invoke('sessions:setGroup', [id], groupId);
+    if (ids) await window.api.invoke('sessions:reorder', ids);
+  },
+
+  reorderGroups(ids: string[]): void {
+    const byId = new Map(state.groups.map((g) => [g.id, g]));
+    set({ groups: ids.flatMap((id) => byId.get(id) ?? []) });
+    void window.api.invoke('groups:reorder', ids);
+  },
+
+  setCollapsed(id: string, collapsed: boolean): void {
+    set({ groups: state.groups.map((g) => (g.id === id ? { ...g, collapsed } : g)) });
+    void window.api.invoke('groups:update', id, { collapsed });
   },
 };
 
