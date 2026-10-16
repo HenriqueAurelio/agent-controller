@@ -23,11 +23,25 @@ export const ptBR = {
   'app.closeSession.body':
     'O agente de {name} está rodando. Fechar a sessão vai encerrá-lo, junto com o que ele tiver iniciado.',
   'app.closeSession.confirm': 'Encerrar e fechar',
+  'closeWorktree.question': 'O que fazer com a cópia isolada desta sessão?',
+  'closeWorktree.keep': 'Manter a cópia',
+  'closeWorktree.keepHint':
+    'a pasta e a branch {branch} continuam; dá para abrir outra sessão nela depois',
+  'closeWorktree.remove': 'Remover a cópia',
+  'closeWorktree.removeHint': 'apaga a pasta; a branch {branch} continua',
+  'closeWorktree.checking': 'Conferindo o que há na cópia…',
+  'closeWorktree.dirty': 'A cópia tem {count} arquivo(s) sem commit e não pode ser removida:',
+  'closeWorktree.more': 'e mais {count}',
+  'closeWorktree.shared': '“{name}” também trabalha nesta cópia: ela fica.',
+  'closeWorktree.confirm': 'Fechar',
 
   'app.checks': 'Verificações',
   'app.checksHint': 'Comandos que conferem o trabalho do agente: lint, typecheck, testes',
   'app.aux': 'Terminal',
   'app.auxHint': 'Um shell na pasta da sessão, ao lado do agente',
+  'app.worktreeHint': 'Cópia isolada de {repo}, na branch {branch} (saiu de {base})',
+  'app.worktreeShared':
+    'Esta cópia isolada também é usada por “{name}”: as duas sessões mexem nos mesmos arquivos.',
 
   'command.seeChanges': 'Ver mudanças: o que mudou na sessão',
   'command.files': 'Arquivos: ver todos os arquivos da pasta',
@@ -174,6 +188,14 @@ export const ptBR = {
   'newSession.command': 'Comando',
   'newSession.commandHint':
     'Opcional. Roda no seu shell, então os aliases e as funções do seu perfil valem (por exemplo, claude-work). Vazio: {command}.',
+  'newSession.worktree': 'Cópia isolada (git worktree)',
+  'newSession.worktreeHint':
+    'Uma pasta e uma branch só desta sessão. O repositório e o histórico são os mesmos.',
+  'newSession.branch': 'Branch nova',
+  'newSession.base': 'A partir de',
+  'newSession.worktreeWhere': 'A cópia fica em {folder}.',
+  'newSession.worktreeSetup': 'Antes de abrir a sessão, o app roda {command} nela.',
+  'newSession.creatingCopy': 'Criando a cópia…',
   'newSession.submit': 'Criar e iniciar',
 
   'agent.missing': '{name} não foi encontrado no PATH. Instale com: {command}',
@@ -233,6 +255,29 @@ export const ptBR = {
   'prefs.tab.agentes': 'Agentes',
   'prefs.tab.atalhos': 'Atalhos',
   'prefs.tab.layout': 'Layout',
+  'prefs.tab.sessoes': 'Sessões',
+  'worktrees.title': 'Cópias isoladas (git worktree)',
+  'worktrees.intro':
+    'Uma sessão criada com “Cópia isolada” trabalha numa pasta e numa branch só dela. O app cria e remove as cópias; commit e push ficam com você ou com o agente.',
+  'worktrees.folder': 'Pasta das cópias',
+  'worktrees.folderHint':
+    'Vazio: {folder}. Um caminho curto evita problemas com caminhos longos no Windows.',
+  'worktrees.setup': 'Preparar cada cópia nova com',
+  'worktrees.setupHint':
+    'Um comando, como no terminal (npm ci, por exemplo). Roda uma vez, na cópia, antes de a sessão abrir. Não vai no arquivo de exportação.',
+  'worktrees.save': 'Salvar',
+  'worktrees.saved': 'Salvo.',
+  'worktrees.copies': 'Cópias',
+  'worktrees.loading': 'Carregando…',
+  'worktrees.none': 'Nenhuma cópia.',
+  'worktrees.copyInfo': '{size} · mudou em {date}',
+  'worktrees.sizeAtLeast': 'mais de {size}',
+  'worktrees.usedBy': 'usada por {names}',
+  'worktrees.unused': 'nenhuma sessão',
+  'worktrees.inUseHint': 'Feche as sessões que trabalham nela antes de remover.',
+  'worktrees.remove': 'Remover',
+  'worktrees.removeOf': 'Remover a cópia {branch}',
+  'worktrees.removeConfirm': 'Remover a cópia em {folder}? A branch {branch} continua.',
   'prefs.tab.configuracoes': 'Importar e exportar',
   'prefs.language': 'Idioma',
   'prefs.languageLabel': 'Idioma da interface',
@@ -274,6 +319,7 @@ export const ptBR = {
   'changes.compareWith': 'Comparar com',
   'changes.base.head': 'Último commit',
   'changes.base.session': 'Início da sessão',
+  'changes.base.branchBase': 'A base da branch ({base})',
   'changes.viewHint': 'Alternar entre lado a lado e em linha',
   'changes.inline': 'Em linha',
   'changes.sideBySide': 'Lado a lado',
@@ -283,6 +329,7 @@ export const ptBR = {
   'changes.loading': 'Carregando…',
   'changes.none.title': 'Nenhuma mudança',
   'changes.none.session': 'Nada mudou desde que a sessão começou.',
+  'changes.none.branchBase': 'Nada mudou desde que a branch saiu da base.',
   'changes.none.repos': 'Os {count} repositórios da pasta estão iguais ao último commit: {names}.',
   'changes.none.head': 'A pasta está igual ao último commit.',
   'changes.pickFile': 'Escolha um arquivo para ver e editar.',
@@ -357,6 +404,20 @@ export const ptBR = {
   'error.save.tooLarge': 'O arquivo ficou grande demais para ser salvo pelo painel',
   'error.session.noName': 'Dê um nome à sessão.',
   'error.session.notFound': 'Sessão não encontrada',
+  'error.worktree.notRepo': '{folder} não está num repositório git: não há do que fazer uma cópia.',
+  'error.worktree.badBranch': '“{branch}” não serve como nome de branch.',
+  'error.worktree.branchExists': 'A branch {branch} já existe. Escolha outro nome.',
+  'error.worktree.badBase': '“{base}” não é uma branch, tag ou commit deste repositório.',
+  'error.worktree.folderExists': 'A pasta {folder} já existe.',
+  'error.worktree.createFailed': 'O git não criou a cópia: {error}',
+  'error.worktree.notWorktree': '{folder} não é uma cópia isolada.',
+  'error.worktree.dirty': 'A cópia tem {count} arquivo(s) sem commit ({files}) e não foi removida.',
+  'error.worktree.removeFailed': 'O git não removeu a cópia: {error}',
+  'error.worktree.inUse': 'A sessão “{name}” trabalha nesta cópia: ela não foi removida.',
+  'error.worktree.setupFailed':
+    'A cópia foi criada em {folder}, mas {command} falhou, e a sessão não foi aberta. A cópia e a branch ficaram; dá para removê-las em Preferências → Sessões.\n{output}',
+  'error.worktree.folderNotAbsolute':
+    'A pasta das cópias precisa ser um caminho completo: {folder}',
   'error.session.notRunning': 'O agente da sessão não está rodando.',
   'error.checks.nothingFailed': 'Nenhuma verificação falhou na última rodada.',
   'error.folder.missing': 'A pasta não existe: {folder}',
@@ -440,4 +501,5 @@ export const ptBR = {
   'error.prompt.selectionTooLarge': 'A seleção passa de {limit} caracteres.',
   'error.prompt.tooLarge':
     'O texto ficou grande demais para enviar ao agente (mais de {limit} caracteres).',
+  'arg.branch': 'branch',
 } as const;

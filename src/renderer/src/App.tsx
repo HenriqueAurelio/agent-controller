@@ -9,8 +9,8 @@ import {
 import { ChangeFolderDialog } from './components/ChangeFolderDialog';
 import { ChangesPanel, type PanelMode } from './components/ChangesPanel';
 import { ChecksBadge, ChecksDialog } from './components/ChecksDialog';
+import { CloseSessionDialog } from './components/CloseSessionDialog';
 import { CommandPalette, type Command } from './components/CommandPalette';
-import { Dialog } from './components/Dialog';
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { PromptDialog, type PromptContext } from './components/PromptDialog';
@@ -94,6 +94,9 @@ export function App() {
   }, [mayDiscardEdits]);
 
   const selected = sessions.find((s) => s.id === selectedId) ?? null;
+  // Another session in the same copy of the repository: the two touch the same files.
+  const sharing =
+    selected?.worktree && sessions.find((s) => s.id !== selected.id && s.cwd === selected.cwd);
   // What the session runs in place of the agent, when it is not the agent itself.
   const agentCommand = selected && (selected.command || agentCommands[selected.profile]);
   const sessionIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
@@ -156,8 +159,9 @@ export function App() {
   }, []);
 
   const requestClose = useCallback((session: SessionView) => {
-    // A running agent is only closed after confirmation.
-    if (session.running) setClosing(session);
+    // A running agent is only closed after confirmation; a copy of the repository, after asking
+    // what to do with it.
+    if (session.running || session.worktree) setClosing(session);
     else void window.api.invoke('sessions:remove', session.id);
   }, []);
 
@@ -480,6 +484,19 @@ export function App() {
                 {PROFILE_LABEL[selected.profile]}
                 {agentCommand && <span className="command"> · {agentCommand}</span>}
               </span>
+              {selected.worktree && (
+                <span
+                  className="worktree-tag"
+                  data-testid="session-worktree"
+                  title={t('app.worktreeHint', {
+                    repo: selected.worktree.repoRoot,
+                    branch: selected.worktree.branch,
+                    base: selected.worktree.base,
+                  })}
+                >
+                  <span aria-hidden="true">⑂</span> {selected.worktree.branch}
+                </span>
+              )}
               <span
                 data-testid="session-status"
                 className={`state-label state-label-${selected.status.state} ${selected.status.confirmed ? '' : 'inferred'}`}
@@ -531,6 +548,11 @@ export function App() {
               {selected.checks && <ChecksBadge summary={selected.checks} />}
             </button>
           </header>
+        )}
+        {sharing && (
+          <div className="banner" role="status">
+            {t('app.worktreeShared', { name: sharing.name })}
+          </div>
         )}
         {selected?.running && selected.hooks === 'inactive' && (
           <div className="banner" role="status">
@@ -605,25 +627,7 @@ export function App() {
           }}
         />
       )}
-      {closing && (
-        <Dialog title={t('app.closeSession.title')} onClose={() => setClosing(null)}>
-          <p>{rich(t('app.closeSession.body'), { name: <strong>{closing.name}</strong> })}</p>
-          <div className="dialog-actions">
-            <button data-autofocus onClick={() => setClosing(null)}>
-              {t('common.cancel')}
-            </button>
-            <button
-              className="danger"
-              onClick={() => {
-                void window.api.invoke('sessions:remove', closing.id);
-                setClosing(null);
-              }}
-            >
-              {t('app.closeSession.confirm')}
-            </button>
-          </div>
-        </Dialog>
-      )}
+      {closing && <CloseSessionDialog session={closing} onClose={() => setClosing(null)} />}
     </div>
   );
 }

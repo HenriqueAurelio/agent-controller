@@ -18,6 +18,7 @@ import {
   type SessionStatus,
   type SessionView,
   type Signal,
+  type WorktreeOnClose,
   type TerminalSize,
 } from '@shared/session';
 import {
@@ -27,12 +28,21 @@ import {
   type AgentAdapter,
   type LaunchCommand,
 } from '../agents';
+import { repositoryRoot } from '../git/GitService';
+import {
+  checkBranchName,
+  createWorktree,
+  removeWorktree,
+  suggestWorktreeFolder,
+} from '../git/WorktreeService';
 import { ScreenHistory } from '../history/ScreenHistory';
 import type { PtyManager } from '../pty/PtyManager';
 import { toLongPath } from '../pty/longPath';
 import type { HookMessage } from '../signals/HookServer';
 import { SilenceDetector } from '../signals/SilenceDetector';
+import { folderKey } from '../store/recentFolders';
 import { StreamParser } from '../signals/StreamParser';
+import { runInShell, type RunResult } from '../tools/ToolRunner';
 import { SignalAggregator } from './SignalAggregator';
 
 export interface TerminalSnapshotData {
@@ -68,8 +78,26 @@ export interface SessionManagerOptions {
   resolveAuxShell?: (session: Session) => LaunchCommand;
   /** Called (debounced) whenever what is persisted changed. */
   persist: (sessions: Session[], selectedId: string | null) => void;
+  /** How the command that prepares a new copy runs. The default is the user's shell. */
+  runSetup?: (command: string, cwd: string) => Promise<RunResult>;
   now?: () => number;
 }
+
+/** How a session in a copy of its repository is made. */
+export interface WorktreeCreation {
+  /** The folder the copies of every repository go into. */
+  parent: string;
+  /** Run once in the new copy, in the user's shell, before the session exists (`npm ci`). */
+  setup?: string;
+}
+
+export const SETUP_TIMEOUT_MS = 15 * 60 * 1000;
+/** Lines of the output of a setup that failed that the error carries. */
+const SETUP_ERROR_LINES = 15;
+
+const defaultSetup = (command: string, cwd: string): Promise<RunResult> =>
+  // Tools print less color and no prompts when they know nobody is at the keyboard.
+  runInShell(command, { cwd, env: { ...process.env, CI: '1' }, timeoutMs: SETUP_TIMEOUT_MS });
 
 /** A process in a PTY as the renderer sees it: its screen, and what is on the way to it. */
 interface Stream {
@@ -238,11 +266,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   }
 
   create(input: NewSessionInput): SessionView {
-    const name = input.name.trim();
-    if (!name) throw new UserError('error.session.noName');
-    const cwd = this.folder(input.cwd);
-    getProfile(input.profile); // Throws on an unknown profile.
-    const command = sanitizeAgentCommand(input.command);
+    const { name, cwd, command } = this.checkInput(input);
 
     const session: Session = {
       id: randomUUID(),
@@ -258,6 +282,65 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.selectedId = session.id;
     this.changed(true);
     return this.view(entry);
+  }
+
+  /** What a new session would refuse, checked before anything is created for it. */
+  private checkInput(input: NewSessionInput) {
+    const name = input.name.trim();
+    if (!name) throw new UserError('error.session.noName');
+    const cwd = this.folder(input.cwd);
+    getProfile(input.profile); // Throws on an unknown profile.
+    return { name, cwd, command: sanitizeAgentCommand(input.command) };
+  }
+
+  /**
+   * A session in a new copy of the repository of `input.cwd` (`git worktree`), on a new branch.
+   * The copy is made, and prepared when there is a command for it, before the session exists:
+   * when either fails, there is no session and the error says why.
+   */
+  async createInWorktree(input: NewSessionInput, creation: WorktreeCreation): Promise<SessionView> {
+    const wanted = input.worktree;
+    if (!wanted) return this.create(input);
+    const { cwd } = this.checkInput(input);
+    const repoRoot = await repositoryRoot(cwd);
+    if (!repoRoot) throw new UserError('error.worktree.notRepo', { folder: cwd });
+    const branch = await checkBranchName(repoRoot, wanted.branch);
+    const created = await createWorktree({
+      repo: repoRoot,
+      branch,
+      base: wanted.base,
+      folder: suggestWorktreeFolder(creation.parent, repoRoot, branch),
+    });
+    const setup = creation.setup?.trim();
+    if (setup) {
+      const result = await (this.options.runSetup ?? defaultSetup)(setup, created.folder);
+      if (result.exitCode !== 0 || result.timedOut || result.error !== undefined) {
+        const output = (result.error ?? result.output).trimEnd().split('\n');
+        // The copy and its branch stay: nothing is deleted without being asked.
+        throw new UserError('error.worktree.setupFailed', {
+          command: setup,
+          folder: created.folder,
+          output: output.slice(-SETUP_ERROR_LINES).join('\n'),
+        });
+      }
+    }
+    const view = this.create({ ...input, cwd: created.folder, worktree: undefined });
+    const entry = this.entries.get(view.id)!;
+    entry.session = {
+      ...entry.session,
+      worktree: { repoRoot: created.repoRoot, branch: created.branch, base: created.base },
+    };
+    this.changed(true);
+    return this.view(entry);
+  }
+
+  /** Other sessions working in the same folder: a copy they share is not removed under them. */
+  sharing(id: string): Session[] {
+    const cwd = this.entries.get(id)?.session.cwd;
+    if (!cwd) return [];
+    return [...this.entries.values()]
+      .filter((e) => e.session.id !== id && folderKey(e.session.cwd) === folderKey(cwd))
+      .map((e) => e.session);
   }
 
   /** The folder as a session keeps it. Throws a `UserError` when it cannot be one. */
@@ -353,10 +436,22 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     return this.windowFocused && this.selectedId === id;
   }
 
-  async remove(id: string): Promise<void> {
+  /**
+   * Closes a session. For one in a copy of its repository, `worktree: 'remove'` also removes the
+   * copy, but only when nothing in it is uncommitted and no other session works in it; otherwise
+   * it throws, and the session stays (stopped). The branch is never deleted.
+   */
+  async remove(id: string, options: { worktree?: WorktreeOnClose } = {}): Promise<void> {
     const entry = this.entries.get(id);
     if (!entry) return;
+    if (options.worktree === 'remove' && entry.session.worktree) {
+      const other = this.sharing(id)[0];
+      if (other) throw new UserError('error.worktree.inUse', { name: other.name });
+    }
     await Promise.all([this.stop(id), this.closeAux(id)]);
+    if (options.worktree === 'remove' && entry.session.worktree) {
+      await removeWorktree(entry.session.cwd);
+    }
     this.disposeRuntime(entry);
     this.entries.delete(id);
     const index = this.order.indexOf(id);

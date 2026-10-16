@@ -48,6 +48,7 @@ test('the language chosen in the preferences is the one of every text', async ()
     'Prompts',
     'Shortcuts',
     'Layout',
+    'Sessions',
     'Import and export',
   ]);
   await expect(prefs.getByLabel('Interface language')).toHaveValue('en');
@@ -120,6 +121,7 @@ test('the button of the changes and the palette speak the language too, Spanish 
     'Prompts',
     'Atajos',
     'Diseño',
+    'Sesiones',
     'Importar y exportar',
   ]);
   await expect(prefs.getByLabel('Idioma de la interfaz')).toHaveValue('es');

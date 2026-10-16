@@ -94,6 +94,26 @@ Quando um agente que estava trabalhando termina ou passa a aguardar você, o app
 
 Em **Preferências** (`Ctrl+,`) dá para desligar cada tipo de aviso e o som.
 
+### Cópia isolada (git worktree)
+
+Dois agentes na mesma pasta pisam um no outro. Para cada um trabalhar sem atrapalhar o outro, crie a sessão como **cópia isolada**: o app faz um `git worktree` do repositório, numa branch nova, e abre o agente lá. O repositório e o histórico são os mesmos; a pasta e a branch são só daquela sessão.
+
+1. Em **Nova sessão**, escolha uma pasta que esteja num repositório git. Aparece a caixa **Cópia isolada (git worktree)**.
+2. Marque. A **branch nova** vem sugerida a partir do nome da sessão (`ac/corrigir-login`), e **A partir de** é a branch atual; dá para trocar os dois.
+3. **Criar e iniciar.** A cópia vai para `~/.agent-controller/worktrees/<repositório>/<branch>`.
+
+Depois disso:
+
+- O topo da sessão mostra a branch, com o ícone **⑂**.
+- O painel de mudanças mostra só o que aconteceu na cópia. Em **Comparar com**, a opção **A base da branch** mostra tudo o que a branch mudou desde que saiu da base: os commits dela e o que ainda não tem commit.
+- **Duplicar** uma sessão em cópia abre a nova na mesma cópia. Enquanto as duas existirem, uma faixa avisa que elas mexem nos mesmos arquivos.
+- **Ao fechar**, o app pergunta o que fazer com a cópia. **Manter** (o padrão) deixa a pasta e a branch; dá para abrir outra sessão nela depois. **Remover a cópia** apaga a pasta, e só é possível quando nada nela está sem commit e nenhuma outra sessão a usa; com mudanças, o app diz quais e não remove. A **branch nunca é apagada**.
+- O app não faz commit nem push: abrir o PR fica com você ou com o agente.
+
+Em **Preferências → Sessões** você escolhe a **pasta das cópias** e um **comando para preparar cada cópia nova** (por exemplo, `npm ci`), que roda uma vez, na cópia, antes de a sessão abrir; se ele falhar, a sessão não abre, e a cópia fica. A mesma aba lista as cópias, com branch, tamanho, data e quais sessões as usam, e remove as que nenhuma sessão usa. Esses dois ajustes ficam com as sessões, não vão no arquivo de exportação das preferências.
+
+Os agentes perguntam se confiam em cada pasta nova, e cada cópia é uma pasta nova. No Windows, um `node_modules` fundo dentro da cópia pode passar do limite de caminho; se acontecer, `git config --global core.longpaths true` ajuda o git, e uma pasta de cópias curta ajuda o resto.
+
 ### Ver o que o agente alterou
 
 **Ver mudanças** (botão no topo da sessão, `Ctrl+Shift+G`, ou "ver mudanças" na paleta de comandos) abre o painel de mudanças:
@@ -252,7 +272,7 @@ O Claude Code não tem essa tela: os avisos funcionam sem você fazer nada. Os d
 ## Limitações do v1
 
 - **Fechar o app encerra todos os agentes**, mesmo no meio de uma tarefa. O app pede confirmação antes, listando as sessões que serão encerradas. Ao reabrir, as sessões voltam com nome, pasta e agente, paradas, e cada uma inicia quando você a abre (numa conversa nova). Encerrar os agentes leva alguns segundos, com a janela já fechada; se você abrir o app nesse meio-tempo, ele abre assim que o anterior terminar de sair.
-- **O painel de mudanças edita arquivos, mas não opera o git.** Não há "stage", "commit" nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar com o agente parado.
+- **O painel de mudanças edita arquivos, mas não opera o git.** Não há "stage", "commit" nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar com o agente parado. Do git, o app só cria e remove as [cópias isoladas](#cópia-isolada-git-worktree) e a branch nova de cada uma; nunca faz commit, push nem apaga uma branch.
 - **O painel de mudanças exige git**, instalado e com a pasta da sessão dentro de um repositório. Sem isso, ele explica o que falta.
 - **"Aguardando você" não é infalível.** Ver "Possivelmente aguardando" acima.
 - **Só Claude Code e Codex.** Sem outras IAs, SSH ou macOS. Um shell comum só existe como o [terminal auxiliar](#terminal-auxiliar) de uma sessão: um por sessão, sem abas nem divisão livre da tela. O comando de uma sessão pode ser trocado, mas o agente por trás dele tem que ser um dos dois.

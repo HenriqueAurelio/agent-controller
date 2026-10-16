@@ -300,6 +300,13 @@ export async function currentBranch(root: string): Promise<string | null> {
   return result.code === 0 ? result.stdout.toString('utf8').trim() || null : null;
 }
 
+/** Where HEAD and `base` last met: the commit a branch left `base` from. Null when they never met. */
+export async function mergeBase(root: string, base: string): Promise<string | null> {
+  if (base.startsWith('-')) return null;
+  const result = await runGit(root, ['merge-base', base, 'HEAD']);
+  return result.code === 0 ? result.stdout.toString('utf8').trim() || null : null;
+}
+
 export async function hasHead(root: string): Promise<boolean> {
   const result = await runGit(root, ['rev-parse', '--verify', '--quiet', 'HEAD']);
   return result.code === 0;

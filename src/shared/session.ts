@@ -33,6 +33,18 @@ export interface SessionStatus {
   detail?: string;
 }
 
+/**
+ * A session working in a copy of a repository (`git worktree`) the app created for it, on a branch
+ * of its own. The folder of the session is the copy.
+ */
+export interface SessionWorktree {
+  /** The repository the copy belongs to. */
+  repoRoot: string;
+  branch: string;
+  /** What the branch started from, for "compare with the base". */
+  base: string;
+}
+
 /** What is saved to disk. No terminal history, no environment variables. */
 export interface Session {
   id: string;
@@ -44,6 +56,7 @@ export interface Session {
    * theirs works. Absent: the command of the preferences, or the agent's own.
    */
   command?: string;
+  worktree?: SessionWorktree;
   order: number;
 }
 
@@ -69,6 +82,8 @@ export interface NewSessionInput {
   cwd: string;
   profile: AgentProfileId;
   command?: string;
+  /** Work in a new copy of the repository of `cwd`, on a new branch. */
+  worktree?: { branch: string; base: string };
 }
 
 /**
@@ -85,6 +100,8 @@ export function parseTerminalId(id: string): { sessionId: string; aux: boolean }
     ? { sessionId: id.slice(0, -':aux'.length), aux: true }
     : { sessionId: id, aux: false };
 }
+/** What happens to the copy of a session in a worktree when it is closed. */
+export type WorktreeOnClose = 'keep' | 'remove';
 
 export interface TerminalSize {
   cols: number;
