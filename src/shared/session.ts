@@ -58,6 +58,8 @@ export interface SessionView extends Session {
   unread: boolean;
   /** The latest run of the checks of the folder, while the app is open. */
   checks?: ChecksSummary;
+  /** Texts waiting for the agent to finish its turn before they are sent to it. */
+  pendingSends?: number;
   /** The plain shell beside the agent is open. It never outlives the app. */
   auxOpen?: boolean;
 }
@@ -109,6 +111,16 @@ export function statusDetail(t: Translate, detail: string | undefined): string |
   if (detail === STATUS_DETAIL.idle) return t('detail.idle');
   if (detail === STATUS_DETAIL.unconfirmed) return t('detail.unconfirmed');
   return detail;
+}
+
+/**
+ * Whether text sent to the agent must wait: it is working, or asking something that is not its
+ * prompt (a permission), where pasted text would answer the question instead.
+ */
+export function isBusyForText(status: SessionStatus): boolean {
+  if (status.state === 'trabalhando') return true;
+  if (status.state !== 'aguardando' || !status.confirmed) return false;
+  return status.detail !== STATUS_DETAIL.ready && status.detail !== STATUS_DETAIL.idle;
 }
 
 export function initialStatus(at = 0): SessionStatus {

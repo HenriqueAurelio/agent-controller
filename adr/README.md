@@ -17,7 +17,8 @@ Registro das decisões de arquitetura do agent-controller. Cada arquivo traz o c
 | [0011](0011-perfis-de-agente.md) | Perfis de agente: Claude Code e Codex | Aceita, emendada pela 0013 |
 | [0012](0012-see-changes-permite-editar.md) | "See changes" permite editar o arquivo | Aceita, emendada pela 0014 |
 | [0013](0013-comando-do-usuario-no-lugar-do-agente.md) | Comando do usuário no lugar do executável do agente | Aceita |
-| [0014](0014-verificacoes-ao-fim-do-turno.md) | Verificações do projeto ao fim do turno | Aceita |
+| [0014](0014-verificacoes-ao-fim-do-turno.md) | Verificações do projeto ao fim do turno | Aceita, emendada pela 0015 |
+| [0015](0015-app-escreve-no-terminal-a-pedido.md) | O app escreve no terminal do agente a pedido do usuário | Aceita |
 | [0016](0016-terminal-auxiliar.md) | Terminal auxiliar ao lado do agente | Aceita |
 
 ## Status

@@ -136,6 +136,37 @@ Daí em diante:
 
 As verificações ficam guardadas **por pasta**: toda sessão naquela pasta usa as mesmas, e elas voltam ao reabrir o app. O resultado da última rodada não volta. Elas **não vão** no arquivo de exportação das preferências: são comandos que o app roda sozinho, e importar um arquivo não deve trazê-los.
 
+### Prompts guardados
+
+Pedidos que você repete ("revise o diff", "escreva os testes de {arquivo}") ficam guardados em **Preferências → Prompts**, com nome, texto e, se quiser, um atalho. O app vem com três de fábrica; **Restaurar os de fábrica** os traz de volta no idioma atual.
+
+Para enviar:
+
+- **Paleta:** `Ctrl+Shift+P` → "Prompt: Escrever testes". Abre o diálogo de envio para a sessão à vista.
+- **Atalho do prompt**, definido na mesma aba.
+- **Painel de mudanças:** com um trecho selecionado no editor, clique com o botão direito → **Mandar ao agente com o prompt…** (ou o botão de mesmo nome no topo do arquivo). O prompt já sabe qual é o arquivo e o trecho.
+- **Várias sessões:** na barra lateral, `Ctrl+clique` marca outras sessões além da que está à vista; **Enviar prompt** manda a todas as marcadas.
+
+No diálogo você escolhe o prompt, responde às perguntas dele, pode mexer no texto só para esse envio e marca as sessões de destino. A **prévia** mostra como o texto chega na primeira sessão, com as variáveis preenchidas:
+
+| Variável | Vira |
+|---|---|
+| `{sessao}` | O nome da sessão |
+| `{pasta}` | A pasta da sessão |
+| `{branch}` | A branch atual da pasta (vazio fora de um repositório) |
+| `{arquivo}` | O arquivo aberto no painel de mudanças |
+| `{selecao}` | O trecho selecionado no editor do painel (até 20 mil caracteres; o resto é cortado, com aviso) |
+| `{?pergunta}` | Um campo que o diálogo pede na hora de enviar |
+
+Uma variável que o app não conhece fica como está escrita. Cada sessão recebe o texto com as variáveis dela.
+
+Como o texto chega:
+
+- **Sem Enter, de fábrica.** O texto fica no prompt do agente para você conferir e enviar. A preferência **Enviar com Enter** (e a caixa no diálogo, só para aquele envio) aperta o Enter por você.
+- **Numa linha só**, com **⏎** onde havia quebra de linha, como em "Mandar o erro ao agente" (ver acima).
+- **Agente ocupado:** se ele está trabalhando, ou pedindo uma permissão, o texto **espera o fim do turno**. A sessão mostra "1 envio(s) esperando o turno", com **Cancelar**. **Enviar agora mesmo assim**, no diálogo, não espera. Com vários textos esperando, sai um turno de cada vez.
+
+Os prompts são só texto e **vão no arquivo de exportação** das preferências.
 ### Terminal auxiliar
 
 Para rodar algo na pasta da sessão sem sair do app e sem atrapalhar o agente (subir o servidor, olhar um log, `git log`), abra o **terminal auxiliar**: `Ctrl+Shift+"` (a tecla `'` com `Shift`), o botão **Terminal** no topo da sessão ou "Terminal auxiliar: abrir um shell…" na paleta.
@@ -167,9 +198,9 @@ Este README descreve o app em português; em inglês, os nomes dos botões e men
 
 ### Exportar e importar as configurações
 
-Em **Preferências → Importar e exportar**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
+Em **Preferências → Importar e exportar**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, prompts guardados, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
 
-As sessões e as verificações de cada pasta não vão no arquivo. Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Agentes** depois.
+As sessões e as verificações de cada pasta não vão no arquivo. Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Agentes** depois. Os prompts de um arquivo importado são só texto: nada é enviado sem você abrir o diálogo, ver o texto e clicar em **Enviar**.
 
 ### Atalhos
 
@@ -191,7 +222,9 @@ As sessões e as verificações de cada pasta não vão no arquivo. Caminhos de 
 
 Esses são os atalhos de fábrica. Em **Preferências → Atalhos** cada ação pode ter os seus: clique em **+**, pressione as teclas e pronto; o **×** ao lado de um atalho o remove, e **Restaurar padrões** desfaz tudo. Uma ação aceita até quatro atalhos. Se a combinação já era de outra ação, ela muda de dono. Para não atrapalhar o que você digita no terminal, um atalho precisa de `Ctrl`, `Alt` ou de uma tecla de função, e não pode ser um dos que o terminal e o editor usam (`Ctrl+C`, `Ctrl+V`, `Ctrl+S`, `F2`, `F12`).
 
-Na barra lateral, com uma sessão focada: `F2` renomeia, `Delete` fecha, `Alt+↑` / `Alt+↓` reordena. Também dá para arrastar.
+Na barra lateral, com uma sessão focada: `F2` renomeia, `Delete` fecha, `Alt+↑` / `Alt+↓` reordena. Também dá para arrastar. `Ctrl+clique` marca várias sessões para enviar um prompt a todas.
+
+Cada prompt guardado pode ter o seu atalho, em **Preferências → Prompts**, com as mesmas regras.
 
 ## Codex: o passo de confiança dos hooks
 

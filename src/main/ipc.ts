@@ -5,6 +5,8 @@ import type { CheckService } from '@core/checks/CheckService';
 import { failureReport } from '@core/checks/report';
 import { suggestChecks } from '@core/checks/suggest';
 import type { ChangesService } from '@core/git/ChangesService';
+import { currentBranch } from '@core/git/GitService';
+import { expandPrompt, promptVariables } from '@core/prompts/expand';
 import type { SessionManager } from '@core/sessions/SessionManager';
 import type { AppData } from '@core/store/appStore';
 import {
@@ -18,6 +20,14 @@ import { CHECKS_LIMIT, sanitizeChecks, type ChecksInfo } from '@shared/checks';
 import { errorText, translate, UserError, type MessageKey } from '@shared/i18n';
 import type { CommandChannel, EventChannel, IpcCommands, IpcEvents } from '@shared/ipc';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
+import {
+  PROMPT_TEXT_LIMIT,
+  SELECTION_LIMIT,
+  SEND_TARGETS_LIMIT,
+  SEND_TEXT_LIMIT,
+  type PromptValues,
+  type SendOutcome,
+} from '@shared/prompts';
 import { AGENT_PROFILE_IDS, type TerminalSize } from '@shared/session';
 
 export interface IpcContext {
@@ -65,6 +75,22 @@ const size = (value: unknown): TerminalSize => {
   };
 };
 const base = (value: unknown) => (value === 'session' ? 'session' : 'head');
+const promptValues = (value: unknown): PromptValues => {
+  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  const answers: Record<string, string> = {};
+  const given = v.answers && typeof v.answers === 'object' ? Object.entries(v.answers) : [];
+  if (given.length > 50)
+    throw new UserError('error.invalidArgument', { name: { key: 'arg.text' } });
+  for (const [question, answer] of given) answers[question] = str(answer, 'text', 8000);
+  if (typeof v.selection === 'string' && v.selection.length > SELECTION_LIMIT) {
+    throw new UserError('error.prompt.selectionTooLarge', { limit: SELECTION_LIMIT });
+  }
+  return {
+    file: v.file === undefined ? undefined : str(v.file, 'file'),
+    selection: v.selection === undefined ? undefined : str(v.selection, 'text', SELECTION_LIMIT),
+    answers,
+  };
+};
 
 export function registerIpc(context: IpcContext): void {
   const { manager, changes, checks } = context;
@@ -250,6 +276,45 @@ export function registerIpc(context: IpcContext): void {
   handle('terminal:screenText', (id) => manager.screenText(terminal(id)));
   handle('aux:open', (id, terminalSize) => manager.openAux(session(id).id, size(terminalSize)));
   handle('aux:close', (id) => manager.closeAux(session(id).id));
+
+  /** The prompt as it reaches one session: its name, folder and branch, and what the user gave. */
+  const expandFor = async (sessionId: string, text: string, values: PromptValues) => {
+    const s = session(sessionId);
+    const branch = promptVariables(text).includes('branch')
+      ? ((await currentBranch(s.cwd).catch(() => null)) ?? '')
+      : '';
+    const expanded = expandPrompt(
+      text,
+      { session: s.name, folder: s.cwd, branch, file: values.file, selection: values.selection },
+      values.answers,
+    );
+    if (expanded.length > SEND_TEXT_LIMIT) {
+      throw new UserError('error.prompt.tooLarge', { limit: SEND_TEXT_LIMIT });
+    }
+    return expanded;
+  };
+  handle('prompts:preview', (id, text, values) =>
+    expandFor(str(id, 'session', 64), str(text, 'text', PROMPT_TEXT_LIMIT), promptValues(values)),
+  );
+  handle('terminal:sendText', async (ids, prompt, options) => {
+    if (!Array.isArray(ids) || ids.length === 0 || ids.length > SEND_TARGETS_LIMIT) {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.session' } });
+    }
+    const text = str(prompt?.text, 'text', PROMPT_TEXT_LIMIT);
+    const values = promptValues(prompt?.values);
+    const targets = [...new Set(ids.map((id) => session(id).id))];
+    // Every text is ready before the first one goes: a failure sends nothing.
+    const texts = await Promise.all(targets.map((id) => expandFor(id, text, values)));
+    const outcomes: Record<string, SendOutcome> = {};
+    targets.forEach((id, index) => {
+      outcomes[id] = manager.sendText(id, texts[index]!, {
+        submit: options?.submit === true,
+        now: options?.now === true,
+      });
+    });
+    return outcomes;
+  });
+  handle('terminal:cancelSend', (id) => manager.cancelPending(session(id).id));
 
   handle('git:open', (id, diffBase) => {
     const s = session(id);

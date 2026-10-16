@@ -5,10 +5,12 @@ import { sanitizeAgentCommand } from '@shared/agents';
 import type { ChecksSummary } from '@shared/checks';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import type { Preferences } from '@shared/prefs';
+import type { SendOutcome, SendTextOptions } from '@shared/prompts';
 import {
   AUX_SCROLLBACK,
   auxTerminalId,
   initialStatus,
+  isBusyForText,
   parseTerminalId,
   type HooksMode,
   type NewSessionInput,
@@ -85,6 +87,11 @@ interface Stream {
   paused: boolean;
 }
 
+interface PendingSend {
+  text: string;
+  submit: boolean;
+}
+
 /** The agent's process, plus what reads its signals. */
 interface Runtime extends Stream {
   parser: StreamParser;
@@ -98,6 +105,8 @@ interface Entry {
   hooks: HooksMode;
   unread: boolean;
   checks?: ChecksSummary;
+  /** Texts the user sent while the agent worked: they go when the turn ends, in order. */
+  pending: PendingSend[];
   /** A visual terminal exists for this session, whether or not the agent is running. */
   mounted: boolean;
   visible: boolean;
@@ -111,6 +120,11 @@ const DEFAULT_SIZE: TerminalSize = { cols: 100, rows: 30 };
 export const FOREGROUND_FLUSH_MS = 8;
 export const BACKGROUND_FLUSH_MS = 250;
 const FLUSH_NOW_CHARS = 128 * 1024;
+/**
+ * Between a paste and the Enter that sends it. Where ConPTY drops the paste markers, an Enter in
+ * the same burst of keys reads as a line break inside the paste.
+ */
+export const SUBMIT_DELAY_MS = 200;
 // Backpressure thresholds, in characters waiting on the renderer plus the history.
 export const HIGH_WATER = 256 * 1024;
 export const LOW_WATER = 32 * 1024;
@@ -150,6 +164,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       aggregator: new SignalAggregator({ priorities: getProfile(session.profile).priorities }),
       hooks: 'unknown',
       unread: false,
+      pending: [],
       mounted: false,
       visible: false,
       runtime: null,
@@ -168,6 +183,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       hooks: entry.hooks,
       unread: entry.unread,
       ...(entry.checks && { checks: entry.checks }),
+      ...(entry.pending.length > 0 && { pendingSends: entry.pending.length }),
       ...(entry.aux && { auxOpen: true }),
     };
   }
@@ -539,6 +555,8 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     if (!entry || !runtime) return;
     runtime.running = false;
     runtime.paused = false;
+    // Nobody is left to receive them.
+    entry.pending = [];
     runtime.adapter.dispose();
     runtime.silence.dispose();
     this.writeNotice(
@@ -594,6 +612,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       entry.unread = true;
     }
     if (next.state === 'trabalhando' || next.state === 'parada') entry.unread = false;
+    this.releasePending(entry);
     this.changed();
     this.emit('transition', { session: this.view(entry), previous });
     return true;
@@ -804,6 +823,57 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       .join(' ⏎ ');
     this.options.ptys.write(id, `\x1b[200~${line}\x1b[201~`);
     runtime.adapter.onUserInput(line);
+  }
+
+  /**
+   * Text the user asked to send to the agent: right away, or, while the agent is busy, when it
+   * finishes its turn. With `submit`, an Enter follows it, a moment later.
+   */
+  sendText(id: string, text: string, options: SendTextOptions): SendOutcome {
+    const entry = this.entries.get(id);
+    if (!entry) throw new UserError('error.session.notFound');
+    if (!entry.runtime?.running) throw new UserError('error.session.notRunning');
+    if (!options.now && (entry.pending.length > 0 || isBusyForText(entry.aggregator.status))) {
+      entry.pending.push({ text, submit: options.submit });
+      this.changed();
+      return 'queued';
+    }
+    this.deliverText(id, text, options.submit);
+    return 'sent';
+  }
+
+  /** Drops the texts waiting for the end of the turn. */
+  cancelPending(id: string): void {
+    const entry = this.entries.get(id);
+    if (!entry?.pending.length) return;
+    entry.pending = [];
+    this.changed();
+  }
+
+  private deliverText(id: string, text: string, submit: boolean): void {
+    this.paste(id, text);
+    if (!submit) return;
+    setTimeout(() => {
+      const runtime = this.entries.get(id)?.runtime;
+      if (!runtime?.running) return;
+      runtime.adapter.onUserInput('\r');
+      this.options.ptys.write(id, '\r');
+    }, SUBMIT_DELAY_MS);
+  }
+
+  /**
+   * The agent is free again: what was waiting goes, up to the first text that is submitted. The
+   * ones after it would land in the middle of the turn that one starts.
+   */
+  private releasePending(entry: Entry): void {
+    if (!entry.pending.length || !entry.runtime?.running) return;
+    if (isBusyForText(entry.aggregator.status)) return;
+    const id = entry.session.id;
+    while (entry.pending.length) {
+      const next = entry.pending.shift()!;
+      this.deliverText(id, next.text, next.submit);
+      if (next.submit) break;
+    }
   }
 
   resize(id: string, size: TerminalSize): void {

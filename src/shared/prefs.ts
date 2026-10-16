@@ -1,6 +1,7 @@
 import { NO_AGENT_COMMANDS, sanitizeAgentCommands, type AgentCommands } from './agents';
 import { DEFAULT_LANGUAGE, sanitizeLanguage, type Language } from './i18n';
 import { DEFAULT_LAYOUT, sanitizeLayout, type Layout } from './layout';
+import { factoryPrompts, sanitizePrompts, type PromptTemplate } from './prompts';
 import { DEFAULT_SHORTCUTS, sanitizeShortcuts, type ShortcutMap } from './shortcuts';
 
 export type ThemeName = 'dark' | 'light';
@@ -28,6 +29,10 @@ export interface Preferences {
   agentCommands: AgentCommands;
   layout: Layout;
   shortcuts: ShortcutMap;
+  /** Saved prompts. They are text only, and go with the exported preferences. */
+  prompts: PromptTemplate[];
+  /** A prompt sent to an agent is also submitted (Enter), instead of waiting at its prompt. */
+  promptSubmit: boolean;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -46,6 +51,8 @@ export const DEFAULT_PREFERENCES: Preferences = {
   agentCommands: NO_AGENT_COMMANDS,
   layout: DEFAULT_LAYOUT,
   shortcuts: DEFAULT_SHORTCUTS,
+  prompts: factoryPrompts(DEFAULT_LANGUAGE),
+  promptSubmit: false,
 };
 
 export const SCROLLBACK_LIMITS = { min: 200, max: 20000 } as const;
@@ -76,12 +83,14 @@ export function sanitizeFavoriteFolders(value: unknown): string[] {
 
 export function sanitizePreferences(input: Partial<Preferences> | undefined): Preferences {
   const p = { ...DEFAULT_PREFERENCES, ...(input ?? {}) };
+  const language = sanitizeLanguage(p.language);
+  const shortcuts = sanitizeShortcuts(p.shortcuts);
   const clamp = (n: unknown, min: number, max: number, fallback: number) =>
     typeof n === 'number' && Number.isFinite(n)
       ? Math.min(max, Math.max(min, Math.round(n)))
       : fallback;
   return {
-    language: sanitizeLanguage(p.language),
+    language,
     theme: p.theme === 'light' ? 'light' : 'dark',
     fontFamily:
       typeof p.fontFamily === 'string' && p.fontFamily.trim()
@@ -106,6 +115,13 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
     favoriteFolders: sanitizeFavoriteFolders(p.favoriteFolders),
     agentCommands: sanitizeAgentCommands(p.agentCommands),
     layout: sanitizeLayout(p.layout),
-    shortcuts: sanitizeShortcuts(p.shortcuts),
+    shortcuts,
+    // Missing from what was saved (before prompts existed): the factory ones, in its language.
+    prompts: sanitizePrompts(
+      input && 'prompts' in input ? input.prompts : undefined,
+      language,
+      new Set(Object.values(shortcuts).flat()),
+    ),
+    promptSubmit: p.promptSubmit === true,
   };
 }

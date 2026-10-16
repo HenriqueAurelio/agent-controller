@@ -384,4 +384,62 @@ export const es: Record<keyof typeof ptBR, string> = {
   'arg.command': 'comando',
   'arg.expected': 'contenido esperado',
   'arg.checks': 'verificaciones',
+
+  'prefs.tab.prompts': 'Prompts',
+  'command.prompt': 'Prompt: {name}',
+  'prompts.factory.review.name': 'Revisar el diff',
+  'prompts.factory.review.text':
+    'Revisa los cambios aún sin commit en esta carpeta buscando bugs, casos olvidados y código que se pueda simplificar. Enumera lo que encuentres, de lo más grave a lo menos grave, sin cambiar nada todavía.',
+  'prompts.factory.tests.name': 'Escribir tests',
+  'prompts.factory.tests.text':
+    'Escribe los tests que faltan para {arquivo}, siguiendo el patrón de los tests que ya tiene el proyecto. Ejecútalos y dime el resultado.',
+  'prompts.factory.readme.name': 'Actualizar el README',
+  'prompts.factory.readme.text':
+    'Actualiza el README con lo que cambió en la rama {branch}: lo que necesita saber quien lo usa y lo que dejó de valer.',
+  'prompts.title': 'Prompts guardados',
+  'prompts.intro':
+    'Pedidos que repites. Envíalos desde la paleta (Ctrl+Shift+P → “Prompt: …”), con un atajo, desde el menú del editor del panel o a varias sesiones, marcadas con Ctrl+clic en la lista.',
+  'prompts.none': 'Ningún prompt guardado.',
+  'prompts.name': 'Nombre',
+  'prompts.text': 'Texto',
+  'prompts.variablesHint':
+    'Variables: {sessao}, {pasta}, {branch}, {arquivo} (el abierto en el panel), {selecao} (el texto seleccionado en él) y {?pregunta}, que pide un valor al enviar.',
+  'prompts.shortcut': 'Atajo',
+  'prompts.shortcutAdd': 'Definir atajo',
+  'prompts.shortcutChange': 'Cambiar atajo',
+  'prompts.shortcutRemove': 'Quitar el atajo del prompt',
+  'prompts.shortcutTaken': '{binding} ya es de “{action}”.',
+  'prompts.add': '+ Nuevo prompt',
+  'prompts.remove': 'Borrar',
+  'prompts.restore': 'Restaurar los de fábrica',
+  'prompts.newName': 'Nuevo prompt',
+  'prompts.sending': 'Envío',
+  'prompts.submit': 'Enviar con Enter',
+  'prompts.submitHint':
+    'Apagado, el texto queda en el prompt del agente para que lo revises y lo envíes.',
+  'prompts.send.title': 'Enviar prompt',
+  'prompts.send.prompt': 'Prompt',
+  'prompts.send.text': 'Texto a enviar',
+  'prompts.send.selectionCut':
+    'La selección es demasiado grande y se corta en sus primeros {limit} caracteres.',
+  'prompts.send.targets': 'Sesiones',
+  'prompts.send.notRunning': 'detenida',
+  'prompts.send.busy': 'trabajando',
+  'prompts.send.preview': 'Cómo llega a “{name}”',
+  'prompts.send.waiting':
+    '{count} de las sesiones están ocupadas: lo reciben cuando el agente termine su turno.',
+  'prompts.send.now': 'Enviar ahora de todos modos',
+  'prompts.send.hint': 'Ctrl+Enter también envía',
+  'prompts.send.submit': 'Enviar',
+  'prompts.send.submitMany': 'Enviar a {count} sesiones',
+  'sidebar.pendingSend': '{count} envío(s) esperando el turno',
+  'sidebar.cancelSend': 'Cancelar el envío pendiente de {name}',
+  'sidebar.marked': '{count} seleccionadas',
+  'sidebar.sendPrompt': 'Enviar prompt',
+  'sidebar.unmark': 'Limpiar',
+  'diff.sendToAgent': 'Mandar al agente con el prompt…',
+  'diff.sendToAgentHint': 'Abre un prompt con este archivo y el texto seleccionado',
+  'error.prompt.selectionTooLarge': 'La selección supera los {limit} caracteres.',
+  'error.prompt.tooLarge':
+    'El texto quedó demasiado grande para enviarlo al agente (más de {limit} caracteres).',
 };

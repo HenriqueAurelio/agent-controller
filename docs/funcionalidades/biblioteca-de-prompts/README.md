@@ -1,6 +1,6 @@
 # Biblioteca de prompts
 
-- **Estado:** proposta, escolhida para a primeira leva; é a primeira a ser feita.
+- **Estado:** implementada ([ADR 0015](../../../adr/0015-app-escreve-no-terminal-a-pedido.md)). Falta rodar o smoke com os agentes reais (tarefa 6.4), que depende de autorização.
 - **ADR:** nova, "O app escreve no terminal do agente a pedido do usuário". Esta proposta cria o envio de texto ao terminal; [verificações ao fim do turno](../verificacoes-pos-turno/README.md) e, mais tarde, [comentar no diff](../comentar-no-diff/README.md) o reaproveitam.
 
 ## O problema

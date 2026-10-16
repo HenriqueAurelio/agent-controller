@@ -6,7 +6,7 @@
 
 ---
 
-## [ ] 6.1 Modelo, preferências e expansão
+## [x] 6.1 Modelo, preferências e expansão
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** nada
 
@@ -20,14 +20,14 @@
 
 ---
 
-## [ ] 6.2 Enviar texto ao terminal do agente
+## [x] 6.2 Enviar texto ao terminal do agente
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** nada
 
 **O que fazer**
 
 - `terminal:sendText(sessionIds[], { templateId, values } | { text }, { submit })` em `src/shared/ipc.ts` e `src/main/ipc.ts`, validado no main (sessões existentes, tamanho máximo).
-- Escrita no PTY com bracketed paste; `submit` acrescenta o Enter.
+- Escrita no PTY com bracketed paste; `submit` acrescenta o Enter. (Feito como na ADR 0014: uma linha só, com `⏎`; o Enter vai 200 ms depois.)
 - Fila "enviar quando terminar" por sessão, solta pela transição de estado; cancelável; pendência no estado da sessão (`pendingSend`).
 - Expansão por sessão, no main.
 
@@ -35,7 +35,7 @@
 
 ---
 
-## [ ] 6.3 Interface
+## [x] 6.3 Interface
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 6.1, 6.2
 
@@ -63,9 +63,11 @@
 
 **Pronto quando:** resultado gravado em `tools/agent-probe/results/` para Claude Code e Codex.
 
+**Situação:** o roteiro está em `tests/smoke/prompts.smoke.ts`; ainda não rodou, porque usa a conta e os créditos do usuário.
+
 ---
 
-## [ ] 6.5 ADR e README
+## [x] 6.5 ADR e README
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 6.3
 

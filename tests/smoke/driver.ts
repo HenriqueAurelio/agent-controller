@@ -9,6 +9,7 @@ import { installAgentctl } from '@core/signals/agentctlInstall';
 import { createSocketPath, HookServer, type HookMessage } from '@core/signals/HookServer';
 import { StreamParser } from '@core/signals/StreamParser';
 import { DEFAULT_PREFERENCES } from '@shared/prefs';
+import type { SendOutcome, SendTextOptions } from '@shared/prompts';
 import type { AgentProfileId, SessionState, SignalOrigin } from '@shared/session';
 
 export const ROOT = path.resolve(__dirname, '../..');
@@ -221,6 +222,12 @@ export class AgentDriver {
   paste(text: string): void {
     this.log(`colado: ${text.split('\n')[0]}…`);
     this.manager.paste(this.sessionId, text);
+  }
+
+  /** A prompt sent the way the app sends it: right away, or at the end of the turn. */
+  sendText(text: string, options: SendTextOptions): SendOutcome {
+    this.log(`sendText: ${JSON.stringify(text).slice(0, 80)} ${JSON.stringify(options)}`);
+    return this.manager.sendText(this.sessionId, text, options);
   }
 
   screen(): Promise<string> {
