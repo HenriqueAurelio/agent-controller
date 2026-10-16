@@ -2,9 +2,11 @@
 
 **Pronto quando:** duas sessões criadas como cópias isoladas do mesmo repositório trabalham em branches diferentes, cada painel mostra só o que é seu, e fechar uma sessão com mudanças não apaga nada.
 
+**Situação em 2026-10-16:** todas as tarefas prontas ([ADR 0017](../../../adr/0017-sessoes-em-worktree.md)). `src/core/git/WorktreeService.ts`, `SessionManager.createInWorktree` e `remove(id, { worktree })`, a base `branchBase` do `ChangesService`; testes em `tests/core/worktree.test.ts` e `tests/e2e/worktree.spec.ts`. A pasta das cópias e o comando de preparação ficaram no `sessions.json` (`AppData.worktrees`), fora da exportação.
+
 ---
 
-## [ ] 5.1 WorktreeService
+## [x] 5.1 WorktreeService
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** nada
 
@@ -18,7 +20,7 @@
 
 ---
 
-## [ ] 5.2 Sessão com worktree
+## [x] 5.2 Sessão com worktree
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** 5.1
 
@@ -33,7 +35,7 @@
 
 ---
 
-## [ ] 5.3 Comparar com a base
+## [x] 5.3 Comparar com a base
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 5.2
 
@@ -46,7 +48,7 @@
 
 ---
 
-## [ ] 5.4 Interface
+## [x] 5.4 Interface
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 5.2
 
@@ -62,7 +64,7 @@
 
 ---
 
-## [ ] 5.5 ADR e README
+## [x] 5.5 ADR e README
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 5.4
 

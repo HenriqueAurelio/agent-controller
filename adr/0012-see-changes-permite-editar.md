@@ -3,6 +3,7 @@
 - **Status:** Aceita
 - **Data:** 2026-10-13
 - **Emenda:** [ADR 0004](0004-diff-monaco-e-git-cli.md), na parte em que o painel era somente leitura. O restante da 0004 (Monaco para o diff, binário do git para os dados) continua valendo.
+- **Revisão (2026-10-16):** a [ADR 0017](0017-sessoes-em-worktree.md) deixa o app criar e remover worktrees, e a branch de cada uma, para as sessões em cópia isolada. O painel continua sem nenhum comando que altere o repositório.
 - **Revisão (2026-10-16):** a parte em que o painel não opera o git foi substituída pela [ADR 0018](0018-operacoes-de-git-no-painel.md): marcar para o commit, commit e descartar com cópia e Desfazer. O resto desta ADR continua valendo.
 
 ## Contexto

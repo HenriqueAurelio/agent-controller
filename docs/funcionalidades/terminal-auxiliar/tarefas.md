@@ -2,9 +2,11 @@
 
 **Pronto quando:** numa sessão com o agente trabalhando, o atalho abre um shell na mesma pasta, ele roda comandos sem interferir no agente, e fechar a sessão encerra os dois; nos dois sistemas e dentro da meta de memória.
 
+**Situação em 2026-10-16:** todas as tarefas prontas ([ADR 0016](../../../adr/0016-terminal-auxiliar.md)). Core em `SessionManager` (`openAux`, `closeAux`, o fluxo `Stream` dividido com o agente) e `interactiveShell`; testes em `tests/core/auxTerminal.test.ts` (Windows e Docker) e `tests/e2e/auxiliar.spec.ts`. Medição no Windows, build de desenvolvimento: 10 sessões 427 MB, com o auxiliar aberto 436 MB.
+
 ---
 
-## [ ] 8.1 PTY auxiliar no core
+## [x] 8.1 PTY auxiliar no core
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** nada
 
@@ -18,7 +20,7 @@
 
 ---
 
-## [ ] 8.2 IPC
+## [x] 8.2 IPC
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** 8.1
 
@@ -31,7 +33,7 @@
 
 ---
 
-## [ ] 8.3 Interface
+## [x] 8.3 Interface
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 8.2
 
@@ -45,7 +47,7 @@
 
 ---
 
-## [ ] 8.4 Medição, ADR e README
+## [x] 8.4 Medição, ADR e README
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 8.3
 

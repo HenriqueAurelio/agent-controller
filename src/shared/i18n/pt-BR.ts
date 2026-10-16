@@ -23,9 +23,25 @@ export const ptBR = {
   'app.closeSession.body':
     'O agente de {name} está rodando. Fechar a sessão vai encerrá-lo, junto com o que ele tiver iniciado.',
   'app.closeSession.confirm': 'Encerrar e fechar',
+  'closeWorktree.question': 'O que fazer com a cópia isolada desta sessão?',
+  'closeWorktree.keep': 'Manter a cópia',
+  'closeWorktree.keepHint':
+    'a pasta e a branch {branch} continuam; dá para abrir outra sessão nela depois',
+  'closeWorktree.remove': 'Remover a cópia',
+  'closeWorktree.removeHint': 'apaga a pasta; a branch {branch} continua',
+  'closeWorktree.checking': 'Conferindo o que há na cópia…',
+  'closeWorktree.dirty': 'A cópia tem {count} arquivo(s) sem commit e não pode ser removida:',
+  'closeWorktree.more': 'e mais {count}',
+  'closeWorktree.shared': '“{name}” também trabalha nesta cópia: ela fica.',
+  'closeWorktree.confirm': 'Fechar',
 
   'app.checks': 'Verificações',
   'app.checksHint': 'Comandos que conferem o trabalho do agente: lint, typecheck, testes',
+  'app.aux': 'Terminal',
+  'app.auxHint': 'Um shell na pasta da sessão, ao lado do agente',
+  'app.worktreeHint': 'Cópia isolada de {repo}, na branch {branch} (saiu de {base})',
+  'app.worktreeShared':
+    'Esta cópia isolada também é usada por “{name}”: as duas sessões mexem nos mesmos arquivos.',
 
   'command.seeChanges': 'Ver mudanças: o que mudou na sessão',
   'command.files': 'Arquivos: ver todos os arquivos da pasta',
@@ -39,6 +55,8 @@ export const ptBR = {
 
   'command.checks': 'Verificações de “{name}”: o que roda ao fim do turno',
   'command.runChecks': 'Rodar agora as verificações de “{name}”',
+  'command.openAux': 'Terminal auxiliar: abrir um shell na pasta de “{name}”',
+  'command.closeAux': 'Terminal auxiliar: fechar o shell de “{name}”',
 
   'checks.title': 'Verificações',
   'checks.intro':
@@ -108,6 +126,7 @@ export const ptBR = {
   'shortcut.toggleChanges': 'Abrir ou fechar o painel de mudanças',
   'shortcut.toggleFiles': 'Abrir ou fechar todos os arquivos da pasta',
   'shortcut.toggleHidden': 'Mostrar ou esconder arquivos ocultos',
+  'shortcut.toggleAux': 'Abrir ou fechar o terminal auxiliar',
   'shortcut.preferences': 'Preferências',
 
   'shortcuts.title': 'Atalhos',
@@ -156,6 +175,10 @@ export const ptBR = {
 
   'terminal.empty.title': 'Nenhuma sessão',
   'terminal.empty.body': 'Crie uma sessão para abrir o Claude Code ou o Codex em uma pasta.',
+  'aux.title': 'Terminal auxiliar',
+  'aux.close': 'Fechar o terminal auxiliar',
+  'aux.closeHint': 'Fecha o shell e tudo o que ele estiver rodando',
+  'aux.divider': 'Divisória entre o terminal do agente e o auxiliar',
 
   'newSession.folderPlaceholder': 'Pasta onde o agente vai trabalhar',
   'newSession.name': 'Nome',
@@ -165,6 +188,14 @@ export const ptBR = {
   'newSession.command': 'Comando',
   'newSession.commandHint':
     'Opcional. Roda no seu shell, então os aliases e as funções do seu perfil valem (por exemplo, claude-work). Vazio: {command}.',
+  'newSession.worktree': 'Cópia isolada (git worktree)',
+  'newSession.worktreeHint':
+    'Uma pasta e uma branch só desta sessão. O repositório e o histórico são os mesmos.',
+  'newSession.branch': 'Branch nova',
+  'newSession.base': 'A partir de',
+  'newSession.worktreeWhere': 'A cópia fica em {folder}.',
+  'newSession.worktreeSetup': 'Antes de abrir a sessão, o app roda {command} nela.',
+  'newSession.creatingCopy': 'Criando a cópia…',
   'newSession.submit': 'Criar e iniciar',
 
   'agent.missing': '{name} não foi encontrado no PATH. Instale com: {command}',
@@ -178,6 +209,7 @@ export const ptBR = {
   'changeFolder.running':
     'O agente de {name} está rodando. Trocar a pasta vai encerrá-lo, junto com o que ele tiver iniciado, e abri-lo de novo na nova pasta: a conversa atual não continua.',
   'changeFolder.confirmRunning': 'Encerrar e trocar',
+  'changeFolder.aux': 'O terminal auxiliar está na pasta antiga: ele será fechado.',
 
   'folder.favorite': 'Guardar nos favoritos',
   'folder.favoriteHint': 'Guardar esta pasta nos favoritos',
@@ -213,12 +245,39 @@ export const ptBR = {
   'layout.files.right': 'À direita do texto',
   'layout.files.top': 'Em cima do texto',
   'layout.files.bottom': 'Embaixo do texto',
+  'layout.auxLabel': 'Terminal auxiliar',
+  'layout.aux.bottom': 'Embaixo do agente',
+  'layout.aux.right': 'À direita do agente',
+  'layout.auxShort': 'Auxiliar',
 
   'prefs.sections': 'Seções das preferências',
   'prefs.tab.geral': 'Geral',
   'prefs.tab.agentes': 'Agentes',
   'prefs.tab.atalhos': 'Atalhos',
   'prefs.tab.layout': 'Layout',
+  'prefs.tab.sessoes': 'Sessões',
+  'worktrees.title': 'Cópias isoladas (git worktree)',
+  'worktrees.intro':
+    'Uma sessão criada com “Cópia isolada” trabalha numa pasta e numa branch só dela. O app cria e remove as cópias; commit e push ficam com você ou com o agente.',
+  'worktrees.folder': 'Pasta das cópias',
+  'worktrees.folderHint':
+    'Vazio: {folder}. Um caminho curto evita problemas com caminhos longos no Windows.',
+  'worktrees.setup': 'Preparar cada cópia nova com',
+  'worktrees.setupHint':
+    'Um comando, como no terminal (npm ci, por exemplo). Roda uma vez, na cópia, antes de a sessão abrir. Não vai no arquivo de exportação.',
+  'worktrees.save': 'Salvar',
+  'worktrees.saved': 'Salvo.',
+  'worktrees.copies': 'Cópias',
+  'worktrees.loading': 'Carregando…',
+  'worktrees.none': 'Nenhuma cópia.',
+  'worktrees.copyInfo': '{size} · mudou em {date}',
+  'worktrees.sizeAtLeast': 'mais de {size}',
+  'worktrees.usedBy': 'usada por {names}',
+  'worktrees.unused': 'nenhuma sessão',
+  'worktrees.inUseHint': 'Feche as sessões que trabalham nela antes de remover.',
+  'worktrees.remove': 'Remover',
+  'worktrees.removeOf': 'Remover a cópia {branch}',
+  'worktrees.removeConfirm': 'Remover a cópia em {folder}? A branch {branch} continua.',
   'prefs.tab.configuracoes': 'Importar e exportar',
   'prefs.language': 'Idioma',
   'prefs.languageLabel': 'Idioma da interface',
@@ -260,6 +319,7 @@ export const ptBR = {
   'changes.compareWith': 'Comparar com',
   'changes.base.head': 'Último commit',
   'changes.base.session': 'Início da sessão',
+  'changes.base.branchBase': 'A base da branch ({base})',
   'changes.viewHint': 'Alternar entre lado a lado e em linha',
   'changes.inline': 'Em linha',
   'changes.sideBySide': 'Lado a lado',
@@ -269,6 +329,7 @@ export const ptBR = {
   'changes.loading': 'Carregando…',
   'changes.none.title': 'Nenhuma mudança',
   'changes.none.session': 'Nada mudou desde que a sessão começou.',
+  'changes.none.branchBase': 'Nada mudou desde que a branch saiu da base.',
   'changes.section.staged': 'Para o commit ({count})',
   'changes.section.unstaged': 'Fora do commit ({count})',
   'changes.stageOf': 'Marcar {file} para o commit',
@@ -348,6 +409,7 @@ export const ptBR = {
   'notice.stopped': 'Sessão encerrada.',
   'notice.exited': 'O agente saiu (código {code}).',
   'notice.pressEnter': 'Pressione Enter para iniciar de novo.',
+  'error.aux.startFailed': 'Não foi possível abrir o terminal auxiliar: {error}',
 
   'session.fallbackName': 'Sessão',
 
@@ -363,6 +425,20 @@ export const ptBR = {
   'error.save.tooLarge': 'O arquivo ficou grande demais para ser salvo pelo painel',
   'error.session.noName': 'Dê um nome à sessão.',
   'error.session.notFound': 'Sessão não encontrada',
+  'error.worktree.notRepo': '{folder} não está num repositório git: não há do que fazer uma cópia.',
+  'error.worktree.badBranch': '“{branch}” não serve como nome de branch.',
+  'error.worktree.branchExists': 'A branch {branch} já existe. Escolha outro nome.',
+  'error.worktree.badBase': '“{base}” não é uma branch, tag ou commit deste repositório.',
+  'error.worktree.folderExists': 'A pasta {folder} já existe.',
+  'error.worktree.createFailed': 'O git não criou a cópia: {error}',
+  'error.worktree.notWorktree': '{folder} não é uma cópia isolada.',
+  'error.worktree.dirty': 'A cópia tem {count} arquivo(s) sem commit ({files}) e não foi removida.',
+  'error.worktree.removeFailed': 'O git não removeu a cópia: {error}',
+  'error.worktree.inUse': 'A sessão “{name}” trabalha nesta cópia: ela não foi removida.',
+  'error.worktree.setupFailed':
+    'A cópia foi criada em {folder}, mas {command} falhou, e a sessão não foi aberta. A cópia e a branch ficaram; dá para removê-las em Preferências → Sessões.\n{output}',
+  'error.worktree.folderNotAbsolute':
+    'A pasta das cópias precisa ser um caminho completo: {folder}',
   'error.git.locked':
     'O git está ocupado (index.lock): outro processo, talvez o agente, está usando o repositório. Tente de novo em instantes.',
   'error.git.failed': 'O git recusou: {error}',
@@ -402,4 +478,62 @@ export const ptBR = {
   'arg.command': 'comando',
   'arg.expected': 'conteúdo esperado',
   'arg.checks': 'verificações',
+
+  'prefs.tab.prompts': 'Prompts',
+  'command.prompt': 'Prompt: {name}',
+  'prompts.factory.review.name': 'Revisar o diff',
+  'prompts.factory.review.text':
+    'Revise as mudanças ainda sem commit nesta pasta procurando bugs, casos esquecidos e código que pode ser simplificado. Liste o que encontrar, do mais grave ao menos grave, sem alterar nada ainda.',
+  'prompts.factory.tests.name': 'Escrever testes',
+  'prompts.factory.tests.text':
+    'Escreva os testes que faltam para {arquivo}, seguindo o padrão dos testes que já existem no projeto. Rode-os e me diga o resultado.',
+  'prompts.factory.readme.name': 'Atualizar o README',
+  'prompts.factory.readme.text':
+    'Atualize o README com o que mudou na branch {branch}: o que a pessoa que usa precisa saber e o que deixou de valer.',
+  'prompts.title': 'Prompts guardados',
+  'prompts.intro':
+    'Pedidos que você repete. Envie pela paleta (Ctrl+Shift+P → “Prompt: …”), por um atalho, pelo menu do editor do painel ou a várias sessões, marcadas com Ctrl+clique na lista.',
+  'prompts.none': 'Nenhum prompt guardado.',
+  'prompts.name': 'Nome',
+  'prompts.text': 'Texto',
+  'prompts.variablesHint':
+    'Variáveis: {sessao}, {pasta}, {branch}, {arquivo} (o aberto no painel), {selecao} (o trecho selecionado nele) e {?pergunta}, que pede um valor na hora.',
+  'prompts.shortcut': 'Atalho',
+  'prompts.shortcutAdd': 'Definir atalho',
+  'prompts.shortcutChange': 'Trocar atalho',
+  'prompts.shortcutRemove': 'Tirar o atalho do prompt',
+  'prompts.shortcutTaken': '{binding} já é de “{action}”.',
+  'prompts.add': '+ Novo prompt',
+  'prompts.remove': 'Apagar',
+  'prompts.restore': 'Restaurar os de fábrica',
+  'prompts.newName': 'Novo prompt',
+  'prompts.sending': 'Envio',
+  'prompts.submit': 'Enviar com Enter',
+  'prompts.submitHint': 'Desligado, o texto fica no prompt do agente para você conferir e enviar.',
+  'prompts.send.title': 'Enviar prompt',
+  'prompts.send.prompt': 'Prompt',
+  'prompts.send.text': 'Texto a enviar',
+  'prompts.send.selectionCut':
+    'A seleção é grande demais e vai cortada nos primeiros {limit} caracteres.',
+  'prompts.send.targets': 'Sessões',
+  'prompts.send.notRunning': 'parada',
+  'prompts.send.busy': 'trabalhando',
+  'prompts.send.preview': 'Como chega em “{name}”',
+  'prompts.send.waiting':
+    '{count} das sessões estão ocupadas: recebem quando o agente terminar o turno.',
+  'prompts.send.now': 'Enviar agora mesmo assim',
+  'prompts.send.hint': 'Ctrl+Enter também envia',
+  'prompts.send.submit': 'Enviar',
+  'prompts.send.submitMany': 'Enviar a {count} sessões',
+  'sidebar.pendingSend': '{count} envio(s) esperando o turno',
+  'sidebar.cancelSend': 'Cancelar o envio pendente de {name}',
+  'sidebar.marked': '{count} selecionadas',
+  'sidebar.sendPrompt': 'Enviar prompt',
+  'sidebar.unmark': 'Limpar',
+  'diff.sendToAgent': 'Mandar ao agente com o prompt…',
+  'diff.sendToAgentHint': 'Abre um prompt com este arquivo e o trecho selecionado',
+  'error.prompt.selectionTooLarge': 'A seleção passa de {limit} caracteres.',
+  'error.prompt.tooLarge':
+    'O texto ficou grande demais para enviar ao agente (mais de {limit} caracteres).',
+  'arg.branch': 'branch',
 } as const;

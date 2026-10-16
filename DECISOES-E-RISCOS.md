@@ -67,6 +67,7 @@ A versão original desta decisão era "só mostra, não desfaz". Você pediu que
 
 Detalhes: [ADR 0012](adr/0012-see-changes-permite-editar.md), que emenda a [ADR 0004](adr/0004-diff-monaco-e-git-cli.md).
 
+**Desde 2026-10-16:** fora do painel, o app passou a criar e remover **worktrees** (e a branch de cada uma) para as sessões em cópia isolada. Remove só sem nada sem commit, nunca com `--force`, e nunca apaga uma branch. Commit e push continuam fora. Detalhes: [ADR 0017](adr/0017-sessoes-em-worktree.md).
 **Revisão de 2026-10-16: três operações de git entraram no painel.** Marcar um arquivo para o commit (stage, reversível), fazer commit do que está marcado (com os hooks do repositório, sem push) e descartar as mudanças de um arquivo. O motivo da recusa era o descarte sem volta: agora o app guarda uma cópia antes, em `~/.agent-controller/descartados/`, e oferece **Desfazer**. Com o agente trabalhando, descartar e fazer commit pedem confirmação a mais. Fora continuam push, branch, merge, `--amend` e descartar tudo de uma vez. Detalhes: [ADR 0018](adr/0018-operacoes-de-git-no-painel.md).
 
 ### 2.3 "See changes" só funciona em pastas com git

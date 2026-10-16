@@ -23,9 +23,25 @@ export const es: Record<keyof typeof ptBR, string> = {
   'app.closeSession.body':
     'El agente de {name} está en ejecución. Cerrar la sesión lo terminará, junto con lo que haya iniciado.',
   'app.closeSession.confirm': 'Terminar y cerrar',
+  'closeWorktree.question': '¿Qué hacer con la copia aislada de esta sesión?',
+  'closeWorktree.keep': 'Mantener la copia',
+  'closeWorktree.keepHint':
+    'la carpeta y la rama {branch} siguen; se puede abrir otra sesión en ella después',
+  'closeWorktree.remove': 'Eliminar la copia',
+  'closeWorktree.removeHint': 'borra la carpeta; la rama {branch} sigue',
+  'closeWorktree.checking': 'Revisando lo que hay en la copia…',
+  'closeWorktree.dirty': 'La copia tiene {count} archivo(s) sin commit y no se puede eliminar:',
+  'closeWorktree.more': 'y {count} más',
+  'closeWorktree.shared': '«{name}» también trabaja en esta copia: se queda.',
+  'closeWorktree.confirm': 'Cerrar',
 
   'app.checks': 'Verificaciones',
   'app.checksHint': 'Comandos que revisan el trabajo del agente: lint, typecheck, pruebas',
+  'app.aux': 'Terminal',
+  'app.auxHint': 'Un shell en la carpeta de la sesión, junto al agente',
+  'app.worktreeHint': 'Copia aislada de {repo}, en la rama {branch} (salió de {base})',
+  'app.worktreeShared':
+    'Esta copia aislada también la usa «{name}»: las dos sesiones tocan los mismos archivos.',
 
   'command.seeChanges': 'Ver cambios: lo que cambió en la sesión',
   'command.files': 'Archivos: ver todos los archivos de la carpeta',
@@ -39,6 +55,8 @@ export const es: Record<keyof typeof ptBR, string> = {
 
   'command.checks': 'Verificaciones de “{name}”: lo que corre al final del turno',
   'command.runChecks': 'Ejecutar ahora las verificaciones de “{name}”',
+  'command.openAux': 'Terminal auxiliar: abrir un shell en la carpeta de «{name}»',
+  'command.closeAux': 'Terminal auxiliar: cerrar el shell de «{name}»',
 
   'checks.title': 'Verificaciones',
   'checks.intro':
@@ -108,6 +126,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'shortcut.toggleChanges': 'Abrir o cerrar el panel de cambios',
   'shortcut.toggleFiles': 'Abrir o cerrar todos los archivos de la carpeta',
   'shortcut.toggleHidden': 'Mostrar u ocultar los archivos ocultos',
+  'shortcut.toggleAux': 'Abrir o cerrar el terminal auxiliar',
   'shortcut.preferences': 'Preferencias',
 
   'shortcuts.title': 'Atajos',
@@ -156,6 +175,10 @@ export const es: Record<keyof typeof ptBR, string> = {
 
   'terminal.empty.title': 'Ninguna sesión',
   'terminal.empty.body': 'Crea una sesión para abrir Claude Code o Codex en una carpeta.',
+  'aux.title': 'Terminal auxiliar',
+  'aux.close': 'Cerrar el terminal auxiliar',
+  'aux.closeHint': 'Cierra el shell y todo lo que esté ejecutando',
+  'aux.divider': 'Divisor entre el terminal del agente y el auxiliar',
 
   'newSession.folderPlaceholder': 'Carpeta donde el agente va a trabajar',
   'newSession.name': 'Nombre',
@@ -165,6 +188,14 @@ export const es: Record<keyof typeof ptBR, string> = {
   'newSession.command': 'Comando',
   'newSession.commandHint':
     'Opcional. Se ejecuta en tu shell, así que valen los alias y las funciones de tu perfil (por ejemplo, claude-work). Vacío: {command}.',
+  'newSession.worktree': 'Copia aislada (git worktree)',
+  'newSession.worktreeHint':
+    'Una carpeta y una rama solo de esta sesión. El repositorio y el historial son los mismos.',
+  'newSession.branch': 'Rama nueva',
+  'newSession.base': 'A partir de',
+  'newSession.worktreeWhere': 'La copia queda en {folder}.',
+  'newSession.worktreeSetup': 'Antes de abrir la sesión, la app ejecuta {command} en ella.',
+  'newSession.creatingCopy': 'Creando la copia…',
   'newSession.submit': 'Crear e iniciar',
 
   'agent.missing': '{name} no se encontró en el PATH. Instálalo con: {command}',
@@ -178,6 +209,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'changeFolder.running':
     'El agente de {name} está en ejecución. Cambiar la carpeta lo terminará, junto con lo que haya iniciado, y lo abrirá de nuevo en la nueva carpeta: la conversación actual no continúa.',
   'changeFolder.confirmRunning': 'Terminar y cambiar',
+  'changeFolder.aux': 'El terminal auxiliar está en la carpeta anterior: se cerrará.',
 
   'folder.favorite': 'Guardar en favoritos',
   'folder.favoriteHint': 'Guardar esta carpeta en favoritos',
@@ -213,12 +245,39 @@ export const es: Record<keyof typeof ptBR, string> = {
   'layout.files.right': 'A la derecha del texto',
   'layout.files.top': 'Encima del texto',
   'layout.files.bottom': 'Debajo del texto',
+  'layout.auxLabel': 'Terminal auxiliar',
+  'layout.aux.bottom': 'Debajo del agente',
+  'layout.aux.right': 'A la derecha del agente',
+  'layout.auxShort': 'Auxiliar',
 
   'prefs.sections': 'Secciones de las preferencias',
   'prefs.tab.geral': 'General',
   'prefs.tab.agentes': 'Agentes',
   'prefs.tab.atalhos': 'Atajos',
   'prefs.tab.layout': 'Diseño',
+  'prefs.tab.sessoes': 'Sesiones',
+  'worktrees.title': 'Copias aisladas (git worktree)',
+  'worktrees.intro':
+    'Una sesión creada con «Copia aislada» trabaja en una carpeta y una rama propias. La app crea y elimina las copias; commit y push quedan para ti o para el agente.',
+  'worktrees.folder': 'Carpeta de las copias',
+  'worktrees.folderHint':
+    'Vacío: {folder}. Una ruta corta evita problemas con rutas largas en Windows.',
+  'worktrees.setup': 'Preparar cada copia nueva con',
+  'worktrees.setupHint':
+    'Un comando, como en la terminal (npm ci, por ejemplo). Se ejecuta una vez, en la copia, antes de abrir la sesión. No va en el archivo de exportación.',
+  'worktrees.save': 'Guardar',
+  'worktrees.saved': 'Guardado.',
+  'worktrees.copies': 'Copias',
+  'worktrees.loading': 'Cargando…',
+  'worktrees.none': 'Ninguna copia.',
+  'worktrees.copyInfo': '{size} · cambió el {date}',
+  'worktrees.sizeAtLeast': 'más de {size}',
+  'worktrees.usedBy': 'usada por {names}',
+  'worktrees.unused': 'ninguna sesión',
+  'worktrees.inUseHint': 'Cierra las sesiones que trabajan en ella antes de eliminarla.',
+  'worktrees.remove': 'Eliminar',
+  'worktrees.removeOf': 'Eliminar la copia {branch}',
+  'worktrees.removeConfirm': '¿Eliminar la copia en {folder}? La rama {branch} sigue.',
   'prefs.tab.configuracoes': 'Importar y exportar',
   'prefs.language': 'Idioma',
   'prefs.languageLabel': 'Idioma de la interfaz',
@@ -260,6 +319,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'changes.compareWith': 'Comparar con',
   'changes.base.head': 'Último commit',
   'changes.base.session': 'Inicio de la sesión',
+  'changes.base.branchBase': 'La base de la rama ({base})',
   'changes.viewHint': 'Alternar entre lado a lado y en línea',
   'changes.inline': 'En línea',
   'changes.sideBySide': 'Lado a lado',
@@ -269,6 +329,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'changes.loading': 'Cargando…',
   'changes.none.title': 'Ningún cambio',
   'changes.none.session': 'Nada cambió desde que empezó la sesión.',
+  'changes.none.branchBase': 'Nada cambió desde que la rama salió de su base.',
   'changes.section.staged': 'Para el commit ({count})',
   'changes.section.unstaged': 'Fuera del commit ({count})',
   'changes.stageOf': 'Marcar {file} para el commit',
@@ -351,6 +412,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'notice.stopped': 'Sesión terminada.',
   'notice.exited': 'El agente salió (código {code}).',
   'notice.pressEnter': 'Presiona Enter para iniciarlo de nuevo.',
+  'error.aux.startFailed': 'No se pudo abrir el terminal auxiliar: {error}',
 
   'session.fallbackName': 'Sesión',
 
@@ -366,6 +428,20 @@ export const es: Record<keyof typeof ptBR, string> = {
   'error.save.tooLarge': 'El archivo quedó demasiado grande para guardarlo desde el panel',
   'error.session.noName': 'Ponle un nombre a la sesión.',
   'error.session.notFound': 'Sesión no encontrada',
+  'error.worktree.notRepo': '{folder} no está en un repositorio git: no hay nada que copiar.',
+  'error.worktree.badBranch': '«{branch}» no sirve como nombre de rama.',
+  'error.worktree.branchExists': 'La rama {branch} ya existe. Elige otro nombre.',
+  'error.worktree.badBase': '«{base}» no es una rama, etiqueta o commit de este repositorio.',
+  'error.worktree.folderExists': 'La carpeta {folder} ya existe.',
+  'error.worktree.createFailed': 'git no creó la copia: {error}',
+  'error.worktree.notWorktree': '{folder} no es una copia aislada.',
+  'error.worktree.dirty': 'La copia tiene {count} archivo(s) sin commit ({files}) y no se eliminó.',
+  'error.worktree.removeFailed': 'git no eliminó la copia: {error}',
+  'error.worktree.inUse': 'La sesión «{name}» trabaja en esta copia: no se eliminó.',
+  'error.worktree.setupFailed':
+    'La copia se creó en {folder}, pero {command} falló, y la sesión no se abrió. La copia y la rama quedaron; se pueden eliminar en Preferencias → Sesiones.\n{output}',
+  'error.worktree.folderNotAbsolute':
+    'La carpeta de las copias debe ser una ruta completa: {folder}',
   'error.git.locked':
     'git está ocupado (index.lock): otro proceso, tal vez el agente, está usando el repositorio. Inténtalo de nuevo en un momento.',
   'error.git.failed': 'git rechazó: {error}',
@@ -405,4 +481,63 @@ export const es: Record<keyof typeof ptBR, string> = {
   'arg.command': 'comando',
   'arg.expected': 'contenido esperado',
   'arg.checks': 'verificaciones',
+
+  'prefs.tab.prompts': 'Prompts',
+  'command.prompt': 'Prompt: {name}',
+  'prompts.factory.review.name': 'Revisar el diff',
+  'prompts.factory.review.text':
+    'Revisa los cambios aún sin commit en esta carpeta buscando bugs, casos olvidados y código que se pueda simplificar. Enumera lo que encuentres, de lo más grave a lo menos grave, sin cambiar nada todavía.',
+  'prompts.factory.tests.name': 'Escribir tests',
+  'prompts.factory.tests.text':
+    'Escribe los tests que faltan para {arquivo}, siguiendo el patrón de los tests que ya tiene el proyecto. Ejecútalos y dime el resultado.',
+  'prompts.factory.readme.name': 'Actualizar el README',
+  'prompts.factory.readme.text':
+    'Actualiza el README con lo que cambió en la rama {branch}: lo que necesita saber quien lo usa y lo que dejó de valer.',
+  'prompts.title': 'Prompts guardados',
+  'prompts.intro':
+    'Pedidos que repites. Envíalos desde la paleta (Ctrl+Shift+P → “Prompt: …”), con un atajo, desde el menú del editor del panel o a varias sesiones, marcadas con Ctrl+clic en la lista.',
+  'prompts.none': 'Ningún prompt guardado.',
+  'prompts.name': 'Nombre',
+  'prompts.text': 'Texto',
+  'prompts.variablesHint':
+    'Variables: {sessao}, {pasta}, {branch}, {arquivo} (el abierto en el panel), {selecao} (el texto seleccionado en él) y {?pregunta}, que pide un valor al enviar.',
+  'prompts.shortcut': 'Atajo',
+  'prompts.shortcutAdd': 'Definir atajo',
+  'prompts.shortcutChange': 'Cambiar atajo',
+  'prompts.shortcutRemove': 'Quitar el atajo del prompt',
+  'prompts.shortcutTaken': '{binding} ya es de “{action}”.',
+  'prompts.add': '+ Nuevo prompt',
+  'prompts.remove': 'Borrar',
+  'prompts.restore': 'Restaurar los de fábrica',
+  'prompts.newName': 'Nuevo prompt',
+  'prompts.sending': 'Envío',
+  'prompts.submit': 'Enviar con Enter',
+  'prompts.submitHint':
+    'Apagado, el texto queda en el prompt del agente para que lo revises y lo envíes.',
+  'prompts.send.title': 'Enviar prompt',
+  'prompts.send.prompt': 'Prompt',
+  'prompts.send.text': 'Texto a enviar',
+  'prompts.send.selectionCut':
+    'La selección es demasiado grande y se corta en sus primeros {limit} caracteres.',
+  'prompts.send.targets': 'Sesiones',
+  'prompts.send.notRunning': 'detenida',
+  'prompts.send.busy': 'trabajando',
+  'prompts.send.preview': 'Cómo llega a “{name}”',
+  'prompts.send.waiting':
+    '{count} de las sesiones están ocupadas: lo reciben cuando el agente termine su turno.',
+  'prompts.send.now': 'Enviar ahora de todos modos',
+  'prompts.send.hint': 'Ctrl+Enter también envía',
+  'prompts.send.submit': 'Enviar',
+  'prompts.send.submitMany': 'Enviar a {count} sesiones',
+  'sidebar.pendingSend': '{count} envío(s) esperando el turno',
+  'sidebar.cancelSend': 'Cancelar el envío pendiente de {name}',
+  'sidebar.marked': '{count} seleccionadas',
+  'sidebar.sendPrompt': 'Enviar prompt',
+  'sidebar.unmark': 'Limpiar',
+  'diff.sendToAgent': 'Mandar al agente con el prompt…',
+  'diff.sendToAgentHint': 'Abre un prompt con este archivo y el texto seleccionado',
+  'error.prompt.selectionTooLarge': 'La selección supera los {limit} caracteres.',
+  'error.prompt.tooLarge':
+    'El texto quedó demasiado grande para enviarlo al agente (más de {limit} caracteres).',
+  'arg.branch': 'rama',
 };

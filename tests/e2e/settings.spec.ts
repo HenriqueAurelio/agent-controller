@@ -88,7 +88,12 @@ test('the preferences are exported to a file and imported back', async () => {
     theme: 'light' as const,
     fontSize: 17,
     favoriteFolders: [first, second],
-    layout: { sessions: 'top' as const, panel: 'right' as const, files: 'bottom' as const },
+    layout: {
+      sessions: 'top' as const,
+      panel: 'right' as const,
+      files: 'bottom' as const,
+      aux: 'right' as const,
+    },
   };
   await page.evaluate((patch) => window.api.invoke('prefs:set', patch), chosen);
   await createSession(page, 'Fica', first);

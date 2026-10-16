@@ -24,6 +24,10 @@ interface Props {
   onCount(count: number | null): void;
   /** The file with unsaved edits, or null: the app asks before anything discards them. */
   onUnsavedChange(file: string | null): void;
+  /** The file open in the panel, which a prompt may name; null when none is. */
+  onOpenFile(file: string | null): void;
+  /** "Send to the agent with a prompt…" on a selection of the editor. */
+  onSendSelection(file: string, selection: string): void;
 }
 
 interface Group {
@@ -100,6 +104,8 @@ export function ChangesPanel({
   onClose,
   onCount,
   onUnsavedChange,
+  onOpenFile,
+  onSendSelection,
 }: Props) {
   const t = useT();
   const prefs = useAppState((s) => s.prefs);
@@ -213,6 +219,10 @@ export function ChangesPanel({
     onUnsavedChange(dirty ? current : null);
   }, [dirty, current, onUnsavedChange]);
   useEffect(() => () => onUnsavedChange(null), [onUnsavedChange]);
+  useEffect(() => {
+    onOpenFile(current);
+  }, [current, onOpenFile]);
+  useEffect(() => () => onOpenFile(null), [onOpenFile]);
 
   /** Leaving the open file (another file, another base, closing) would lose unsaved edits. */
   const mayLeave = () =>
@@ -348,13 +358,21 @@ export function ChangesPanel({
                 aria-label={t('changes.compareWith')}
                 value={overview.base}
                 onChange={(e) => {
-                  if (mayLeave()) setBase(e.target.value === 'session' ? 'session' : 'head');
+                  const next = e.target.value;
+                  if (mayLeave()) {
+                    setBase(next === 'session' || next === 'branchBase' ? next : 'head');
+                  }
                 }}
               >
                 <option value="head">{t('changes.base.head')}</option>
                 <option value="session" disabled={!overview.hasSessionBase}>
                   {t('changes.base.session')}
                 </option>
+                {session.worktree && (
+                  <option value="branchBase" disabled={!overview.hasBranchBase}>
+                    {t('changes.base.branchBase', { base: session.worktree.base })}
+                  </option>
+                )}
               </select>
             </label>
             <button
@@ -383,12 +401,14 @@ export function ChangesPanel({
           <p>
             {overview.base === 'session'
               ? t('changes.none.session')
-              : repos.length > 1
-                ? t('changes.none.repos', {
-                    count: repos.length,
-                    names: repos.map((r) => r.name).join(', '),
-                  })
-                : t('changes.none.head')}
+              : overview.base === 'branchBase'
+                ? t('changes.none.branchBase')
+                : repos.length > 1
+                  ? t('changes.none.repos', {
+                      count: repos.length,
+                      names: repos.map((r) => r.name).join(', '),
+                    })
+                  : t('changes.none.head')}
           </p>
         </div>
       )}
@@ -415,6 +435,7 @@ export function ChangesPanel({
               fontSize={prefs.fontSize}
               plain={overview !== null && !overview.ok}
               onDirtyChange={setDirty}
+              onSendSelection={onSendSelection}
             />
           ) : (
             <div className="panel-message">{t('changes.pickFile')}</div>
@@ -547,6 +568,7 @@ export function ChangesPanel({
               theme={prefs.theme}
               fontSize={prefs.fontSize}
               onDirtyChange={setDirty}
+              onSendSelection={onSendSelection}
             />
           )}
         </div>

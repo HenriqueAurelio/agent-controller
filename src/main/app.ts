@@ -7,6 +7,7 @@ import {
   detectAgent,
   findOnPath,
   getProfile,
+  interactiveShell,
   PROFILES,
   wrapInShell,
 } from '@core/agents';
@@ -55,6 +56,13 @@ function testShell(session: Session, socketPath: string, command: string): Launc
     return { file: process.env.ComSpec || 'cmd.exe', args: [], env };
   }
   return { file: 'bash', args: ['--noprofile', '--norc'], env: { ...env, PS1: '$ ' } };
+}
+
+/** In test mode the shell beside the agent is the same plain one, for the same reasons. */
+function testAuxShell(): LaunchCommand {
+  if (process.platform === 'win32')
+    return { file: process.env.ComSpec || 'cmd.exe', args: [], env: {} };
+  return { file: 'bash', args: ['--noprofile', '--norc'], env: { PS1: '$ ' } };
 }
 
 export async function startApp(): Promise<void> {
@@ -133,6 +141,7 @@ export async function startApp(): Promise<void> {
     selectedId: data.selectedSessionId,
     prefs: data.prefs,
     resolveLaunch,
+    resolveAuxShell: () => (TEST_SHELL ? testAuxShell() : interactiveShell()),
     persist,
   });
   hookServer.on('message', (message) => manager.handleHook(message));
