@@ -3,7 +3,12 @@ import { sanitizeAgentCommand } from '@shared/agents';
 import { sanitizeChecks, type CheckConfig } from '@shared/checks';
 import { translate } from '@shared/i18n';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
-import { AGENT_PROFILE_IDS, type AgentProfileId, type Session } from '@shared/session';
+import {
+  AGENT_PROFILE_IDS,
+  type AgentProfileId,
+  type Session,
+  type SessionWorktree,
+} from '@shared/session';
 import { JsonStore, type Migration } from './JsonStore';
 import { folderKey, sanitizeRecentFolders } from './recentFolders';
 
@@ -26,8 +31,39 @@ export interface AppData {
    * commands to run, and importing a file of preferences must never bring commands in.
    */
   checks: Record<string, CheckConfig[]>;
+  /**
+   * Where the copies of sessions in a worktree go, and what prepares a new one. Here and not in
+   * the preferences, as the checks: the command runs by itself, and an imported file must not
+   * bring it in.
+   */
+  worktrees: WorktreeSettings;
   window: WindowState;
   prefs: Preferences;
+}
+
+export interface WorktreeSettings {
+  /** Empty: `~/.agent-controller/worktrees`. */
+  folder: string;
+  /** Empty: nothing runs. */
+  setup: string;
+}
+
+export const NO_WORKTREE_SETTINGS: WorktreeSettings = { folder: '', setup: '' };
+
+export function sanitizeWorktreeSettings(value: unknown): WorktreeSettings {
+  const v = (value && typeof value === 'object' ? value : {}) as Partial<WorktreeSettings>;
+  return {
+    folder: typeof v.folder === 'string' && v.folder.length <= 4096 ? v.folder.trim() : '',
+    setup: sanitizeAgentCommand(v.setup) ?? '',
+  };
+}
+
+function sanitizeWorktree(value: unknown): SessionWorktree | undefined {
+  const v = (value && typeof value === 'object' ? value : {}) as Partial<SessionWorktree>;
+  const ok = (s: unknown): s is string => typeof s === 'string' && s.length > 0 && s.length <= 4096;
+  return ok(v.repoRoot) && ok(v.branch) && ok(v.base)
+    ? { repoRoot: v.repoRoot, branch: v.branch, base: v.base }
+    : undefined;
 }
 
 export const APP_DATA_VERSION = 1;
@@ -41,6 +77,7 @@ export function defaultAppData(): AppData {
     selectedSessionId: null,
     recentFolders: [],
     checks: {},
+    worktrees: { ...NO_WORKTREE_SETTINGS },
     window: { ...DEFAULT_WINDOW },
     prefs: sanitizePreferences(undefined),
   };
@@ -79,6 +116,7 @@ function validate(raw: unknown): AppData {
     if (typeof s.cwd !== 'string' || !isProfile(s.profile)) continue;
     seen.add(s.id);
     const command = sanitizeAgentCommand(s.command);
+    const worktree = sanitizeWorktree(s.worktree);
     // Only the documented fields are kept: anything else (state, env) is dropped on purpose.
     sessions.push({
       id: s.id,
@@ -89,6 +127,7 @@ function validate(raw: unknown): AppData {
       cwd: s.cwd,
       profile: s.profile,
       ...(command && { command }),
+      ...(worktree && { worktree }),
       order: typeof s.order === 'number' ? s.order : sessions.length,
     });
   }
@@ -105,6 +144,7 @@ function validate(raw: unknown): AppData {
         : null,
     recentFolders: sanitizeRecentFolders(data.recentFolders),
     checks: sanitizeFolderChecks(data.checks),
+    worktrees: sanitizeWorktreeSettings(data.worktrees),
     window: {
       x: num(w.x),
       y: num(w.y),

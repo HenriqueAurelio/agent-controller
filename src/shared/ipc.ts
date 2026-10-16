@@ -2,9 +2,9 @@
 // This is the meeting point of the core and interface fronts: change it only together.
 import type { AgentAvailability } from './agents';
 import type { CheckConfig, ChecksInfo } from './checks';
-import type { DiffBase, FileDiff, FileListing, GitOverview } from './git';
+import type { DiffBase, FileChange, FileDiff, FileListing, GitOverview } from './git';
 import type { Preferences } from './prefs';
-import type { NewSessionInput, SessionView, TerminalSize } from './session';
+import type { NewSessionInput, SessionView, TerminalSize, WorktreeOnClose } from './session';
 
 export interface AppInfo {
   version: string;
@@ -25,6 +25,40 @@ export interface TerminalSnapshot {
   data: string;
   cols: number;
   rows: number;
+}
+
+/** What a folder offers to a session in a copy of its repository. */
+export interface WorktreeOrigin {
+  /** The folder is in a git repository: a copy can be made of it. */
+  repo: boolean;
+  /** The branch checked out there, which a copy starts from unless told otherwise. */
+  current: string | null;
+  /** The local branches, the checked-out one first. */
+  branches: string[];
+}
+
+/** A copy of a repository the app made for a session. */
+export interface WorktreeCopy {
+  folder: string;
+  repoRoot: string;
+  branch: string | null;
+  /** Bytes in the folder; `sizeComplete` false when it was too big to count all of it. */
+  size: number;
+  sizeComplete: boolean;
+  /** Epoch milliseconds of the last change to the folder itself. */
+  modifiedAt: number;
+  /** The sessions that work in it. */
+  sessions: string[];
+}
+
+export interface WorktreesInfo {
+  /** Where new copies go: the one of the settings, or the default. */
+  folder: string;
+  defaultFolder: string;
+  /** The setting itself: empty for the default. */
+  configuredFolder: string;
+  setup: string;
+  copies: WorktreeCopy[];
 }
 
 export interface SessionMetrics {
@@ -64,7 +98,8 @@ export interface IpcCommands {
   'sessions:setCwd': (id: string, cwd: string) => boolean;
   /** A new session in the same folder, with the same agent, right below the original. */
   'sessions:duplicate': (id: string) => SessionView;
-  'sessions:remove': (id: string) => void;
+  /** `worktree`, for a session in a copy of its repository: keep the copy (default) or remove it. */
+  'sessions:remove': (id: string, options?: { worktree?: WorktreeOnClose }) => void;
   'sessions:reorder': (orderedIds: string[]) => void;
   'sessions:select': (id: string | null) => void;
   'sessions:start': (id: string, size: TerminalSize) => void;
@@ -77,6 +112,16 @@ export interface IpcCommands {
   'terminal:resize': (id: string, size: TerminalSize) => void;
   'terminal:ack': (id: string, chars: number) => void;
   'terminal:screenText': (id: string) => string;
+
+  /** Whether a copy of the repository of a folder can be made, and from which branches. */
+  'worktrees:inspect': (folder: string) => WorktreeOrigin;
+  /** What is not committed in the copy a session works in: what removing it would lose. */
+  'worktrees:status': (sessionId: string) => FileChange[];
+  /** The copies the app made, with their size and the sessions in each. */
+  'worktrees:list': () => WorktreesInfo;
+  'worktrees:configure': (settings: { folder: string; setup: string }) => WorktreesInfo;
+  /** Removes a copy no session works in, when nothing in it is uncommitted. */
+  'worktrees:remove': (folder: string) => WorktreesInfo;
 
   'git:open': (sessionId: string, base: DiffBase) => GitOverview;
   'git:refresh': (sessionId: string, base: DiffBase) => GitOverview;
@@ -151,6 +196,11 @@ export const COMMAND_CHANNELS = [
   'terminal:resize',
   'terminal:ack',
   'terminal:screenText',
+  'worktrees:inspect',
+  'worktrees:status',
+  'worktrees:list',
+  'worktrees:configure',
+  'worktrees:remove',
   'git:open',
   'git:refresh',
   'git:close',

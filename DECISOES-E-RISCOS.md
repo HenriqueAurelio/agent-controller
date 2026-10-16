@@ -67,6 +67,8 @@ A versão original desta decisão era "só mostra, não desfaz". Você pediu que
 
 Detalhes: [ADR 0012](adr/0012-see-changes-permite-editar.md), que emenda a [ADR 0004](adr/0004-diff-monaco-e-git-cli.md).
 
+**Desde 2026-10-16:** fora do painel, o app passou a criar e remover **worktrees** (e a branch de cada uma) para as sessões em cópia isolada. Remove só sem nada sem commit, nunca com `--force`, e nunca apaga uma branch. Commit e push continuam fora. Detalhes: [ADR 0017](adr/0017-sessoes-em-worktree.md).
+
 ### 2.3 "See changes" só funciona em pastas com git
 
 - [ ] Concordo

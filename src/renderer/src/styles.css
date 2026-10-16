@@ -449,6 +449,61 @@ button.path:hover:not(:disabled) {
   user-select: text;
 }
 
+/* Sessions in a copy of the repository */
+.worktree-tag {
+  color: var(--muted);
+  font-size: 12px;
+}
+.worktree-option .field-row {
+  display: flex;
+  gap: 8px;
+}
+.worktree-close .path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+.worktree-close .check.disabled {
+  opacity: 0.55;
+}
+.worktree-pending {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+/* A fieldset is as wide as its widest content unless told otherwise: the paths would push it. */
+.worktree-copies {
+  min-width: 0;
+}
+.worktree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.worktree-copy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.worktree-copy-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.worktree-copy-text .path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
 /* Terminal */
 .terminal-area {
   position: absolute;
@@ -707,12 +762,14 @@ button.path:hover:not(:disabled) {
 /* Tabs of the preferences */
 .tabs {
   display: flex;
-  gap: 4px;
+  gap: 2px;
+  overflow-x: auto;
   margin-bottom: 12px;
   border-bottom: 1px solid var(--border);
 }
 .tab {
-  padding: 5px 14px;
+  padding: 5px 12px;
+  white-space: nowrap;
   border: none;
   border-bottom: 2px solid transparent;
   border-radius: 0;

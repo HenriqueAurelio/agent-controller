@@ -23,9 +23,23 @@ export const es: Record<keyof typeof ptBR, string> = {
   'app.closeSession.body':
     'El agente de {name} está en ejecución. Cerrar la sesión lo terminará, junto con lo que haya iniciado.',
   'app.closeSession.confirm': 'Terminar y cerrar',
+  'closeWorktree.question': '¿Qué hacer con la copia aislada de esta sesión?',
+  'closeWorktree.keep': 'Mantener la copia',
+  'closeWorktree.keepHint':
+    'la carpeta y la rama {branch} siguen; se puede abrir otra sesión en ella después',
+  'closeWorktree.remove': 'Eliminar la copia',
+  'closeWorktree.removeHint': 'borra la carpeta; la rama {branch} sigue',
+  'closeWorktree.checking': 'Revisando lo que hay en la copia…',
+  'closeWorktree.dirty': 'La copia tiene {count} archivo(s) sin commit y no se puede eliminar:',
+  'closeWorktree.more': 'y {count} más',
+  'closeWorktree.shared': '«{name}» también trabaja en esta copia: se queda.',
+  'closeWorktree.confirm': 'Cerrar',
 
   'app.checks': 'Verificaciones',
   'app.checksHint': 'Comandos que revisan el trabajo del agente: lint, typecheck, pruebas',
+  'app.worktreeHint': 'Copia aislada de {repo}, en la rama {branch} (salió de {base})',
+  'app.worktreeShared':
+    'Esta copia aislada también la usa «{name}»: las dos sesiones tocan los mismos archivos.',
 
   'command.seeChanges': 'Ver cambios: lo que cambió en la sesión',
   'command.files': 'Archivos: ver todos los archivos de la carpeta',
@@ -165,6 +179,14 @@ export const es: Record<keyof typeof ptBR, string> = {
   'newSession.command': 'Comando',
   'newSession.commandHint':
     'Opcional. Se ejecuta en tu shell, así que valen los alias y las funciones de tu perfil (por ejemplo, claude-work). Vacío: {command}.',
+  'newSession.worktree': 'Copia aislada (git worktree)',
+  'newSession.worktreeHint':
+    'Una carpeta y una rama solo de esta sesión. El repositorio y el historial son los mismos.',
+  'newSession.branch': 'Rama nueva',
+  'newSession.base': 'A partir de',
+  'newSession.worktreeWhere': 'La copia queda en {folder}.',
+  'newSession.worktreeSetup': 'Antes de abrir la sesión, la app ejecuta {command} en ella.',
+  'newSession.creatingCopy': 'Creando la copia…',
   'newSession.submit': 'Crear e iniciar',
 
   'agent.missing': '{name} no se encontró en el PATH. Instálalo con: {command}',
@@ -219,6 +241,29 @@ export const es: Record<keyof typeof ptBR, string> = {
   'prefs.tab.agentes': 'Agentes',
   'prefs.tab.atalhos': 'Atajos',
   'prefs.tab.layout': 'Diseño',
+  'prefs.tab.sessoes': 'Sesiones',
+  'worktrees.title': 'Copias aisladas (git worktree)',
+  'worktrees.intro':
+    'Una sesión creada con «Copia aislada» trabaja en una carpeta y una rama propias. La app crea y elimina las copias; commit y push quedan para ti o para el agente.',
+  'worktrees.folder': 'Carpeta de las copias',
+  'worktrees.folderHint':
+    'Vacío: {folder}. Una ruta corta evita problemas con rutas largas en Windows.',
+  'worktrees.setup': 'Preparar cada copia nueva con',
+  'worktrees.setupHint':
+    'Un comando, como en la terminal (npm ci, por ejemplo). Se ejecuta una vez, en la copia, antes de abrir la sesión. No va en el archivo de exportación.',
+  'worktrees.save': 'Guardar',
+  'worktrees.saved': 'Guardado.',
+  'worktrees.copies': 'Copias',
+  'worktrees.loading': 'Cargando…',
+  'worktrees.none': 'Ninguna copia.',
+  'worktrees.copyInfo': '{size} · cambió el {date}',
+  'worktrees.sizeAtLeast': 'más de {size}',
+  'worktrees.usedBy': 'usada por {names}',
+  'worktrees.unused': 'ninguna sesión',
+  'worktrees.inUseHint': 'Cierra las sesiones que trabajan en ella antes de eliminarla.',
+  'worktrees.remove': 'Eliminar',
+  'worktrees.removeOf': 'Eliminar la copia {branch}',
+  'worktrees.removeConfirm': '¿Eliminar la copia en {folder}? La rama {branch} sigue.',
   'prefs.tab.configuracoes': 'Importar y exportar',
   'prefs.language': 'Idioma',
   'prefs.languageLabel': 'Idioma de la interfaz',
@@ -260,6 +305,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'changes.compareWith': 'Comparar con',
   'changes.base.head': 'Último commit',
   'changes.base.session': 'Inicio de la sesión',
+  'changes.base.branchBase': 'La base de la rama ({base})',
   'changes.viewHint': 'Alternar entre lado a lado y en línea',
   'changes.inline': 'En línea',
   'changes.sideBySide': 'Lado a lado',
@@ -269,6 +315,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'changes.loading': 'Cargando…',
   'changes.none.title': 'Ningún cambio',
   'changes.none.session': 'Nada cambió desde que empezó la sesión.',
+  'changes.none.branchBase': 'Nada cambió desde que la rama salió de su base.',
   'changes.none.repos':
     'Los {count} repositorios de la carpeta están iguales a su último commit: {names}.',
   'changes.none.head': 'La carpeta está igual al último commit.',
@@ -343,6 +390,20 @@ export const es: Record<keyof typeof ptBR, string> = {
   'error.save.tooLarge': 'El archivo quedó demasiado grande para guardarlo desde el panel',
   'error.session.noName': 'Ponle un nombre a la sesión.',
   'error.session.notFound': 'Sesión no encontrada',
+  'error.worktree.notRepo': '{folder} no está en un repositorio git: no hay nada que copiar.',
+  'error.worktree.badBranch': '«{branch}» no sirve como nombre de rama.',
+  'error.worktree.branchExists': 'La rama {branch} ya existe. Elige otro nombre.',
+  'error.worktree.badBase': '«{base}» no es una rama, etiqueta o commit de este repositorio.',
+  'error.worktree.folderExists': 'La carpeta {folder} ya existe.',
+  'error.worktree.createFailed': 'git no creó la copia: {error}',
+  'error.worktree.notWorktree': '{folder} no es una copia aislada.',
+  'error.worktree.dirty': 'La copia tiene {count} archivo(s) sin commit ({files}) y no se eliminó.',
+  'error.worktree.removeFailed': 'git no eliminó la copia: {error}',
+  'error.worktree.inUse': 'La sesión «{name}» trabaja en esta copia: no se eliminó.',
+  'error.worktree.setupFailed':
+    'La copia se creó en {folder}, pero {command} falló, y la sesión no se abrió. La copia y la rama quedaron; se pueden eliminar en Preferencias → Sesiones.\n{output}',
+  'error.worktree.folderNotAbsolute':
+    'La carpeta de las copias debe ser una ruta completa: {folder}',
   'error.session.notRunning': 'El agente de la sesión no está corriendo.',
   'error.checks.nothingFailed': 'Ninguna verificación falló en la última ejecución.',
   'error.folder.missing': 'La carpeta no existe: {folder}',
@@ -369,4 +430,5 @@ export const es: Record<keyof typeof ptBR, string> = {
   'arg.command': 'comando',
   'arg.expected': 'contenido esperado',
   'arg.checks': 'verificaciones',
+  'arg.branch': 'rama',
 };

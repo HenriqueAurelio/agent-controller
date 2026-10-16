@@ -252,13 +252,21 @@ export function ChangesPanel({
                 aria-label={t('changes.compareWith')}
                 value={overview.base}
                 onChange={(e) => {
-                  if (mayLeave()) setBase(e.target.value === 'session' ? 'session' : 'head');
+                  const next = e.target.value;
+                  if (mayLeave()) {
+                    setBase(next === 'session' || next === 'branchBase' ? next : 'head');
+                  }
                 }}
               >
                 <option value="head">{t('changes.base.head')}</option>
                 <option value="session" disabled={!overview.hasSessionBase}>
                   {t('changes.base.session')}
                 </option>
+                {session.worktree && (
+                  <option value="branchBase" disabled={!overview.hasBranchBase}>
+                    {t('changes.base.branchBase', { base: session.worktree.base })}
+                  </option>
+                )}
               </select>
             </label>
             <button
@@ -287,12 +295,14 @@ export function ChangesPanel({
           <p>
             {overview.base === 'session'
               ? t('changes.none.session')
-              : repos.length > 1
-                ? t('changes.none.repos', {
-                    count: repos.length,
-                    names: repos.map((r) => r.name).join(', '),
-                  })
-                : t('changes.none.head')}
+              : overview.base === 'branchBase'
+                ? t('changes.none.branchBase')
+                : repos.length > 1
+                  ? t('changes.none.repos', {
+                      count: repos.length,
+                      names: repos.map((r) => r.name).join(', '),
+                    })
+                  : t('changes.none.head')}
           </p>
         </div>
       )}

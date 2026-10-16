@@ -16,10 +16,11 @@ import { Dialog } from './Dialog';
 import { FavoriteFolders } from './FavoriteFolders';
 import { LayoutEditor } from './LayoutEditor';
 import { ShortcutsEditor } from './ShortcutsEditor';
+import { WorktreesSettings } from './WorktreesSettings';
 
 const set = (patch: Partial<Preferences>) => void window.api.invoke('prefs:set', patch);
 
-const TABS = ['geral', 'agentes', 'atalhos', 'layout', 'configuracoes'] as const;
+const TABS = ['geral', 'agentes', 'atalhos', 'layout', 'sessoes', 'configuracoes'] as const;
 type TabId = (typeof TABS)[number];
 
 export function PreferencesDialog({ onClose }: { onClose(): void }) {
@@ -254,6 +255,7 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
             </fieldset>
           </>
         )}
+        {tab === 'sessoes' && <WorktreesSettings />}
         {tab === 'configuracoes' && (
           <>
             <fieldset className="field">

@@ -35,11 +35,16 @@ export type GitOverview =
       repos: RepoInfo[];
       base: DiffBase;
       hasSessionBase: boolean;
+      /** The session works in a copy of the repository, whose branch has a base to compare with. */
+      hasBranchBase: boolean;
     }
   | { ok: false; reason: GitUnavailableReason; gitVersion?: string; minVersion: string };
 
-/** `head`: against the last commit. `session`: against the snapshot taken when the session started. */
-export type DiffBase = 'head' | 'session';
+/**
+ * `head`: against the last commit. `session`: against the snapshot taken when the session started.
+ * `branchBase`: in a copy of the repository, everything its branch changed since it left its base.
+ */
+export type DiffBase = 'head' | 'session' | 'branchBase';
 
 export type SideContent =
   | { kind: 'text'; text: string }

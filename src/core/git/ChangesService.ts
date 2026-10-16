@@ -17,6 +17,7 @@ import {
   GitMissingError,
   gitVersion,
   hasHead,
+  mergeBase,
   MIN_GIT_VERSION,
   repositoryRoot,
   saveWorkingTreeFile,
@@ -59,6 +60,11 @@ interface SessionGit {
   workDir: string;
   watcher: RepoWatcher | null;
   lastChanges: FileChange[];
+  /**
+   * In a copy of the repository: the commit where its branch left the base, which "compare with
+   * the base" compares against. Found again at each look, since the base may move.
+   */
+  mergeBase: string | null;
 }
 
 export interface ChangesServiceOptions {
@@ -95,6 +101,7 @@ export class ChangesService {
         workDir: path.join(this.options.workDirectory, sessionId),
         watcher: null,
         lastChanges: [],
+        mergeBase: null,
       };
       this.sessions.set(sessionId, entry);
     }
@@ -186,12 +193,18 @@ export class ChangesService {
             else own.push({ ...change, path: folder });
           }
         }
-        if (base === 'session' && state.baseTree) {
+        const from =
+          base === 'session'
+            ? state.baseTree
+            : base === 'branchBase' && prefix === ''
+              ? entry.mergeBase
+              : null;
+        if (from) {
           state.currentTree = await snapshotTree(
             repoRoot,
             this.indexFile(entry, prefix, 'current'),
           );
-          own = (await treeChanges(repoRoot, state.baseTree, state.currentTree)).filter(
+          own = (await treeChanges(repoRoot, from, state.currentTree)).filter(
             (change) => !nested.includes(change.path),
           );
         }
@@ -262,7 +275,11 @@ export class ChangesService {
     sessionId: string,
     cwd: string,
     base: DiffBase,
-    options: { watch?: boolean } = {},
+    options: {
+      watch?: boolean;
+      /** The base of the branch, for a session in a copy of the repository. */
+      branchBase?: string;
+    } = {},
   ): Promise<GitOverview> {
     const entry = this.entry(sessionId, cwd);
     // Without git the panel still lists the files of the folder, and follows them.
@@ -304,8 +321,17 @@ export class ChangesService {
 
     const hasSessionBase = () =>
       entry.active.some((prefix) => entry.repos.get(prefix)?.baseTree != null);
-    const useSession = base === 'session' && hasSessionBase();
-    const { changes, repos } = await this.scan(entry, useSession ? 'session' : 'head');
+    entry.mergeBase =
+      options.branchBase && entry.inRepository
+        ? await mergeBase(entry.root, options.branchBase).catch(() => null)
+        : null;
+    const used: DiffBase =
+      base === 'session' && hasSessionBase()
+        ? 'session'
+        : base === 'branchBase' && entry.mergeBase
+          ? 'branchBase'
+          : 'head';
+    const { changes, repos } = await this.scan(entry, used);
     entry.lastChanges = changes;
     // The branch only matters to tell repositories apart.
     if (repos.length > 1) {
@@ -323,8 +349,9 @@ export class ChangesService {
       root: entry.root,
       changes,
       repos,
-      base: useSession ? 'session' : 'head',
+      base: used,
       hasSessionBase: hasSessionBase(),
+      hasBranchBase: entry.mergeBase !== null,
     };
   }
 
@@ -389,9 +416,11 @@ export class ChangesService {
     const treeish =
       base === 'session' && repo.baseTree
         ? repo.baseTree
-        : (await hasHead(repo.root))
-          ? 'HEAD'
-          : null;
+        : base === 'branchBase' && repo.prefix === '' && entry.mergeBase
+          ? entry.mergeBase
+          : (await hasHead(repo.root))
+            ? 'HEAD'
+            : null;
     return { ...(await fileDiff(repo.root, change, treeish)), path: file };
   }
 
