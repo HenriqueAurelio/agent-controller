@@ -10,6 +10,7 @@ import { ChangeFolderDialog } from './components/ChangeFolderDialog';
 import { ChangesPanel, type PanelMode } from './components/ChangesPanel';
 import { ChecksBadge, ChecksDialog } from './components/ChecksDialog';
 import { CommandPalette, type Command } from './components/CommandPalette';
+import { codeThemeName, themesOfKind, useCustomThemes } from './lib/codeThemes';
 import { Dialog } from './components/Dialog';
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { PreferencesDialog } from './components/PreferencesDialog';
@@ -31,6 +32,7 @@ export function App() {
   const language = useAppState((s) => s.prefs.language);
   const agentCommands = useAppState((s) => s.prefs.agentCommands);
   const t = useT();
+  const customThemes = useCustomThemes();
   const [overlay, setOverlay] = useState<Overlay>(null);
   /** The folder a new session was asked for, when it came from one dropped on the window. */
   const [newFolder, setNewFolder] = useState<string | undefined>(undefined);
@@ -337,6 +339,17 @@ export function App() {
         },
       );
     }
+    // The code themes of the current kind, to switch from the keyboard.
+    for (const codeTheme of themesOfKind(theme, customThemes)) {
+      list.push({
+        id: `code-theme-${codeTheme.id}`,
+        title: t('command.codeTheme', { name: codeThemeName(t, codeTheme) }),
+        run: () =>
+          void window.api.invoke('prefs:set', {
+            [theme === 'light' ? 'codeThemeLight' : 'codeThemeDark']: codeTheme.id,
+          }),
+      });
+    }
     sessions.forEach((s, i) =>
       list.push({
         id: `go-${s.id}`,
@@ -355,6 +368,8 @@ export function App() {
     requestClose,
     changeFolder,
     duplicate,
+    theme,
+    customThemes,
     t,
   ]);
 

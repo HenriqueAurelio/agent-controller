@@ -45,6 +45,7 @@ test('the language chosen in the preferences is the one of every text', async ()
   await expect(prefs.getByRole('tab')).toHaveText([
     'General',
     'Agents',
+    'Editor',
     'Shortcuts',
     'Layout',
     'Import and export',
@@ -116,6 +117,7 @@ test('the button of the changes and the palette speak the language too, Spanish 
   await expect(prefs.getByRole('tab')).toHaveText([
     'General',
     'Agentes',
+    'Editor',
     'Atajos',
     'Diseño',
     'Importar y exportar',

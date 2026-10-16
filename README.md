@@ -101,6 +101,7 @@ Em **Preferências** (`Ctrl+,`) dá para desligar cada tipo de aviso e o som.
 - A lista dos arquivos adicionados, modificados, removidos, renomeados e não rastreados, agrupados por pasta.
 - O antes e depois do arquivo selecionado, lado a lado ou em linha.
 - **Edição:** o lado direito é o arquivo como está na pasta. Dá para digitar nele e salvar com `Ctrl+S` ou o botão **Salvar**; a seta entre os dois lados desfaz um trecho. Se o agente escrever no mesmo arquivo enquanto você edita, o app não grava por cima: avisa e deixa você escolher entre recarregar e sobrescrever.
+- **Cores do código:** o código é colorido como no VS Code, com as mesmas gramáticas (funções, parâmetros, propriedades e tipos com cores próprias) e a linguagem tirada do nome do arquivo, inclusive `Dockerfile`, `Makefile`, `.env`, JSON, TOML, Vue e Svelte. O seletor ao lado do nome do arquivo mostra a linguagem detectada e deixa escolher outra só para aquele arquivo. Arquivos com mais de 30 000 linhas ficam com o realce mais simples do Monaco.
 - **Comparar com**: o último commit, ou o início da sessão (só o que mudou desde que o agente foi aberto).
 - A lista se atualiza sozinha enquanto o painel está aberto.
 - **Vários repositórios:** se a pasta da sessão guarda mais de um repositório (lado a lado numa pasta comum, ou um dentro do outro), a lista ganha um cabeçalho por repositório, com a branch e a contagem de cada um, e o contador do botão soma todos. Com um repositório só, nada muda.
@@ -154,11 +155,21 @@ Em **Preferências → Geral → Idioma** você escolhe a língua da interface: 
 
 Este README descreve o app em português; em inglês, os nomes dos botões e menus são os equivalentes.
 
+### Temas do código
+
+Em **Preferências → Editor**:
+
+- **Com o app escuro** e **Com o app claro**: o tema de cores do código em cada tema do app, com uma prévia ao lado. Vêm 33 temas do VS Code (Dark+, Light+, Monokai, One Dark Pro, Dracula, GitHub, Solarized, Nord, Tokyo Night, Catppuccin e outros). O padrão, **Agent Controller escuro/claro**, usa as cores do Dark+/Light+ com o fundo do app.
+- **Importar tema do VS Code…**: um arquivo `.json` de tema, como os que vêm nas extensões de tema do VS Code (na pasta `themes` da extensão). O tema importado passa a valer na hora e pode ser removido na mesma tela. Um tema que só estende outro (`include`) não é aceito.
+- **Linguagem por arquivo**: uma associação por linha, `padrão = linguagem` (`*.mdc = markdown`, `conf/nginx/*.conf = nginx`). Vale antes da extensão.
+
+Na paleta de comandos, **Tema do código: …** troca o tema do modo atual do app.
+
 ### Exportar e importar as configurações
 
-Em **Preferências → Importar e exportar**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
+Em **Preferências → Importar e exportar**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, temas do código, linguagem por arquivo, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
 
-As sessões e as verificações de cada pasta não vão no arquivo. Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Agentes** depois.
+As sessões, as verificações de cada pasta e os temas importados não vão no arquivo (um tema importado que falte na outra máquina volta ao tema do app). Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Agentes** depois.
 
 ### Atalhos
 

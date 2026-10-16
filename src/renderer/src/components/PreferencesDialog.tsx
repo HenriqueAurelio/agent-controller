@@ -13,13 +13,14 @@ import { useAppState } from '../lib/store';
 import { errorMessage, PROFILE_LABEL } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Dialog } from './Dialog';
+import { EditorPreferences } from './EditorPreferences';
 import { FavoriteFolders } from './FavoriteFolders';
 import { LayoutEditor } from './LayoutEditor';
 import { ShortcutsEditor } from './ShortcutsEditor';
 
 const set = (patch: Partial<Preferences>) => void window.api.invoke('prefs:set', patch);
 
-const TABS = ['geral', 'agentes', 'atalhos', 'layout', 'configuracoes'] as const;
+const TABS = ['geral', 'agentes', 'editor', 'atalhos', 'layout', 'configuracoes'] as const;
 type TabId = (typeof TABS)[number];
 
 export function PreferencesDialog({ onClose }: { onClose(): void }) {
@@ -96,6 +97,7 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
         role="tabpanel"
         aria-labelledby={`prefs-tab-${tab}`}
       >
+        {tab === 'editor' && <EditorPreferences />}
         {tab === 'layout' && (
           <LayoutEditor layout={prefs.layout} onChange={(layout) => set({ layout })} />
         )}

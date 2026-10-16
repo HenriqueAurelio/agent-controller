@@ -59,7 +59,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -98,7 +99,8 @@ button.active {
 }
 
 input,
-select {
+select,
+textarea {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -1363,4 +1365,42 @@ button.path:hover:not(:disabled) {
   font-size: 12px;
   white-space: pre-wrap;
   user-select: text;
+}
+
+/* Preferences → Editor: the preview of the code theme and the imported themes. */
+.code-theme-preview {
+  width: 100%;
+  height: 190px;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.custom-themes {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.custom-themes li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+.custom-theme-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+textarea.associations {
+  width: 100%;
+  margin-top: 4px;
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: 12px;
+  resize: vertical;
+}
+.diff-toolbar .diff-language {
+  max-width: 180px;
+  font-size: 12px;
 }

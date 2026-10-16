@@ -1,3 +1,5 @@
+import { sanitizeAssociations } from './codeLanguages';
+import { sanitizeCodeThemeId } from './codeThemes';
 import { NO_AGENT_COMMANDS, sanitizeAgentCommands, type AgentCommands } from './agents';
 import { DEFAULT_LANGUAGE, sanitizeLanguage, type Language } from './i18n';
 import { DEFAULT_LAYOUT, sanitizeLayout, type Layout } from './layout';
@@ -28,6 +30,12 @@ export interface Preferences {
   agentCommands: AgentCommands;
   layout: Layout;
   shortcuts: ShortcutMap;
+  /** Color theme of the code in the changes panel while the app is dark. */
+  codeThemeDark: string;
+  /** Color theme of the code in the changes panel while the app is light. */
+  codeThemeLight: string;
+  /** File name pattern → language of the code, ahead of what the extension says. */
+  fileAssociations: Record<string, string>;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -46,6 +54,9 @@ export const DEFAULT_PREFERENCES: Preferences = {
   agentCommands: NO_AGENT_COMMANDS,
   layout: DEFAULT_LAYOUT,
   shortcuts: DEFAULT_SHORTCUTS,
+  codeThemeDark: 'app-dark',
+  codeThemeLight: 'app-light',
+  fileAssociations: {},
 };
 
 export const SCROLLBACK_LIMITS = { min: 200, max: 20000 } as const;
@@ -107,5 +118,8 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
     agentCommands: sanitizeAgentCommands(p.agentCommands),
     layout: sanitizeLayout(p.layout),
     shortcuts: sanitizeShortcuts(p.shortcuts),
+    codeThemeDark: sanitizeCodeThemeId(p.codeThemeDark, 'dark'),
+    codeThemeLight: sanitizeCodeThemeId(p.codeThemeLight, 'light'),
+    fileAssociations: sanitizeAssociations(p.fileAssociations),
   };
 }

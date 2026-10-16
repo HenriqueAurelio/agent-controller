@@ -2,6 +2,7 @@
 // This is the meeting point of the core and interface fronts: change it only together.
 import type { AgentAvailability } from './agents';
 import type { CheckConfig, ChecksInfo } from './checks';
+import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { DiffBase, FileDiff, FileListing, GitOverview } from './git';
 import type { Preferences } from './prefs';
 import type { NewSessionInput, SessionView, TerminalSize } from './session';
@@ -47,6 +48,12 @@ export interface IpcCommands {
   'prefs:export': () => string | null;
   /** Replaces the preferences by the ones of a file the user picks. Null when given up. */
   'prefs:import': () => Preferences | null;
+  /** The color themes of the code the user imported (the built-in ones are in codeThemes.ts). */
+  'themes:list': () => CodeThemeInfo[];
+  'themes:get': (id: string) => CodeThemeData | null;
+  /** Imports a VS Code theme file the user picks. Null when given up. */
+  'themes:import': () => CodeThemeInfo | null;
+  'themes:remove': (id: string) => void;
   'agents:detect': (refresh: boolean) => AgentAvailability[];
   'dialog:pickFolder': (defaultPath?: string) => string | null;
   /** Folders of the latest sessions that still exist, most recent first. */
@@ -127,6 +134,10 @@ export const COMMAND_CHANNELS = [
   'prefs:set',
   'prefs:export',
   'prefs:import',
+  'themes:list',
+  'themes:get',
+  'themes:import',
+  'themes:remove',
   'agents:detect',
   'dialog:pickFolder',
   'folders:recent',

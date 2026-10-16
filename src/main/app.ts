@@ -19,6 +19,7 @@ import { SessionManager } from '@core/sessions/SessionManager';
 import { installAgentctl } from '@core/signals/agentctlInstall';
 import { createSocketPath, HookServer } from '@core/signals/HookServer';
 import { createAppStore, type AppData } from '@core/store/appStore';
+import { CodeThemeStore } from '@core/store/codeThemeStore';
 import { folderKey } from '@core/store/recentFolders';
 import {
   chooseGpuMode,
@@ -245,6 +246,7 @@ export async function startApp(): Promise<void> {
     changes,
     checks,
     data,
+    codeThemes: new CodeThemeStore(path.join(userData, 'themes')),
     send,
     testMode: TEST_SHELL,
     gpuMode,
