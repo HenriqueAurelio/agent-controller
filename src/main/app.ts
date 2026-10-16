@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { app, dialog, type BrowserWindow } from 'electron';
 import {
@@ -6,12 +7,14 @@ import {
   detectAgent,
   findOnPath,
   getProfile,
+  interactiveShell,
   PROFILES,
   wrapInShell,
 } from '@core/agents';
 import type { LaunchCommand } from '@core/agents';
 import { CheckService } from '@core/checks/CheckService';
 import { ChangesService } from '@core/git/ChangesService';
+import { cleanDiscarded } from '@core/git/GitWriteService';
 import { MetricsSampler } from '@core/metrics/MetricsSampler';
 import { PtyManager } from '@core/pty/PtyManager';
 import { NotificationPolicy, type NotificationRequest } from '@core/sessions/NotificationPolicy';
@@ -30,8 +33,8 @@ import {
 import type { AgentAvailability } from '@shared/agents';
 import { summarizeRun } from '@shared/checks';
 import { translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
-import type { Session } from '@shared/session';
-import { registerIpc, type IpcContext } from './ipc';
+import type { Session, SessionGroup } from '@shared/session';
+import { registerIpc, snapshotOf, type IpcContext } from './ipc';
 import { showNotification } from './notifications';
 import { createMainWindow, saveWindowState } from './window';
 
@@ -54,6 +57,13 @@ function testShell(session: Session, socketPath: string, command: string): Launc
     return { file: process.env.ComSpec || 'cmd.exe', args: [], env };
   }
   return { file: 'bash', args: ['--noprofile', '--norc'], env: { ...env, PS1: '$ ' } };
+}
+
+/** In test mode the shell beside the agent is the same plain one, for the same reasons. */
+function testAuxShell(): LaunchCommand {
+  if (process.platform === 'win32')
+    return { file: process.env.ComSpec || 'cmd.exe', args: [], env: {} };
+  return { file: 'bash', args: ['--noprofile', '--norc'], env: { PS1: '$ ' } };
 }
 
 export async function startApp(): Promise<void> {
@@ -116,8 +126,13 @@ export async function startApp(): Promise<void> {
     return buildLaunchCommand(profile, session, { ...context, executablePath });
   };
 
-  const persist = (sessions: Session[], selectedSessionId: string | null) => {
+  const persist = (
+    sessions: Session[],
+    selectedSessionId: string | null,
+    groups: SessionGroup[],
+  ) => {
     data.sessions = sessions;
+    data.groups = groups;
     data.selectedSessionId = selectedSessionId;
     try {
       store.save(data);
@@ -129,9 +144,11 @@ export async function startApp(): Promise<void> {
   const manager = new SessionManager({
     ptys,
     sessions: data.sessions,
+    groups: data.groups,
     selectedId: data.selectedSessionId,
     prefs: data.prefs,
     resolveLaunch,
+    resolveAuxShell: () => (TEST_SHELL ? testAuxShell() : interactiveShell()),
     persist,
   });
   hookServer.on('message', (message) => manager.handleHook(message));
@@ -150,6 +167,11 @@ export async function startApp(): Promise<void> {
   });
   // Snapshots of a previous run are useless: sessions always come back stopped.
   fs.rmSync(path.join(userData, 'snapshots'), { recursive: true, force: true });
+  // Copies of what the panel discarded, kept a month for "undo". The tests keep theirs apart.
+  const discardDir = TEST_SHELL
+    ? path.join(userData, 'descartados')
+    : path.join(os.homedir(), '.agent-controller', 'descartados');
+  void cleanDiscarded(discardDir);
 
   const metrics = new MetricsSampler({
     roots: () => {
@@ -194,9 +216,7 @@ export async function startApp(): Promise<void> {
     if (request) notify(request);
   });
 
-  manager.on('sessions', () =>
-    send('sessions:changed', { sessions: manager.list(), selectedId: manager.selected }),
-  );
+  manager.on('sessions', () => send('sessions:changed', snapshotOf(manager)));
   manager.on('data', (id, chunk) => send('terminal:data', id, chunk));
   manager.on('reset', (id) => send('terminal:reset', id));
   manager.on('started', (session) => void changes.sessionStarted(session.id, session.cwd));
@@ -246,6 +266,7 @@ export async function startApp(): Promise<void> {
     changes,
     checks,
     data,
+    discardDir,
     codeThemes: new CodeThemeStore(path.join(userData, 'themes')),
     send,
     testMode: TEST_SHELL,

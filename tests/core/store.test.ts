@@ -125,6 +125,41 @@ describe('appStore', () => {
     ]);
   });
 
+  it('keeps the groups and the group of each session; a session of an unknown group has none', () => {
+    const store = createAppStore(dir);
+    fs.writeFileSync(
+      store.file,
+      JSON.stringify({
+        version: 1,
+        groups: [
+          { id: 'g1', name: '  api-repo ', collapsed: true, extra: 1 },
+          { id: 'g1', name: 'dup' },
+          { id: 'g2', name: '   ' },
+          { id: 'g3', name: 'web' },
+          'lixo',
+        ],
+        sessions: [
+          { ...session('a'), groupId: 'g1' },
+          { ...session('b', 1), groupId: 'g2' },
+          { ...session('c', 2), groupId: 'g3' },
+          session('d', 3),
+        ],
+      }),
+    );
+    const loaded = store.load();
+    expect(loaded.groups).toEqual([
+      { id: 'g1', name: 'api-repo', collapsed: true },
+      { id: 'g3', name: 'web', collapsed: false },
+    ]);
+    expect(loaded.sessions.map((s) => [s.id, s.groupId ?? null])).toEqual([
+      ['a', 'g1'],
+      ['b', null],
+      ['c', 'g3'],
+      ['d', null],
+    ]);
+    expect(loaded.sessions[1]).not.toHaveProperty('groupId');
+  });
+
   it('migrates a file written before the schema had a version', () => {
     const store = createAppStore(dir);
     fs.writeFileSync(store.file, JSON.stringify({ sessions: [session('a')] }));

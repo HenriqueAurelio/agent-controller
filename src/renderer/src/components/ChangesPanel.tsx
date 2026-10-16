@@ -24,10 +24,16 @@ interface Props {
   onCount(count: number | null): void;
   /** The file with unsaved edits, or null: the app asks before anything discards them. */
   onUnsavedChange(file: string | null): void;
+  /** The file open in the panel, which a prompt may name; null when none is. */
+  onOpenFile(file: string | null): void;
+  /** "Send to the agent with a prompt…" on a selection of the editor. */
+  onSendSelection(file: string, selection: string): void;
 }
 
 interface Group {
   key: string;
+  /** Set on the first group of a section of the list (staged, not staged), when there are two. */
+  section?: 'staged' | 'unstaged';
   /** Set on the first group of a repository, when the session has more than one. */
   repo?: RepoInfo;
   /** Folder of the files, relative to their repository. */
@@ -98,6 +104,8 @@ export function ChangesPanel({
   onClose,
   onCount,
   onUnsavedChange,
+  onOpenFile,
+  onSendSelection,
 }: Props) {
   const t = useT();
   const prefs = useAppState((s) => s.prefs);
@@ -110,6 +118,15 @@ export function ChangesPanel({
   const [inline, setInline] = useState(false);
   const [revision, setRevision] = useState(0);
   const [dirty, setDirty] = useState(false);
+  const [message, setMessage] = useState('');
+  const [commitRepo, setCommitRepo] = useState('');
+  const [operating, setOperating] = useState(false);
+  const [opError, setOpError] = useState<string | null>(null);
+  /** The latest file discarded, while it can still be given back. */
+  const [discarded, setDiscarded] = useState<{ id: string; file: string } | null>(null);
+  const [committed, setCommitted] = useState<string | null>(null);
+  /** Boxes clicked whose change git has not confirmed yet: they show the click at once. */
+  const [marking, setMarking] = useState<Record<string, boolean>>({});
   const listRef = useRef<HTMLUListElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const sessionId = session.id;
@@ -117,6 +134,7 @@ export function ChangesPanel({
   const apply = useCallback(
     (result: GitOverview) => {
       setOverview(result);
+      setMarking({});
       setError(null);
       onCount(result.ok && result.base === 'head' ? result.changes.length : null);
       setRevision((r) => r + 1);
@@ -153,7 +171,32 @@ export function ChangesPanel({
 
   const changes = useMemo(() => (overview?.ok ? overview.changes : []), [overview]);
   const repos = useMemo(() => (overview?.ok ? overview.repos : []), [overview]);
-  const groups = useMemo(() => groupByFolder(changes, repos), [changes, repos]);
+  /** Against the last commit, the list is also what can be staged, committed and discarded. */
+  const operable = overview?.ok === true && overview.base === 'head';
+  const stagedChanges = useMemo(
+    () => (operable ? changes.filter((c) => c.staged) : []),
+    [operable, changes],
+  );
+  // What is staged first, the rest after: what goes into the commit is the reviewed part.
+  const groups = useMemo(() => {
+    if (stagedChanges.length === 0) return groupByFolder(changes, repos);
+    const mark = (list: Group[], section: Group['section']) =>
+      list.map((group, index) => ({
+        ...group,
+        key: `${section}:${group.key}`,
+        ...(index === 0 && { section }),
+      }));
+    return [
+      ...mark(groupByFolder(stagedChanges, repos), 'staged'),
+      ...mark(
+        groupByFolder(
+          changes.filter((c) => !c.staged),
+          repos,
+        ),
+        'unstaged',
+      ),
+    ];
+  }, [changes, stagedChanges, repos]);
   const untouched = repos.length > 1 ? repos.filter((r) => r.count === 0) : [];
   const flat = useMemo(() => groups.flatMap((g) => g.files), [groups]);
   const kinds = useMemo(() => new Map(changes.map((c) => [c.path, c.kind])), [changes]);
@@ -176,6 +219,10 @@ export function ChangesPanel({
     onUnsavedChange(dirty ? current : null);
   }, [dirty, current, onUnsavedChange]);
   useEffect(() => () => onUnsavedChange(null), [onUnsavedChange]);
+  useEffect(() => {
+    onOpenFile(current);
+  }, [current, onOpenFile]);
+  useEffect(() => () => onOpenFile(null), [onOpenFile]);
 
   /** Leaving the open file (another file, another base, closing) would lose unsaved edits. */
   const mayLeave = () =>
@@ -191,6 +238,65 @@ export function ChangesPanel({
   };
   const close = () => {
     if (mayLeave()) onClose();
+  };
+
+  /** With the agent working, whatever touches the repository asks once more. */
+  const agentWorking = session.status.state === 'trabalhando';
+  const run = async (operation: () => Promise<void>) => {
+    setOperating(true);
+    setOpError(null);
+    try {
+      await operation();
+    } catch (err) {
+      setOpError(errorMessage(err));
+    } finally {
+      setOperating(false);
+    }
+  };
+  const toggleStaged = (change: FileChange) => {
+    const toStage = change.staged !== 'all';
+    setMarking((current) => ({ ...current, [change.path]: toStage }));
+    void run(async () => {
+      setCommitted(null);
+      try {
+        await window.api.invoke(toStage ? 'git:stage' : 'git:unstage', sessionId, [change.path]);
+      } catch (err) {
+        setMarking(({ [change.path]: _, ...rest }) => rest);
+        throw err;
+      }
+    });
+  };
+  const discardFile = (change: FileChange) => {
+    const question = [
+      t('changes.discardConfirm', { file: change.path }),
+      ...(agentWorking ? [t('changes.agentWorking')] : []),
+    ].join('\n\n');
+    if ((change.path === current && !mayLeave()) || !window.confirm(question)) return;
+    void run(async () => {
+      const { id } = await window.api.invoke('git:discard', sessionId, change.path);
+      setDiscarded({ id, file: change.path });
+      setCommitted(null);
+    });
+  };
+  const undoDiscard = () =>
+    void run(async () => {
+      if (!discarded) return;
+      await window.api.invoke('git:undoDiscard', sessionId, discarded.id);
+      setDiscarded(null);
+    });
+  // The repository of the commit: the one at the root, or the one picked among those with
+  // something staged.
+  const stagedRepos = [...new Set(stagedChanges.map((c) => c.repo ?? ''))];
+  const repoToCommit = stagedRepos.includes(commitRepo) ? commitRepo : (stagedRepos[0] ?? '');
+  const goingIn = stagedChanges.filter((c) => (c.repo ?? '') === repoToCommit);
+  const commitStaged = () => {
+    if (agentWorking && !window.confirm(t('changes.agentWorking'))) return;
+    void run(async () => {
+      const { commit } = await window.api.invoke('git:commit', sessionId, repoToCommit, message);
+      setMessage('');
+      setDiscarded(null);
+      setCommitted(commit.slice(0, 7));
+    });
   };
 
   const moveSelection = (delta: number) => {
@@ -252,13 +358,21 @@ export function ChangesPanel({
                 aria-label={t('changes.compareWith')}
                 value={overview.base}
                 onChange={(e) => {
-                  if (mayLeave()) setBase(e.target.value === 'session' ? 'session' : 'head');
+                  const next = e.target.value;
+                  if (mayLeave()) {
+                    setBase(next === 'session' || next === 'branchBase' ? next : 'head');
+                  }
                 }}
               >
                 <option value="head">{t('changes.base.head')}</option>
                 <option value="session" disabled={!overview.hasSessionBase}>
                   {t('changes.base.session')}
                 </option>
+                {session.worktree && (
+                  <option value="branchBase" disabled={!overview.hasBranchBase}>
+                    {t('changes.base.branchBase', { base: session.worktree.base })}
+                  </option>
+                )}
               </select>
             </label>
             <button
@@ -287,12 +401,14 @@ export function ChangesPanel({
           <p>
             {overview.base === 'session'
               ? t('changes.none.session')
-              : repos.length > 1
-                ? t('changes.none.repos', {
-                    count: repos.length,
-                    names: repos.map((r) => r.name).join(', '),
-                  })
-                : t('changes.none.head')}
+              : overview.base === 'branchBase'
+                ? t('changes.none.branchBase')
+                : repos.length > 1
+                  ? t('changes.none.repos', {
+                      count: repos.length,
+                      names: repos.map((r) => r.name).join(', '),
+                    })
+                  : t('changes.none.head')}
           </p>
         </div>
       )}
@@ -319,6 +435,7 @@ export function ChangesPanel({
               fontSize={prefs.fontSize}
               plain={overview !== null && !overview.ok}
               onDirtyChange={setDirty}
+              onSendSelection={onSendSelection}
             />
           ) : (
             <div className="panel-message">{t('changes.pickFile')}</div>
@@ -349,6 +466,15 @@ export function ChangesPanel({
           >
             {groups.map((group) => (
               <li key={group.key} role="presentation">
+                {group.section && (
+                  <div className={`changes-section section-${group.section}`}>
+                    {group.section === 'staged'
+                      ? t('changes.section.staged', { count: stagedChanges.length })
+                      : t('changes.section.unstaged', {
+                          count: changes.length - stagedChanges.length,
+                        })}
+                  </div>
+                )}
                 {group.repo && (
                   <div
                     className="changes-repo"
@@ -377,9 +503,47 @@ export function ChangesPanel({
                           ? `${t(`change.${change.kind}`)}: ${change.origPath} → ${change.path}`
                           : `${t(`change.${change.kind}`)}: ${change.path}`
                       }
+                      data-staged={change.staged ?? 'none'}
                       onClick={() => select(change.path)}
                     >
+                      {operable && (
+                        <input
+                          type="checkbox"
+                          className="stage-box"
+                          aria-label={t('changes.stageOf', { file: change.path })}
+                          title={t(
+                            change.staged === 'partial'
+                              ? 'changes.stagePartial'
+                              : 'changes.stageHint',
+                          )}
+                          checked={marking[change.path] ?? change.staged === 'all'}
+                          ref={(box) => {
+                            if (box) {
+                              box.indeterminate =
+                                marking[change.path] === undefined && change.staged === 'partial';
+                            }
+                          }}
+                          disabled={operating}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => toggleStaged(change)}
+                        />
+                      )}
                       <span className="change-name">{fileName(change.path)}</span>
+                      {operable && change.kind !== 'conflict' && (
+                        <button
+                          type="button"
+                          className="discard-button"
+                          aria-label={t('changes.discardOf', { file: change.path })}
+                          title={t('changes.discardHint')}
+                          disabled={operating}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            discardFile(change);
+                          }}
+                        >
+                          ↺
+                        </button>
+                      )}
                       <span className={`change-kind kind-${change.kind}`}>
                         {CHANGE_LETTER[change.kind]}
                       </span>
@@ -404,9 +568,91 @@ export function ChangesPanel({
               theme={prefs.theme}
               fontSize={prefs.fontSize}
               onDirtyChange={setDirty}
+              onSendSelection={onSendSelection}
             />
           )}
         </div>
+      )}
+
+      {!files && (discarded || opError || committed) && (
+        <div
+          className={`changes-toast ${opError ? 'error' : ''}`}
+          role={opError ? 'alert' : 'status'}
+        >
+          {opError ? (
+            <pre className="changes-error">{opError}</pre>
+          ) : discarded ? (
+            <>
+              <span>{t('changes.discarded', { file: discarded.file })}</span>
+              <button type="button" disabled={operating} onClick={undoDiscard}>
+                {t('changes.undo')}
+              </button>
+            </>
+          ) : (
+            <span>{t('changes.committed', { commit: committed ?? '' })}</span>
+          )}
+          <button
+            type="button"
+            className="toast-close"
+            aria-label={t('common.close')}
+            onClick={() => {
+              setOpError(null);
+              setDiscarded(null);
+              setCommitted(null);
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {!files && operable && stagedChanges.length > 0 && (
+        <footer className="commit-bar" role="group" aria-label={t('changes.commitArea')}>
+          <div className="commit-going-in" data-testid="commit-going-in">
+            {t('changes.goingIn', {
+              count: goingIn.length,
+              files: goingIn.map((c) => fileName(c.path)).join(', '),
+            })}
+          </div>
+          <div className="commit-row">
+            {stagedRepos.length > 1 && (
+              <select
+                aria-label={t('changes.commitRepo')}
+                value={repoToCommit}
+                onChange={(e) => setCommitRepo(e.target.value)}
+              >
+                {stagedRepos.map((repo) => (
+                  <option key={repo} value={repo}>
+                    {repos.find((r) => r.path === repo)?.name ?? repo}
+                  </option>
+                ))}
+              </select>
+            )}
+            <textarea
+              aria-label={t('changes.commitMessage')}
+              placeholder={t('changes.commitMessage')}
+              value={message}
+              rows={2}
+              spellCheck={false}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.ctrlKey && message.trim()) {
+                  e.preventDefault();
+                  commitStaged();
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="primary"
+              disabled={operating || !message.trim()}
+              title={t('changes.commitHint')}
+              onClick={commitStaged}
+            >
+              {t('changes.commit')}
+            </button>
+          </div>
+        </footer>
       )}
     </section>
   );

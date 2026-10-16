@@ -55,6 +55,19 @@ Outros caminhos para o mesmo lugar:
 - **Trocar a pasta** de uma sessão que já existe: clique no caminho no topo da sessão, ou use a paleta de comandos. O agente trabalha na pasta em que foi aberto; se estiver rodando, o app avisa, encerra e abre de novo na nova pasta, e a conversa em andamento não continua.
 - **Parar e iniciar o agente** não tem botão: abrir uma sessão parada inicia o agente dela, e um agente que saiu com a sessão aberta inicia de novo com **Enter** no terminal. Para parar sem fechar a sessão, use "parar o agente" na paleta de comandos, ou peça ao próprio agente que saia (`/exit`).
 
+### Grupos de sessões
+
+Com várias sessões no mesmo repositório, dá para juntá-las num **grupo** (por exemplo, `XXX-REPO`) e ver cada repositório como um bloco na barra lateral.
+
+- **Criar:** o botão **⊞** no topo da barra lateral, ou "Novo grupo de sessões" na paleta. O nome já vem com a pasta da sessão aberta, e as sessões abertas nessa pasta já vêm marcadas; ajuste e clique em **Criar grupo**.
+- **Pôr e tirar sessões:** arraste a sessão para o cabeçalho do grupo, ou para entre as sessões dele. Para tirá-la, arraste para a faixa **Solte aqui para tirar do grupo**, que aparece no topo da lista durante o arraste. Pela paleta, "Mover … para o grupo …" e "Tirar … do grupo …". Com o teclado, `Alt+↑` / `Alt+↓` além da borda do grupo leva a sessão para o grupo vizinho, ou para fora.
+- **Nova sessão já no grupo:** o **+** no cabeçalho do grupo. Em **Nova sessão**, o campo **Grupo** também escolhe; **Duplicar** mantém a cópia no mesmo grupo.
+- **Recolher:** clique no cabeçalho. Recolhido, o grupo mostra quantas sessões tem e, em laranja, quantas estão aguardando você; a sessão aberta continua à vista mesmo dentro de um grupo recolhido.
+- **Renomear:** clique duas vezes no nome do grupo (ou `F2` com o cabeçalho focado). **✎** edita o nome e as sessões de uma vez.
+- **Desfazer:** o **×** no cabeçalho desfaz o grupo. **As sessões continuam abertas**, só deixam de estar agrupadas.
+
+As sessões sem grupo ficam no topo da lista, e os grupos vêm em seguida, na ordem que você escolher (arraste um cabeçalho sobre o outro, ou `Alt+↑` / `Alt+↓` com ele focado). `Ctrl+1` … `Ctrl+9` seguem a lista como ela aparece. Os grupos são guardados com as sessões e voltam ao reabrir o app, recolhidos ou não; não vão no arquivo de exportação das configurações.
+
 ### Comando do agente
 
 Quem usa o mesmo agente de mais de um jeito costuma ter aliases ou funções no perfil do shell: `claude-work` e `claude-personal`, por exemplo, uma conta em cada um. O app abre o executável do agente direto, sem shell, e por isso não os enxerga. Para usá-los, diga qual comando a sessão roda:
@@ -94,6 +107,26 @@ Quando um agente que estava trabalhando termina ou passa a aguardar você, o app
 
 Em **Preferências** (`Ctrl+,`) dá para desligar cada tipo de aviso e o som.
 
+### Cópia isolada (git worktree)
+
+Dois agentes na mesma pasta pisam um no outro. Para cada um trabalhar sem atrapalhar o outro, crie a sessão como **cópia isolada**: o app faz um `git worktree` do repositório, numa branch nova, e abre o agente lá. O repositório e o histórico são os mesmos; a pasta e a branch são só daquela sessão.
+
+1. Em **Nova sessão**, escolha uma pasta que esteja num repositório git. Aparece a caixa **Cópia isolada (git worktree)**.
+2. Marque. A **branch nova** vem sugerida a partir do nome da sessão (`ac/corrigir-login`), e **A partir de** é a branch atual; dá para trocar os dois.
+3. **Criar e iniciar.** A cópia vai para `~/.agent-controller/worktrees/<repositório>/<branch>`.
+
+Depois disso:
+
+- O topo da sessão mostra a branch, com o ícone **⑂**.
+- O painel de mudanças mostra só o que aconteceu na cópia. Em **Comparar com**, a opção **A base da branch** mostra tudo o que a branch mudou desde que saiu da base: os commits dela e o que ainda não tem commit.
+- **Duplicar** uma sessão em cópia abre a nova na mesma cópia. Enquanto as duas existirem, uma faixa avisa que elas mexem nos mesmos arquivos.
+- **Ao fechar**, o app pergunta o que fazer com a cópia. **Manter** (o padrão) deixa a pasta e a branch; dá para abrir outra sessão nela depois. **Remover a cópia** apaga a pasta, e só é possível quando nada nela está sem commit e nenhuma outra sessão a usa; com mudanças, o app diz quais e não remove. A **branch nunca é apagada**.
+- O app não faz commit nem push: abrir o PR fica com você ou com o agente.
+
+Em **Preferências → Sessões** você escolhe a **pasta das cópias** e um **comando para preparar cada cópia nova** (por exemplo, `npm ci`), que roda uma vez, na cópia, antes de a sessão abrir; se ele falhar, a sessão não abre, e a cópia fica. A mesma aba lista as cópias, com branch, tamanho, data e quais sessões as usam, e remove as que nenhuma sessão usa. Esses dois ajustes ficam com as sessões, não vão no arquivo de exportação das preferências.
+
+Os agentes perguntam se confiam em cada pasta nova, e cada cópia é uma pasta nova. No Windows, um `node_modules` fundo dentro da cópia pode passar do limite de caminho; se acontecer, `git config --global core.longpaths true` ajuda o git, e uma pasta de cópias curta ajuda o resto.
+
 ### Ver o que o agente alterou
 
 **Ver mudanças** (botão no topo da sessão, `Ctrl+Shift+G`, ou "ver mudanças" na paleta de comandos) abre o painel de mudanças:
@@ -103,6 +136,11 @@ Em **Preferências** (`Ctrl+,`) dá para desligar cada tipo de aviso e o som.
 - **Edição:** o lado direito é o arquivo como está na pasta. Dá para digitar nele e salvar com `Ctrl+S` ou o botão **Salvar**; a seta entre os dois lados desfaz um trecho. Se o agente escrever no mesmo arquivo enquanto você edita, o app não grava por cima: avisa e deixa você escolher entre recarregar e sobrescrever.
 - **Cores do código:** o código é colorido como no VS Code, com as mesmas gramáticas (funções, parâmetros, propriedades e tipos com cores próprias) e a linguagem tirada do nome do arquivo, inclusive `Dockerfile`, `Makefile`, `.env`, JSON, TOML, Vue e Svelte. O seletor ao lado do nome do arquivo mostra a linguagem detectada e deixa escolher outra só para aquele arquivo. Arquivos com mais de 30 000 linhas ficam com o realce mais simples do Monaco.
 - **Comparar com**: o último commit, ou o início da sessão (só o que mudou desde que o agente foi aberto).
+- **Git, comparando com o último commit:**
+  - **Marcar para o commit:** a caixa ao lado de cada arquivo faz o *stage* dele; desmarcar desfaz, sem mexer no arquivo. A lista se divide em **Para o commit** e **Fora do commit**. Uma caixa pela metade quer dizer que só parte das mudanças do arquivo está marcada.
+  - **Commit:** com algo marcado, o rodapé mostra o que entra e pede a mensagem; **Commit** (ou `Ctrl+Enter`) faz o commit do que está marcado. Os hooks do repositório rodam; se um falhar, o que ele disse aparece no painel e nada é feito. O app não faz push nem `--amend`.
+  - **Descartar:** o botão **↺** de um arquivo (aparece ao passar o mouse) devolve o arquivo ao que o último commit tem, ou o apaga se for novo. O app pergunta antes, guarda uma cópia em `~/.agent-controller/descartados/` e mostra **Desfazer** logo em seguida. As cópias ficam 30 dias. Desfazer não funciona se o arquivo mudou depois de descartado, para não apagar o que foi escrito nele.
+  - Com o agente trabalhando, descartar e fazer commit pedem uma confirmação a mais. Se o agente estiver usando o git ao mesmo tempo, o app avisa que o repositório está ocupado; é só tentar de novo.
 - A lista se atualiza sozinha enquanto o painel está aberto.
 - **Vários repositórios:** se a pasta da sessão guarda mais de um repositório (lado a lado numa pasta comum, ou um dentro do outro), a lista ganha um cabeçalho por repositório, com a branch e a contagem de cada um, e o contador do botão soma todos. Com um repositório só, nada muda.
 
@@ -137,15 +175,57 @@ Daí em diante:
 
 As verificações ficam guardadas **por pasta**: toda sessão naquela pasta usa as mesmas, e elas voltam ao reabrir o app. O resultado da última rodada não volta. Elas **não vão** no arquivo de exportação das preferências: são comandos que o app roda sozinho, e importar um arquivo não deve trazê-los.
 
+### Prompts guardados
+
+Pedidos que você repete ("revise o diff", "escreva os testes de {arquivo}") ficam guardados em **Preferências → Prompts**, com nome, texto e, se quiser, um atalho. O app vem com três de fábrica; **Restaurar os de fábrica** os traz de volta no idioma atual.
+
+Para enviar:
+
+- **Paleta:** `Ctrl+Shift+P` → "Prompt: Escrever testes". Abre o diálogo de envio para a sessão à vista.
+- **Atalho do prompt**, definido na mesma aba.
+- **Painel de mudanças:** com um trecho selecionado no editor, clique com o botão direito → **Mandar ao agente com o prompt…** (ou o botão de mesmo nome no topo do arquivo). O prompt já sabe qual é o arquivo e o trecho.
+- **Várias sessões:** na barra lateral, `Ctrl+clique` marca outras sessões além da que está à vista; **Enviar prompt** manda a todas as marcadas.
+
+No diálogo você escolhe o prompt, responde às perguntas dele, pode mexer no texto só para esse envio e marca as sessões de destino. A **prévia** mostra como o texto chega na primeira sessão, com as variáveis preenchidas:
+
+| Variável | Vira |
+|---|---|
+| `{sessao}` | O nome da sessão |
+| `{pasta}` | A pasta da sessão |
+| `{branch}` | A branch atual da pasta (vazio fora de um repositório) |
+| `{arquivo}` | O arquivo aberto no painel de mudanças |
+| `{selecao}` | O trecho selecionado no editor do painel (até 20 mil caracteres; o resto é cortado, com aviso) |
+| `{?pergunta}` | Um campo que o diálogo pede na hora de enviar |
+
+Uma variável que o app não conhece fica como está escrita. Cada sessão recebe o texto com as variáveis dela.
+
+Como o texto chega:
+
+- **Sem Enter, de fábrica.** O texto fica no prompt do agente para você conferir e enviar. A preferência **Enviar com Enter** (e a caixa no diálogo, só para aquele envio) aperta o Enter por você.
+- **Numa linha só**, com **⏎** onde havia quebra de linha, como em "Mandar o erro ao agente" (ver acima).
+- **Agente ocupado:** se ele está trabalhando, ou pedindo uma permissão, o texto **espera o fim do turno**. A sessão mostra "1 envio(s) esperando o turno", com **Cancelar**. **Enviar agora mesmo assim**, no diálogo, não espera. Com vários textos esperando, sai um turno de cada vez.
+
+Os prompts são só texto e **vão no arquivo de exportação** das preferências.
+### Terminal auxiliar
+
+Para rodar algo na pasta da sessão sem sair do app e sem atrapalhar o agente (subir o servidor, olhar um log, `git log`), abra o **terminal auxiliar**: `Ctrl+Shift+"` (a tecla `'` com `Shift`), o botão **Terminal** no topo da sessão ou "Terminal auxiliar: abrir um shell…" na paleta.
+
+- É o **seu shell**, na pasta da sessão, como o seu terminal o abre: PowerShell com o seu perfil no Windows, `$SHELL` no Linux.
+- Fica **embaixo** do terminal do agente, com uma divisória que se arrasta. Em **Preferências → Layout** ele pode ir para a **direita**.
+- O que você digita nele **não chega ao agente** nem muda o estado da sessão. Ele tem rótulo e cor de borda próprios, e o terminal que está com o teclado fica marcado. `Ctrl+Shift+T` volta ao terminal do agente.
+- **Fecha** pelo **×** do cabeçalho, pelo mesmo atalho ou botão, ou com `exit`. Fechar o auxiliar encerra o shell e tudo o que ele estiver rodando. Ele também fecha junto com a sessão, ao trocar a pasta da sessão e ao fechar o app; ao reabrir, volta fechado. Parar o agente não fecha o auxiliar.
+- É **um por sessão**. Ao trocar de sessão, cada uma mostra o seu, com o que estava na tela.
+
 ### Layout
 
-Em **Preferências → Layout** você escolhe onde fica cada parte da janela. As três escolhas são independentes e combinam entre si, e uma miniatura mostra o resultado antes de fechar:
+Em **Preferências → Layout** você escolhe onde fica cada parte da janela. As escolhas são independentes e combinam entre si, e uma miniatura mostra o resultado antes de fechar:
 
 | Parte | Onde pode ficar |
 |---|---|
 | **Sessões** | À esquerda, à direita, em cima ou embaixo. Em cima e embaixo a lista corre de lado, e as setas `←` / `→` andam por ela |
 | **Painel de mudanças e arquivos** | Por cima do terminal (o padrão) ou ao lado dele: à esquerda, à direita, em cima ou embaixo. Ao lado, o terminal continua à vista e usável |
 | **Lista de arquivos do painel** | À esquerda, à direita, em cima ou embaixo do texto do arquivo |
+| **Terminal auxiliar** | Embaixo do terminal do agente (o padrão) ou à direita dele |
 
 A mudança vale na hora e fica guardada. **Restaurar padrão** volta ao arranjo de fábrica.
 
@@ -167,6 +247,9 @@ Na paleta de comandos, **Tema do código: …** troca o tema do modo atual do ap
 
 ### Exportar e importar as configurações
 
+Em **Preferências → Importar e exportar**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, prompts guardados, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
+
+As sessões e as verificações de cada pasta não vão no arquivo. Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Agentes** depois. Os prompts de um arquivo importado são só texto: nada é enviado sem você abrir o diálogo, ver o texto e clicar em **Enviar**.
 Em **Preferências → Importar e exportar**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, temas do código, linguagem por arquivo, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
 
 As sessões, as verificações de cada pasta e os temas importados não vão no arquivo (um tema importado que falte na outra máquina volta ao tema do app). Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Agentes** depois.
@@ -183,6 +266,7 @@ As sessões, as verificações de cada pasta e os temas importados não vão no 
 | `Ctrl+Shift+G` | Abrir ou fechar o painel de mudanças |
 | `Ctrl+Shift+E` | Abrir ou fechar todos os arquivos da pasta |
 | `Ctrl+Shift+H` | Mostrar ou esconder arquivos ocultos |
+| `Ctrl+Shift+"` | Abrir ou fechar o terminal auxiliar (a tecla `'` com `Shift`) |
 | `Ctrl+Shift+P` | Paleta de comandos |
 | `Ctrl+,` | Preferências |
 | sem atalho de fábrica | Próxima sessão aguardando você; fechar a sessão atual |
@@ -190,7 +274,10 @@ As sessões, as verificações de cada pasta e os temas importados não vão no 
 
 Esses são os atalhos de fábrica. Em **Preferências → Atalhos** cada ação pode ter os seus: clique em **+**, pressione as teclas e pronto; o **×** ao lado de um atalho o remove, e **Restaurar padrões** desfaz tudo. Uma ação aceita até quatro atalhos. Se a combinação já era de outra ação, ela muda de dono. Para não atrapalhar o que você digita no terminal, um atalho precisa de `Ctrl`, `Alt` ou de uma tecla de função, e não pode ser um dos que o terminal e o editor usam (`Ctrl+C`, `Ctrl+V`, `Ctrl+S`, `F2`, `F12`).
 
-Na barra lateral, com uma sessão focada: `F2` renomeia, `Delete` fecha, `Alt+↑` / `Alt+↓` reordena. Também dá para arrastar.
+Na barra lateral, com uma sessão focada: `F2` renomeia, `Delete` fecha, `Alt+↑` / `Alt+↓` reordena. Também dá para arrastar. `Ctrl+clique` marca várias sessões para enviar um prompt a todas.
+
+Cada prompt guardado pode ter o seu atalho, em **Preferências → Prompts**, com as mesmas regras.
+Na barra lateral, com uma sessão focada: `F2` renomeia, `Delete` fecha, `Alt+↑` / `Alt+↓` reordena (e, na borda de um grupo, leva a sessão para fora dele ou para o vizinho). Também dá para arrastar. Com o cabeçalho de um grupo focado: `Enter` recolhe ou abre, `F2` renomeia, `Alt+↑` / `Alt+↓` muda o grupo de lugar.
 
 ## Codex: o passo de confiança dos hooks
 
@@ -218,10 +305,11 @@ O Claude Code não tem essa tela: os avisos funcionam sem você fazer nada. Os d
 ## Limitações do v1
 
 - **Fechar o app encerra todos os agentes**, mesmo no meio de uma tarefa. O app pede confirmação antes, listando as sessões que serão encerradas. Ao reabrir, as sessões voltam com nome, pasta e agente, paradas, e cada uma inicia quando você a abre (numa conversa nova). Encerrar os agentes leva alguns segundos, com a janela já fechada; se você abrir o app nesse meio-tempo, ele abre assim que o anterior terminar de sair.
-- **O painel de mudanças edita arquivos, mas não opera o git.** Não há "stage", "commit" nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar com o agente parado.
+- **O painel de mudanças edita arquivos, mas não opera o git.** Não há "stage", "commit" nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar com o agente parado. Do git, o app só cria e remove as [cópias isoladas](#cópia-isolada-git-worktree) e a branch nova de cada uma; nunca faz commit, push nem apaga uma branch.
+- **O painel de mudanças faz pouco no git, de propósito.** Marca para o commit, faz commit e descarta um arquivo por vez. Não há push, pull, branch, merge, stash, `--amend`, stage de trechos nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar e operar com o agente parado.
 - **O painel de mudanças exige git**, instalado e com a pasta da sessão dentro de um repositório. Sem isso, ele explica o que falta.
 - **"Aguardando você" não é infalível.** Ver "Possivelmente aguardando" acima.
-- **Só Claude Code e Codex.** Sem outras IAs, shell puro, SSH, divisão de tela ou macOS. O comando de uma sessão pode ser trocado, mas o agente por trás dele tem que ser um dos dois.
+- **Só Claude Code e Codex.** Sem outras IAs, SSH ou macOS. Um shell comum só existe como o [terminal auxiliar](#terminal-auxiliar) de uma sessão: um por sessão, sem abas nem divisão livre da tela. O comando de uma sessão pode ser trocado, mas o agente por trás dele tem que ser um dos dois.
 - **O comando de uma sessão não é editável depois de criada.** Para trocar, crie outra sessão (ou mude o comando do agente nas preferências, se a sessão não tiver um só dela).
 - **O comando da sessão fica em um arquivo de texto.** O app guarda nome, pasta, agente e comando de cada sessão em `sessions.json`, na pasta de dados do app. Ele não guarda o histórico do terminal nem variáveis de ambiente.
 

@@ -4,9 +4,11 @@
 
 **Antes de tudo:** decidir se a ADR 0012 é revista (proposta completa) ou se entra só o stage (tarefas 9.1 e 9.3).
 
+**Situação em 2026-10-16:** decidido rever a ADR 0012 por inteiro (proposta completa), e todas as tarefas prontas ([ADR 0018](../../../adr/0018-operacoes-de-git-no-painel.md)). `src/core/git/GitWriteService.ts` e as operações do `ChangesService`; `FileChange.staged` vem do `git status --porcelain=v2`. Testes em `tests/core/gitWrite.test.ts` (Windows e Docker) e `tests/e2e/gitops.spec.ts`. As cópias descartadas ficam em `~/.agent-controller/descartados/` (nos testes, na pasta de dados do app).
+
 ---
 
-## [ ] 9.1 GitWriteService: stage e unstage
+## [x] 9.1 GitWriteService: stage e unstage
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** a decisão acima
 
@@ -19,7 +21,7 @@
 
 ---
 
-## [ ] 9.2 Commit e descartar com cópia
+## [x] 9.2 Commit e descartar com cópia
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** 9.1
 
@@ -33,7 +35,7 @@
 
 ---
 
-## [ ] 9.3 IPC e interface
+## [x] 9.3 IPC e interface
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 9.1 (9.2 para commit e descartar)
 
@@ -49,7 +51,7 @@
 
 ---
 
-## [ ] 9.4 ADR, README e DECISOES-E-RISCOS
+## [x] 9.4 ADR, README e DECISOES-E-RISCOS
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 9.3
 

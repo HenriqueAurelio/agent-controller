@@ -1,5 +1,5 @@
 // The screens of folders, theme of the editor, layout, settings, language, command of the agent,
-// tabs of the preferences, checks at the end of a turn and syntax highlighting,
+// tabs of the preferences and checks at the end of a turn,
 // to attach to the pull request: the same scenario photographed before and after the change. They
 // go to evidences/, which git ignores. It only runs when asked:
 //
@@ -18,6 +18,7 @@ import {
   removeDir,
   ROOT,
   screenText,
+  setTitle,
   tempDir,
 } from './harness';
 import { configureSuggested, makeProject, turn } from './project';
@@ -428,6 +429,173 @@ test('evidences: checks at the end of a turn', async () => {
   } finally {
     await running.close();
     for (const dir of [userData, repo]) removeDir(dir);
+  }
+});
+
+test('evidences: saved prompts', async () => {
+  test.setTimeout(240_000);
+  const userData = tempDir('ac-evid-data-');
+  const base = tempDir('ac-');
+  const folders = ['api', 'web', 'docs'].map((name) => path.join(base, name));
+  for (const folder of folders) fs.mkdirSync(folder);
+  const running = await launch(userData);
+  const { page } = running;
+  const shot = async (name: string) => {
+    fs.mkdirSync(path.join(OUT, 'prompts'), { recursive: true });
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: path.join(OUT, 'prompts', `${name}-${PHASE}.png`) });
+  };
+
+  try {
+    const ids: string[] = [];
+    for (const [index, name] of ['API', 'Web', 'Docs'].entries()) {
+      ids.push(await createSession(page, name, folders[index]!));
+    }
+
+    // 1. Preferences: where the prompts are kept. Before, the tab did not exist.
+    await page.keyboard.press('Control+,');
+    const prefs = page.getByRole('dialog', { name: 'Preferências' });
+    if (AFTER) {
+      await prefs.getByRole('tab', { name: 'Prompts' }).click();
+      await prefs.getByRole('option', { name: 'Escrever testes' }).click();
+    }
+    await shot('01-preferencias');
+    await prefs.getByRole('button', { name: 'Fechar' }).click();
+
+    // 2. Three sessions picked with Ctrl+click, and the prompt on its way to all of them.
+    if (AFTER) {
+      await page.locator('.session-item', { hasText: 'API' }).click({ modifiers: ['Control'] });
+      await page.locator('.session-item', { hasText: 'Web' }).click({ modifiers: ['Control'] });
+      await page.getByRole('button', { name: 'Enviar prompt' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Enviar prompt' });
+      await dialog
+        .getByLabel('Texto a enviar')
+        .fill('Rode os testes de {sessao} e diga o que quebrou. Foco: {?Foco}');
+      await dialog.getByLabel('Foco').fill('login');
+      await expect(dialog.getByTestId('prompt-preview')).toContainText('testes de API');
+    }
+    await shot('02-enviar-a-varias');
+
+    // 3. What reached the terminal of one of them, waiting for Enter.
+    if (AFTER) {
+      await page
+        .getByRole('dialog', { name: 'Enviar prompt' })
+        .getByRole('button', { name: 'Enviar a 3 sessões' })
+        .click();
+      await expect
+        .poll(() => screenText(page, ids[1]!), { timeout: 15_000 })
+        .toContain('Foco: login');
+      await page.locator('.session-item', { hasText: 'Web' }).click();
+    }
+    await shot('03-no-terminal');
+
+    // 4. A prompt for a session whose agent is working waits for the end of the turn.
+    await page.locator('.session-item', { hasText: 'API' }).click();
+    await setTitle(page, '◐ tarefa');
+    await expect(page.locator('.session-item', { hasText: 'API' })).toHaveAttribute(
+      'data-state',
+      'trabalhando',
+      { timeout: 15_000 },
+    );
+    if (AFTER) {
+      await page.evaluate(
+        (s) =>
+          window.api.invoke(
+            'terminal:sendText',
+            [s],
+            { text: 'Atualize o README.' },
+            { submit: false },
+          ),
+        ids[0]!,
+      );
+      await page.locator('.session-item', { hasText: 'API' }).getByTestId('pending-send').waitFor();
+    }
+    await shot('04-esperando-o-turno');
+  } finally {
+    await running.close();
+    for (const dir of [userData, base]) removeDir(dir);
+  }
+});
+
+test('evidences: groups of sessions', async () => {
+  test.setTimeout(180_000);
+  const userData = tempDir('ac-evid-data-');
+  // Short, stable paths: they are in the pictures.
+  const base = tempDir('ac-');
+  for (const dir of ['api-repo', 'web-repo', 'docs']) fs.mkdirSync(path.join(base, dir));
+  const folder = (name: string) => path.join(base, name);
+  const running = await launch(userData);
+  const { page } = running;
+  const shot = async (name: string) => {
+    fs.mkdirSync(path.join(OUT, 'grupos'), { recursive: true });
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: path.join(OUT, 'grupos', `${name}-${PHASE}.png`) });
+  };
+  const select = (name: string) =>
+    page
+      .locator('.session-item', { has: page.locator('.session-name', { hasText: name }) })
+      .click();
+
+  try {
+    // Sessions of two repositories, opened in the order work came up: mixed in the list.
+    await createSession(page, 'Back', folder('api-repo'));
+    await createSession(page, 'Loja', folder('web-repo'));
+    await createSession(page, 'Front', folder('api-repo'));
+    await createSession(page, 'Admin', folder('web-repo'));
+    await createSession(page, 'Docs', folder('docs'));
+
+    if (AFTER) {
+      // 2. A new group from a session of the repository: its name and its sessions come ready.
+      await select('Loja');
+      await page.getByRole('button', { name: /^Novo grupo/ }).click();
+      await shot('02-novo-grupo');
+      const dialog = page.getByRole('dialog', { name: 'Novo grupo' });
+      await dialog.getByLabel('Nome do grupo').fill('WEB-REPO');
+      await dialog.getByRole('button', { name: 'Criar grupo' }).click();
+      await select('Back');
+      await page.getByRole('button', { name: /^Novo grupo/ }).click();
+      await dialog.getByLabel('Nome do grupo').fill('API-REPO');
+      await dialog.getByRole('button', { name: 'Criar grupo' }).click();
+      await expect(dialog).toBeHidden();
+    }
+    // 1. The list: mixed before, one group per repository after.
+    await select('Docs');
+    await shot('01-lista');
+
+    if (AFTER) {
+      // 3. A group folded: its count stays in sight.
+      await page.getByRole('group', { name: 'WEB-REPO' }).locator('.group-header').click();
+      await shot('03-grupo-recolhido');
+      await page.getByRole('group', { name: 'WEB-REPO' }).locator('.group-header').click();
+    }
+
+    // 4. A new session, from the group's header: it goes into the group.
+    if (AFTER) {
+      await page.getByRole('group', { name: 'API-REPO' }).locator('.group-header').hover();
+      await page.getByRole('button', { name: 'Nova sessão em API-REPO' }).click();
+    } else {
+      await page.getByRole('button', { name: '+ Nova sessão' }).click();
+    }
+    await page
+      .getByRole('dialog', { name: 'Nova sessão' })
+      .getByLabel('Pasta')
+      .fill(folder('api-repo'));
+    await shot('04-nova-sessao');
+    await page
+      .getByRole('dialog', { name: 'Nova sessão' })
+      .getByRole('button', { name: 'Cancelar' })
+      .click();
+
+    // 5. Sessions on top: the groups run sideways too.
+    await page.evaluate(() =>
+      window.api.invoke('prefs:set', {
+        layout: { sessions: 'top', panel: 'cover', files: 'left' },
+      } as never),
+    );
+    await shot('05-sessoes-em-cima');
+  } finally {
+    await running.close();
+    for (const dir of [userData, base]) removeDir(dir);
   }
 });
 

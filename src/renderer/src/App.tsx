@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { statusDetail, statusLabel, type SessionView } from '@shared/session';
+import { statusDetail, statusLabel, type SessionGroup, type SessionView } from '@shared/session';
 import {
   bindingFromEvent,
   bindingIndex,
@@ -9,11 +9,13 @@ import {
 import { ChangeFolderDialog } from './components/ChangeFolderDialog';
 import { ChangesPanel, type PanelMode } from './components/ChangesPanel';
 import { ChecksBadge, ChecksDialog } from './components/ChecksDialog';
+import { CloseSessionDialog } from './components/CloseSessionDialog';
 import { CommandPalette, type Command } from './components/CommandPalette';
+import { GroupDialog } from './components/GroupDialog';
 import { codeThemeName, themesOfKind, useCustomThemes } from './lib/codeThemes';
-import { Dialog } from './components/Dialog';
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { PreferencesDialog } from './components/PreferencesDialog';
+import { PromptDialog, type PromptContext } from './components/PromptDialog';
 import { Sidebar } from './components/Sidebar';
 import { TerminalArea, type TerminalAreaHandle } from './components/TerminalArea';
 import { hint, PROFILE_LABEL } from './lib/format';
@@ -21,27 +23,44 @@ import { rich, useT } from './lib/i18n';
 import { shortcutRecording } from './lib/shortcuts';
 import { store, useAppState } from './lib/store';
 
-type Overlay = 'new' | 'prefs' | 'palette' | 'folder' | 'checks' | null;
+type Overlay = 'new' | 'prefs' | 'palette' | 'folder' | 'checks' | 'prompt' | 'group' | null;
+
+interface PromptRequest {
+  promptId?: string;
+  targets: string[];
+  context: PromptContext;
+}
 
 export function App() {
   const sessions = useAppState((s) => s.sessions);
+  const groups = useAppState((s) => s.groups);
   const selectedId = useAppState((s) => s.selectedId);
   const theme = useAppState((s) => s.prefs.theme);
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
   const layout = useAppState((s) => s.prefs.layout);
   const language = useAppState((s) => s.prefs.language);
   const agentCommands = useAppState((s) => s.prefs.agentCommands);
+  const prompts = useAppState((s) => s.prefs.prompts);
   const t = useT();
   const customThemes = useCustomThemes();
   const [overlay, setOverlay] = useState<Overlay>(null);
   /** The folder a new session was asked for, when it came from one dropped on the window. */
   const [newFolder, setNewFolder] = useState<string | undefined>(undefined);
+  /** The group a new session was asked for from. */
+  const [newGroup, setNewGroup] = useState<string | undefined>(undefined);
+  /** The group being edited in the group dialog; none, a new one. */
+  const [editedGroup, setEditedGroup] = useState<SessionGroup | undefined>(undefined);
   const [dropping, setDropping] = useState(false);
   const [closing, setClosing] = useState<SessionView | null>(null);
   const [changesOpen, setChangesOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode>('changes');
   const [changeCount, setChangeCount] = useState<number | null>(null);
   const terminals = useRef<TerminalAreaHandle>(null);
+  /** Sessions picked in the list with Ctrl+click. */
+  const [marked, setMarked] = useState<string[]>([]);
+  const [promptRequest, setPromptRequest] = useState<PromptRequest | null>(null);
+  /** The file open in the changes panel, which a prompt may name. */
+  const panelFile = useRef<string | null>(null);
 
   // Unsaved edits in the changes panel: anything that would close the panel asks first.
   const unsavedRef = useRef<string | null>(null);
@@ -83,9 +102,30 @@ export function App() {
   }, [mayDiscardEdits]);
 
   const selected = sessions.find((s) => s.id === selectedId) ?? null;
+  // Another session in the same copy of the repository: the two touch the same files.
+  const sharing =
+    selected?.worktree && sessions.find((s) => s.id !== selected.id && s.cwd === selected.cwd);
   // What the session runs in place of the agent, when it is not the agent itself.
   const agentCommand = selected && (selected.command || agentCommands[selected.profile]);
   const sessionIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
+  // A session that was closed is no longer picked.
+  const liveMarked = marked.filter((id) => sessionIds.includes(id));
+
+  /** Opens the dialog that sends a prompt: to the picked sessions, or to the one in sight. */
+  const openPrompt = useCallback(
+    (promptId?: string, context: PromptContext = {}, targets?: string[]) => {
+      const { selectedId: current, sessions: list } = store.get();
+      const picked = marked.filter((id) => list.some((s) => s.id === id));
+      const to = targets ?? (picked.length ? picked : current ? [current] : []);
+      setPromptRequest({
+        promptId,
+        targets: to,
+        context: { file: panelFile.current ?? undefined, ...context },
+      });
+      setOverlay('prompt');
+    },
+    [marked],
+  );
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -127,8 +167,9 @@ export function App() {
   }, []);
 
   const requestClose = useCallback((session: SessionView) => {
-    // A running agent is only closed after confirmation.
-    if (session.running) setClosing(session);
+    // A running agent is only closed after confirmation; a copy of the repository, after asking
+    // what to do with it.
+    if (session.running || session.worktree) setClosing(session);
     else void window.api.invoke('sessions:remove', session.id);
   }, []);
 
@@ -153,9 +194,14 @@ export function App() {
     if (session && !session.running) startWhenMounted(session.id);
   }, [selectedId, startWhenMounted]);
 
-  const openNew = useCallback((folder?: string) => {
+  const openNew = useCallback((folder?: string, groupId?: string) => {
     setNewFolder(folder);
+    setNewGroup(groupId);
     setOverlay('new');
+  }, []);
+  const editGroup = useCallback((group?: SessionGroup) => {
+    setEditedGroup(group);
+    setOverlay('group');
   }, []);
 
   // Both leave the open file of the changes panel behind.
@@ -272,11 +318,29 @@ export function App() {
         toggleFiles: () => togglePanel('files'),
         toggleHidden: () =>
           void window.api.invoke('prefs:set', { showHiddenFiles: !prefs.showHiddenFiles }),
+        toggleAux: () => {
+          if (!session) return;
+          // The shell lives under the panel when the panel covers the terminal.
+          if (changesOpenRef.current && prefs.layout.panel === 'cover') {
+            if (!mayDiscardEdits()) return;
+            setChangesOpen(false);
+          }
+          setOverlay(null);
+          terminals.current?.toggleAux();
+        },
         preferences: () => setOverlay('prefs'),
       };
       run[action]();
     },
-    [selectByOffset, selectNextWaiting, requestClose, focusTerminal, togglePanel, openNew],
+    [
+      selectByOffset,
+      selectNextWaiting,
+      requestClose,
+      focusTerminal,
+      togglePanel,
+      openNew,
+      mayDiscardEdits,
+    ],
   );
 
   const commands = useMemo<Command[]>(() => {
@@ -293,12 +357,24 @@ export function App() {
       action('nextWaiting'),
       action('focusSidebar'),
       action('preferences'),
+      { id: 'new-group', title: t('command.newGroup'), run: () => editGroup() },
     ];
+    for (const group of groups) {
+      list.push({
+        id: `edit-group-${group.id}`,
+        title: t('command.editGroup', { name: group.name }),
+        run: () => editGroup(group),
+      });
+    }
     if (selected) {
       list.unshift(
         action('toggleChanges', t('command.seeChanges'), () => showPanel('changes')),
         action('toggleFiles', t('command.files'), () => showPanel('files')),
         action('toggleHidden', t('command.toggleHidden')),
+        action(
+          'toggleAux',
+          t(selected.auxOpen ? 'command.closeAux' : 'command.openAux', { name: selected.name }),
+        ),
       );
       list.push(
         selected.running
@@ -338,6 +414,29 @@ export function App() {
           run: () => requestClose(selected),
         },
       );
+      for (const group of groups) {
+        if (group.id === selected.groupId) {
+          list.push({
+            id: `leave-group-${group.id}`,
+            title: t('command.leaveGroup', { name: selected.name, group: group.name }),
+            run: () => void store.moveToGroup(selected.id, null),
+          });
+        } else {
+          list.push({
+            id: `move-to-group-${group.id}`,
+            title: t('command.moveToGroup', { name: selected.name, group: group.name }),
+            run: () => void store.moveToGroup(selected.id, group.id),
+          });
+        }
+      }
+    }
+    for (const prompt of prompts) {
+      list.push({
+        id: `prompt-${prompt.id}`,
+        title: t('command.prompt', { name: prompt.name }),
+        shortcut: prompt.shortcut,
+        run: () => openPrompt(prompt.id),
+      });
     }
     // The code themes of the current kind, to switch from the keyboard.
     for (const codeTheme of themesOfKind(theme, customThemes)) {
@@ -361,6 +460,7 @@ export function App() {
     return list;
   }, [
     sessions,
+    groups,
     selected,
     shortcuts,
     runAction,
@@ -368,6 +468,9 @@ export function App() {
     requestClose,
     changeFolder,
     duplicate,
+    prompts,
+    openPrompt,
+    editGroup,
     theme,
     customThemes,
     t,
@@ -375,6 +478,10 @@ export function App() {
 
   // Global shortcuts are taken in the capture phase, before the terminal sees the key.
   const bindings = useMemo(() => bindingIndex(shortcuts), [shortcuts]);
+  const promptBindings = useMemo(
+    () => new Map(prompts.flatMap((p) => (p.shortcut ? [[p.shortcut, p.id] as const] : []))),
+    [prompts],
+  );
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       // The preferences are asking which keys a shortcut should have.
@@ -387,13 +494,14 @@ export function App() {
         const target = store.get().sessions[Number(position) - 1];
         if (target) store.select(target.id);
       } else if (action) runAction(action);
+      else if (promptBindings.has(binding)) openPrompt(promptBindings.get(binding));
       else return;
       event.preventDefault();
       event.stopPropagation();
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [bindings, runAction]);
+  }, [bindings, promptBindings, runAction, openPrompt]);
 
   // Whenever nothing is on top of it, the terminal has the keyboard.
   useEffect(() => {
@@ -406,11 +514,15 @@ export function App() {
   return (
     <div className="app" data-sessions={layout.sessions}>
       <Sidebar
-        onNew={() => openNew()}
+        onNew={(groupId) => openNew(undefined, groupId)}
+        onEditGroup={editGroup}
         onPreferences={() => setOverlay('prefs')}
         onClose={requestClose}
         onDuplicate={duplicate}
         onDone={() => focusTerminal(true)}
+        marked={liveMarked}
+        onMarkedChange={setMarked}
+        onSendPrompt={(ids) => openPrompt(undefined, {}, ids)}
       />
       <main className="main">
         {selected && (
@@ -424,6 +536,19 @@ export function App() {
                 {PROFILE_LABEL[selected.profile]}
                 {agentCommand && <span className="command"> · {agentCommand}</span>}
               </span>
+              {selected.worktree && (
+                <span
+                  className="worktree-tag"
+                  data-testid="session-worktree"
+                  title={t('app.worktreeHint', {
+                    repo: selected.worktree.repoRoot,
+                    branch: selected.worktree.branch,
+                    base: selected.worktree.base,
+                  })}
+                >
+                  <span aria-hidden="true">⑂</span> {selected.worktree.branch}
+                </span>
+              )}
               <span
                 data-testid="session-status"
                 className={`state-label state-label-${selected.status.state} ${selected.status.confirmed ? '' : 'inferred'}`}
@@ -459,6 +584,14 @@ export function App() {
               {t('common.files')}
             </button>
             <button
+              className={selected.auxOpen ? 'active' : ''}
+              aria-pressed={selected.auxOpen === true}
+              onClick={() => runAction('toggleAux')}
+              title={hint(t('app.auxHint'), shortcuts.toggleAux[0])}
+            >
+              {t('app.aux')}
+            </button>
+            <button
               className="checks-button"
               onClick={() => setOverlay('checks')}
               title={t('app.checksHint')}
@@ -467,6 +600,11 @@ export function App() {
               {selected.checks && <ChecksBadge summary={selected.checks} />}
             </button>
           </header>
+        )}
+        {sharing && (
+          <div className="banner" role="status">
+            {t('app.worktreeShared', { name: sharing.name })}
+          </div>
         )}
         {selected?.running && selected.hooks === 'inactive' && (
           <div className="banner" role="status">
@@ -485,6 +623,8 @@ export function App() {
               onClose={() => setChangesOpen(false)}
               onCount={setChangeCount}
               onUnsavedChange={setUnsaved}
+              onOpenFile={(file) => (panelFile.current = file)}
+              onSendSelection={(file, selection) => openPrompt(undefined, { file, selection })}
             />
           )}
         </div>
@@ -495,6 +635,7 @@ export function App() {
           // A folder dropped while the dialog is open starts it over, in that folder.
           key={newFolder ?? ''}
           initialCwd={newFolder}
+          initialGroupId={newGroup}
           onClose={closeOverlay}
           onCreated={(session) => {
             closeOverlay();
@@ -514,6 +655,7 @@ export function App() {
       )}
       {dropping && <div className="drop-hint">{t('app.dropHint')}</div>}
       {overlay === 'prefs' && <PreferencesDialog onClose={closeOverlay} />}
+      {overlay === 'group' && <GroupDialog group={editedGroup} onClose={closeOverlay} />}
       {overlay === 'checks' && selected && (
         <ChecksDialog
           key={selected.id}
@@ -526,25 +668,20 @@ export function App() {
         />
       )}
       {overlay === 'palette' && <CommandPalette commands={commands} onClose={closeOverlay} />}
-      {closing && (
-        <Dialog title={t('app.closeSession.title')} onClose={() => setClosing(null)}>
-          <p>{rich(t('app.closeSession.body'), { name: <strong>{closing.name}</strong> })}</p>
-          <div className="dialog-actions">
-            <button data-autofocus onClick={() => setClosing(null)}>
-              {t('common.cancel')}
-            </button>
-            <button
-              className="danger"
-              onClick={() => {
-                void window.api.invoke('sessions:remove', closing.id);
-                setClosing(null);
-              }}
-            >
-              {t('app.closeSession.confirm')}
-            </button>
-          </div>
-        </Dialog>
+      {overlay === 'prompt' && promptRequest && (
+        <PromptDialog
+          promptId={promptRequest.promptId}
+          targets={promptRequest.targets}
+          context={promptRequest.context}
+          onClose={closeOverlay}
+          onSent={() => {
+            closeOverlay();
+            setMarked([]);
+            focusTerminal(true);
+          }}
+        />
       )}
+      {closing && <CloseSessionDialog session={closing} onClose={() => setClosing(null)} />}
     </div>
   );
 }

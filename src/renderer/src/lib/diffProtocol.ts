@@ -34,7 +34,9 @@ export type ParentMessage =
   /** Ask the frame for its current content, to save it. */
   | { type: 'request-save'; overwrite: boolean }
   /** The content was written to disk: it is the new starting point. */
-  | { type: 'saved'; path: string; content: string };
+  | { type: 'saved'; path: string; content: string }
+  /** Ask the frame for the text selected in the editor. */
+  | { type: 'request-selection' };
 
 /** How the file is being colored. */
 export type HighlightEngine = 'textmate' | 'monarch' | 'plain';
@@ -45,6 +47,10 @@ export type FrameMessage =
   | { type: 'dirty'; path: string; dirty: boolean }
   /** `expected` is what the editor loaded from disk; null means "overwrite whatever is there". */
   | { type: 'save'; path: string; content: string; expected: string | null }
+  /** The menu of the editor was asked for, at a point of the frame, over this selection. */
+  | { type: 'contextmenu'; x: number; y: number; selection: string }
+  /** The answer to `request-selection`. */
+  | { type: 'selection'; selection: string }
   /** The language the file name points to (null: none known), and the one in use. */
   | {
       type: 'language';

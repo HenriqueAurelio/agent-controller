@@ -10,7 +10,7 @@ import {
 import { createSocketPath, HookServer } from '@core/signals/HookServer';
 import { UserError } from '@shared/i18n';
 import { DEFAULT_PREFERENCES } from '@shared/prefs';
-import type { Session, SessionState } from '@shared/session';
+import type { Session, SessionGroup, SessionState } from '@shared/session';
 import { AGENTCTL_SCRIPT, FIXTURES, removeDir, sleep, tempDir, waitFor } from './helpers';
 
 const SIZE = { cols: 100, rows: 30 };
@@ -21,18 +21,23 @@ describe('SessionManager', () => {
   let ptys: PtyManager;
   let hooks: HookServer;
   let manager: SessionManager;
-  let persisted: { sessions: Session[]; selectedId: string | null }[];
+  let persisted: { sessions: Session[]; selectedId: string | null; groups: SessionGroup[] }[];
   let transitions: SessionTransition[];
   let data: Record<string, string>;
   let launch: (session: Session) => { file: string; args: string[] };
 
-  const build = (sessions: Session[] = [], selectedId: string | null = null) => {
+  const build = (
+    sessions: Session[] = [],
+    selectedId: string | null = null,
+    groups: SessionGroup[] = [],
+  ) => {
     manager = new SessionManager({
       ptys,
       sessions,
+      groups,
       selectedId,
       prefs: { ...DEFAULT_PREFERENCES, silenceSeconds: 0 },
-      persist: (s, selected) => persisted.push({ sessions: s, selectedId: selected }),
+      persist: (s, selected, g) => persisted.push({ sessions: s, selectedId: selected, groups: g }),
       resolveLaunch: (session) => ({
         ...launch(session),
         env: {
@@ -366,6 +371,210 @@ describe('SessionManager', () => {
     it('is refused when the agent is not running', () => {
       const s = create();
       expect(() => manager.paste(s.id, 'oi')).toThrow(UserError);
+      expect(() => manager.sendText(s.id, 'oi', { submit: false })).toThrow(UserError);
+    });
+  });
+
+  describe('prompts sent to agents', () => {
+    const PASTE = (text: string) => `\x1b[200~${text}\x1b[201~`;
+
+    it('go at once to a free agent, wait for the turn of a busy one, and can be cancelled', async () => {
+      const free = create('Livre');
+      const busy = create('Ocupada');
+      const dropped = create('Cancelada');
+      for (const s of [free, busy, dropped]) manager.start(s.id, SIZE);
+      for (const s of [free, busy, dropped]) await until(s.id, 'aguardando');
+      manager.input(busy.id, 'work\r');
+      manager.input(dropped.id, 'work\r');
+      await until(busy.id, 'trabalhando');
+      await until(dropped.id, 'trabalhando');
+
+      // Recorded, and still written: the fake agent ignores a line it does not know.
+      const write = vi.spyOn(ptys, 'write');
+      const sent = (id: string) => write.mock.calls.filter(([to]) => to === id).map(([, d]) => d);
+
+      expect(manager.sendText(free.id, 'revise\no diff', { submit: false })).toBe('sent');
+      expect(manager.sendText(busy.id, 'rode os testes', { submit: false })).toBe('queued');
+      expect(manager.sendText(dropped.id, 'nunca', { submit: false })).toBe('queued');
+      expect(sent(free.id)).toEqual([PASTE('revise ⏎ o diff')]);
+      expect(sent(busy.id)).toEqual([]);
+      const pending = () => manager.list().map((s) => [s.name, s.pendingSends]);
+      expect(pending()).toEqual([
+        ['Livre', undefined],
+        ['Ocupada', 1],
+        ['Cancelada', 1],
+      ]);
+
+      manager.cancelPending(dropped.id);
+      await until(busy.id, 'terminou');
+      await until(dropped.id, 'terminou');
+      expect(sent(busy.id)).toEqual([PASTE('rode os testes')]);
+      expect(sent(dropped.id)).toEqual([]);
+      expect(pending()).toEqual([
+        ['Livre', undefined],
+        ['Ocupada', undefined],
+        ['Cancelada', undefined],
+      ]);
+      write.mockRestore();
+    });
+
+    it('press Enter a moment after the paste when asked, and wait for nothing when told to', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      manager.input(s.id, 'work\r');
+      await until(s.id, 'trabalhando');
+      const write = vi.spyOn(ptys, 'write').mockImplementation(() => {});
+
+      expect(manager.sendText(s.id, 'já', { submit: true, now: true })).toBe('sent');
+      expect(write.mock.calls).toEqual([[s.id, PASTE('já')]]);
+      await waitFor(() => write.mock.calls.length === 2);
+      expect(write.mock.calls[1]).toEqual([s.id, '\r']);
+      write.mockRestore();
+    });
+
+    it('release one submitted text per turn, in order, and are dropped when the agent exits', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      manager.input(s.id, 'work\r');
+      await until(s.id, 'trabalhando');
+      const write = vi.spyOn(ptys, 'write').mockImplementation(() => {});
+      manager.sendText(s.id, 'primeiro', { submit: false });
+      manager.sendText(s.id, 'segundo', { submit: true });
+      manager.sendText(s.id, 'terceiro', { submit: true });
+      await until(s.id, 'terminou');
+      await waitFor(() => write.mock.calls.some(([, data]) => data === '\r'));
+      // The third would land in the middle of the turn the second starts.
+      expect(write.mock.calls.map(([, data]) => data)).toEqual([
+        PASTE('primeiro'),
+        PASTE('segundo'),
+        '\r',
+      ]);
+      expect(manager.list()[0]!.pendingSends).toBe(1);
+      write.mockRestore();
+
+      manager.input(s.id, 'exit 0\r');
+      await until(s.id, 'terminou');
+      await waitFor(() => !manager.isRunning(s.id));
+      expect(manager.list()[0]!.pendingSends).toBeUndefined();
+    });
+
+    it('wait while the agent asks for a permission, where a paste would answer it', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      manager.input(s.id, 'perm\r');
+      await waitFor(() => manager.statusOf(s.id).detail === 'Bash');
+      expect(manager.sendText(s.id, 'depois', { submit: false })).toBe('queued');
+    });
+  });
+
+  describe('groups', () => {
+    const names = () => manager.list().map((s) => [s.name, s.groupId ?? null]);
+    const nameOf = (id: string | undefined) =>
+      manager.listGroups().find((g) => g.id === id)?.name ?? null;
+    const layout = () => manager.list().map((s) => `${nameOf(s.groupId) ?? '-'}/${s.name}`);
+
+    it('lists the sessions with no group first, then each group with its own, in order', () => {
+      const a = create('A');
+      const b = create('B');
+      const c = create('C');
+      const d = create('D');
+      const api = manager.createGroup('  api-repo  ', [c.id, a.id]);
+      const web = manager.createGroup('web', [b.id]);
+      expect(manager.listGroups()).toEqual([
+        { id: api.id, name: 'api-repo', collapsed: false },
+        { id: web.id, name: 'web', collapsed: false },
+      ]);
+      // Joining keeps the order the sessions had among themselves.
+      expect(layout()).toEqual(['-/D', 'api-repo/A', 'api-repo/C', 'web/B']);
+      expect(manager.list().map((s) => s.order)).toEqual([0, 1, 2, 3]);
+
+      manager.reorderGroups([web.id, api.id]);
+      expect(layout()).toEqual(['-/D', 'web/B', 'api-repo/A', 'api-repo/C']);
+
+      // A reorder never takes a session out of its group.
+      manager.reorder([c.id, d.id, b.id, a.id]);
+      expect(layout()).toEqual(['-/D', 'web/B', 'api-repo/C', 'api-repo/A']);
+    });
+
+    it('moves sessions in and out of a group; one that joins goes to its end', () => {
+      const a = create('A');
+      const b = create('B');
+      const c = create('C');
+      const g = manager.createGroup('repo', [b.id, c.id]);
+      manager.setGroup([a.id], g.id);
+      expect(layout()).toEqual(['repo/B', 'repo/C', 'repo/A']);
+      manager.setGroup([c.id], null);
+      expect(layout()).toEqual(['-/C', 'repo/B', 'repo/A']);
+      expect(manager.list()[0]).not.toHaveProperty('groupId');
+      expect(() => manager.setGroup([a.id], 'nope')).toThrow(UserError);
+    });
+
+    it('edits a group: its name, folding, and exactly the sessions it holds', () => {
+      const a = create('A');
+      const b = create('B');
+      const c = create('C');
+      const g = manager.createGroup('repo', [a.id, b.id]);
+      manager.updateGroup(g.id, { name: 'repo-novo', collapsed: true, sessionIds: [b.id, c.id] });
+      expect(manager.listGroups()).toEqual([{ id: g.id, name: 'repo-novo', collapsed: true }]);
+      expect(layout()).toEqual(['-/A', 'repo-novo/B', 'repo-novo/C']);
+      expect(() => manager.updateGroup(g.id, { name: '   ' })).toThrow(UserError);
+      expect(() => manager.createGroup('')).toThrow(UserError);
+      expect(manager.listGroups()[0]!.name).toBe('repo-novo');
+    });
+
+    it('removing a group keeps its sessions, with no group', () => {
+      const a = create('A');
+      const b = create('B');
+      const g = manager.createGroup('repo', [a.id]);
+      manager.removeGroup(g.id);
+      expect(manager.listGroups()).toEqual([]);
+      // They stay where they were seen: below the ones that had no group.
+      expect(names()).toEqual([
+        ['B', null],
+        ['A', null],
+      ]);
+      expect(manager.has(a.id) && manager.has(b.id)).toBe(true);
+    });
+
+    it('a session is created in a group, and its duplicate stays in it', () => {
+      create('Solta');
+      const g = manager.createGroup('repo');
+      const s = manager.create({ name: 'Nova', cwd: dir, profile: 'codex', groupId: g.id });
+      expect(s.groupId).toBe(g.id);
+      manager.duplicate(s.id);
+      expect(layout()).toEqual(['-/Solta', 'repo/Nova', 'repo/Nova (2)']);
+      expect(() =>
+        manager.create({ name: 'X', cwd: dir, profile: 'codex', groupId: 'nope' }),
+      ).toThrow(UserError);
+    });
+
+    it('persists the groups and comes back with them; a group that is gone drops its sessions out', async () => {
+      const a = create('A');
+      create('B');
+      const g = manager.createGroup('repo', [a.id]);
+      manager.updateGroup(g.id, { collapsed: true });
+      manager.flushPersist();
+      const saved = persisted.at(-1)!;
+      expect(saved.groups).toEqual([{ id: g.id, name: 'repo', collapsed: true }]);
+      expect(saved.sessions.map((s) => [s.name, s.groupId ?? null])).toEqual([
+        ['B', null],
+        ['A', g.id],
+      ]);
+
+      await manager.dispose(0);
+      build(saved.sessions, null, saved.groups);
+      expect(layout()).toEqual(['-/B', 'repo/A']);
+      expect(manager.listGroups()[0]!.collapsed).toBe(true);
+
+      await manager.dispose(0);
+      build(saved.sessions, null, []);
+      expect(names()).toEqual([
+        ['B', null],
+        ['A', null],
+      ]);
     });
   });
 

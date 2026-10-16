@@ -61,11 +61,14 @@ A versão original desta decisão era "só mostra, não desfaz". Você pediu que
 
 - O painel lista os arquivos alterados e mostra o antes e depois.
 - O lado direito, que é o arquivo como está na pasta, **pode ser editado e salvo** (`Ctrl+S`). Uma seta entre os dois lados desfaz um trecho.
-- O painel continua **sem operações de git**: não tem "stage", "commit" nem "descartar tudo". Ele só grava o arquivo que você editou.
+- O painel continua **sem operações de git**: não tem "stage", "commit" nem "descartar tudo". Ele só grava o arquivo que você editou. **Revisto em 2026-10-16** (abaixo).
 
 **O cuidado que veio junto.** Você e o agente podem escrever no mesmo arquivo. Se o arquivo mudar no disco enquanto você edita, o app não grava por cima: avisa e pergunta se você quer recarregar ou sobrescrever. Edições não salvas não se perdem em silêncio ao trocar de arquivo ou fechar o painel.
 
 Detalhes: [ADR 0012](adr/0012-see-changes-permite-editar.md), que emenda a [ADR 0004](adr/0004-diff-monaco-e-git-cli.md).
+
+**Desde 2026-10-16:** fora do painel, o app passou a criar e remover **worktrees** (e a branch de cada uma) para as sessões em cópia isolada. Remove só sem nada sem commit, nunca com `--force`, e nunca apaga uma branch. Commit e push continuam fora. Detalhes: [ADR 0017](adr/0017-sessoes-em-worktree.md).
+**Revisão de 2026-10-16: três operações de git entraram no painel.** Marcar um arquivo para o commit (stage, reversível), fazer commit do que está marcado (com os hooks do repositório, sem push) e descartar as mudanças de um arquivo. O motivo da recusa era o descarte sem volta: agora o app guarda uma cópia antes, em `~/.agent-controller/descartados/`, e oferece **Desfazer**. Com o agente trabalhando, descartar e fazer commit pedem confirmação a mais. Fora continuam push, branch, merge, `--amend` e descartar tudo de uma vez. Detalhes: [ADR 0018](adr/0018-operacoes-de-git-no-painel.md).
 
 ### 2.3 "See changes" só funciona em pastas com git
 
@@ -85,7 +88,7 @@ Se o agente estiver trabalhando em uma pasta que não é um repositório git, o 
 - Dividir a tela em vários terminais lado a lado
 - Um agente coordenando outros
 - Sessões que continuam após fechar o app (item 2.1)
-- Operações de git no painel de mudanças: stage, commit, descartar tudo (item 2.2)
+- Operações de git no painel de mudanças: stage, commit, descartar tudo (item 2.2). Desde 2026-10-16, stage, commit e descartar um arquivo por vez entraram ([ADR 0018](adr/0018-operacoes-de-git-no-painel.md)); descartar tudo continua fora
 
 Se algum destes for indispensável para você, o prazo muda. Detalhes: [ADR 0007](adr/0007-escopo-do-v1.md).
 

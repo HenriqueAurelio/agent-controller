@@ -238,6 +238,26 @@ function show(message: ShowMessage): void {
   modified.onDidChangeContent(() => setDirty(modified.getValue() !== loaded));
 }
 
+/** What is selected on one side of the editor (the file's, unless told otherwise). */
+function selectedText(side = editor.getModifiedEditor()): string {
+  const model = side.getModel();
+  const selections = side.getSelections() ?? [];
+  if (!model) return '';
+  return selections
+    .filter((range) => !range.isEmpty())
+    .map((range) => model.getValueInRange(range))
+    .join('\n');
+}
+
+// Monaco's own menu is off: the app offers only what it can do with the selection.
+for (const side of [editor.getModifiedEditor(), editor.getOriginalEditor()]) {
+  side.onContextMenu((event) => {
+    event.event.preventDefault();
+    const { posx: x, posy: y } = event.event;
+    post({ type: 'contextmenu', x, y, selection: selectedText(side) });
+  });
+}
+
 function save(overwrite: boolean): void {
   const model = editor.getModel()?.modified;
   if (!model || shownPath === null) return;
@@ -260,7 +280,9 @@ window.addEventListener('message', (event: MessageEvent<ParentMessage>) => {
     delete document.body.dataset.path;
   } else if (message?.type === 'shortcuts') appBindings = new Set(message.bindings);
   else if (message?.type === 'request-save') save(message.overwrite);
-  else if (message?.type === 'saved' && message.path === shownPath) {
+  else if (message?.type === 'request-selection') {
+    post({ type: 'selection', selection: selectedText() });
+  } else if (message?.type === 'saved' && message.path === shownPath) {
     loaded = message.content;
     setDirty(editor.getModel()?.modified.getValue() !== loaded);
   }

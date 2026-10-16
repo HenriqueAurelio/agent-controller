@@ -1,7 +1,9 @@
 import {
+  AUX_PLACES,
   DEFAULT_LAYOUT,
   PANEL_PLACES,
   SIDES,
+  type AuxPlace,
   type Layout,
   type PanelPlace,
   type Side,
@@ -53,6 +55,9 @@ export function LayoutEditor({ layout, onChange }: Props) {
           t(`layout.panel.${place}`),
         )}
         {select('files', t('layout.filesLabel'), SIDES, (side: Side) => t(`layout.files.${side}`))}
+        {select('aux', t('layout.auxLabel'), AUX_PLACES, (place: AuxPlace) =>
+          t(`layout.aux.${place}`),
+        )}
       </fieldset>
 
       <fieldset className="field">
@@ -60,7 +65,10 @@ export function LayoutEditor({ layout, onChange }: Props) {
         <div className="layout-preview" data-sessions={layout.sessions} aria-hidden="true">
           <div className="layout-part layout-sessions">{t('common.sessions')}</div>
           <div className="layout-main" data-panel={layout.panel}>
-            <div className="layout-part layout-terminal">{t('layout.terminal')}</div>
+            <div className="layout-terminals" data-aux={layout.aux}>
+              <div className="layout-part layout-terminal">{t('layout.terminal')}</div>
+              <div className="layout-part layout-aux">{t('layout.auxShort')}</div>
+            </div>
             <div className="layout-panel" data-files={layout.files}>
               <div className="layout-part layout-files">{t('common.files')}</div>
               <div className="layout-part layout-text">{t('layout.text')}</div>

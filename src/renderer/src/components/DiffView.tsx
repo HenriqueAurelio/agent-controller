@@ -22,6 +22,8 @@ interface Props {
   plain?: boolean;
   /** Tells the panel whether the open file has edits that were not saved. */
   onDirtyChange(dirty: boolean): void;
+  /** The user asked to send the selection (or the whole file) to the agent with a prompt. */
+  onSendSelection(file: string, selection: string): void;
 }
 
 function unavailable(t: Translate, side: SideContent): string | null {
@@ -82,6 +84,7 @@ export function DiffView({
   fontSize,
   plain,
   onDirtyChange,
+  onSendSelection,
 }: Props) {
   const t = useT();
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
@@ -100,6 +103,8 @@ export function DiffView({
   const [conflict, setConflict] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reloads, setReloads] = useState(0);
+  /** The menu of the editor, where it was opened, with what was selected then. */
+  const [menu, setMenu] = useState<{ x: number; y: number; selection: string } | null>(null);
   const discardNext = useRef(false);
   // The theme the frame opens in; a change of theme later reaches it with the file.
   const [frameSrc] = useState(() => `diff.html?theme=${theme}`);
@@ -154,6 +159,14 @@ export function DiffView({
       if (message?.type === 'ready') setReady(true);
       else if (message?.type === 'dirty') setDirty(message.dirty);
       else if (message?.type === 'save') void save(message.path, message.content, message.expected);
+      else if (message?.type === 'contextmenu') {
+        const frame = frameRef.current?.getBoundingClientRect();
+        setMenu({
+          x: (frame?.left ?? 0) + message.x,
+          y: (frame?.top ?? 0) + message.y,
+          selection: message.selection,
+        });
+      } else if (message?.type === 'selection') onSendSelection(path, message.selection);
       else if (message?.type === 'language') setHighlight(message);
       else if (message?.type === 'key') {
         // Replayed here so Esc and the global shortcuts behave the same everywhere.
@@ -165,7 +178,18 @@ export function DiffView({
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [save]);
+  }, [save, onSendSelection, path]);
+
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    window.addEventListener('mousedown', close);
+    window.addEventListener('blur', close);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('blur', close);
+    };
+  }, [menu]);
 
   useEffect(() => {
     if (ready) send({ type: 'shortcuts', bindings: Object.values(shortcuts).flat() });
@@ -225,6 +249,12 @@ export function DiffView({
           {removed && <span className="diff-note">{t('diff.removed')}</span>}
           {dirty && <span className="diff-note unsaved">{t('diff.unsaved')}</span>}
           <span className="spacer" />
+          <button
+            onClick={() => send({ type: 'request-selection' })}
+            title={t('diff.sendToAgentHint')}
+          >
+            {t('diff.sendToAgent')}
+          </button>
           <LanguagePicker
             detected={highlight?.path === path ? highlight.detected : null}
             value={languages[path] ?? ''}
@@ -273,6 +303,28 @@ export function DiffView({
       )}
       {error && <div className="panel-message error">{error}</div>}
       {!error && blocked && <div className="panel-message">{blocked}</div>}
+      {menu && (
+        <ul
+          className="context-menu"
+          role="menu"
+          style={{ left: menu.x, top: menu.y }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <li role="none">
+            <button
+              role="menuitem"
+              autoFocus
+              onClick={() => {
+                setMenu(null);
+                onSendSelection(path, menu.selection);
+              }}
+              onKeyDown={(e) => e.key === 'Escape' && setMenu(null)}
+            >
+              {t('diff.sendToAgent')}
+            </button>
+          </li>
+        </ul>
+      )}
       <iframe
         ref={frameRef}
         src={frameSrc}

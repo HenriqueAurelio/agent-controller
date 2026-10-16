@@ -7,6 +7,11 @@ export interface FileChange {
   origPath?: string;
   kind: ChangeKind;
   /**
+   * In the index, for the comparison with the last commit: `all` when the whole change is staged,
+   * `partial` when part of it is and part is not. Absent: nothing of it is staged.
+   */
+  staged?: 'all' | 'partial';
+  /**
    * The repository the file is in, as a path from the root, when it is not the root itself: a
    * session may hold more than one repository.
    */
@@ -35,11 +40,16 @@ export type GitOverview =
       repos: RepoInfo[];
       base: DiffBase;
       hasSessionBase: boolean;
+      /** The session works in a copy of the repository, whose branch has a base to compare with. */
+      hasBranchBase: boolean;
     }
   | { ok: false; reason: GitUnavailableReason; gitVersion?: string; minVersion: string };
 
-/** `head`: against the last commit. `session`: against the snapshot taken when the session started. */
-export type DiffBase = 'head' | 'session';
+/**
+ * `head`: against the last commit. `session`: against the snapshot taken when the session started.
+ * `branchBase`: in a copy of the repository, everything its branch changed since it left its base.
+ */
+export type DiffBase = 'head' | 'session' | 'branchBase';
 
 export type SideContent =
   | { kind: 'text'; text: string }

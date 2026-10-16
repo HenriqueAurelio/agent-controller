@@ -46,6 +46,11 @@ test('shortcuts are chosen in the preferences, used everywhere and kept', async 
     'true',
   );
   await page.keyboard.press('ArrowRight');
+  await expect(prefs.getByRole('tab', { name: 'Prompts' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await page.keyboard.press('ArrowRight');
   await expect(prefs.getByRole('tab', { name: 'Editor' })).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('ArrowRight');
   await expect(prefs.getByRole('tab', { name: 'Atalhos' })).toHaveAttribute(

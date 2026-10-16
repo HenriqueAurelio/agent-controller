@@ -77,3 +77,17 @@ export function wrapInShellForPipes(
     '. ([ScriptBlock]::Create($s))';
   return { ...launch, file: shell, args: ['-NoLogo', '-NonInteractive', '-Command', decoder] };
 }
+
+/**
+ * The shell of the user by itself, as their own terminal opens it: PowerShell with its profile on
+ * Windows, `$SHELL` on POSIX (interactive, since it runs in a terminal). No agent and no command.
+ */
+export function interactiveShell({
+  platform = process.platform,
+  env = process.env,
+}: ShellOptions = {}): LaunchCommand {
+  if (platform === 'win32') {
+    return { file: findOnPath('pwsh', env) ?? 'powershell.exe', args: ['-NoLogo'], env: {} };
+  }
+  return { file: env.SHELL || '/bin/bash', args: [], env: {} };
+}

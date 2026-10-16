@@ -2,10 +2,18 @@
 // This is the meeting point of the core and interface fronts: change it only together.
 import type { AgentAvailability } from './agents';
 import type { CheckConfig, ChecksInfo } from './checks';
+import type { DiffBase, FileChange, FileDiff, FileListing, GitOverview } from './git';
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
-import type { DiffBase, FileDiff, FileListing, GitOverview } from './git';
 import type { Preferences } from './prefs';
-import type { NewSessionInput, SessionView, TerminalSize } from './session';
+import type { PromptValues, SendOutcome, SendTextOptions } from './prompts';
+import type {
+  GroupUpdate,
+  NewSessionInput,
+  SessionGroup,
+  SessionView,
+  TerminalSize,
+  WorktreeOnClose,
+} from './session';
 
 export interface AppInfo {
   version: string;
@@ -17,7 +25,9 @@ export interface AppInfo {
 }
 
 export interface SessionsSnapshot {
+  /** In the order they are listed: the ones with no group, then each group's. */
   sessions: SessionView[];
+  groups: SessionGroup[];
   selectedId: string | null;
 }
 
@@ -26,6 +36,40 @@ export interface TerminalSnapshot {
   data: string;
   cols: number;
   rows: number;
+}
+
+/** What a folder offers to a session in a copy of its repository. */
+export interface WorktreeOrigin {
+  /** The folder is in a git repository: a copy can be made of it. */
+  repo: boolean;
+  /** The branch checked out there, which a copy starts from unless told otherwise. */
+  current: string | null;
+  /** The local branches, the checked-out one first. */
+  branches: string[];
+}
+
+/** A copy of a repository the app made for a session. */
+export interface WorktreeCopy {
+  folder: string;
+  repoRoot: string;
+  branch: string | null;
+  /** Bytes in the folder; `sizeComplete` false when it was too big to count all of it. */
+  size: number;
+  sizeComplete: boolean;
+  /** Epoch milliseconds of the last change to the folder itself. */
+  modifiedAt: number;
+  /** The sessions that work in it. */
+  sessions: string[];
+}
+
+export interface WorktreesInfo {
+  /** Where new copies go: the one of the settings, or the default. */
+  folder: string;
+  defaultFolder: string;
+  /** The setting itself: empty for the default. */
+  configuredFolder: string;
+  setup: string;
+  copies: WorktreeCopy[];
 }
 
 export interface SessionMetrics {
@@ -71,11 +115,22 @@ export interface IpcCommands {
   'sessions:setCwd': (id: string, cwd: string) => boolean;
   /** A new session in the same folder, with the same agent, right below the original. */
   'sessions:duplicate': (id: string) => SessionView;
-  'sessions:remove': (id: string) => void;
+  /** `worktree`, for a session in a copy of its repository: keep the copy (default) or remove it. */
+  'sessions:remove': (id: string, options?: { worktree?: WorktreeOnClose }) => void;
+  /** The order within each group; a session never leaves its group by being reordered. */
   'sessions:reorder': (orderedIds: string[]) => void;
+  /** Moves sessions to the end of a group; `null` takes them out of their group. */
+  'sessions:setGroup': (sessionIds: string[], groupId: string | null) => void;
   'sessions:select': (id: string | null) => void;
   'sessions:start': (id: string, size: TerminalSize) => void;
   'sessions:stop': (id: string) => void;
+
+  /** A group, listed last, with the sessions given moved into it. */
+  'groups:create': (name: string, sessionIds: string[]) => SessionGroup;
+  'groups:update': (id: string, update: GroupUpdate) => void;
+  /** Ends the group; its sessions stay, with no group. */
+  'groups:remove': (id: string) => void;
+  'groups:reorder': (orderedIds: string[]) => void;
 
   'terminal:attach': (id: string, size: TerminalSize) => TerminalSnapshot;
   'terminal:detach': (id: string) => void;
@@ -84,6 +139,34 @@ export interface IpcCommands {
   'terminal:resize': (id: string, size: TerminalSize) => void;
   'terminal:ack': (id: string, chars: number) => void;
   'terminal:screenText': (id: string) => string;
+  /**
+   * Sends a prompt to the agents of some sessions. Its variables are filled in for each session,
+   * here in the main process; a session whose agent is busy gets it when its turn ends.
+   */
+  'terminal:sendText': (
+    sessionIds: string[],
+    prompt: { text: string; values?: PromptValues },
+    options: SendTextOptions,
+  ) => Record<string, SendOutcome>;
+  /** Drops what was waiting for the end of the turn to be sent. */
+  'terminal:cancelSend': (sessionId: string) => void;
+  /** A prompt as it would reach the agent of a session, variables filled in. */
+  'prompts:preview': (sessionId: string, text: string, values: PromptValues) => string;
+  /** Opens a plain shell in the folder of the session, beside its agent. Its id on the terminal
+   * channels is `auxTerminalId(sessionId)`. */
+  'aux:open': (sessionId: string, size: TerminalSize) => void;
+  /** Ends that shell and whatever it started. */
+  'aux:close': (sessionId: string) => void;
+
+  /** Whether a copy of the repository of a folder can be made, and from which branches. */
+  'worktrees:inspect': (folder: string) => WorktreeOrigin;
+  /** What is not committed in the copy a session works in: what removing it would lose. */
+  'worktrees:status': (sessionId: string) => FileChange[];
+  /** The copies the app made, with their size and the sessions in each. */
+  'worktrees:list': () => WorktreesInfo;
+  'worktrees:configure': (settings: { folder: string; setup: string }) => WorktreesInfo;
+  /** Removes a copy no session works in, when nothing in it is uncommitted. */
+  'worktrees:remove': (folder: string) => WorktreesInfo;
 
   'git:open': (sessionId: string, base: DiffBase) => GitOverview;
   'git:refresh': (sessionId: string, base: DiffBase) => GitOverview;
@@ -97,6 +180,14 @@ export interface IpcCommands {
     expected: string | null,
   ) => { saved: boolean };
   'git:count': (sessionId: string) => number | null;
+  /** Puts the changes of these files (paths of the panel) in the index. */
+  'git:stage': (sessionId: string, files: string[]) => void;
+  'git:unstage': (sessionId: string, files: string[]) => void;
+  /** Commits what is staged in one repository of the session (`''`: the one at its root). */
+  'git:commit': (sessionId: string, repo: string, message: string) => { commit: string };
+  /** Discards the changes of one file, after keeping a copy of it; the id gives it back. */
+  'git:discard': (sessionId: string, file: string) => { id: string };
+  'git:undoDiscard': (sessionId: string, id: string) => void;
   /** One folder of the session, relative to its root (the repository, or the session folder). */
   'files:list': (sessionId: string, dir: string, showHidden: boolean) => FileListing;
 
@@ -152,9 +243,14 @@ export const COMMAND_CHANNELS = [
   'sessions:duplicate',
   'sessions:remove',
   'sessions:reorder',
+  'sessions:setGroup',
   'sessions:select',
   'sessions:start',
   'sessions:stop',
+  'groups:create',
+  'groups:update',
+  'groups:remove',
+  'groups:reorder',
   'terminal:attach',
   'terminal:detach',
   'terminal:setVisible',
@@ -162,12 +258,27 @@ export const COMMAND_CHANNELS = [
   'terminal:resize',
   'terminal:ack',
   'terminal:screenText',
+  'terminal:sendText',
+  'terminal:cancelSend',
+  'prompts:preview',
+  'aux:open',
+  'aux:close',
+  'worktrees:inspect',
+  'worktrees:status',
+  'worktrees:list',
+  'worktrees:configure',
+  'worktrees:remove',
   'git:open',
   'git:refresh',
   'git:close',
   'git:diff',
   'git:save',
   'git:count',
+  'git:stage',
+  'git:unstage',
+  'git:commit',
+  'git:discard',
+  'git:undoDiscard',
   'files:list',
   'checks:get',
   'checks:configure',
