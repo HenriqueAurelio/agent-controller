@@ -21,6 +21,7 @@ import { cleanDiscarded } from '@core/git/GitWriteService';
 import { MetricsSampler } from '@core/metrics/MetricsSampler';
 import { TailFeed } from '@core/sessions/TailFeed';
 import { ExperimentService } from '@core/experiments/ExperimentService';
+import { TaskBoard } from '@core/tasks/TaskBoard';
 import { HandoffService } from '@core/handoff/HandoffService';
 import { FlowEngine } from '@core/handoff/FlowEngine';
 import { ReviewerService } from '@core/handoff/ReviewerService';
@@ -441,6 +442,18 @@ export async function startApp(): Promise<void> {
     describeError: (err) => errorText(data.prefs.language, err),
   });
 
+  // The cards that become sessions; a card's column is read from its session (ADR 0025).
+  const tasks = new TaskBoard({
+    manager,
+    dir: path.join(userData, 'tasks'),
+    worktrees: () => ({
+      parent: data.worktrees.folder || defaultWorktreesFolder(),
+      setup: data.worktrees.setup,
+    }),
+    describeError: (err) => errorText(data.prefs.language, err),
+  });
+  tasks.on('changed', (repo) => send('tasks:changed', repo));
+
   // What goes to the reviewer and what comes back is files in a folder of the app, outside the
   // repositories (ADR 0023). The tests keep theirs apart.
   const handoff = new HandoffService({
@@ -504,6 +517,7 @@ export async function startApp(): Promise<void> {
     overlaps,
     queue,
     experiments,
+    tasks,
     reviewer,
     flows,
     tails,
@@ -564,6 +578,7 @@ export async function startApp(): Promise<void> {
     overlaps.dispose();
     reviewer.dispose();
     flows.dispose();
+    tasks.dispose();
     checks.dispose();
     if (window && !window.isDestroyed()) saveWindowState(window, data.window);
     // Every agent, and whatever it started, ends with the app (ADR 0006).

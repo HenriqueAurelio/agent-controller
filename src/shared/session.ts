@@ -171,6 +171,8 @@ export interface NewSessionInput {
   groupId?: string;
   /** Launch the agent in its read-only mode, where it has one. */
   readOnly?: boolean;
+  /** Do not take the selection from the session in sight (unless there is none). */
+  keepSelection?: boolean;
 }
 
 /**

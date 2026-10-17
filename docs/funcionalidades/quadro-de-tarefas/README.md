@@ -1,7 +1,7 @@
 # Quadro de tarefas
 
-- **Estado:** proposta, leva 1, a última dela.
-- **ADR:** nova, "Tarefas como origem das sessões".
+- **Estado:** concluída (leva 1). Smoke com agentes reais não rodado.
+- **ADR:** [0025](../../../adr/0025-tarefas-como-origem-das-sessoes.md), "Tarefas como origem das sessões".
 
 ## O problema
 

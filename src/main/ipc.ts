@@ -7,6 +7,7 @@ import { suggestChecks } from '@core/checks/suggest';
 import type { ChangesService, CheckpointTrees } from '@core/git/ChangesService';
 import type { CheckpointService } from '@core/git/CheckpointService';
 import type { ExperimentService } from '@core/experiments/ExperimentService';
+import type { TaskBoard } from '@core/tasks/TaskBoard';
 import type { FlowEngine } from '@core/handoff/FlowEngine';
 import { REVIEW_TRIGGERS, type ReviewerSetInput } from '@shared/reviewer';
 import type { ReviewerService } from '@core/handoff/ReviewerService';
@@ -45,6 +46,12 @@ import {
   type AttemptSpec,
   type NewExperimentInput,
 } from '@shared/experiments';
+import {
+  TASK_DESCRIPTION_LIMIT,
+  TASK_TITLE_LIMIT,
+  TASKS_PER_PASTE_LIMIT,
+  type NewTasksInput,
+} from '@shared/tasks';
 import type { DiffBase } from '@shared/git';
 import type {
   CommandChannel,
@@ -86,6 +93,7 @@ export interface IpcContext {
   overlaps: OverlapService;
   queue: PromptQueue;
   experiments: ExperimentService;
+  tasks: TaskBoard;
   reviewer: ReviewerService;
   flows: FlowEngine;
   tails: TailFeed;
@@ -219,8 +227,18 @@ export function snapshotOf(manager: SessionManager): SessionsSnapshot {
 }
 
 export function registerIpc(context: IpcContext): void {
-  const { manager, changes, checks, checkpoints, overlaps, queue, experiments, reviewer, flows } =
-    context;
+  const {
+    manager,
+    changes,
+    checks,
+    checkpoints,
+    overlaps,
+    queue,
+    experiments,
+    tasks,
+    reviewer,
+    flows,
+  } = context;
 
   // Read at each use: the language may change at any moment.
   const language = () => context.data.prefs.language;
@@ -685,6 +703,51 @@ export function registerIpc(context: IpcContext): void {
   handle('experiments:keep', (id, sessionId) =>
     experiments.keep(str(id, 'session', 64), session(sessionId).id),
   );
+
+  const taskInput = (value: unknown): NewTasksInput => {
+    const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+    if (!AGENT_PROFILE_IDS.includes(v.profile as never))
+      throw new UserError('error.unknownProfile');
+    if (!Array.isArray(v.drafts) || v.drafts.length > TASKS_PER_PASTE_LIMIT) {
+      throw new UserError('error.task.tooManyPaste', { max: TASKS_PER_PASTE_LIMIT });
+    }
+    const drafts = v.drafts.map((raw: unknown) => {
+      const d = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+      return {
+        title: str(d.title, 'name', TASK_TITLE_LIMIT * 4),
+        description: str(d.description ?? '', 'text', TASK_DESCRIPTION_LIMIT),
+      };
+    });
+    return {
+      cwd: str(v.cwd, 'folder'),
+      profile: v.profile as NewTasksInput['profile'],
+      ...(typeof v.command === 'string' && v.command.trim() && { command: command(v.command) }),
+      isolated: v.isolated !== false,
+      base: str(v.base, 'branch', 200),
+      ...(v.groupId != null && { groupId: str(v.groupId, 'group', 64) }),
+      drafts,
+    };
+  };
+  handle('tasks:list', (folder) => tasks.list(str(folder, 'folder')));
+  handle('tasks:create', async (input) => {
+    const clean = taskInput(input);
+    const state = await tasks.create(clean);
+    remember(clean.cwd);
+    return state;
+  });
+  handle('tasks:update', (id, patch) => {
+    const p = (patch && typeof patch === 'object' ? patch : {}) as Record<string, unknown>;
+    return tasks.update(str(id, 'task', 64), {
+      ...(p.title !== undefined && { title: str(p.title, 'name', TASK_TITLE_LIMIT * 4) }),
+      ...(p.description !== undefined && {
+        description: str(p.description, 'text', TASK_DESCRIPTION_LIMIT),
+      }),
+    });
+  });
+  handle('tasks:remove', (id) => tasks.remove(str(id, 'task', 64)));
+  handle('tasks:reorder', (repo, taskIds) => tasks.reorder(str(repo, 'folder'), ids(taskIds)));
+  handle('tasks:start', (taskIds) => tasks.start(ids(taskIds)));
+  handle('tasks:done', (id, done) => tasks.done(str(id, 'task', 64), done === true));
 
   const reviewerInput = (value: unknown): ReviewerSetInput => {
     const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;

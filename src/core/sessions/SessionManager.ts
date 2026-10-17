@@ -389,7 +389,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.entries.set(session.id, entry);
     this.order.push(session.id);
     this.normalize();
-    this.selectedId = session.id;
+    if (!input.keepSelection || this.selectedId === null) this.selectedId = session.id;
     this.changed(true);
     return this.view(entry);
   }

@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 20.1 `TaskBoard` e `columnOf`
+## [x] 20.1 `TaskBoard` e `columnOf`
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** nada
 
@@ -18,7 +18,7 @@
 
 ---
 
-## [ ] 20.2 Iniciar e concluir
+## [x] 20.2 Iniciar e concluir
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** 20.1, [melhor de N](../melhor-de-n/tarefas.md) 17.1
 
@@ -31,7 +31,7 @@
 
 ---
 
-## [ ] 20.3 Interface do quadro
+## [x] 20.3 Interface do quadro
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 20.2, [painel geral](../painel-geral/tarefas.md) 16.2
 
@@ -44,7 +44,7 @@
 
 ---
 
-## [ ] 20.4 ADR, README e evidências
+## [x] 20.4 ADR, README e evidências
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 20.3
 

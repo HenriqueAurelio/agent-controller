@@ -28,6 +28,9 @@ interface Props {
   /** Opens or closes the overview of every session. */
   onOverview(): void;
   overviewOpen: boolean;
+  /** Opens or closes the task board. */
+  onBoard(): void;
+  boardOpen: boolean;
 }
 
 type Dragging = { kind: 'session'; id: string } | { kind: 'group'; id: string };
@@ -84,6 +87,8 @@ export function Sidebar({
   onSendPrompt,
   onOverview,
   overviewOpen,
+  onBoard,
+  boardOpen,
 }: Props) {
   const sessions = useAppState((s) => s.sessions);
   const groups = useAppState((s) => s.groups);
@@ -586,6 +591,16 @@ export function Sidebar({
           onClick={onOverview}
         >
           ▦
+        </button>
+        <button
+          className={`icon-button ${boardOpen ? 'active' : ''}`}
+          title={hint(t('board.open'), shortcuts.board[0])}
+          aria-label={t('board.open')}
+          aria-pressed={boardOpen}
+          data-testid="board-button"
+          onClick={onBoard}
+        >
+          ☷
         </button>
         <button
           className="icon-button"

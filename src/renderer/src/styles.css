@@ -2686,3 +2686,161 @@ textarea.associations {
 .flow-history time {
   color: var(--muted);
 }
+
+/* Task board: cards that become sessions, in columns that follow their state (ADR 0025). */
+.board {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+}
+.board:focus {
+  outline: none;
+}
+.board-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+.board-header h2 {
+  margin: 0;
+  font-size: 14px;
+}
+.board-header select {
+  max-width: 340px;
+}
+.board-note {
+  margin: 8px 12px 0;
+  font-size: 12px;
+  white-space: pre-line;
+}
+.board-columns {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(205px, 1fr));
+  gap: 10px;
+  padding: 12px;
+  overflow: auto;
+}
+.board-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-raised) 55%, var(--bg));
+}
+.board-column.droppable {
+  border-style: dashed;
+  border-color: var(--accent);
+}
+.board-column h3 {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.board-column[data-column='attention'] h3 {
+  color: var(--waiting);
+}
+.board-cards {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 8px 8px;
+  overflow-y: auto;
+}
+.board-column-empty {
+  margin: 4px 2px;
+  font-size: 12px;
+}
+.board-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-raised);
+}
+.board-card[draggable='true'] {
+  cursor: grab;
+}
+.board-card.dragging {
+  opacity: 0.5;
+}
+.board-card.current {
+  border-color: var(--accent);
+}
+.board-card[data-column='attention'] {
+  border-color: var(--waiting);
+  background: color-mix(in srgb, var(--waiting) 8%, var(--bg-raised));
+}
+.board-card-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+}
+.board-card-plain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.board-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.board-card-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.board-card-description {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.board-card-closed {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.board-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.board-keys {
+  margin: 0;
+  padding: 0 12px 8px;
+  font-size: 11px;
+}
+.board-card .profile-tag {
+  white-space: nowrap;
+}
+.board-card .overview-card-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
