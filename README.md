@@ -28,12 +28,13 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 | Verificações | Lint, typecheck e testes ao fim de cada turno, com ✓/✗ na sessão e "mandar o erro ao agente" |
 | Prompts | Prompts guardados com variáveis, enviados a uma ou várias sessões, com espera pelo fim do turno; fila de prompts por sessão, um a cada fim de turno |
 | Revisão de código | Painel de mudanças com diff editável, árvore de arquivos, stage, commit e descarte com desfazer, vários repositórios na mesma pasta, realce TextMate e temas do VS Code |
+| Checkpoints | Uma foto da pasta no fim de cada turno, no próprio git e fora das branches: ver só o que o último turno mudou, comparar dois turnos, voltar a um turno e desfazer |
 | Terminal | Terminal auxiliar por sessão, layout configurável, atalhos editáveis e uso completo sem mouse |
 | Interface | Português, inglês e espanhol |
 
 **Próximos passos**, já priorizados em [`docs/funcionalidades`](docs/funcionalidades/README.md#segunda-rodada-de-painel-de-agentes-a-orquestrador-e-ide-leve):
 
-- **Leva 1, orquestração:** checkpoints por turno, aviso de conflito entre sessões, painel geral em mosaico, "melhor de N", revisor automático, encadear sessões e quadro de tarefas.
+- **Leva 1, orquestração:** aviso de conflito entre sessões, painel geral em mosaico, "melhor de N", revisor automático, encadear sessões e quadro de tarefas.
 - **Leva 2, IDE:** links `arquivo:linha` no terminal, `Ctrl+P`, abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
 - **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
 
@@ -179,7 +180,7 @@ Os agentes perguntam se confiam em cada pasta nova, e cada cópia é uma pasta n
 - O antes e depois do arquivo selecionado, lado a lado ou em linha.
 - **Edição:** o lado direito é o arquivo como está na pasta. Dá para digitar nele e salvar com `Ctrl+S` ou o botão **Salvar**; a seta entre os dois lados desfaz um trecho. Se o agente escrever no mesmo arquivo enquanto você edita, o app não grava por cima: avisa e deixa você escolher entre recarregar e sobrescrever.
 - **Cores do código:** o código é colorido como no VS Code, com as mesmas gramáticas (funções, parâmetros, propriedades e tipos com cores próprias) e a linguagem tirada do nome do arquivo, inclusive `Dockerfile`, `Makefile`, `.env`, JSON, TOML, Vue e Svelte. O seletor ao lado do nome do arquivo mostra a linguagem detectada e deixa escolher outra só para aquele arquivo. Arquivos com mais de 30 000 linhas ficam com o realce mais simples do Monaco.
-- **Comparar com**: o último commit, ou o início da sessão (só o que mudou desde que o agente foi aberto).
+- **Comparar com**: o último commit, o início da sessão (só o que mudou desde que o agente foi aberto) ou, num repositório git, **O turno anterior** (só o que o último turno mudou; veja [Linha do tempo e checkpoints](#linha-do-tempo-e-checkpoints)).
 - **Git, comparando com o último commit:**
   - **Marcar para o commit:** a caixa ao lado de cada arquivo faz o *stage* dele; desmarcar desfaz, sem mexer no arquivo. A lista se divide em **Para o commit** e **Fora do commit**. Uma caixa pela metade quer dizer que só parte das mudanças do arquivo está marcada.
   - **Commit:** com algo marcado, o rodapé mostra o que entra e pede a mensagem; **Commit** (ou `Ctrl+Enter`) faz o commit do que está marcado. Os hooks do repositório rodam; se um falhar, o que ele disse aparece no painel e nada é feito. O app não faz push nem `--amend`.
@@ -196,6 +197,20 @@ Os agentes perguntam se confiam em cada pasta nova, e cada cópia é uma pasta n
 - O arquivo escolhido abre no mesmo editor do painel de mudanças, e pode ser editado e salvo do mesmo jeito.
 - **Ocultos** (caixa no painel, `Ctrl+Shift+H`, ou em Preferências) mostra também o que normalmente fica de fora: arquivos e pastas que começam com ponto (`.env`, `.github`, a própria `.git`) e o que o `.gitignore` cobre (`node_modules`, saídas de build). Eles aparecem esmaecidos. A escolha fica guardada.
 - Os arquivos que mudaram continuam marcados com a mesma letra da lista de mudanças.
+
+### Linha do tempo e checkpoints
+
+No fim de cada turno que mudou arquivos, o app tira uma **foto** da pasta (um *checkpoint*) e a guarda no próprio git, numa ref escondida (`refs/agent-controller/checkpoints/<sessão>/<n>`). Isso não cria commit na branch, não mexe no índice nem nos arquivos, e não aparece no `git log`. Com isso dá para deixar o agente correr: um turno ruim se desfaz em um clique.
+
+- **Linha do tempo** (botão no topo da sessão, ou "linha do tempo" na paleta): a lista dos checkpoints, do mais novo ao mais antigo, com a hora, quantos arquivos mudaram e o **✓**/**✗** das verificações daquele turno. **Início** é a pasta como a sessão a encontrou.
+- **Ver o que mudou** num checkpoint abre o painel com o que mudou nele em relação ao anterior. **Comparar dois pontos** escolhe qualquer par (ou um ponto e a pasta agora). Entre dois checkpoints o painel é só leitura.
+- **O turno anterior**, em "Comparar com" no painel, mostra só o que o último turno mudou.
+- **Voltar a este turno** devolve os arquivos ao que eram naquele ponto: o que mudou volta, o que não existia é apagado (o que o `.gitignore` cobre, nunca). Antes, o app tira mais uma foto ("Antes de voltar ao turno N"), e **Desfazer** volta a ela. Pede confirmação, e mais uma se o agente estiver trabalhando. Se o agente estiver usando o git na hora, o app avisa que o repositório está ocupado.
+- **A conversa do agente não volta.** Ele não sabe que os arquivos mudaram; **Avisar o agente** escreve isso no terminal dele (sem Enter, a não ser que **Enviar com Enter** esteja ligado).
+- **Diferença para o `/rewind` do Claude Code:** o `/rewind` volta a conversa e os arquivos que o próprio Claude editou. O checkpoint vale para os dois agentes e para tudo o que mudou na pasta, inclusive por um comando no shell (um `sed`, um gerador de código), mas não mexe na conversa. Um não substitui o outro.
+- **Quanto guardar:** em **Preferências → Sessões**, ligar ou desligar, quantos por sessão (50) e por quantos dias (7), e quanto espaço os checkpoints de cada sessão ocupam no repositório, com **Podar agora**. Um arquivo maior que 2 MB fica fora da foto (o checkpoint avisa) e voltar não mexe nele.
+- **Fechar a sessão** pergunta se apaga os checkpoints dela; mantidos, saem sozinhos depois do prazo. Para apagar todos de um repositório à mão: `git for-each-ref --format='delete %(refname)' refs/agent-controller | git update-ref --stdin`.
+- Fora de um repositório git, ou numa pasta comum com vários repositórios dentro, não há checkpoints nem linha do tempo.
 
 ### Verificações ao fim do turno
 
@@ -372,7 +387,7 @@ O Claude Code não tem essa tela: os avisos funcionam sem você fazer nada. Os d
 ## Limitações do v1
 
 - **Fechar o app encerra todos os agentes**, mesmo no meio de uma tarefa. O app pede confirmação antes, listando as sessões que serão encerradas. Ao reabrir, as sessões voltam com nome, pasta e agente, paradas, e cada uma inicia quando você a abre (numa conversa nova). Encerrar os agentes leva alguns segundos, com a janela já fechada; se você abrir o app nesse meio-tempo, ele abre assim que o anterior terminar de sair.
-- **O painel de mudanças faz pouco no git, de propósito.** Marca para o commit, faz commit e descarta um arquivo por vez. Não há push, pull, branch, merge, stash, `--amend`, stage de trechos nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar e operar com o agente parado. Fora do painel, o app só cria e remove as [cópias isoladas](#cópia-isolada-git-worktree) e a branch nova de cada uma; nunca faz push nem apaga uma branch.
+- **O painel de mudanças faz pouco no git, de propósito.** Marca para o commit, faz commit e descarta um arquivo por vez. Não há push, pull, branch, merge, stash, `--amend`, stage de trechos nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar e operar com o agente parado. Fora do painel, o app só cria e remove as [cópias isoladas](#cópia-isolada-git-worktree) e a branch nova de cada uma, e guarda os [checkpoints](#linha-do-tempo-e-checkpoints) em refs próprias; nunca faz push nem apaga uma branch.
 - **O painel de mudanças exige git**, instalado e com a pasta da sessão dentro de um repositório. Sem isso, ele explica o que falta.
 - **"Aguardando você" não é infalível.** Ver "Possivelmente aguardando" acima.
 - **Só Claude Code e Codex.** Sem outras IAs, SSH ou macOS. Um shell comum só existe como o [terminal auxiliar](#terminal-auxiliar) de uma sessão: um por sessão, sem abas nem divisão livre da tela. O comando de uma sessão pode ser trocado, mas o agente por trás dele tem que ser um dos dois.

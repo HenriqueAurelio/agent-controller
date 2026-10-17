@@ -1,3 +1,8 @@
+import {
+  DEFAULT_CHECKPOINT_SETTINGS,
+  sanitizeCheckpointSettings,
+  type CheckpointSettings,
+} from './checkpoints';
 import { sanitizeAssociations } from './codeLanguages';
 import { sanitizeCodeThemeId } from './codeThemes';
 import { NO_AGENT_COMMANDS, sanitizeAgentCommands, type AgentCommands } from './agents';
@@ -43,6 +48,8 @@ export interface Preferences {
   codeThemeLight: string;
   /** File name pattern → language of the code, ahead of what the extension says. */
   fileAssociations: Record<string, string>;
+  /** Checkpoints per turn: whether they are taken, how many and how long they are kept. */
+  checkpoints: CheckpointSettings;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -67,6 +74,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   codeThemeDark: 'app-dark',
   codeThemeLight: 'app-light',
   fileAssociations: {},
+  checkpoints: DEFAULT_CHECKPOINT_SETTINGS,
 };
 
 export const SCROLLBACK_LIMITS = { min: 200, max: 20000 } as const;
@@ -141,5 +149,6 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
     codeThemeDark: sanitizeCodeThemeId(p.codeThemeDark, 'dark'),
     codeThemeLight: sanitizeCodeThemeId(p.codeThemeLight, 'light'),
     fileAssociations: sanitizeAssociations(p.fileAssociations),
+    checkpoints: sanitizeCheckpointSettings(p.checkpoints),
   };
 }

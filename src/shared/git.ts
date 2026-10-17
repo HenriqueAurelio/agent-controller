@@ -49,7 +49,18 @@ export type GitOverview =
  * `head`: against the last commit. `session`: against the snapshot taken when the session started.
  * `branchBase`: in a copy of the repository, everything its branch changed since it left its base.
  */
-export type DiffBase = 'head' | 'session' | 'branchBase';
+export type DiffBase =
+  | 'head'
+  | 'session'
+  | 'branchBase'
+  /** The checkpoint before the latest one: what the last turn changed (ADR 0021). */
+  | 'previousTurn'
+  /** `checkpoint:<id>` against the folder, or `checkpoint:<from>..<to>` between two of them. */
+  | `checkpoint:${string}`;
+
+/** The base names a checkpoint: what is compared comes from the timeline of the session. */
+export const isCheckpointBase = (base: DiffBase): boolean =>
+  base === 'previousTurn' || base.startsWith('checkpoint:');
 
 export type SideContent =
   | { kind: 'text'; text: string }
@@ -61,6 +72,8 @@ export interface FileDiff {
   path: string;
   original: SideContent;
   modified: SideContent;
+  /** The right side is a checkpoint, not the file on disk: there is nothing to edit. */
+  readOnly?: boolean;
 }
 
 /** One line of the "all files" tree. */

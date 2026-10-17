@@ -12,6 +12,7 @@ import { AGENT_PROFILE_IDS } from '@shared/session';
 import { useAppState } from '../lib/store';
 import { errorMessage, PROFILE_LABEL } from '../lib/format';
 import { useT } from '../lib/i18n';
+import { CheckpointsSettings } from './CheckpointsSettings';
 import { Dialog } from './Dialog';
 import { EditorPreferences } from './EditorPreferences';
 import { FavoriteFolders } from './FavoriteFolders';
@@ -269,7 +270,12 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
             </fieldset>
           </>
         )}
-        {tab === 'sessoes' && <WorktreesSettings />}
+        {tab === 'sessoes' && (
+          <>
+            <WorktreesSettings />
+            <CheckpointsSettings />
+          </>
+        )}
         {tab === 'configuracoes' && (
           <>
             <fieldset className="field">

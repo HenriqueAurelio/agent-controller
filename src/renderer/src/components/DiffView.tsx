@@ -205,7 +205,7 @@ export function DiffView({
       path,
       original: textOf(diff.original),
       modified: textOf(diff.modified),
-      editable: diff.modified.kind === 'text',
+      editable: diff.modified.kind === 'text' && !diff.readOnly,
       inline,
       theme,
       codeTheme,
@@ -248,6 +248,7 @@ export function DiffView({
           )}
           {removed && <span className="diff-note">{t('diff.removed')}</span>}
           {dirty && <span className="diff-note unsaved">{t('diff.unsaved')}</span>}
+          {diff.readOnly && <span className="diff-note">{t('diff.readOnly')}</span>}
           <span className="spacer" />
           <button
             onClick={() => send({ type: 'request-selection' })}
@@ -272,7 +273,7 @@ export function DiffView({
               {t('diff.discard')}
             </button>
           )}
-          {!removed && (
+          {!removed && !diff.readOnly && (
             <button
               className="primary"
               disabled={!dirty}

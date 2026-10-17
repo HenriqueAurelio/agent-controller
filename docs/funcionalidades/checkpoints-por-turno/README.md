@@ -1,7 +1,8 @@
 # Checkpoints por turno
 
-- **Estado:** proposta, leva 1.
-- **ADR:** nova, "O app grava refs próprias no repositório do usuário". Revê a [ADR 0018](../../../adr/0018-operacoes-de-git-no-painel.md), que limitou o que o app escreve no git.
+- **Estado:** feita (leva 1).
+- **ADR:** [0021](../../../adr/0021-refs-proprias-no-repositorio.md), "O app grava refs próprias no repositório do usuário". Revê a [ADR 0018](../../../adr/0018-operacoes-de-git-no-painel.md), que limitou o que o app escreve no git.
+- **Como ficou, onde mudou do desenho:** a foto do início da sessão só vira ref junto com o primeiro turno que muda algo (uma sessão que não muda nada não deixa rastro); o mais novo de cada sessão nunca sai na poda; a base do painel é texto (`checkpoint:<id>` e `checkpoint:<de>..<até>`), não um objeto; fechar a sessão mantém os checkpoints por padrão; numa pasta com vários repositórios dentro não há linha do tempo.
 
 ## O problema
 

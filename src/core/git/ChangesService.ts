@@ -1,17 +1,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type {
-  DiffBase,
-  FileChange,
-  FileDiff,
-  FileListing,
-  GitOverview,
-  RepoInfo,
+import {
+  isCheckpointBase,
+  type DiffBase,
+  type FileChange,
+  type FileDiff,
+  type FileListing,
+  type GitOverview,
+  type RepoInfo,
 } from '@shared/git';
 import { UserError } from '@shared/i18n';
 import { compareVersions } from '../agents/detect';
 import { listDirectory } from './FileBrowser';
 import {
+  blobContent,
   currentBranch,
   fileDiff,
   GitMissingError,
@@ -86,6 +88,15 @@ export interface ChangesServiceOptions {
 const DISCOVERY_TTL_MS = 10_000;
 
 const join = (prefix: string, file: string) => (prefix ? `${prefix}/${file}` : file);
+
+/**
+ * The trees a checkpoint base stands for, found by the caller in the timeline of the session:
+ * `from` against the folder, or against `to` when two checkpoints are compared.
+ */
+export interface CheckpointTrees {
+  from: string;
+  to?: string;
+}
 
 /** The "see changes" panel, per session: what changed, both sides of a file, and the watcher. */
 export class ChangesService {
@@ -182,6 +193,7 @@ export class ChangesService {
   private async scan(
     entry: SessionGit,
     base: DiffBase,
+    checkpoint?: CheckpointTrees,
   ): Promise<{ changes: FileChange[]; repos: RepoInfo[] }> {
     const root = entry.root!;
     const found = new Map<string, FileChange[]>();
@@ -207,8 +219,15 @@ export class ChangesService {
             ? state.baseTree
             : base === 'branchBase' && prefix === ''
               ? entry.mergeBase
-              : null;
-        if (from) {
+              : isCheckpointBase(base) && prefix === ''
+                ? (checkpoint?.from ?? null)
+                : null;
+        if (from && checkpoint?.to && prefix === '') {
+          // Two checkpoints: the folder as it is now does not come into it.
+          own = (await treeChanges(repoRoot, from, checkpoint.to)).filter(
+            (change) => !nested.includes(change.path),
+          );
+        } else if (from) {
           state.currentTree = await snapshotTree(
             repoRoot,
             this.indexFile(entry, prefix, 'current'),
@@ -288,6 +307,7 @@ export class ChangesService {
       watch?: boolean;
       /** The base of the branch, for a session in a copy of the repository. */
       branchBase?: string;
+      checkpoint?: CheckpointTrees;
     } = {},
   ): Promise<GitOverview> {
     const entry = this.entry(sessionId, cwd);
@@ -339,8 +359,10 @@ export class ChangesService {
         ? 'session'
         : base === 'branchBase' && entry.mergeBase
           ? 'branchBase'
-          : 'head';
-    const { changes, repos } = await this.scan(entry, used);
+          : isCheckpointBase(base) && options.checkpoint && entry.inRepository
+            ? base
+            : 'head';
+    const { changes, repos } = await this.scan(entry, used, options.checkpoint);
     entry.lastChanges = changes;
     // The branch only matters to tell repositories apart.
     if (repos.length > 1) {
@@ -405,7 +427,12 @@ export class ChangesService {
     }
   }
 
-  async diff(sessionId: string, file: string, base: DiffBase): Promise<FileDiff> {
+  async diff(
+    sessionId: string,
+    file: string,
+    base: DiffBase,
+    checkpoint?: CheckpointTrees,
+  ): Promise<FileDiff> {
     const entry = this.sessions.get(sessionId);
     const root = entry?.root ?? entry?.browseRoot;
     if (!entry || !root) throw new UserError('error.panel.notOpen');
@@ -422,8 +449,21 @@ export class ChangesService {
           ...(known.origPath ? { origPath: inside(known.origPath) } : {}),
         }
       : { path: inside(file), kind: 'modified' };
-    const treeish =
-      base === 'session' && repo.baseTree
+    const byCheckpoint = isCheckpointBase(base) && repo.prefix === '' ? checkpoint : undefined;
+    if (byCheckpoint?.to) {
+      const original =
+        change.kind === 'added' || change.kind === 'untracked'
+          ? { kind: 'missing' as const }
+          : await blobContent(repo.root, byCheckpoint.from, change.origPath ?? change.path);
+      const modified =
+        change.kind === 'removed'
+          ? { kind: 'missing' as const }
+          : await blobContent(repo.root, byCheckpoint.to, change.path);
+      return { path: file, original, modified, readOnly: true };
+    }
+    const treeish = byCheckpoint
+      ? byCheckpoint.from
+      : base === 'session' && repo.baseTree
         ? repo.baseTree
         : base === 'branchBase' && repo.prefix === '' && entry.mergeBase
           ? entry.mergeBase
