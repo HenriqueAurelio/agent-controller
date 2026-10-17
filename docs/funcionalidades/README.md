@@ -65,9 +65,11 @@ Com as propostas 4, 5, 6, 8, 9, 10 e 11 prontas, a linha muda: o app passa a **c
 
 ### Leva 1: orquestração de agentes
 
+Feitas: 12 ([ADR 0020](../../adr/0020-responder-permissao-fora-do-terminal.md)).
+
 | # | Funcionalidade | Em uma frase | Valor | Esforço | ADR nova |
 |---|---|---|---|---|---|
-| 12 | [Responder sem abrir a sessão](responder-sem-abrir/README.md) | Permitir ou negar o pedido do agente pela barra lateral ou pela notificação | Muito alto | M | Sim |
+| 12 | [Responder sem abrir a sessão](responder-sem-abrir/README.md) | Permitir ou negar o pedido do agente pela barra lateral ou pela notificação | Muito alto | M | Sim ([0020](../../adr/0020-responder-permissao-fora-do-terminal.md)) |
 | 13 | [Fila de prompts](fila-de-prompts/README.md) | Vários prompts por sessão, mandados um a cada fim de turno | Alto | P a M | Não |
 | 14 | [Checkpoints por turno](checkpoints-por-turno/README.md) | Uma foto da pasta a cada turno, em ref escondida do git: comparar e voltar | Muito alto | M | Sim (revê a 0018) |
 | 15 | [Conflito entre sessões](conflito-entre-sessoes/README.md) | Aviso quando duas sessões do mesmo repositório mexem no mesmo arquivo | Médio | P a M | Não |

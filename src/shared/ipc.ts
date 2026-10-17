@@ -9,6 +9,8 @@ import type { PromptValues, SendOutcome, SendTextOptions } from './prompts';
 import type {
   GroupUpdate,
   NewSessionInput,
+  PermissionChoice,
+  PermissionOutcome,
   SessionGroup,
   SessionView,
   TerminalSize,
@@ -124,6 +126,15 @@ export interface IpcCommands {
   'sessions:select': (id: string | null) => void;
   'sessions:start': (id: string, size: TerminalSize) => void;
   'sessions:stop': (id: string) => void;
+  /**
+   * Answers the permission request `askId` of a session with the keys of its agent's menu. Writes
+   * nothing unless that request is still the one open, with its menu on the screen.
+   */
+  'sessions:answerPermission': (
+    sessionId: string,
+    askId: string,
+    choice: PermissionChoice,
+  ) => PermissionOutcome;
 
   /** A group, listed last, with the sessions given moved into it. */
   'groups:create': (name: string, sessionIds: string[]) => SessionGroup;
@@ -247,6 +258,7 @@ export const COMMAND_CHANNELS = [
   'sessions:select',
   'sessions:start',
   'sessions:stop',
+  'sessions:answerPermission',
   'groups:create',
   'groups:update',
   'groups:remove',

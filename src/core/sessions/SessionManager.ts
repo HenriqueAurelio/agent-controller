@@ -17,6 +17,9 @@ import {
   type GroupUpdate,
   type HooksMode,
   type NewSessionInput,
+  type PermissionAsk,
+  type PermissionChoice,
+  type PermissionOutcome,
   type Session,
   type SessionGroup,
   type SessionStatus,
@@ -29,6 +32,8 @@ import {
   createAdapter,
   getProfile,
   interactiveShell,
+  menuChoices,
+  permissionKeys,
   type AgentAdapter,
   type LaunchCommand,
 } from '../agents';
@@ -69,6 +74,8 @@ interface ManagerEvents {
   transition: [SessionTransition];
   started: [session: Session];
   removed: [id: string];
+  /** A permission request can now be answered from outside the terminal. */
+  permission: [session: SessionView];
 }
 
 export interface SessionManagerOptions {
@@ -126,6 +133,14 @@ interface PendingSend {
   submit: boolean;
 }
 
+/** A permission request of the agent, from its hook until it is answered or moves on. */
+interface OpenPermission {
+  ask: PermissionAsk;
+  /** What the menu on the screen offers; null until the menu shows up. */
+  shown: PermissionChoice[] | null;
+  checkTimer: ReturnType<typeof setTimeout> | null;
+}
+
 /** The agent's process, plus what reads its signals. */
 interface Runtime extends Stream {
   parser: StreamParser;
@@ -147,6 +162,7 @@ interface Entry {
   runtime: Runtime | null;
   /** The plain shell beside the agent, while it is open. No signals, no state of its own. */
   aux: Stream | null;
+  permission: OpenPermission | null;
 }
 
 const DEFAULT_SIZE: TerminalSize = { cols: 100, rows: 30 };
@@ -159,6 +175,8 @@ const FLUSH_NOW_CHARS = 128 * 1024;
  * the same burst of keys reads as a line break inside the paste.
  */
 export const SUBMIT_DELAY_MS = 200;
+/** After output, how long to wait before reading the screen for the menu of a permission. */
+export const MENU_CHECK_MS = 80;
 // Backpressure thresholds, in characters waiting on the renderer plus the history.
 export const HIGH_WATER = 256 * 1024;
 export const LOW_WATER = 32 * 1024;
@@ -210,6 +228,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       visible: false,
       runtime: null,
       aux: null,
+      permission: null,
     };
   }
 
@@ -226,6 +245,9 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       ...(entry.checks && { checks: entry.checks }),
       ...(entry.pending.length > 0 && { pendingSends: entry.pending.length }),
       ...(entry.aux && { auxOpen: true }),
+      ...(entry.permission?.shown && {
+        permission: { ...entry.permission.ask, choices: entry.permission.shown },
+      }),
     };
   }
 
@@ -621,6 +643,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
         sessionId: id,
         emit: (signal) => this.applySignal(signal),
         setHooks: (mode) => this.setHooks(id, mode),
+        ask: (ask) => this.openPermission(id, ask),
         now: this.now,
       }),
       silence: new SilenceDetector(
@@ -773,6 +796,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   }
 
   private disposeRuntime(entry: Entry): void {
+    this.clearPermission(entry);
     const runtime = entry.runtime;
     if (!runtime) return;
     if (runtime.flushTimer) clearTimeout(runtime.flushTimer);
@@ -795,8 +819,9 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     if (!entry || !runtime) return;
     runtime.running = false;
     runtime.paused = false;
-    // Nobody is left to receive them.
+    // Nobody is left to receive them, nor to answer.
     entry.pending = [];
+    this.clearPermission(entry);
     runtime.adapter.dispose();
     runtime.silence.dispose();
     this.writeNotice(
@@ -852,10 +877,95 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       entry.unread = true;
     }
     if (next.state === 'trabalhando' || next.state === 'parada') entry.unread = false;
+    // The agent moved on: whatever it asked was answered, in the terminal or otherwise.
+    if (next.state !== 'aguardando') this.clearPermission(entry);
     this.releasePending(entry);
     this.changed();
     this.emit('transition', { session: this.view(entry), previous });
     return true;
+  }
+
+  // ---- permission requests --------------------------------------------------------------------
+
+  private openPermission(id: string, ask: PermissionAsk): void {
+    const entry = this.entries.get(id);
+    // Only while the agent is waiting: a request the state did not follow is not shown.
+    if (!entry?.runtime?.running || entry.aggregator.status.state !== 'aguardando') return;
+    const hadOne = this.clearPermission(entry);
+    entry.permission = { ask, shown: null, checkTimer: null };
+    if (hadOne) this.changed();
+    this.scheduleMenuCheck(entry);
+  }
+
+  private clearPermission(entry: Entry): boolean {
+    const open = entry.permission;
+    if (!open) return false;
+    if (open.checkTimer) clearTimeout(open.checkTimer);
+    entry.permission = null;
+    return open.shown !== null;
+  }
+
+  /**
+   * Whether the agent's menu is on the screen, and with which options. The hook comes in the same
+   * second as the menu, before or after it: the screen is read once the output settles.
+   */
+  private scheduleMenuCheck(entry: Entry): void {
+    const open = entry.permission;
+    if (!open || open.checkTimer) return;
+    open.checkTimer = setTimeout(() => {
+      open.checkTimer = null;
+      void this.checkMenu(entry, open);
+    }, MENU_CHECK_MS);
+  }
+
+  private async checkMenu(entry: Entry, open: OpenPermission): Promise<void> {
+    const runtime = entry.runtime;
+    if (!runtime) return;
+    await runtime.history.flush();
+    if (entry.permission !== open || entry.runtime !== runtime) return;
+    const choices = menuChoices(getProfile(entry.session.profile), runtime.history.screenText());
+    // A menu that is gone keeps its buttons: answering then says the request changed.
+    if (!choices || choices.join() === open.shown?.join()) return;
+    const first = open.shown === null;
+    open.shown = choices;
+    this.changed();
+    if (first) this.emit('permission', this.view(entry));
+  }
+
+  /**
+   * Answers the open permission request with the keys of the agent's menu, as if the user pressed
+   * them. Nothing is written unless `askId` is still the open request and its menu is still on
+   * the screen.
+   */
+  async answerPermission(
+    id: string,
+    askId: string,
+    choice: PermissionChoice,
+  ): Promise<PermissionOutcome> {
+    const entry = this.entries.get(id);
+    if (!entry) throw new UserError('error.session.notFound');
+    const profile = getProfile(entry.session.profile);
+    if (!profile.permission) return 'unsupported';
+    const open = entry.permission;
+    const runtime = entry.runtime;
+    if (!open || open.ask.id !== askId || !runtime?.running) return 'stale';
+    await runtime.history.flush();
+    if (entry.permission !== open || entry.runtime !== runtime || !runtime.running) return 'stale';
+    if (entry.aggregator.status.state !== 'aguardando') return 'stale';
+    const choices = menuChoices(profile, runtime.history.screenText());
+    if (!choices) {
+      // Its menu is gone: the agent went on, or asks something else. Its buttons go too.
+      this.clearPermission(entry);
+      this.changed();
+      return 'stale';
+    }
+    const keys = permissionKeys(profile, choice);
+    if (!keys || !choices.includes(choice)) return 'unsupported';
+    this.clearPermission(entry);
+    runtime.adapter.onUserInput(keys);
+    this.options.ptys.write(id, keys);
+    this.changed();
+    return 'answered';
   }
 
   /** For restored sessions and tests. */
@@ -897,6 +1007,8 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     }
     runtime.silence.activity();
     this.deliver(id, runtime, chunk);
+    const entry = this.entries.get(id);
+    if (entry?.permission) this.scheduleMenuCheck(entry);
   };
 
   private deliver(id: string, runtime: Stream, chunk: string): void {

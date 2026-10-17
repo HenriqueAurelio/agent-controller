@@ -58,7 +58,7 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
   };
 
   const check = (
-    key: 'notifyWaiting' | 'notifyDone' | 'notifySound' | 'showHiddenFiles',
+    key: 'notifyWaiting' | 'notifyDone' | 'notifySound' | 'permissionButtons' | 'showHiddenFiles',
     label: MessageKey,
   ) => (
     <label className="check">
@@ -144,6 +144,7 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
               {check('notifyWaiting', 'prefs.notifyWaiting')}
               {check('notifyDone', 'prefs.notifyDone')}
               {check('notifySound', 'prefs.notifySound')}
+              {check('permissionButtons', 'prefs.permissionButtons')}
               <label className="field-inline">
                 <span>{t('prefs.silenceBefore')}</span>
                 <input

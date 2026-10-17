@@ -1,6 +1,7 @@
 import type { AgentProfileId } from '@shared/session';
 import type { SignalPriorities } from '../sessions/SignalAggregator';
 import type { TitleRules } from '../signals/title';
+import type { PermissionMenu } from './permission';
 
 export type HookSupport = 'always' | 'needs-trust';
 
@@ -27,6 +28,11 @@ export interface AgentProfile {
   lastTestedVersion: string;
   /** The command that installs the agent, offered when it is not found. */
   installCommand: string;
+  /**
+   * The agent's permission menu, answered from outside the terminal (ADR 0020). Absent: requests
+   * are only answered in the terminal.
+   */
+  permission?: PermissionMenu;
 }
 
 const BRAILLE = '\\u2800-\\u28FF';
@@ -53,6 +59,13 @@ export const CLAUDE_CODE: AgentProfile = {
   minVersion: '2.1.0',
   lastTestedVersion: '2.1.296',
   installCommand: 'npm install -g @anthropic-ai/claude-code',
+  // "Do you want to proceed?" / "Do you want to make this edit to x?", then numbered options; a
+  // number picks its option at once. Esc is "No" whether the menu has two options or three.
+  permission: {
+    menu: /Do you want to\b[\s\S]*?\?[\s\S]*\b1\.\s+Yes\b/,
+    always: /\b2\.\s+Yes, (?:and don['’]t ask again|allow all)/i,
+    keys: { allow: '1', allowAlways: '2', deny: '\x1b' },
+  },
 };
 
 export const CODEX: AgentProfile = {
@@ -78,6 +91,13 @@ export const CODEX: AgentProfile = {
   minVersion: '0.158.0',
   lastTestedVersion: '0.158.0',
   installCommand: 'npm install -g @openai/codex',
+  // "Would you like to run the following command?", with a letter for each option. Requests only
+  // reach the app through the hooks, once they are trusted.
+  permission: {
+    menu: /Would you like to\b[\s\S]*\bYes, proceed\b/i,
+    always: /\bYes, and don['’]t ask again\b/i,
+    keys: { allow: 'y', allowAlways: 'a', deny: '\x1b' },
+  },
 };
 
 export const PROFILES: Record<AgentProfileId, AgentProfile> = {

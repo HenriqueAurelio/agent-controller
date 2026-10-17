@@ -1872,6 +1872,62 @@ textarea.prompt-text {
   color: var(--waiting);
 }
 
+/* A permission the agent asks: what for, and the answers, without opening the session. */
+.permission-ask {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+  margin-top: 2px;
+  font-size: 11px;
+}
+.permission-text {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--waiting);
+}
+.permission-tool {
+  font-weight: 600;
+}
+.permission-target {
+  margin-left: 4px;
+  font-family: var(--mono, monospace);
+  color: var(--text);
+}
+.permission-buttons {
+  display: flex;
+  flex-shrink: 0;
+  gap: 3px;
+}
+.permission-button {
+  min-width: 22px;
+  padding: 0 5px;
+  font-size: 11px;
+  line-height: 18px;
+}
+.permission-button.allow {
+  border-color: var(--done);
+  color: var(--done);
+}
+.permission-button.deny {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.permission-button.allow:hover {
+  background: color-mix(in srgb, var(--done) 18%, transparent);
+}
+.permission-button.deny:hover {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+}
+.permission-stale {
+  font-size: 11px;
+  color: var(--waiting);
+}
+
 .link-button {
   border: none;
   background: none;

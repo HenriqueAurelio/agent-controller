@@ -23,7 +23,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 | Área | O que já existe |
 |---|---|
 | Sessões | Claude Code e Codex em terminais reais, grupos por repositório, comando próprio por sessão (aliases e funções do seu shell), pastas recentes e favoritas, arrastar pasta para abrir |
-| Estado e avisos | Estado de cada sessão pelos sinais do próprio agente, notificação do sistema, contador de "aguardando" no título da janela |
+| Estado e avisos | Estado de cada sessão pelos sinais do próprio agente, notificação do sistema, contador de "aguardando" no título da janela, pedidos de permissão respondidos pela barra lateral ou pela notificação |
 | Isolamento | Cópia isolada por sessão (git worktree), com comando de preparo e limpeza |
 | Verificações | Lint, typecheck e testes ao fim de cada turno, com ✓/✗ na sessão e "mandar o erro ao agente" |
 | Prompts | Prompts guardados com variáveis, enviados a uma ou várias sessões, com espera pelo fim do turno |
@@ -33,7 +33,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 
 **Próximos passos**, já priorizados em [`docs/funcionalidades`](docs/funcionalidades/README.md#segunda-rodada-de-painel-de-agentes-a-orquestrador-e-ide-leve):
 
-- **Leva 1, orquestração:** responder a pedidos de permissão sem abrir a sessão, fila de prompts, checkpoints por turno, aviso de conflito entre sessões, painel geral em mosaico, "melhor de N", revisor automático, encadear sessões e quadro de tarefas.
+- **Leva 1, orquestração:** fila de prompts, checkpoints por turno, aviso de conflito entre sessões, painel geral em mosaico, "melhor de N", revisor automático, encadear sessões e quadro de tarefas.
 - **Leva 2, IDE:** links `arquivo:linha` no terminal, `Ctrl+P`, abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
 - **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
 
@@ -139,6 +139,17 @@ Bolinha **cheia** quer dizer que o próprio agente informou o estado. Bolinha **
 Quando um agente que estava trabalhando termina ou passa a aguardar você, o app mostra uma notificação do sistema com o nome da sessão. Clicar nela traz a janela para a frente e abre a sessão. A sessão que você está olhando não gera notificação; as outras ganham também um ponto azul na barra lateral.
 
 Em **Preferências** (`Ctrl+,`) dá para desligar cada tipo de aviso e o som.
+
+### Responder a um pedido sem abrir a sessão
+
+Quando o agente pede permissão ("posso rodar `npm install`?"), a sessão ganha, na barra lateral, uma segunda linha com a ferramenta e o alvo (`Bash npm install`, `Edit src/app.ts`; um comando longo mostra o começo e o fim) e os botões **✓** (permitir) e **✕** (negar). Onde o menu do agente oferece "não perguntar de novo", aparece também **sempre**. O clique escreve no terminal do agente a tecla do menu dele, como se você tivesse digitado, e a sessão em que você está continua aberta. Na sessão que você está olhando, `Alt+Y` permite e `Alt+N` nega (editáveis em **Preferências → Atalhos**; sem pedido aberto, as teclas vão para o terminal).
+
+- Os botões só aparecem quando o menu do agente está na tela. Se o pedido mudou entre você ver e clicar (o agente já seguiu, ou perguntou outra coisa), nada é escrito, e a sessão diz "O pedido mudou; abra a sessão".
+- Uma pergunta aberta do agente ("qual das duas abordagens?") não tem botões: só pedidos de permissão, que têm resposta fixa.
+- A notificação do pedido traz **Permitir** e **Negar** no Windows. No Linux ela vem sem botões, e o clique abre a sessão, como as outras.
+- O pedido nunca é respondido sozinho: cada resposta sai de um clique ou de uma tecla sua.
+- No Codex, o pedido só chega ao app com os hooks confiados (veja [abaixo](#codex-o-passo-de-confiança-dos-hooks)); sem eles, responda no terminal.
+- Para sempre ler o terminal antes de responder, desligue **Preferências → Geral → Responder pedidos de permissão pela lista de sessões e pela notificação**: a linha com o pedido continua, sem os botões.
 
 ### Cópia isolada (git worktree)
 
@@ -298,6 +309,7 @@ As sessões, as verificações de cada pasta e os temas importados não vão no 
 | `Ctrl+Shift+H` | Mostrar ou esconder arquivos ocultos |
 | `Ctrl+Shift+"` | Terminal auxiliar: abre; se já está aberto, leva o teclado para ele; se já está nele, fecha (a tecla `'` com `Shift`) |
 | `Ctrl+Shift+M` | Enviar um prompt às sessões marcadas, ou à atual |
+| `Alt+Y` / `Alt+N` | Permitir / negar o pedido de permissão da sessão atual (sem pedido aberto, a tecla vai para o terminal) |
 | `Ctrl+Shift+P` | Paleta de comandos |
 | `Ctrl+,` | Preferências |
 | sem atalho de fábrica | Próxima sessão aguardando você; fechar a sessão atual; novo grupo de sessões |

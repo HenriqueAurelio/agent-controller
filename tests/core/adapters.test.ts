@@ -3,7 +3,12 @@ import { createAdapter } from '@core/agents';
 import { HOOKS_PROBE_MS, NOTIFY_HOLD_MS } from '@core/agents/codexAdapter';
 import { CLAUDE_CODE, CODEX, type AgentProfile } from '@core/agents/profiles';
 import { SignalAggregator } from '@core/sessions/SignalAggregator';
-import { STATUS_DETAIL, type HooksMode, type SessionState } from '@shared/session';
+import {
+  STATUS_DETAIL,
+  type HooksMode,
+  type PermissionAsk,
+  type SessionState,
+} from '@shared/session';
 
 beforeEach(() => vi.useFakeTimers({ now: 1_000_000 }));
 afterEach(() => vi.useRealTimers());
@@ -13,11 +18,13 @@ function harness(profile: AgentProfile) {
   const aggregator = new SignalAggregator({ priorities: profile.priorities });
   const states: SessionState[] = [];
   const hooks: HooksMode[] = [];
+  const asks: PermissionAsk[] = [];
   aggregator.apply({ sessionId: 's', kind: 'started', origin: 'processo', at: Date.now() });
   const adapter = createAdapter(profile, {
     sessionId: 's',
     now: () => Date.now(),
     setHooks: (mode) => hooks.push(mode),
+    ask: (ask) => asks.push(ask),
     emit: (signal) => {
       const next = aggregator.apply(signal);
       if (next) states.push(next.state);
@@ -41,6 +48,7 @@ function harness(profile: AgentProfile) {
     aggregator,
     states,
     hooks,
+    asks,
     hook,
     spin,
     spinOnly,
@@ -97,6 +105,58 @@ describe('ClaudeAdapter', () => {
       vi.advanceTimersByTime(30000);
       expect(c.state().state).toBe('aguardando');
     }
+  });
+
+  it('a permission request carries the tool and what it acts on, for Bash, Edit and MCP', () => {
+    const c = claude();
+    c.idle();
+    c.work();
+    c.hook({
+      hook_event_name: 'PermissionRequest',
+      tool_name: 'Bash',
+      tool_input: { command: 'npm install', description: 'Instala' },
+    });
+    c.hook({
+      hook_event_name: 'PermissionRequest',
+      tool_name: 'Edit',
+      tool_input: { file_path: 'src/app.ts', old_string: 'a', new_string: 'b' },
+    });
+    c.hook({
+      hook_event_name: 'PermissionRequest',
+      tool_name: 'mcp__github__create_issue',
+      tool_input: { title: 'Bug' },
+    });
+    c.hook({ hook_event_name: 'PermissionRequest', tool_name: 'WebFetch' });
+    expect(c.asks.map(({ tool, target, choices }) => ({ tool, target, choices }))).toEqual([
+      { tool: 'Bash', target: 'npm install', choices: ['allow', 'allowAlways', 'deny'] },
+      { tool: 'Edit', target: 'src/app.ts', choices: ['allow', 'allowAlways', 'deny'] },
+      { tool: 'MCP', target: 'github › create_issue', choices: ['allow', 'allowAlways', 'deny'] },
+      // No `tool_input`: the tool alone.
+      { tool: 'WebFetch', target: '', choices: ['allow', 'allowAlways', 'deny'] },
+    ]);
+    // A new id each time: an answer names the request it was meant for.
+    expect(new Set(c.asks.map((a) => a.id)).size).toBe(4);
+  });
+
+  it('a long command keeps its start and its end, on one line', () => {
+    const c = claude();
+    c.idle();
+    c.work();
+    const command = `rm -rf build && ${'x'.repeat(300)}
+ && echo fim-do-comando`;
+    c.hook({ hook_event_name: 'PermissionRequest', tool_name: 'Bash', tool_input: { command } });
+    const { target } = c.asks[0]!;
+    expect([...target].length).toBeLessThanOrEqual(120);
+    expect(target).toMatch(/^rm -rf build && x+…x+ && echo fim-do-comando$/);
+  });
+
+  it('an open question of the agent is waiting, but has no buttons', () => {
+    const c = claude();
+    c.idle();
+    c.work();
+    c.hook({ hook_event_name: 'PermissionRequest', tool_name: 'AskUserQuestion' });
+    expect(c.state().state).toBe('aguardando');
+    expect(c.asks).toEqual([]);
   });
 
   it('after the permission is granted the spinner brings back "trabalhando"', () => {
@@ -349,6 +409,21 @@ describe('CodexAdapter', () => {
     c.hook('codex-hook', { hook_event_name: 'PermissionRequest', tool_name: 'shell' });
     expect(c.state()).toMatchObject({ state: 'aguardando', detail: 'shell' });
     expect(c.hooks).toEqual(['active']);
+  });
+
+  it('a permission request of a trusted hook carries the command, given as its argv', () => {
+    const c = codex();
+    c.hook('codex-hook', { hook_event_name: 'SessionStart', session_id: 't' });
+    c.idle();
+    c.work();
+    c.hook('codex-hook', {
+      hook_event_name: 'PermissionRequest',
+      tool_name: 'shell',
+      tool_input: { command: ['npm', 'test'] },
+    });
+    expect(c.asks).toMatchObject([
+      { tool: 'shell', target: 'npm test', choices: ['allow', 'allowAlways', 'deny'] },
+    ]);
   });
 
   it('untrusted hooks: no SessionStart after the first prompt marks them inactive', () => {

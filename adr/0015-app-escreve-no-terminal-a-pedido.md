@@ -2,6 +2,7 @@
 
 - **Status:** Aceita
 - **Data:** 2026-10-16
+- **Revisão:** 2026-10-17, a [ADR 0020](0020-responder-permissao-fora-do-terminal.md) acrescenta a resposta a um pedido de permissão, pela tecla do menu do agente.
 - **Emenda:** [ADR 0014](0014-verificacoes-ao-fim-do-turno.md), que criou a colagem no prompt do agente só para "Mandar o erro ao agente". A forma da colagem continua a mesma; esta ADR diz quando mais o app pode usá-la.
 
 ## Contexto

@@ -23,6 +23,11 @@ import { rich, useT } from './lib/i18n';
 import { shortcutRecording } from './lib/shortcuts';
 import { store, useAppState } from './lib/store';
 
+/** The session in sight asks a permission that may be answered from outside the terminal. */
+const answerable = (state: ReturnType<typeof store.get>): boolean =>
+  state.prefs.permissionButtons &&
+  Boolean(state.sessions.find((s) => s.id === state.selectedId)?.permission);
+
 type Overlay = 'new' | 'prefs' | 'palette' | 'folder' | 'checks' | 'prompt' | 'group' | null;
 
 interface PromptRequest {
@@ -330,6 +335,8 @@ export function App() {
           terminals.current?.toggleAux(fromKey);
         },
         sendPrompt: () => openPrompt(),
+        allowPermission: () => session && void store.answerPermission(session.id, 'allow'),
+        denyPermission: () => session && void store.answerPermission(session.id, 'deny'),
         newGroup: () => editGroup(),
         preferences: () => setOverlay('prefs'),
       };
@@ -381,6 +388,9 @@ export function App() {
           t(selected.auxOpen ? 'command.closeAux' : 'command.openAux', { name: selected.name }),
         ),
       );
+      if (selected.permission && selected.running) {
+        list.unshift(action('allowPermission'), action('denyPermission'));
+      }
       if (selected.auxOpen) {
         list.push(
           {
@@ -510,6 +520,13 @@ export function App() {
       if (!binding) return;
       const position = SESSION_BINDING.exec(binding)?.[1];
       const action = bindings.get(binding);
+      if (
+        (action === 'allowPermission' || action === 'denyPermission') &&
+        !answerable(store.get())
+      ) {
+        // Nothing is being asked: the key is the terminal's.
+        return;
+      }
       if (position) {
         const target = store.get().sessions[Number(position) - 1];
         if (target) store.select(target.id);

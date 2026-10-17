@@ -21,6 +21,8 @@ export interface Preferences {
   notifyWaiting: boolean;
   notifyDone: boolean;
   notifySound: boolean;
+  /** Permission requests can be answered from the list and the notification (ADR 0020). */
+  permissionButtons: boolean;
   /** The files of the folder also list what is hidden: dotfiles and what .gitignore covers. */
   showHiddenFiles: boolean;
   /** Folder a new session starts from. Empty: the folder of the latest session. */
@@ -53,6 +55,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   notifyWaiting: true,
   notifyDone: true,
   notifySound: true,
+  permissionButtons: true,
   showHiddenFiles: false,
   defaultFolder: '',
   favoriteFolders: [],
@@ -118,6 +121,7 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
     notifyWaiting: p.notifyWaiting !== false,
     notifyDone: p.notifyDone !== false,
     notifySound: p.notifySound !== false,
+    permissionButtons: p.permissionButtons !== false,
     showHiddenFiles: p.showHiddenFiles === true,
     defaultFolder:
       typeof p.defaultFolder === 'string' && p.defaultFolder.length <= 4096

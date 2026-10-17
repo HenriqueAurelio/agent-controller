@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import type { AgentAvailability } from '@shared/agents';
 import type { AppInfo, SessionMetrics } from '@shared/ipc';
 import { DEFAULT_PREFERENCES, type Preferences } from '@shared/prefs';
-import type { SessionGroup, SessionView } from '@shared/session';
+import type { PermissionChoice, SessionGroup, SessionView } from '@shared/session';
 
 export interface AppState {
   info: AppInfo;
@@ -15,6 +15,8 @@ export interface AppState {
   agents: AgentAvailability[];
   /** Folders of the latest sessions that still exist, most recent first. */
   recentFolders: string[];
+  /** The session whose permission request changed before the answer reached it. */
+  permissionStale: string | null;
 }
 
 let state: AppState = {
@@ -26,7 +28,11 @@ let state: AppState = {
   prefs: DEFAULT_PREFERENCES,
   agents: [],
   recentFolders: [],
+  permissionStale: null,
 };
+let staleTimer: ReturnType<typeof setTimeout> | null = null;
+/** How long "the request changed" stays in the list. */
+const STALE_NOTICE_MS = 6000;
 const listeners = new Set<() => void>();
 /** Asked before the selected session changes; returning false keeps the current one. */
 let leaveGuard: (() => boolean) | null = null;
@@ -111,6 +117,28 @@ export const store = {
     set({ sessions: ids ? ids.flatMap((other) => byId.get(other) ?? []) : moved });
     await window.api.invoke('sessions:setGroup', [id], groupId);
     if (ids) await window.api.invoke('sessions:reorder', ids);
+  },
+
+  /**
+   * Answers the permission request the session shows. When it is no longer the one open on the
+   * agent's screen, nothing is written and the list says so.
+   */
+  async answerPermission(sessionId: string, choice: PermissionChoice): Promise<void> {
+    const ask = state.sessions.find((s) => s.id === sessionId)?.permission;
+    if (!ask) return;
+    const outcome = await window.api
+      .invoke('sessions:answerPermission', sessionId, ask.id, choice)
+      .catch(() => 'stale' as const);
+    if (outcome === 'answered') {
+      if (state.permissionStale === sessionId) set({ permissionStale: null });
+      return;
+    }
+    if (staleTimer) clearTimeout(staleTimer);
+    set({ permissionStale: sessionId });
+    staleTimer = setTimeout(() => {
+      staleTimer = null;
+      set({ permissionStale: null });
+    }, STALE_NOTICE_MS);
   },
 
   reorderGroups(ids: string[]): void {

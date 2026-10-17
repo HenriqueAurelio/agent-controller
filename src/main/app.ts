@@ -186,15 +186,39 @@ export async function startApp(): Promise<void> {
   });
 
   const notifications = new NotificationPolicy();
+  const openSession = (sessionId: string) => {
+    if (!window || window.isDestroyed()) return;
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+    manager.select(sessionId);
+    send('app:focusSession', sessionId);
+  };
   const notify = (request: NotificationRequest) =>
-    showNotification(request, () => {
-      if (!window || window.isDestroyed()) return;
-      if (window.isMinimized()) window.restore();
-      window.show();
-      window.focus();
-      manager.select(request.sessionId);
-      send('app:focusSession', request.sessionId);
-    });
+    showNotification(
+      request,
+      () => openSession(request.sessionId),
+      (choice) => {
+        if (!request.askId) return;
+        // The button is the user's own answer; it only goes if the request is still the same.
+        void manager
+          .answerPermission(request.sessionId, request.askId, choice)
+          .catch(() => 'stale' as const)
+          .then((outcome) => {
+            if (outcome === 'answered') return;
+            showNotification(
+              {
+                sessionId: request.sessionId,
+                kind: 'waiting',
+                title: request.title,
+                body: t('permission.stale'),
+                silent: true,
+              },
+              () => openSession(request.sessionId),
+            );
+          });
+      },
+    );
 
   const checks = new CheckService({
     targetOf: (sessionId) => {
@@ -216,6 +240,13 @@ export async function startApp(): Promise<void> {
     if (request) notify(request);
   });
 
+  manager.on('permission', (session) => {
+    const request = notifications.evaluatePermission(session, {
+      focused: manager.isFocused(session.id),
+      prefs: data.prefs,
+    });
+    if (request) notify(request);
+  });
   manager.on('sessions', () => send('sessions:changed', snapshotOf(manager)));
   manager.on('data', (id, chunk) => send('terminal:data', id, chunk));
   manager.on('reset', (id) => send('terminal:reset', id));
