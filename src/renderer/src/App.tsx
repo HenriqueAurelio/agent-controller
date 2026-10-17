@@ -20,6 +20,7 @@ import { NewSessionDialog } from './components/NewSessionDialog';
 import { Overview } from './components/Overview';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { PromptDialog, type PromptContext } from './components/PromptDialog';
+import { ReviewerDialog } from './components/ReviewerDialog';
 import { QueueDialog, sendQueueFailure, skipQueueItem } from './components/QueueDialog';
 import { TimelineDialog } from './components/TimelineDialog';
 import { Sidebar } from './components/Sidebar';
@@ -47,12 +48,15 @@ type Overlay =
   | 'timeline'
   | 'experiment'
   | 'compare'
+  | 'reviewer'
   | null;
 
 interface PromptRequest {
   promptId?: string;
   targets: string[];
   context: PromptContext;
+  /** A text to start from, in place of the one of a saved prompt. */
+  text?: string;
 }
 
 export function App() {
@@ -150,7 +154,7 @@ export function App() {
 
   /** Opens the dialog that sends a prompt: to the picked sessions, or to the one in sight. */
   const openPrompt = useCallback(
-    (promptId?: string, context: PromptContext = {}, targets?: string[]) => {
+    (promptId?: string, context: PromptContext = {}, targets?: string[], text?: string) => {
       const { selectedId: current, sessions: list } = store.get();
       const picked = marked.filter((id) => list.some((s) => s.id === id));
       const to = targets ?? (picked.length ? picked : current ? [current] : []);
@@ -158,6 +162,7 @@ export function App() {
         promptId,
         targets: to,
         context: { file: panelFile.current ?? undefined, ...context },
+        ...(text !== undefined && { text }),
       });
       setOverlay('prompt');
     },
@@ -512,6 +517,11 @@ export function App() {
           run: () => void window.api.invoke('checks:run', selected.id),
         },
         {
+          id: 'reviewer',
+          title: t('command.reviewer', { name: selected.name }),
+          run: () => setOverlay('reviewer'),
+        },
+        {
           id: 'queue',
           title: t('command.queue', { name: selected.name }),
           run: () => setOverlay('queue'),
@@ -738,6 +748,17 @@ export function App() {
               </button>
             )}
             <button
+              className={`reviewer-button ${selected.reviewer?.state === 'ready' ? 'ready' : ''}`}
+              data-testid="reviewer-button"
+              onClick={() => setOverlay('reviewer')}
+              title={t('app.reviewerHint')}
+            >
+              {selected.reviewing ? '🔍 ' : ''}
+              {selected.reviewer?.state === 'ready'
+                ? t('app.reviewerReady', { count: selected.reviewer.count ?? 0 })
+                : t('app.reviewer')}
+            </button>
+            <button
               className="queue-button"
               onClick={() => setOverlay('queue')}
               title={t('app.queueHint')}
@@ -878,6 +899,17 @@ export function App() {
           }}
         />
       )}
+      {overlay === 'reviewer' && selected && (
+        <ReviewerDialog
+          session={selected}
+          onClose={closeOverlay}
+          onOpenReviewer={(id) => {
+            closeOverlay();
+            void window.api.invoke('sessions:select', id);
+          }}
+          onReturn={(text) => openPrompt(undefined, {}, [selected.id], text)}
+        />
+      )}
       {overlay === 'group' && <GroupDialog group={editedGroup} onClose={closeOverlay} />}
       {overlay === 'checks' && selected && (
         <ChecksDialog
@@ -912,6 +944,7 @@ export function App() {
         <PromptDialog
           promptId={promptRequest.promptId}
           targets={promptRequest.targets}
+          text={promptRequest.text}
           context={promptRequest.context}
           onClose={closeOverlay}
           onSent={() => {

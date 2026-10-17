@@ -1,6 +1,7 @@
 // Saved prompts: text the user sends to an agent again and again, with variables filled in at the
 // moment of sending. They are only text, so they travel with the exported preferences.
 import { translate, type Language, type MessageKey } from './i18n';
+import { REVIEW_PROMPT_ID } from './reviewer';
 import { normalizeBinding } from './shortcuts';
 
 export interface PromptTemplate {
@@ -28,6 +29,11 @@ const FACTORY: { id: string; name: MessageKey; text: MessageKey }[] = [
   { id: 'review-diff', name: 'prompts.factory.review.name', text: 'prompts.factory.review.text' },
   { id: 'write-tests', name: 'prompts.factory.tests.name', text: 'prompts.factory.tests.text' },
   { id: 'update-readme', name: 'prompts.factory.readme.name', text: 'prompts.factory.readme.text' },
+  {
+    id: REVIEW_PROMPT_ID,
+    name: 'prompts.factory.reviewTurn.name',
+    text: 'prompts.factory.reviewTurn.text',
+  },
 ];
 
 export function factoryPrompts(language: Language): PromptTemplate[] {

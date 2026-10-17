@@ -2,6 +2,7 @@ import type { ChecksSummary } from './checks';
 import type { Translate } from './i18n';
 import type { OverlapSummary } from './overlaps';
 import type { QueueSummary } from './prompts';
+import type { ReviewerSummary } from './reviewer';
 
 export type AgentProfileId = 'claude-code' | 'codex';
 
@@ -59,6 +60,8 @@ export interface Session {
    */
   command?: string;
   worktree?: SessionWorktree;
+  /** Launched in the read-only mode of its agent: a reviewer only reads (ADR 0023). */
+  readOnly?: boolean;
   /** The group the session is listed in. Absent: listed on its own, above the groups. */
   groupId?: string;
   order: number;
@@ -147,6 +150,10 @@ export interface SessionView extends Session {
   queue?: QueueSummary;
   /** Files other sessions also changed, in other copies of the same repository. */
   overlaps?: OverlapSummary;
+  /** The session that reviews the turns of this one, when there is one. */
+  reviewer?: ReviewerSummary;
+  /** This session is the reviewer of the one with this id. */
+  reviewing?: string;
 }
 
 export interface NewSessionInput {
@@ -157,6 +164,8 @@ export interface NewSessionInput {
   /** Work in a new copy of the repository of `cwd`, on a new branch. */
   worktree?: { branch: string; base: string };
   groupId?: string;
+  /** Launch the agent in its read-only mode, where it has one. */
+  readOnly?: boolean;
 }
 
 /**

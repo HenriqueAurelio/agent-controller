@@ -65,7 +65,12 @@ describe('saved prompts', () => {
   it('come from the factory in each language, with the same ids', () => {
     for (const language of LANGUAGES) {
       const prompts = factoryPrompts(language);
-      expect(prompts.map((p) => p.id)).toEqual(['review-diff', 'write-tests', 'update-readme']);
+      expect(prompts.map((p) => p.id)).toEqual([
+        'review-diff',
+        'write-tests',
+        'update-readme',
+        'review-turn',
+      ]);
       for (const prompt of prompts) expect(prompt.name && prompt.text).toBeTruthy();
     }
     expect(factoryPrompts('en')[0]!.name).not.toBe(factoryPrompts('pt-BR')[0]!.name);

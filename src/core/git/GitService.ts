@@ -13,6 +13,8 @@ export interface GitResult {
   code: number;
   stdout: Buffer;
   stderr: string;
+  /** The output went past `maxBytes` and git was stopped: `stdout` is not the whole of it. */
+  truncated?: boolean;
 }
 
 export class GitMissingError extends Error {
@@ -42,11 +44,13 @@ export function runGit(
     );
     const out: Buffer[] = [];
     let size = 0;
+    let truncated = false;
     let stderr = '';
     const limit = options.maxBytes ?? 64 * 1024 * 1024;
     child.stdout.on('data', (chunk: Buffer) => {
       size += chunk.length;
       if (size > limit) {
+        truncated = true;
         child.kill();
         return;
       }
@@ -59,7 +63,14 @@ export function runGit(
       // ENOENT is also what a missing working directory produces.
       reject(err.code === 'ENOENT' && fs.existsSync(cwd) ? new GitMissingError() : err),
     );
-    child.on('close', (code) => resolve({ code: code ?? 1, stdout: Buffer.concat(out), stderr }));
+    child.on('close', (code) =>
+      resolve({
+        code: code ?? 1,
+        stdout: Buffer.concat(out),
+        stderr,
+        ...(truncated && { truncated }),
+      }),
+    );
     child.stdin.on('error', () => {});
     child.stdin.end(options.input ?? undefined);
   });

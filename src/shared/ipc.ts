@@ -12,6 +12,7 @@ import type {
   KeepResult,
   NewExperimentInput,
 } from './experiments';
+import type { ReviewResult, ReviewerSetInput, ReviewerSummary } from './reviewer';
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
 import type {
@@ -234,6 +235,13 @@ export interface IpcCommands {
   /** Keeps one attempt and closes the others with their copies; says which could not go. */
   'experiments:keep': (experimentId: string, sessionId: string) => KeepResult;
 
+  /** The reviewer of a session: another session that reads each turn (ADR 0023). */
+  'reviewer:set': (input: ReviewerSetInput) => ReviewerSummary | null;
+  /** Asks for a review of the latest turn now, whatever the trigger. */
+  'reviewer:runNow': (sessionId: string) => void;
+  /** The observations of the latest review of the session. */
+  'reviewer:result': (sessionId: string) => ReviewResult;
+
   'git:open': (sessionId: string, base: DiffBase) => GitOverview;
   'git:refresh': (sessionId: string, base: DiffBase) => GitOverview;
   'git:close': (sessionId: string) => void;
@@ -297,6 +305,8 @@ export interface IpcEvents {
   'git:changed': (sessionId: string) => void;
   /** What the session has in common with the others changed: `git:overlaps` has the new detail. */
   'git:overlapsChanged': (sessionId: string) => void;
+  /** The reviewer of the session, or its review, changed: `reviewer:result` has the new one. */
+  'reviewer:changed': (sessionId: string) => void;
   'metrics:update': (metrics: Record<string, SessionMetrics>) => void;
   /** The last lines of the sessions that changed, once a second at most, while watched. */
   'sessions:tails': (tails: Record<string, string[]>) => void;
@@ -376,6 +386,9 @@ export const COMMAND_CHANNELS = [
   'experiments:compare',
   'experiments:diff',
   'experiments:keep',
+  'reviewer:set',
+  'reviewer:runNow',
+  'reviewer:result',
   'git:open',
   'git:refresh',
   'git:close',
@@ -408,6 +421,7 @@ export const EVENT_CHANNELS = [
   'terminal:reset',
   'git:changed',
   'git:overlapsChanged',
+  'reviewer:changed',
   'metrics:update',
   'sessions:tails',
   'prefs:changed',

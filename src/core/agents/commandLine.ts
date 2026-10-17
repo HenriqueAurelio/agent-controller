@@ -87,10 +87,11 @@ export function codexConfigArgs(
 /** The final command line for a session. What identifies the session is only the environment. */
 export function buildLaunchCommand(
   profile: AgentProfile,
-  session: { id: string },
+  session: { id: string; readOnly?: boolean },
   context: LaunchContext,
 ): LaunchCommand {
   const args = [...profile.baseArgs];
+  if (session.readOnly && profile.readOnlyArgs) args.push(...profile.readOnlyArgs);
   if (profile.id === 'claude-code') {
     args.push('--settings', writeClaudeSettings(profile, context.agentctl, context.dataDirectory));
   } else if (profile.id === 'codex') {

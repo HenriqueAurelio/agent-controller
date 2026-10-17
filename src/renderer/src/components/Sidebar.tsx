@@ -3,7 +3,7 @@ import { isHorizontal } from '@shared/layout';
 import { statusLabel, type SessionGroup, type SessionView } from '@shared/session';
 import { formatCpu, formatMemory, hint, PROFILE_LABEL } from '../lib/format';
 import { ChecksBadge } from './ChecksDialog';
-import { OverlapBadge, PermissionAsk, QueueBadge } from './SessionMarks';
+import { OverlapBadge, PermissionAsk, QueueBadge, ReviewBadge } from './SessionMarks';
 import { useT } from '../lib/i18n';
 import { store, useAppState } from '../lib/store';
 
@@ -333,6 +333,7 @@ export function Sidebar({
           )}
           <span className="session-meta">
             {/* First: the end of the line is cut when the list is narrow. */}
+            <ReviewBadge session={session} />
             <OverlapBadge session={session} />
             <QueueBadge session={session} />
             <span className={`profile-tag profile-${session.profile}`}>

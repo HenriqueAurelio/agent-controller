@@ -21,6 +21,8 @@ import { cleanDiscarded } from '@core/git/GitWriteService';
 import { MetricsSampler } from '@core/metrics/MetricsSampler';
 import { TailFeed } from '@core/sessions/TailFeed';
 import { ExperimentService } from '@core/experiments/ExperimentService';
+import { HandoffService } from '@core/handoff/HandoffService';
+import { ReviewerService } from '@core/handoff/ReviewerService';
 import { defaultWorktreesFolder } from '@core/git/WorktreeService';
 import { PromptQueue } from '@core/prompts/PromptQueue';
 import { PtyManager } from '@core/pty/PtyManager';
@@ -40,6 +42,8 @@ import {
 } from '@core/store/gpuGuard';
 import type { AgentAvailability } from '@shared/agents';
 import { summarizeRun } from '@shared/checks';
+import { factoryPrompts } from '@shared/prompts';
+import { REVIEW_PROMPT_ID } from '@shared/reviewer';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import type { Session, SessionGroup } from '@shared/session';
 import { expandForSession, registerIpc, snapshotOf, type IpcContext } from './ipc';
@@ -372,8 +376,12 @@ export async function startApp(): Promise<void> {
       void checkpoints.turnEnded(session.id);
       void checks.turnEnded(session.id);
       void overlaps.touch(session.id);
+      reviewer.turnEnded(session.id);
     }
-    if (edge === 'started') checks.turnStarted(session.id);
+    if (edge === 'started') {
+      checks.turnStarted(session.id);
+      reviewer.turnStarted(session.id);
+    }
     const request = notifications.evaluate(session, previous, {
       focused: manager.isFocused(session.id),
       prefs: data.prefs,
@@ -420,6 +428,44 @@ export async function startApp(): Promise<void> {
     describeError: (err) => errorText(data.prefs.language, err),
   });
 
+  // What goes to the reviewer and what comes back is files in a folder of the app, outside the
+  // repositories (ADR 0023). The tests keep theirs apart.
+  const handoff = new HandoffService({
+    root: TEST_SHELL
+      ? path.join(userData, 'handoffs')
+      : path.join(os.homedir(), '.agent-controller', 'handoffs'),
+    stableMs: TEST_SHELL ? 300 : undefined,
+    pollMs: TEST_SHELL ? 100 : undefined,
+  });
+  void handoff.cleanOld();
+  const reviewer = new ReviewerService({
+    manager,
+    checkpoints,
+    handoff,
+    file: path.join(userData, 'reviewers.json'),
+    // The saved prompt, if the user kept it in their list; the factory one otherwise.
+    prompt: () => {
+      const language = data.prefs.language;
+      const saved = data.prefs.prompts.find((p) => p.id === REVIEW_PROMPT_ID);
+      return (saved ?? factoryPrompts(language).find((p) => p.id === REVIEW_PROMPT_ID))?.text ?? '';
+    },
+    expand: (sessionId, text) => expandForSession(manager, sessionId, text, {}),
+    hasTurnChecks: (sessionId) => {
+      const session = manager.get(sessionId);
+      const configured = session ? (data.checks[folderKey(session.cwd)] ?? []) : [];
+      return configured.some((check) => check.onTurnEnd);
+    },
+    reviewerName: (target) =>
+      translate(data.prefs.language, 'reviewer.sessionName', { name: target.name }),
+    describeError: (err) => errorText(data.prefs.language, err),
+  });
+  reviewer.on('changed', (sessionId) => send('reviewer:changed', sessionId));
+  checks.on('changed', (sessionId, run) => {
+    // The review of a turn waits for the checks of the turn, and only goes if they passed.
+    if (run?.trigger !== 'turnEnd' || run.state !== 'done') return;
+    reviewer.checksFinished(sessionId, summarizeRun(run).state === 'passed' ? 'passed' : 'failed');
+  });
+
   registerIpc({
     manager,
     changes,
@@ -428,6 +474,7 @@ export async function startApp(): Promise<void> {
     overlaps,
     queue,
     experiments,
+    reviewer,
     tails,
     data,
     discardDir,
@@ -484,6 +531,7 @@ export async function startApp(): Promise<void> {
     tails.dispose();
     changes.dispose();
     overlaps.dispose();
+    reviewer.dispose();
     checks.dispose();
     if (window && !window.isDestroyed()) saveWindowState(window, data.window);
     // Every agent, and whatever it started, ends with the app (ADR 0006).
