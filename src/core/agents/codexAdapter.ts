@@ -72,13 +72,7 @@ export class CodexAdapter extends BaseAdapter {
         if (typeof payload.session_id === 'string') this.threadId = payload.session_id;
         break;
       case 'PermissionRequest':
-        this.arm();
-        this.resolved();
-        this.emit(
-          'waiting',
-          'hook',
-          typeof payload.tool_name === 'string' ? payload.tool_name : undefined,
-        );
+        this.permissionRequest(payload);
         break;
       case 'Stop':
         this.arm();

@@ -6,6 +6,8 @@
 
 ## [ ] 12.1 Sondagem: o pedido e as teclas de cada agente (só com autorização)
 
+> **Pendente:** não houve autorização para usar os agentes reais. As teclas e o texto dos menus foram escritos a partir do comportamento conhecido de cada agente, ficam no perfil e só são usados quando o texto do menu está na tela (ADR 0020). A escolha entre tecla e hook já está na ADR.
+
 - **Frente:** A · **Tamanho:** P · **Depende de:** nada
 
 **O que fazer**
@@ -18,7 +20,7 @@
 
 ---
 
-## [ ] 12.2 `PermissionAsk` no adaptador
+## [x] 12.2 `PermissionAsk` no adaptador
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** 12.1
 
@@ -32,7 +34,7 @@
 
 ---
 
-## [ ] 12.3 Responder no `SessionManager`
+## [x] 12.3 Responder no `SessionManager`
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** 12.2
 
@@ -46,7 +48,7 @@
 
 ---
 
-## [ ] 12.4 Barra lateral e atalhos
+## [x] 12.4 Barra lateral e atalhos
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 12.3
 
@@ -60,7 +62,7 @@
 
 ---
 
-## [ ] 12.5 Ações na notificação
+## [x] 12.5 Ações na notificação
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 12.3
 
@@ -70,9 +72,13 @@
 
 **Pronto quando:** testado à mão no Windows e no Linux (GNOME), com o resultado no PR.
 
+> **Feito no código; o teste à mão ficou pendente** (ninguém para clicar no balão nos testes automáticos). No Linux, o Electron não mostra botões na notificação: ela vem sem eles, como antes.
+
 ---
 
 ## [ ] 12.6 Smoke, README e evidências
+
+> README e evidências feitos (e2e com um shell que imita o menu). Falta o roteiro de smoke com os dois agentes reais, que espera autorização.
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 12.4, 12.5
 

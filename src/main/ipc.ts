@@ -51,7 +51,9 @@ import {
 import {
   AGENT_PROFILE_IDS,
   GROUP_NAME_LIMIT,
+  PERMISSION_CHOICES,
   type GroupUpdate,
+  type PermissionChoice,
   type TerminalSize,
 } from '@shared/session';
 
@@ -363,6 +365,12 @@ export function registerIpc(context: IpcContext): void {
   handle('sessions:select', (id) => manager.select(id === null ? null : session(id).id));
   handle('sessions:start', (id, terminalSize) => manager.start(session(id).id, size(terminalSize)));
   handle('sessions:stop', (id) => manager.stop(session(id).id));
+  handle('sessions:answerPermission', (id, askId, choice) => {
+    if (!PERMISSION_CHOICES.includes(choice as PermissionChoice)) {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.choice' } });
+    }
+    return manager.answerPermission(session(id).id, str(askId, 'request', 64), choice);
+  });
 
   handle('terminal:attach', (id, terminalSize) => manager.attach(terminal(id), size(terminalSize)));
   handle('terminal:detach', (id) => manager.detach(str(id, 'session', 64)));

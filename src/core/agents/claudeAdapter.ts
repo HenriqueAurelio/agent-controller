@@ -3,6 +3,9 @@ import type { HookMessage } from '../signals/HookServer';
 import { asRecord, BaseAdapter } from './adapter';
 import { CLAUDE_HOOK_SOURCE } from './commandLine';
 
+/** Tools that ask something open, not for permission. */
+const OPEN_QUESTIONS = new Set(['AskUserQuestion', 'ExitPlanMode']);
+
 function notificationType(payload: Record<string, unknown>): 'permission' | 'idle' | null {
   const type = String(payload.notification_type ?? '');
   if (type === 'permission_prompt') return 'permission';
@@ -28,13 +31,8 @@ export class ClaudeAdapter extends BaseAdapter {
 
     switch (payload.hook_event_name) {
       case 'PermissionRequest':
-        this.arm();
-        this.resolved();
-        this.emit(
-          'waiting',
-          'hook',
-          typeof payload.tool_name === 'string' ? payload.tool_name : undefined,
-        );
+        // A question of the agent, or its plan, has answers of its own: no fixed menu to press.
+        this.permissionRequest(payload, !OPEN_QUESTIONS.has(String(payload.tool_name ?? '')));
         break;
       case 'Notification': {
         const type = notificationType(payload);

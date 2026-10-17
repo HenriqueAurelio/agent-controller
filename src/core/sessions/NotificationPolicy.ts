@@ -1,14 +1,30 @@
 import { summarizeRun, type ChecksRun } from '@shared/checks';
 import { translator } from '@shared/i18n';
 import type { Preferences } from '@shared/prefs';
-import { statusDetail, statusLabel, type SessionStatus, type SessionView } from '@shared/session';
+import {
+  requestText,
+  statusDetail,
+  statusLabel,
+  type PermissionChoice,
+  type SessionStatus,
+  type SessionView,
+} from '@shared/session';
+
+export interface NotificationAction {
+  label: string;
+  choice: PermissionChoice;
+}
 
 export interface NotificationRequest {
   sessionId: string;
-  kind: 'waiting' | 'done' | 'checks';
+  kind: 'waiting' | 'done' | 'checks' | 'permission';
   title: string;
   body: string;
   silent: boolean;
+  /** For `permission`: the request the buttons answer. */
+  askId?: string;
+  /** Buttons, where the system shows them; without them, a click opens the session. */
+  actions?: NotificationAction[];
 }
 
 export interface NotificationPolicyOptions {
@@ -23,6 +39,8 @@ export interface NotificationPolicyOptions {
  */
 export class NotificationPolicy {
   private readonly last = new Map<string, { kind: string; at: number }>();
+  /** The latest request told for each session: each one is told once. */
+  private readonly lastAsk = new Map<string, string>();
   private readonly repeatWindowMs: number;
   private readonly now: () => number;
 
@@ -87,7 +105,37 @@ export class NotificationPolicy {
     };
   }
 
+  /**
+   * The menu of a permission request showed up: the notice of "aguardando você" gives way to one
+   * that says what is asked, with Allow and Deny. Not when the buttons are turned off.
+   */
+  evaluatePermission(
+    session: SessionView,
+    context: { focused: boolean; prefs: Preferences },
+  ): NotificationRequest | null {
+    const ask = session.permission;
+    if (!ask || context.focused) return null;
+    if (!context.prefs.notifyWaiting || !context.prefs.permissionButtons) return null;
+    if (this.lastAsk.get(session.id) === ask.id) return null;
+    this.lastAsk.set(session.id, ask.id);
+    const t = translator(context.prefs.language);
+    return {
+      sessionId: session.id,
+      kind: 'permission',
+      title: session.name,
+      body: t('notification.permission', { request: requestText(ask) }),
+      silent: !context.prefs.notifySound,
+      askId: ask.id,
+      // "Always" is a choice to make looking at the terminal, not from a toast.
+      actions: [
+        { label: t('permission.allow'), choice: 'allow' },
+        { label: t('permission.deny'), choice: 'deny' },
+      ],
+    };
+  }
+
   forget(sessionId: string): void {
     this.last.delete(sessionId);
+    this.lastAsk.delete(sessionId);
   }
 }

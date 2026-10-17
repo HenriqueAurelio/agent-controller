@@ -191,4 +191,40 @@ describe('preferences', () => {
       }),
     ).toMatchObject({ scrollback: 20000, fontSize: 8, silenceSeconds: 0, theme: 'dark' });
   });
+  describe('permission requests', () => {
+    const asking = (askId = 'a1', target = 'npm install'): SessionView => ({
+      ...session('aguardando', { detail: 'Bash' }),
+      permission: { id: askId, tool: 'Bash', target, choices: ['allow', 'allowAlways', 'deny'] },
+    });
+
+    it('says what is asked, with Allow and Deny, once per request', () => {
+      const policy = new NotificationPolicy();
+      expect(policy.evaluatePermission(asking(), background)).toEqual({
+        sessionId: 's1',
+        kind: 'permission',
+        title: 'API de pagamentos',
+        body: 'Pede permissão: Bash: npm install',
+        silent: false,
+        askId: 'a1',
+        actions: [
+          { label: 'Permitir', choice: 'allow' },
+          { label: 'Negar', choice: 'deny' },
+        ],
+      });
+      expect(policy.evaluatePermission(asking(), background)).toBeNull();
+      expect(policy.evaluatePermission(asking('a2', ''), background)?.body).toBe(
+        'Pede permissão: Bash',
+      );
+    });
+
+    it('not for the session in focus, with the buttons or the notice turned off, or with no request', () => {
+      const policy = new NotificationPolicy();
+      expect(policy.evaluatePermission(asking(), { ...background, focused: true })).toBeNull();
+      for (const off of [{ permissionButtons: false }, { notifyWaiting: false }]) {
+        const prefs = sanitizePreferences({ ...DEFAULT_PREFERENCES, ...off });
+        expect(policy.evaluatePermission(asking(), { focused: false, prefs })).toBeNull();
+      }
+      expect(policy.evaluatePermission(session('aguardando'), background)).toBeNull();
+    });
+  });
 });

@@ -1,18 +1,23 @@
+import { randomUUID } from 'node:crypto';
 import {
   STATUS_DETAIL,
   type HooksMode,
+  type PermissionAsk,
   type Signal,
   type SignalKind,
   type SignalOrigin,
 } from '@shared/session';
 import type { HookMessage } from '../signals/HookServer';
 import { classifyTitle, type TitleActivity } from '../signals/title';
+import { describeRequest, profileChoices } from './permission';
 import type { AgentProfile } from './profiles';
 
 export interface AdapterHost {
   sessionId: string;
   emit(signal: Signal): void;
   setHooks(mode: HooksMode): void;
+  /** The agent asks permission for something; it replaces whatever request was open. */
+  ask(ask: PermissionAsk): void;
   now(): number;
 }
 
@@ -79,6 +84,21 @@ export abstract class BaseAdapter implements AgentAdapter {
   protected resolved(): void {
     this.resolvedAt = this.host.now();
     this.cancelIdleTimer();
+  }
+
+  /**
+   * A `PermissionRequest` hook: the agent is waiting for you, and, unless `answerable` is false,
+   * the request can be answered from outside the terminal with the keys of the profile.
+   */
+  protected permissionRequest(payload: Record<string, unknown>, answerable = true): void {
+    const toolName = typeof payload.tool_name === 'string' ? payload.tool_name : undefined;
+    this.arm();
+    this.resolved();
+    this.emit('waiting', 'hook', toolName);
+    const choices = profileChoices(this.profile);
+    if (!answerable || choices.length === 0) return;
+    const { tool, target } = describeRequest(payload.tool_name, payload.tool_input);
+    this.host.ask({ id: randomUUID(), tool, target, choices });
   }
 
   /** A hook or a notify about a turn proves that one exists. */

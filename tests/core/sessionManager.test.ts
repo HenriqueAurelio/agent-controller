@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isAlive } from '@core/pty/killTree';
@@ -467,6 +468,107 @@ describe('SessionManager', () => {
       manager.input(s.id, 'perm\r');
       await waitFor(() => manager.statusOf(s.id).detail === 'Bash');
       expect(manager.sendText(s.id, 'depois', { submit: false })).toBe('queued');
+    });
+  });
+
+  describe('permission requests answered from outside the terminal', () => {
+    const MENU = path.join(FIXTURES, 'permission-menu.cjs');
+    const ask = (id: string) => manager.list().find((s) => s.id === id)?.permission;
+    const opened = (args: string[]) => {
+      launch = () => ({ file: process.execPath, args: [MENU, ...args] });
+      const s = create();
+      manager.start(s.id, SIZE);
+      return s;
+    };
+    const screenHas = (id: string, text: string) =>
+      waitFor(async () => (await manager.screenText(id)).includes(text), { message: text });
+
+    it('shows the request once its menu is on screen, and answers with the key of the menu', async () => {
+      const shown: string[] = [];
+      manager.on('permission', (session) => shown.push(session.id));
+      const s = opened(['Bash', 'npm', 'install']);
+      const request = await waitFor(() => ask(s.id));
+      expect(request).toMatchObject({
+        tool: 'Bash',
+        target: 'npm install',
+        choices: ['allow', 'allowAlways', 'deny'],
+      });
+      expect(state(s.id)).toBe('aguardando');
+      expect(shown).toEqual([s.id]);
+
+      expect(await manager.answerPermission(s.id, request.id, 'allow')).toBe('answered');
+      await screenHas(s.id, 'resposta: 1');
+      expect(ask(s.id)).toBeUndefined();
+      // Answered once: the same request cannot be answered again.
+      expect(await manager.answerPermission(s.id, request.id, 'allow')).toBe('stale');
+    });
+
+    it('denies with Esc, and "always" with the option the menu offers for it', async () => {
+      const denied = opened(['Edit', 'src/app.ts']);
+      const always = opened(['Bash', 'npm', 'test']);
+      const first = await waitFor(() => ask(denied.id));
+      expect(first).toMatchObject({ tool: 'Edit', target: 'src/app.ts' });
+      expect(await manager.answerPermission(denied.id, first.id, 'deny')).toBe('answered');
+      const second = await waitFor(() => ask(always.id));
+      expect(await manager.answerPermission(always.id, second.id, 'allowAlways')).toBe('answered');
+      await screenHas(denied.id, 'resposta: esc');
+      await screenHas(always.id, 'resposta: 2');
+    });
+
+    it('a request that was replaced by another is stale, and nothing is written', async () => {
+      const s = opened(['Bash', 'npm', 'install']);
+      const old = await waitFor(() => ask(s.id));
+      // The agent asks something else before the click arrives.
+      manager.handleHook({
+        sessionId: s.id,
+        source: 'claude-hook',
+        payload: {
+          hook_event_name: 'PermissionRequest',
+          tool_name: 'Bash',
+          tool_input: { command: 'npm publish' },
+        },
+      });
+      const replaced = await waitFor(() => {
+        const current = ask(s.id);
+        return current && current.id !== old.id ? current : null;
+      });
+      expect(replaced.target).toBe('npm publish');
+      const write = vi.spyOn(ptys, 'write');
+      expect(await manager.answerPermission(s.id, old.id, 'allow')).toBe('stale');
+      expect(write).not.toHaveBeenCalled();
+      write.mockRestore();
+      expect(await manager.answerPermission(s.id, replaced.id, 'deny')).toBe('answered');
+      await screenHas(s.id, 'resposta: esc');
+    });
+
+    it('a menu that left the screen is stale: nothing is written and the buttons go', async () => {
+      const s = opened(['Bash', 'npm', 'install']);
+      const request = await waitFor(() => ask(s.id));
+      fs.writeFileSync(path.join(dir, 'limpar'), '');
+      await screenHas(s.id, 'o agente seguiu sozinho');
+      const write = vi.spyOn(ptys, 'write');
+      expect(await manager.answerPermission(s.id, request.id, 'allow')).toBe('stale');
+      expect(write).not.toHaveBeenCalled();
+      write.mockRestore();
+      expect(ask(s.id)).toBeUndefined();
+      await sleep(300);
+      expect(await manager.screenText(s.id)).not.toContain('resposta');
+    });
+
+    it('"always" is only there when the menu offers it; the request goes when the agent stops', async () => {
+      const s = opened(['--sem-sempre', 'Bash', 'curl', 'exemplo.com']);
+      const request = await waitFor(() => ask(s.id));
+      expect(request.choices).toEqual(['allow', 'deny']);
+      expect(await manager.answerPermission(s.id, request.id, 'allowAlways')).toBe('unsupported');
+      expect(ask(s.id)).toBeDefined();
+      await manager.stop(s.id);
+      await until(s.id, 'parada');
+      expect(ask(s.id)).toBeUndefined();
+      expect(await manager.answerPermission(s.id, request.id, 'allow')).toBe('stale');
+    });
+
+    it('a session that is gone is an error for the user', async () => {
+      await expect(manager.answerPermission('nao-existe', 'x', 'allow')).rejects.toThrow(UserError);
     });
   });
 

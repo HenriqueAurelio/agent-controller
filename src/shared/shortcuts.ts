@@ -16,6 +16,8 @@ export const SHORTCUT_ACTIONS = [
   'toggleHidden',
   'toggleAux',
   'sendPrompt',
+  'allowPermission',
+  'denyPermission',
   'newGroup',
   'preferences',
 ] as const;
@@ -38,6 +40,9 @@ export const DEFAULT_SHORTCUTS: ShortcutMap = {
   // Shift+' gives `"` on the US and ABNT2 layouts; the other is for those where it does not.
   toggleAux: ['Ctrl+Shift+"', "Ctrl+Shift+'"],
   sendPrompt: ['Ctrl+Shift+M'],
+  // Only taken while the session in sight asks a permission; otherwise they reach the terminal.
+  allowPermission: ['Alt+Y'],
+  denyPermission: ['Alt+N'],
   newGroup: [],
   preferences: ['Ctrl+,'],
 };

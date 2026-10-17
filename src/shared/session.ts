@@ -82,6 +82,48 @@ export interface GroupUpdate {
 
 export type HooksMode = 'unknown' | 'active' | 'inactive' | 'unsupported';
 
+/** How a permission request can be answered. Each agent turns them into the keys of its menu. */
+export type PermissionChoice = 'allow' | 'allowAlways' | 'deny';
+
+export const PERMISSION_CHOICES: readonly PermissionChoice[] = ['allow', 'allowAlways', 'deny'];
+
+/** What the agent asks permission for, as the list shows it: `Bash: npm install`. */
+export interface PermissionAsk {
+  /** A new one for every request: an answer names the one it was meant for. */
+  id: string;
+  tool: string;
+  /** The command, file or tool it acts on, already cut to fit. Empty when the agent gave none. */
+  target: string;
+  /** What the menu on the screen offers. `allowAlways` only where the agent offers it. */
+  choices: PermissionChoice[];
+}
+
+/**
+ * `stale`: the request is no longer the one open on the screen, and nothing was written.
+ * `unsupported`: the agent, or its menu, has no such answer.
+ */
+export type PermissionOutcome = 'answered' | 'stale' | 'unsupported';
+
+/** How long the target of a request may be; a longer one keeps its start and its end. */
+export const PERMISSION_TARGET_LIMIT = 120;
+
+/** "Bash: npm install", or the tool alone when the agent said nothing more. */
+export const requestText = (ask: { tool: string; target: string }): string =>
+  ask.target ? `${ask.tool}: ${ask.target}` : ask.tool;
+
+/** Cuts a long text in the middle: the start of a command and its end both say what it does. */
+export function cutMiddle(text: string, limit = PERMISSION_TARGET_LIMIT): string {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  const chars = [...flat];
+  if (chars.length <= limit) return flat;
+  const head = Math.ceil((limit - 1) / 2);
+  const tail = limit - 1 - head;
+  return `${chars.slice(0, head).join('').trimEnd()}…${chars
+    .slice(chars.length - tail)
+    .join('')
+    .trimStart()}`;
+}
+
 export interface SessionView extends Session {
   status: SessionStatus;
   /** True while the agent process is alive. */
@@ -95,6 +137,8 @@ export interface SessionView extends Session {
   pendingSends?: number;
   /** The plain shell beside the agent is open. It never outlives the app. */
   auxOpen?: boolean;
+  /** The permission the agent is asking for, once its menu is on the screen. */
+  permission?: PermissionAsk;
 }
 
 export interface NewSessionInput {

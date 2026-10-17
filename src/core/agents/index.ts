@@ -17,3 +17,4 @@ export * from './profiles';
 export * from './commandLine';
 export * from './detect';
 export * from './shellCommand';
+export * from './permission';
