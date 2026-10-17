@@ -6,6 +6,39 @@ Um app desktop que reúne sessões de **Claude Code** e **Codex** em uma janela 
 - Cada sessão é um terminal de verdade: o agente roda nele como rodaria no seu terminal.
 - O app não altera a configuração de nenhum agente: os avisos são ligados por parâmetro, na hora de abrir.
 
+## A ideia do projeto
+
+Quem trabalha com agentes de código hoje vive entre muitas janelas: um terminal por agente, o editor para revisar, o git para desfazer, e o próprio caderno para lembrar quem está fazendo o quê. O Agent Controller quer ser **o lugar único do dev que trabalha com agentes**:
+
+- **Centralizador.** Todos os agentes, de todos os projetos, numa janela, com o estado de cada um à vista e um aviso quando algum precisa de você.
+- **Orquestrador.** O app não só mostra os agentes: ele coordena o trabalho entre eles. Ele isola cada um numa cópia do repositório, roda as verificações quando um turno termina, manda prompts a várias sessões, e cada vez mais passa o trabalho de uma sessão para outra (implementar → revisar → corrigir).
+- **IDE leve, feita para revisar.** O que o agente escreveu é lido, corrigido e devolvido a ele sem sair do app: diff editável, árvore de arquivos, git, realce do VS Code e terminal ao lado. Ele não quer substituir o VS Code ou o Zed para escrever código à mão: quer cobrir o ciclo "o agente fez, eu confiro, eu peço ajuste".
+
+O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app não mexe na configuração deles; e tudo o que o app escreve no agente sai de um pedido seu ou de uma regra que você criou.
+
+## Estado atual
+
+**Pronto e em uso** (descrito em [Como usar](#como-usar)):
+
+| Área | O que já existe |
+|---|---|
+| Sessões | Claude Code e Codex em terminais reais, grupos por repositório, comando próprio por sessão (aliases e funções do seu shell), pastas recentes e favoritas, arrastar pasta para abrir |
+| Estado e avisos | Estado de cada sessão pelos sinais do próprio agente, notificação do sistema, contador de "aguardando" no título da janela |
+| Isolamento | Cópia isolada por sessão (git worktree), com comando de preparo e limpeza |
+| Verificações | Lint, typecheck e testes ao fim de cada turno, com ✓/✗ na sessão e "mandar o erro ao agente" |
+| Prompts | Prompts guardados com variáveis, enviados a uma ou várias sessões, com espera pelo fim do turno |
+| Revisão de código | Painel de mudanças com diff editável, árvore de arquivos, stage, commit e descarte com desfazer, vários repositórios na mesma pasta, realce TextMate e temas do VS Code |
+| Terminal | Terminal auxiliar por sessão, layout configurável, atalhos editáveis e uso completo sem mouse |
+| Interface | Português, inglês e espanhol |
+
+**Próximos passos**, já priorizados em [`docs/funcionalidades`](docs/funcionalidades/README.md#segunda-rodada-de-painel-de-agentes-a-orquestrador-e-ide-leve):
+
+- **Leva 1, orquestração:** responder a pedidos de permissão sem abrir a sessão, fila de prompts, checkpoints por turno, aviso de conflito entre sessões, painel geral em mosaico, "melhor de N", revisor automático, encadear sessões e quadro de tarefas.
+- **Leva 2, IDE:** links `arquivo:linha` no terminal, `Ctrl+P`, abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
+- **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
+
+A `v0.1.0` existe como release em rascunho, com os três instaladores, e ainda falta testá-la numa máquina limpa antes de publicar. O que falta está em [`docs/pendencias/primeira-release.md`](docs/pendencias/primeira-release.md).
+
 ## Pré-requisitos
 
 | O quê | Para quê | Como conferir |
@@ -247,12 +280,9 @@ Na paleta de comandos, **Tema do código: …** troca o tema do modo atual do ap
 
 ### Exportar e importar as configurações
 
-Em **Preferências → Importar e exportar**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, prompts guardados, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
+Em **Preferências → Importar e exportar**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, prompts guardados, temas do código, linguagem por arquivo, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
 
-As sessões e as verificações de cada pasta não vão no arquivo. Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Agentes** depois. Os prompts de um arquivo importado são só texto: nada é enviado sem você abrir o diálogo, ver o texto e clicar em **Enviar**.
-Em **Preferências → Importar e exportar**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, temas do código, linguagem por arquivo, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
-
-As sessões, as verificações de cada pasta e os temas importados não vão no arquivo (um tema importado que falte na outra máquina volta ao tema do app). Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Agentes** depois.
+As sessões, as verificações de cada pasta e os temas importados não vão no arquivo (um tema importado que falte na outra máquina volta ao tema do app). Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Agentes** depois. Os prompts de um arquivo importado são só texto: nada é enviado sem você abrir o diálogo, ver o texto e clicar em **Enviar**.
 
 ### Atalhos
 
@@ -316,8 +346,7 @@ O Claude Code não tem essa tela: os avisos funcionam sem você fazer nada. Os d
 ## Limitações do v1
 
 - **Fechar o app encerra todos os agentes**, mesmo no meio de uma tarefa. O app pede confirmação antes, listando as sessões que serão encerradas. Ao reabrir, as sessões voltam com nome, pasta e agente, paradas, e cada uma inicia quando você a abre (numa conversa nova). Encerrar os agentes leva alguns segundos, com a janela já fechada; se você abrir o app nesse meio-tempo, ele abre assim que o anterior terminar de sair.
-- **O painel de mudanças edita arquivos, mas não opera o git.** Não há "stage", "commit" nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar com o agente parado. Do git, o app só cria e remove as [cópias isoladas](#cópia-isolada-git-worktree) e a branch nova de cada uma; nunca faz commit, push nem apaga uma branch.
-- **O painel de mudanças faz pouco no git, de propósito.** Marca para o commit, faz commit e descarta um arquivo por vez. Não há push, pull, branch, merge, stash, `--amend`, stage de trechos nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar e operar com o agente parado.
+- **O painel de mudanças faz pouco no git, de propósito.** Marca para o commit, faz commit e descarta um arquivo por vez. Não há push, pull, branch, merge, stash, `--amend`, stage de trechos nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar e operar com o agente parado. Fora do painel, o app só cria e remove as [cópias isoladas](#cópia-isolada-git-worktree) e a branch nova de cada uma; nunca faz push nem apaga uma branch.
 - **O painel de mudanças exige git**, instalado e com a pasta da sessão dentro de um repositório. Sem isso, ele explica o que falta.
 - **"Aguardando você" não é infalível.** Ver "Possivelmente aguardando" acima.
 - **Só Claude Code e Codex.** Sem outras IAs, SSH ou macOS. Um shell comum só existe como o [terminal auxiliar](#terminal-auxiliar) de uma sessão: um por sessão, sem abas nem divisão livre da tela. O comando de uma sessão pode ser trocado, mas o agente por trás dele tem que ser um dos dois.
