@@ -1,7 +1,8 @@
 # Encadear sessões
 
-- **Estado:** proposta, leva 1.
-- **ADR:** a do [revisor automático](../revisor-automatico/README.md) ("Passagem de trabalho entre sessões por arquivo"), mais uma nova, "Regras que enviam sozinhas".
+- **Estado:** concluída (leva 1). O smoke com os agentes reais (Claude Code e Codex) não foi rodado; os testes usam shells no lugar dos agentes.
+- **ADR:** a do [revisor automático](../revisor-automatico/README.md) ("Passagem de trabalho entre sessões por arquivo", [0023](../../../adr/0023-passagem-de-trabalho-por-arquivo.md)), mais uma nova, [0024, "Regras que enviam sozinhas"](../../../adr/0024-regras-que-enviam-sozinhas.md).
+- **Como ficou, onde mudou do desenho:** além dos quatro canais, `flows:discard` (descartar um envio preparado). Ganhou a variável `{saida_destino}` (onde o destino escreve a resposta). Os modelos criam as regras no editor, sem salvar; o "Autor e revisor" cria as duas regras equivalentes, mas o `ReviewerService` continua existindo (não foi migrado). Envios preparados e histórico ficam em memória.
 
 ## O problema
 

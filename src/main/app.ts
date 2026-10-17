@@ -22,6 +22,7 @@ import { MetricsSampler } from '@core/metrics/MetricsSampler';
 import { TailFeed } from '@core/sessions/TailFeed';
 import { ExperimentService } from '@core/experiments/ExperimentService';
 import { HandoffService } from '@core/handoff/HandoffService';
+import { FlowEngine } from '@core/handoff/FlowEngine';
 import { ReviewerService } from '@core/handoff/ReviewerService';
 import { defaultWorktreesFolder } from '@core/git/WorktreeService';
 import { PromptQueue } from '@core/prompts/PromptQueue';
@@ -45,7 +46,7 @@ import { summarizeRun } from '@shared/checks';
 import { factoryPrompts } from '@shared/prompts';
 import { REVIEW_PROMPT_ID } from '@shared/reviewer';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
-import type { Session, SessionGroup } from '@shared/session';
+import { STATUS_DETAIL, type Session, type SessionGroup } from '@shared/session';
 import { expandForSession, registerIpc, snapshotOf, type IpcContext } from './ipc';
 import { showNotification } from './notifications';
 import { createMainWindow, saveWindowState } from './window';
@@ -336,6 +337,7 @@ export async function startApp(): Promise<void> {
   });
 
   manager.on('permission', (session) => {
+    flows.asking(session.id);
     const request = notifications.evaluatePermission(session, {
       focused: manager.isFocused(session.id),
       prefs: data.prefs,
@@ -377,10 +379,21 @@ export async function startApp(): Promise<void> {
       void checks.turnEnded(session.id);
       void overlaps.touch(session.id);
       reviewer.turnEnded(session.id);
+      flows.turnEnded(session.id);
     }
     if (edge === 'started') {
       checks.turnStarted(session.id);
       reviewer.turnStarted(session.id);
+    }
+    // The agent asks the user something that is not its prompt: the flow waits for the answer.
+    if (
+      session.status.state === 'aguardando' &&
+      session.status.confirmed &&
+      session.status.detail !== STATUS_DETAIL.ready &&
+      session.status.detail !== STATUS_DETAIL.idle &&
+      session.status.detail !== STATUS_DETAIL.unconfirmed
+    ) {
+      flows.asking(session.id);
     }
     const request = notifications.evaluate(session, previous, {
       focused: manager.isFocused(session.id),
@@ -466,6 +479,23 @@ export async function startApp(): Promise<void> {
     reviewer.checksFinished(sessionId, summarizeRun(run).state === 'passed' ? 'passed' : 'failed');
   });
 
+  // Rules that send from one session to another; the queue of the destination delivers them.
+  const flows = new FlowEngine({
+    manager,
+    handoff,
+    checkpoints,
+    queue,
+    expand: (sessionId, text) => expandForSession(manager, sessionId, text, {}),
+    describeError: (err) => errorText(data.prefs.language, err),
+    watchMs: TEST_SHELL ? 2000 : undefined,
+  });
+  flows.on('changed', (groupId) => send('flows:changed', groupId));
+  flows.start();
+  checks.on('changed', (sessionId, run) => {
+    if (run?.trigger !== 'turnEnd' || run.state !== 'done') return;
+    flows.checksFinished(sessionId, summarizeRun(run).state === 'passed' ? 'passed' : 'failed');
+  });
+
   registerIpc({
     manager,
     changes,
@@ -475,6 +505,7 @@ export async function startApp(): Promise<void> {
     queue,
     experiments,
     reviewer,
+    flows,
     tails,
     data,
     discardDir,
@@ -532,6 +563,7 @@ export async function startApp(): Promise<void> {
     changes.dispose();
     overlaps.dispose();
     reviewer.dispose();
+    flows.dispose();
     checks.dispose();
     if (window && !window.isDestroyed()) saveWindowState(window, data.window);
     // Every agent, and whatever it started, ends with the app (ADR 0006).

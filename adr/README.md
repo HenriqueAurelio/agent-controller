@@ -27,6 +27,7 @@ Registro das decisões de arquitetura do agent-controller. Cada arquivo traz o c
 | [0021](0021-refs-proprias-no-repositorio.md) | O app grava refs próprias no repositório do usuário (checkpoints por turno; revê a 0018) | Aceita |
 | [0022](0022-experimentos-melhor-de-n.md) | Experimentos: o mesmo pedido em várias cópias (melhor de N) | Aceita |
 | [0023](0023-passagem-de-trabalho-por-arquivo.md) | Passagem de trabalho entre sessões por arquivo (o revisor automático) | Aceita |
+| [0024](0024-regras-que-enviam-sozinhas.md) | Regras que enviam sozinhas (encadear sessões) | Aceita |
 
 ## Status
 

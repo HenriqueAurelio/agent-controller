@@ -20,6 +20,7 @@ import { NewSessionDialog } from './components/NewSessionDialog';
 import { Overview } from './components/Overview';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { PromptDialog, type PromptContext } from './components/PromptDialog';
+import { FlowDialog } from './components/FlowDialog';
 import { ReviewerDialog } from './components/ReviewerDialog';
 import { QueueDialog, sendQueueFailure, skipQueueItem } from './components/QueueDialog';
 import { TimelineDialog } from './components/TimelineDialog';
@@ -49,6 +50,7 @@ type Overlay =
   | 'experiment'
   | 'compare'
   | 'reviewer'
+  | 'flow'
   | null;
 
 interface PromptRequest {
@@ -95,6 +97,8 @@ export function App() {
   const [overviewOpen, setOverviewOpen] = useState(false);
   /** The experiment whose attempts the comparison shows. */
   const [comparing, setComparing] = useState<string | null>(null);
+  const [flowGroupId, setFlowGroupId] = useState<string | null>(null);
+  const flowGroup = groups.find((g) => g.id === flowGroupId);
   const terminals = useRef<TerminalAreaHandle>(null);
   /** Sessions picked in the list with Ctrl+click. */
   const [marked, setMarked] = useState<string[]>([]);
@@ -657,6 +661,10 @@ export function App() {
           setComparing(experimentId);
           setOverlay('compare');
         }}
+        onFlow={(group) => {
+          setFlowGroupId(group.id);
+          setOverlay('flow');
+        }}
         onPreferences={() => setOverlay('prefs')}
         onClose={requestClose}
         onDuplicate={duplicate}
@@ -909,6 +917,9 @@ export function App() {
           }}
           onReturn={(text) => openPrompt(undefined, {}, [selected.id], text)}
         />
+      )}
+      {overlay === 'flow' && flowGroup && (
+        <FlowDialog key={flowGroup.id} group={flowGroup} onClose={closeOverlay} />
       )}
       {overlay === 'group' && <GroupDialog group={editedGroup} onClose={closeOverlay} />}
       {overlay === 'checks' && selected && (

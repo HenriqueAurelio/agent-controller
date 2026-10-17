@@ -22,7 +22,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 
 | Área | O que já existe |
 |---|---|
-| Sessões | Claude Code e Codex em terminais reais, grupos por repositório, comando próprio por sessão (aliases e funções do seu shell), pastas recentes e favoritas, arrastar pasta para abrir; painel geral com todas as sessões numa grade; experimentos "melhor de N" (o mesmo pedido em até 4 cópias, comparadas e escolhidas); revisor automático (uma segunda sessão lê cada turno e devolve observações) |
+| Sessões | Claude Code e Codex em terminais reais, grupos por repositório, comando próprio por sessão (aliases e funções do seu shell), pastas recentes e favoritas, arrastar pasta para abrir; painel geral com todas as sessões numa grade; experimentos "melhor de N" (o mesmo pedido em até 4 cópias, comparadas e escolhidas); revisor automático (uma segunda sessão lê cada turno e devolve observações); fluxos entre sessões (regras "quando A terminar, mandar isto para B", com aprovação e limite de voltas) |
 | Estado e avisos | Estado de cada sessão pelos sinais do próprio agente, notificação do sistema, contador de "aguardando" no título da janela, pedidos de permissão respondidos pela barra lateral ou pela notificação |
 | Isolamento | Cópia isolada por sessão (git worktree), com comando de preparo e limpeza; aviso quando sessões em cópias diferentes mudam o mesmo arquivo, com "provável conflito" quando as linhas se cruzam |
 | Verificações | Lint, typecheck e testes ao fim de cada turno, com ✓/✗ na sessão e "mandar o erro ao agente" |
@@ -34,7 +34,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 
 **Próximos passos**, já priorizados em [`docs/funcionalidades`](docs/funcionalidades/README.md#segunda-rodada-de-painel-de-agentes-a-orquestrador-e-ide-leve):
 
-- **Leva 1, orquestração:** encadear sessões e quadro de tarefas.
+- **Leva 1, orquestração:** o quadro de tarefas (as outras funcionalidades da leva estão concluídas).
 - **Leva 2, IDE:** links `arquivo:linha` no terminal, `Ctrl+P`, abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
 - **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
 
@@ -214,6 +214,19 @@ Outra sessão, com o contexto limpo, lê o que cada turno mudou e escreve observ
 - **Devolver:** abra **Revisão pronta**, marque as observações que valem e clique em **Devolver ao agente**: o diálogo de envio abre com elas escritas, para você ler, editar e enviar. O app nunca manda a revisão ao agente por conta própria.
 
 A decisão está na [ADR 0023](adr/0023-passagem-de-trabalho-por-arquivo.md).
+
+### Fluxos entre sessões
+
+Regras num **grupo** que passam o trabalho de uma sessão à outra: "quando **A** fizer **X**, mandar **isto** para **B**". Clique em **⇢** no cabeçalho do grupo (passe o mouse sobre ele) para abrir o **Fluxo**.
+
+- **Regra:** De (uma sessão do grupo) · Quando (terminar o turno, as verificações passarem, as verificações falharem ou a sessão escrever o arquivo de volta) · Para (outra sessão do grupo) · o texto a mandar · **Confirmar antes de mandar** · **Limite de voltas** (1 a 10; vale para regras que fecham um ciclo, como implementar → revisar → implementar).
+- **Variáveis do texto:** as dos prompts guardados e mais `{diff_do_turno}` (arquivo com o diff do último turno da sessão de origem), `{saida}` (o arquivo de volta da origem), `{saida_destino}` (onde o destino deve escrever a resposta) e `{sessao_origem}`. O diálogo mostra o arquivo de volta de cada sessão (`~/.agent-controller/handoffs/<id>/revisao.md`): peça ao agente que escreva ali.
+- **Modelos prontos:** "Autor e revisor" e "Plano → implementação → revisão" preenchem as regras na lista; ajuste e clique em **Salvar regras**.
+- **Aprovação:** de fábrica a regra só **prepara** o envio. Na barra lateral, a sessão de origem mostra `→ destino ✓`: um clique manda. Também dá para aprovar ou descartar no diálogo. O texto entra na [fila de prompts](#fila-de-prompts) do destino, que só o entrega com o agente livre.
+- **Freios:** ao chegar no limite de voltas o fluxo para e o histórico diz qual regra parou; ele também para sozinho quando uma sessão do fluxo pede permissão ou faz uma pergunta. **⏸** / **▶** no cabeçalho do grupo para e retoma. Um fim de turno só estimado (sem sinal confirmado do agente) não dispara regra.
+- **Histórico:** o diálogo lista o que cada regra preparou, mandou ou descartou. Envios preparados e histórico não sobrevivem a fechar o app; as regras sim, guardadas com o grupo (fora da exportação das configurações).
+
+A decisão está na [ADR 0024](adr/0024-regras-que-enviam-sozinhas.md).
 
 ### Ver o que o agente alterou
 

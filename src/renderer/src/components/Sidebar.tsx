@@ -3,7 +3,7 @@ import { isHorizontal } from '@shared/layout';
 import { statusLabel, type SessionGroup, type SessionView } from '@shared/session';
 import { formatCpu, formatMemory, hint, PROFILE_LABEL } from '../lib/format';
 import { ChecksBadge } from './ChecksDialog';
-import { OverlapBadge, PermissionAsk, QueueBadge, ReviewBadge } from './SessionMarks';
+import { FlowBadge, OverlapBadge, PermissionAsk, QueueBadge, ReviewBadge } from './SessionMarks';
 import { useT } from '../lib/i18n';
 import { store, useAppState } from '../lib/store';
 
@@ -18,6 +18,7 @@ interface Props {
   onNewExperiment(): void;
   /** Opens the comparison of the attempts of an experiment. */
   onCompare(experimentId: string): void;
+  onFlow(group: SessionGroup): void;
   /** The keyboard goes back to the terminal after an action in the list. */
   onDone(): void;
   /** Sessions picked with Ctrl+click, to send a prompt to all of them. */
@@ -76,6 +77,7 @@ export function Sidebar({
   onEditGroup,
   onNewExperiment,
   onCompare,
+  onFlow,
   onDone,
   marked,
   onMarkedChange,
@@ -333,6 +335,7 @@ export function Sidebar({
           )}
           <span className="session-meta">
             {/* First: the end of the line is cut when the list is narrow. */}
+            <FlowBadge session={session} />
             <ReviewBadge session={session} />
             <OverlapBadge session={session} />
             <QueueBadge session={session} />
@@ -483,6 +486,38 @@ export function Sidebar({
             }}
           >
             +
+          </button>
+          {group.flow && (
+            <button
+              className="icon-button flow-pause-button"
+              title={t(group.flow.paused ? 'flow.resumeLabel' : 'flow.stopLabel', {
+                name: group.name,
+              })}
+              aria-label={t(group.flow.paused ? 'flow.resumeLabel' : 'flow.stopLabel', {
+                name: group.name,
+              })}
+              data-testid="flow-pause-button"
+              onClick={(e) => {
+                e.stopPropagation();
+                void window.api
+                  .invoke('flows:pause', group.id, !group.flow!.paused)
+                  .catch(() => {});
+              }}
+            >
+              {group.flow.paused ? '▶' : '⏸'}
+            </button>
+          )}
+          <button
+            className="icon-button item-button flow-button"
+            title={t('flow.buttonHint')}
+            aria-label={t('flow.title', { name: group.name })}
+            data-testid="flow-button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onFlow(group);
+            }}
+          >
+            ⇢
           </button>
           {group.experimentId && (
             <button

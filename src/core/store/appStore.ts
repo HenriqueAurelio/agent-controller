@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { sanitizeAgentCommand } from '@shared/agents';
 import { sanitizeChecks, type CheckConfig } from '@shared/checks';
+import { sanitizeFlow } from '@shared/flows';
 import { translate } from '@shared/i18n';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
 import {
@@ -124,11 +125,13 @@ export function sanitizeGroups(value: unknown): SessionGroup[] {
       typeof g.experimentId === 'string' && g.experimentId && g.experimentId.length <= 64
         ? g.experimentId
         : undefined;
+    const flow = sanitizeFlow(g.flow);
     groups.push({
       id: g.id,
       name,
       collapsed: g.collapsed === true,
       ...(experimentId && { experimentId }),
+      ...(flow && { flow }),
     });
     if (groups.length === GROUPS_LIMIT) break;
   }

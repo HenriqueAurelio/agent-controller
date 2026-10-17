@@ -7,6 +7,7 @@ import { suggestChecks } from '@core/checks/suggest';
 import type { ChangesService, CheckpointTrees } from '@core/git/ChangesService';
 import type { CheckpointService } from '@core/git/CheckpointService';
 import type { ExperimentService } from '@core/experiments/ExperimentService';
+import type { FlowEngine } from '@core/handoff/FlowEngine';
 import { REVIEW_TRIGGERS, type ReviewerSetInput } from '@shared/reviewer';
 import type { ReviewerService } from '@core/handoff/ReviewerService';
 import type { OverlapService } from '@core/git/OverlapService';
@@ -86,6 +87,7 @@ export interface IpcContext {
   queue: PromptQueue;
   experiments: ExperimentService;
   reviewer: ReviewerService;
+  flows: FlowEngine;
   tails: TailFeed;
   data: AppData;
   /** Where the copies of discarded files go. */
@@ -217,7 +219,8 @@ export function snapshotOf(manager: SessionManager): SessionsSnapshot {
 }
 
 export function registerIpc(context: IpcContext): void {
-  const { manager, changes, checks, checkpoints, overlaps, queue, experiments, reviewer } = context;
+  const { manager, changes, checks, checkpoints, overlaps, queue, experiments, reviewer, flows } =
+    context;
 
   // Read at each use: the language may change at any moment.
   const language = () => context.data.prefs.language;
@@ -716,6 +719,21 @@ export function registerIpc(context: IpcContext): void {
   handle('reviewer:set', (input) => reviewer.set(reviewerInput(input)));
   handle('reviewer:runNow', (id) => reviewer.runNow(session(id).id));
   handle('reviewer:result', (id) => reviewer.result(session(id).id));
+
+  handle('flows:get', (id) => flows.get(str(id, 'group', 64)));
+  handle('flows:set', (id, rules) => flows.set(str(id, 'group', 64), rules));
+  handle('flows:pause', (id, paused) => {
+    if (typeof paused !== 'boolean') {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.paused' } });
+    }
+    return flows.pause(str(id, 'group', 64), paused);
+  });
+  handle('flows:approve', (id, pendingId) =>
+    flows.approve(str(id, 'group', 64), str(pendingId, 'flow', 64)),
+  );
+  handle('flows:discard', (id, pendingId) =>
+    flows.discard(str(id, 'group', 64), str(pendingId, 'flow', 64)),
+  );
 
   handle('git:open', (id, diffBase) => {
     // A panel that opens shows what is in common as of now, not as of the latest turn.
