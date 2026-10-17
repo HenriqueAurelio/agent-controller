@@ -14,6 +14,7 @@ import type { ReviewerService } from '@core/handoff/ReviewerService';
 import type { OverlapService } from '@core/git/OverlapService';
 import type { PromptQueue } from '@core/prompts/PromptQueue';
 import type { TailFeed } from '@core/sessions/TailFeed';
+import { locateFiles, MAX_CANDIDATES } from '@core/git/FileLocator';
 import { currentBranch } from '@core/git/GitService';
 import { expandPrompt, promptVariables } from '@core/prompts/expand';
 import {
@@ -850,6 +851,15 @@ export function registerIpc(context: IpcContext): void {
   handle('files:list', (id, dir, showHidden) => {
     const s = session(id);
     return changes.list(s.id, s.cwd, str(dir, 'folder'), showHidden === true);
+  });
+  handle('files:locate', (id, candidates) => {
+    if (!Array.isArray(candidates) || candidates.length > MAX_CANDIDATES) {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.file' } });
+    }
+    return locateFiles(
+      session(id).cwd,
+      candidates.map((candidate) => str(candidate, 'file', 1024)),
+    );
   });
 
   const checkpointId = (value: unknown) => {

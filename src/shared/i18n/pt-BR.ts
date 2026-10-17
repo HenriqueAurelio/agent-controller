@@ -106,6 +106,7 @@ export const ptBR = {
   'checks.duration': '{seconds} s',
   'checks.truncated': 'A saída era longa: só o final foi guardado.',
   'checks.noOutput': '(sem saída)',
+  'links.ctrlClick': 'Ctrl+clique para abrir',
   'checks.runNow': 'Rodar agora',
   'checks.cancel': 'Cancelar a rodada',
   'checks.sendFailure': 'Mandar o erro ao agente',

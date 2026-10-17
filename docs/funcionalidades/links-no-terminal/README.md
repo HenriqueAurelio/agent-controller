@@ -1,6 +1,6 @@
 # Links clicáveis no terminal
 
-- **Estado:** proposta, leva 2, primeira da fila.
+- **Estado:** concluída (leva 2). Smoke com agentes reais não rodado.
 - **ADR:** nenhuma nova.
 
 ## O problema
@@ -34,3 +34,12 @@ Caminhos e endereços no terminal do agente, no terminal auxiliar e na saída da
 | Ida e volta ao main a cada passada de mouse | Cache por sessão dos caminhos já conferidos, apagado quando o `RepoWatcher` avisa |
 | Separadores e maiúsculas no Windows | `C:\x\y.ts:3`, `/c/x/y.ts:3` e `x\y.ts` testados; comparação sem diferenciar maiúsculas |
 | Abrir arquivo de fora da pasta | Validado no main; recusa em silêncio |
+
+## Como ficou
+
+- `findLocations(line)` e `findUrls(line)` (`src/shared/locations.ts`) são puras e valem para qualquer saída de programa; o painel de problemas (24) lê com elas. `findLocations` só propõe candidatos: quem confirma é o main.
+- `files:locate(sessionId, candidatos)` (`src/core/git/FileLocator.ts`) responde, para cada candidato, `{ path, isFile }` com o caminho relativo à pasta da sessão e barras normais, ou `null`. A checagem é feita no caminho real (`realpath`), então `..` e links simbólicos para fora recusam, e no Windows o nome volta com a caixa certa e sem nome curto 8.3. A resposta nunca diz o porquê da recusa.
+- O provedor de links (`src/renderer/src/lib/terminalLinks.ts`) usa `registerLinkProvider` do xterm, com cache de 8 s das respostas do main (e limpeza quando o `RepoWatcher` avisa). Sem `Ctrl` o link não tem sublinhado nem cursor e o clique é ignorado. No lugar do `WebLinksAddon`, o clique em endereço também passa a pedir `Ctrl`.
+- A saída das verificações usa o mesmo leitor (`LinkedOutput.tsx`); o clique fecha o diálogo e abre o painel.
+- Abrir: o evento do renderer leva o App a abrir o painel em **Todos os arquivos**; o editor ganha a mensagem `reveal` no protocolo do iframe (`diffProtocol`) e a árvore expande até o arquivo.
+- Fora do desenho: caminhos que só existem no repositório da sessão mas fora da pasta dela não viram link (o painel nomeia os arquivos a partir da pasta da sessão).

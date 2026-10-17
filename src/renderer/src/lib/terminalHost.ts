@@ -1,9 +1,9 @@
 import { FitAddon } from '@xterm/addon-fit';
-import { WebLinksAddon } from '@xterm/addon-web-links';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { Terminal, type ITheme } from '@xterm/xterm';
 import type { Preferences, ThemeName } from '@shared/prefs';
 import type { TerminalSize } from '@shared/session';
+import { registerTerminalLinks } from './terminalLinks';
 
 const THEMES: Record<ThemeName, ITheme> = {
   dark: {
@@ -74,12 +74,24 @@ export class TerminalHost {
       windowsPty: isWindows ? { backend: 'conpty' } : undefined,
     });
     this.term.loadAddon(this.fit);
-    this.term.loadAddon(
-      new WebLinksAddon((_event, url) => void window.api.invoke('shell:openExternal', url)),
+    // Paths and addresses are links with Ctrl. The side terminal of a session shares its folder.
+    const links = registerTerminalLinks(this.term, this.element, {
+      sessionId: sessionId.replace(/:aux$/, ''),
+      openUrl: (url) => void window.api.invoke('shell:openExternal', url),
+    });
+    this.unsubscribe.push(
+      links.dispose,
+      // What was a missing file a moment ago may exist now.
+      window.api.on('git:changed', (id) => {
+        if (id === sessionId.replace(/:aux$/, '')) links.checker.clear();
+      }),
     );
     this.term.attachCustomKeyEventHandler((event) => this.handleKey(event));
     this.term.onData((data) => void window.api.invoke('terminal:input', sessionId, data));
-    this.term.onResize(() => this.scheduleResize());
+    this.term.onResize(() => {
+      this.markSize();
+      this.scheduleResize();
+    });
     this.element.addEventListener('contextmenu', (event) => {
       event.preventDefault();
       if (this.term.hasSelection()) this.copySelection();
@@ -107,6 +119,7 @@ export class TerminalHost {
     this.term.open(this.element);
     this.loadWebgl();
     this.safeFit();
+    this.markSize();
     this.observer.observe(this.element);
     const size = { cols: this.term.cols, rows: this.term.rows };
     this.lastSent = size;
@@ -154,6 +167,12 @@ export class TerminalHost {
 
   private refit(): void {
     if (this.visible) this.safeFit();
+  }
+
+  /** The size in cells, where the tests (and anyone debugging) can read it. */
+  private markSize(): void {
+    this.element.dataset.cols = String(this.term.cols);
+    this.element.dataset.rows = String(this.term.rows);
   }
 
   private scheduleResize(): void {

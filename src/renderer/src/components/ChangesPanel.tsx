@@ -22,6 +22,14 @@ import { FileTree } from './FileTree';
 /** What the panel lists: what git says changed, or every file of the folder. */
 export type PanelMode = 'changes' | 'files';
 
+/** A file and the line to put the cursor on; a new nonce asks again. */
+export interface LocationRequest {
+  path: string;
+  line?: number;
+  column?: number;
+  nonce: number;
+}
+
 interface Props {
   session: SessionView;
   mode: PanelMode;
@@ -38,6 +46,8 @@ interface Props {
   requestedBase?: { base: DiffBase; nonce: number } | null;
   /** A file to open, asked for from another session that also changed it. */
   requestedFile?: { path: string; nonce: number } | null;
+  /** A place to open in the editor, from a link in a terminal: the panel goes to "all files". */
+  requestedLocation?: LocationRequest | null;
   /** Opens a file in the panel of another session: the ⚠ of a file that both changed. */
   onOpenInSession(sessionId: string, file: string): void;
 }
@@ -120,6 +130,7 @@ export function ChangesPanel({
   onSendSelection,
   requestedBase,
   requestedFile,
+  requestedLocation,
   onOpenInSession,
 }: Props) {
   const t = useT();
@@ -150,7 +161,10 @@ export function ChangesPanel({
   }
   const [selected, setSelected] = useState<string | null>(null);
   /** The file open from the tree of all files; the list of changes keeps its own. */
-  const [browsed, setBrowsed] = useState<string | null>(null);
+  const [browsed, setBrowsed] = useState<string | null>(requestedLocation?.path ?? null);
+  /** The line the editor goes to once the file shows. */
+  const [reveal, setReveal] = useState<LocationRequest | null>(requestedLocation ?? null);
+  const appliedLocation = useRef(requestedLocation?.nonce);
   const [inline, setInline] = useState(false);
   const [revision, setRevision] = useState(0);
   const [dirty, setDirty] = useState(false);
@@ -301,6 +315,19 @@ export function ChangesPanel({
   const close = () => {
     if (mayLeave()) onClose();
   };
+
+  // A link clicked in a terminal while the panel is already open.
+  useEffect(() => {
+    if (!requestedLocation || appliedLocation.current === requestedLocation.nonce) return;
+    appliedLocation.current = requestedLocation.nonce;
+    const same = files && browsed === requestedLocation.path;
+    if (!same && dirty && !window.confirm(t('common.unsavedConfirm', { file: current ?? '' }))) {
+      return;
+    }
+    if (!files) onModeChange('files');
+    setBrowsed(requestedLocation.path);
+    setReveal(requestedLocation);
+  }, [requestedLocation, files, browsed, dirty, current, t, onModeChange]);
 
   /** With the agent working, whatever touches the repository asks once more. */
   const agentWorking = session.status.state === 'trabalhando';
@@ -562,6 +589,7 @@ export function ChangesPanel({
               plain={overview !== null && !overview.ok}
               onDirtyChange={setDirty}
               onSendSelection={onSendSelection}
+              reveal={reveal?.line ? { ...reveal, line: reveal.line } : null}
             />
           ) : (
             <div className="panel-message">{t('changes.pickFile')}</div>

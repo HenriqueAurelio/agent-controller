@@ -78,6 +78,17 @@ export function FileTree({
     for (const dir of expandedRef.current) void load(dir);
   }, [load, revision]);
 
+  // A file opened from outside the tree (a link in the terminal) shows where it is.
+  useEffect(() => {
+    if (!selected) return;
+    const parts = selected.split('/').slice(0, -1);
+    const dirs = parts.map((_, i) => parts.slice(0, i + 1).join('/'));
+    const missing = dirs.filter((dir) => !expandedRef.current.has(dir));
+    if (missing.length === 0) return;
+    setExpanded((current) => new Set([...current, ...dirs]));
+    for (const dir of missing) void load(dir);
+  }, [selected, load]);
+
   useEffect(() => treeRef.current?.focus(), []);
 
   const rows = useMemo(() => {

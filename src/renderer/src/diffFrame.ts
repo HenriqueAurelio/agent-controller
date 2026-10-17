@@ -269,11 +269,37 @@ function save(overwrite: boolean): void {
   });
 }
 
+/** A line asked for before its file was on screen: it is revealed once the file arrives. */
+let pendingReveal: Extract<ParentMessage, { type: 'reveal' }> | null = null;
+
+function applyReveal(): void {
+  const wanted = pendingReveal;
+  const model = editor.getModel()?.modified;
+  if (!wanted || !model || shownPath !== wanted.path) return;
+  pendingReveal = null;
+  const line = Math.min(Math.max(1, wanted.line), model.getLineCount());
+  const column = Math.min(Math.max(1, wanted.column ?? 1), model.getLineMaxColumn(line));
+  const side = editor.getModifiedEditor();
+  side.setPosition({ lineNumber: line, column });
+  side.revealLineInCenter(line);
+  // Lets the tests see where the editor really is.
+  document.body.dataset.revealLine = String(line);
+  document.body.dataset.revealPath = wanted.path;
+  side.focus();
+}
+
 window.addEventListener('message', (event: MessageEvent<ParentMessage>) => {
   if (event.source !== window.parent) return;
   const message = event.data;
-  if (message?.type === 'show') show(message);
-  else if (message?.type === 'loading') {
+  if (message?.type === 'show') {
+    show(message);
+    applyReveal();
+  } else if (message?.type === 'reveal') {
+    pendingReveal = message;
+    applyReveal();
+  } else if (message?.type === 'loading') {
+    pendingReveal = null;
+    delete document.body.dataset.revealLine;
     // Until the next file arrives the editor still shows the previous one; typing into it
     // would be lost.
     editor.updateOptions({ readOnly: true });

@@ -4,6 +4,7 @@ import type { AgentAvailability } from './agents';
 import type { CheckConfig, ChecksInfo } from './checks';
 import type { CheckpointList, CheckpointUsage, RestoreResult } from './checkpoints';
 import type { DiffBase, FileChange, FileDiff, FileListing, GitOverview } from './git';
+import type { LocatedPath } from './locations';
 import type { OverlapFile } from './overlaps';
 import type {
   AttemptDiff,
@@ -317,6 +318,11 @@ export interface IpcCommands {
   'overview:git': (sessionId: string) => OverviewGit;
   /** One folder of the session, relative to its root (the repository, or the session folder). */
   'files:list': (sessionId: string, dir: string, showHidden: boolean) => FileListing;
+  /**
+   * Which of the paths a program printed are files inside the session folder: one answer per
+   * candidate, in order, `null` for what does not exist or is not inside the folder.
+   */
+  'files:locate': (sessionId: string, candidates: string[]) => (LocatedPath | null)[];
 
   /** The checks of the session's folder, the ones its project suggests, and the latest run. */
   'checks:get': (sessionId: string) => ChecksInfo;
@@ -455,6 +461,7 @@ export const COMMAND_CHANNELS = [
   'overview:watch',
   'overview:git',
   'files:list',
+  'files:locate',
   'checks:get',
   'checks:configure',
   'checks:run',

@@ -29,13 +29,13 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 | Prompts | Prompts guardados com variáveis, enviados a uma ou várias sessões, com espera pelo fim do turno; fila de prompts por sessão, um a cada fim de turno |
 | Revisão de código | Painel de mudanças com diff editável, árvore de arquivos, stage, commit e descarte com desfazer, vários repositórios na mesma pasta, realce TextMate e temas do VS Code |
 | Checkpoints | Uma foto da pasta no fim de cada turno, no próprio git e fora das branches: ver só o que o último turno mudou, comparar dois turnos, voltar a um turno e desfazer |
-| Terminal | Terminal auxiliar por sessão, layout configurável, atalhos editáveis e uso completo sem mouse |
+| Terminal | Links com `Ctrl+clique` (`arquivo:linha` abre o editor na linha, `http://…` abre o navegador), terminal auxiliar por sessão, layout configurável, atalhos editáveis e uso completo sem mouse |
 | Interface | Português, inglês e espanhol |
 
 **Próximos passos**, já priorizados em [`docs/funcionalidades`](docs/funcionalidades/README.md#segunda-rodada-de-painel-de-agentes-a-orquestrador-e-ide-leve):
 
 - **Leva 1, orquestração:** concluída (a última foi o quadro de tarefas).
-- **Leva 2, IDE:** links `arquivo:linha` no terminal, `Ctrl+P`, abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
+- **Leva 2, IDE:** links `arquivo:linha` no terminal (concluído), depois `Ctrl+P`, abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
 - **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
 
 A `v0.1.0` existe como release em rascunho, com os três instaladores, e ainda falta testá-la numa máquina limpa antes de publicar. O que falta está em [`docs/pendencias/primeira-release.md`](docs/pendencias/primeira-release.md).
@@ -255,6 +255,7 @@ A decisão está na [ADR 0024](adr/0024-regras-que-enviam-sozinhas.md).
   - **Descartar:** o botão **↺** de um arquivo (aparece ao passar o mouse) devolve o arquivo ao que o último commit tem, ou o apaga se for novo. O app pergunta antes, guarda uma cópia em `~/.agent-controller/descartados/` e mostra **Desfazer** logo em seguida. As cópias ficam 30 dias. Desfazer não funciona se o arquivo mudou depois de descartado, para não apagar o que foi escrito nele.
   - Com o agente trabalhando, descartar e fazer commit pedem uma confirmação a mais. Se o agente estiver usando o git ao mesmo tempo, o app avisa que o repositório está ocupado; é só tentar de novo.
 - A lista se atualiza sozinha enquanto o painel está aberto.
+- **Links no terminal:** `Ctrl+clique` num caminho impresso no terminal do agente, no terminal auxiliar ou na saída das verificações abre o arquivo no editor do painel (em **Todos os arquivos**), já na linha. Valem `src/x.ts:12`, `src/x.ts:12:3`, `src/x.ts(12,3)` (tsc), `File "x.py", line 12` (Python) e o caminho sozinho, relativo à pasta da sessão ou absoluto (no Windows também `C:\x\y.ts`, `/c/x/y.ts` e `x\y.ts`). Só vira link o que **é um arquivo dentro da pasta da sessão** (um link simbólico para fora não conta): um caminho de fora ou que não existe fica como texto. `http://…`, `https://…` e `localhost:3000` abrem no navegador. Sem o `Ctrl` nada muda (não há sublinhado, e o clique só seleciona), então copiar texto continua como sempre; por isso o clique simples numa `http://…` já não abre o navegador.
 - **Vários repositórios:** se a pasta da sessão guarda mais de um repositório (lado a lado numa pasta comum, ou um dentro do outro), a lista ganha um cabeçalho por repositório, com a branch e a contagem de cada um, e o contador do botão soma todos. Com um repositório só, nada muda.
 
 ### Ver todos os arquivos da pasta
@@ -412,6 +413,7 @@ As sessões, as verificações de cada pasta e os temas importados não vão no 
 | `Ctrl+Shift+B` | Abrir ou fechar o quadro de tarefas |
 | `Ctrl+,` | Preferências |
 | sem atalho de fábrica | Próxima sessão aguardando você; fechar a sessão atual; novo grupo de sessões |
+| `Ctrl+clique` | Num caminho (`arquivo:linha`) ou endereço, no terminal e na saída das verificações: abre o arquivo na linha, ou o navegador (fixo) |
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copiar / colar no terminal. No Windows, `Ctrl+C` com texto selecionado e `Ctrl+V` também |
 
 Esses são os atalhos de fábrica. Em **Preferências → Atalhos** cada ação pode ter os seus: clique em **+**, pressione as teclas e pronto; o **×** ao lado de um atalho o remove, e **Restaurar padrões** desfaz tudo. Uma ação aceita até quatro atalhos. Se a combinação já era de outra ação, ela muda de dono. Para não atrapalhar o que você digita no terminal, um atalho precisa de `Ctrl`, `Alt` ou de uma tecla de função, e não pode ser um dos que o terminal, o editor e o painel usam (`Ctrl+C`, `Ctrl+V`, `Ctrl+S`, `F2`, `F6`, `F12`, `Ctrl+Espaço`).

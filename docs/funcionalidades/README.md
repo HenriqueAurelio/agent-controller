@@ -97,9 +97,11 @@ O porquê dessa ordem:
 
 ### Leva 2: o que falta de IDE
 
+Concluídas: 21 (sem ADR nova).
+
 | # | Funcionalidade | Em uma frase | Valor | Esforço | ADR nova | Estado |
 |---|---|---|---|---|---|---|
-| 21 | [Links no terminal](links-no-terminal/README.md) | `Ctrl+clique` em `arquivo:linha` abre o editor na linha | Alto | P a M | Não | Pendente |
+| 21 | [Links no terminal](links-no-terminal/README.md) | `Ctrl+clique` em `arquivo:linha` abre o editor na linha | Alto | P a M | Não | Concluída |
 | 22 | [Abrir arquivo rápido](abrir-arquivo-rapido/README.md) | `Ctrl+P` com busca aproximada pelo nome | Alto | P | Não | Pendente |
 | 23 | [Abrir no editor externo](abrir-no-editor-externo/README.md) | O arquivo na linha, ou a pasta, no VS Code, Cursor ou Zed | Médio | P | Não | Pendente |
 | 24 | [Painel de problemas](painel-de-problemas/README.md) | Os erros das verificações numa lista clicável, mandados ao agente um a um | Alto | M | Não | Pendente |
