@@ -137,6 +137,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'shortcut.sendPrompt': 'Enviar un prompt a las sesiones marcadas, o a la actual',
   'shortcut.newGroup': 'Nuevo grupo de sesiones',
   'shortcut.preferences': 'Preferencias',
+  'shortcut.overview': 'Panel general: todas las sesiones en una cuadrícula',
 
   'shortcuts.title': 'Atajos',
   'shortcuts.reserved':
@@ -768,4 +769,28 @@ export const es: Record<keyof typeof ptBR, string> = {
   'overlaps.ignoredHint':
     'Sin “/”, vale para el nombre en cualquier carpeta (package-lock.json); con “/”, para la ruta desde la raíz (generado/**). * no pasa de una carpeta, ** sí.',
   'overlaps.restore': 'Volver a la lista predeterminada',
+  'overview.title': 'Panel general',
+  'overview.open': 'Panel general: todas las sesiones en una cuadrícula',
+  'overview.back': 'Volver a la terminal',
+  'overview.filter': 'Qué sesiones mostrar',
+  'overview.filter.all': 'Todas',
+  'overview.filter.waiting': 'Esperándote',
+  'overview.filter.working': 'Trabajando',
+  'overview.sortByAttention': 'Ordenar por atención',
+  'overview.sortByAttentionHint':
+    'Primero las que te esperan, después las de verificaciones fallidas, después el resto',
+  'overview.ungrouped': 'Sin grupo',
+  'overview.empty': 'Todavía no hay sesiones.',
+  'overview.emptyFilter': 'Ninguna sesión en este filtro.',
+  'overview.noOutput': 'Todavía nada legible en la pantalla.',
+  'overview.since': '{state} {duration}',
+  'overview.duration.seconds': 'hace {count} s',
+  'overview.duration.minutes': 'hace {count} min',
+  'overview.duration.hours': 'hace {count} h',
+  'overview.duration.days': 'hace {count} d',
+  'overview.branch': 'Rama {branch}',
+  'overview.changes': '{count} archivos cambiados desde el último commit',
+  'overview.card': 'Abrir {name}: {state}',
+  'overview.lines': 'Últimas líneas de {name}',
+  'overview.keys': 'Las flechas recorren las tarjetas · Enter abre la sesión · Esc vuelve',
 };

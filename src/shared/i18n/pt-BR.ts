@@ -137,6 +137,7 @@ export const ptBR = {
   'shortcut.sendPrompt': 'Enviar um prompt às sessões marcadas, ou à atual',
   'shortcut.newGroup': 'Novo grupo de sessões',
   'shortcut.preferences': 'Preferências',
+  'shortcut.overview': 'Painel geral: todas as sessões numa grade',
 
   'shortcuts.title': 'Atalhos',
   'shortcuts.reserved':
@@ -762,4 +763,28 @@ export const ptBR = {
   'overlaps.ignoredHint':
     'Sem “/”, vale para o nome em qualquer pasta (package-lock.json); com “/”, para o caminho desde a raiz (gerado/**). * não passa de uma pasta, ** passa.',
   'overlaps.restore': 'Voltar à lista padrão',
+  'overview.title': 'Painel geral',
+  'overview.open': 'Painel geral: todas as sessões numa grade',
+  'overview.back': 'Voltar ao terminal',
+  'overview.filter': 'Quais sessões mostrar',
+  'overview.filter.all': 'Todas',
+  'overview.filter.waiting': 'Aguardando você',
+  'overview.filter.working': 'Trabalhando',
+  'overview.sortByAttention': 'Ordenar por atenção',
+  'overview.sortByAttentionHint':
+    'Primeiro as que aguardam você, depois as com verificações falhando, depois o resto',
+  'overview.ungrouped': 'Sem grupo',
+  'overview.empty': 'Nenhuma sessão ainda.',
+  'overview.emptyFilter': 'Nenhuma sessão neste filtro.',
+  'overview.noOutput': 'Nada legível na tela ainda.',
+  'overview.since': '{state} {duration}',
+  'overview.duration.seconds': 'há {count} s',
+  'overview.duration.minutes': 'há {count} min',
+  'overview.duration.hours': 'há {count} h',
+  'overview.duration.days': 'há {count} d',
+  'overview.branch': 'Branch {branch}',
+  'overview.changes': '{count} arquivos mudados em relação ao último commit',
+  'overview.card': 'Abrir {name}: {state}',
+  'overview.lines': 'Últimas linhas de {name}',
+  'overview.keys': 'Setas andam pelos cartões · Enter abre a sessão · Esc volta',
 } as const;

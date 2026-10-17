@@ -137,6 +137,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'shortcut.sendPrompt': 'Send a prompt to the picked sessions, or to the current one',
   'shortcut.newGroup': 'New group of sessions',
   'shortcut.preferences': 'Preferences',
+  'shortcut.overview': 'Overview: every session in a grid',
 
   'shortcuts.title': 'Shortcuts',
   'shortcuts.reserved':
@@ -760,4 +761,28 @@ export const en: Record<keyof typeof ptBR, string> = {
   'overlaps.ignoredHint':
     'Without “/”, it matches the name in any folder (package-lock.json); with “/”, the path from the root (generated/**). * stays within a folder, ** does not.',
   'overlaps.restore': 'Back to the default list',
+  'overview.title': 'Overview',
+  'overview.open': 'Overview: every session in a grid',
+  'overview.back': 'Back to the terminal',
+  'overview.filter': 'Which sessions to show',
+  'overview.filter.all': 'All',
+  'overview.filter.waiting': 'Waiting for you',
+  'overview.filter.working': 'Working',
+  'overview.sortByAttention': 'Sort by attention',
+  'overview.sortByAttentionHint':
+    'First the ones waiting for you, then the ones with failing checks, then the rest',
+  'overview.ungrouped': 'No group',
+  'overview.empty': 'No sessions yet.',
+  'overview.emptyFilter': 'No session in this filter.',
+  'overview.noOutput': 'Nothing readable on the screen yet.',
+  'overview.since': '{state} {duration}',
+  'overview.duration.seconds': 'for {count} s',
+  'overview.duration.minutes': 'for {count} min',
+  'overview.duration.hours': 'for {count} h',
+  'overview.duration.days': 'for {count} d',
+  'overview.branch': 'Branch {branch}',
+  'overview.changes': '{count} files changed since the last commit',
+  'overview.card': 'Open {name}: {state}',
+  'overview.lines': 'Last lines of {name}',
+  'overview.keys': 'Arrows move between cards · Enter opens the session · Esc goes back',
 };

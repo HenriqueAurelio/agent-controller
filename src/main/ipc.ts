@@ -8,6 +8,7 @@ import type { ChangesService, CheckpointTrees } from '@core/git/ChangesService';
 import type { CheckpointService } from '@core/git/CheckpointService';
 import type { OverlapService } from '@core/git/OverlapService';
 import type { PromptQueue } from '@core/prompts/PromptQueue';
+import type { TailFeed } from '@core/sessions/TailFeed';
 import { currentBranch } from '@core/git/GitService';
 import { expandPrompt, promptVariables } from '@core/prompts/expand';
 import {
@@ -72,6 +73,7 @@ export interface IpcContext {
   checkpoints: CheckpointService;
   overlaps: OverlapService;
   queue: PromptQueue;
+  tails: TailFeed;
   data: AppData;
   /** Where the copies of discarded files go. */
   discardDir: string;
@@ -707,6 +709,16 @@ export function registerIpc(context: IpcContext): void {
       })),
     );
     return usage.filter((u) => u.count > 0);
+  });
+
+  handle('overview:watch', (watching) => context.tails.watch(watching === true));
+  handle('overview:git', async (id) => {
+    const s = session(id);
+    const [branch, count] = await Promise.all([
+      currentBranch(s.cwd).catch(() => null),
+      changes.count(s.id, s.cwd),
+    ]);
+    return { branch, changes: count };
   });
 
   const checksInfo = (sessionId: string): ChecksInfo => {

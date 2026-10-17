@@ -167,6 +167,8 @@ interface Entry {
   /** The plain shell beside the agent, while it is open. No signals, no state of its own. */
   aux: Stream | null;
   permission: OpenPermission | null;
+  /** Bumped by the agent's output: what changed since a glance at its last lines. */
+  outputSeq: number;
 }
 
 const DEFAULT_SIZE: TerminalSize = { cols: 100, rows: 30 };
@@ -191,6 +193,7 @@ export const LOW_WATER = 32 * 1024;
  */
 export class SessionManager extends EventEmitter<ManagerEvents> {
   private readonly entries = new Map<string, Entry>();
+  private outputCounter = 0;
   /** Shells beside an agent that were closed and are still ending, by session. */
   private readonly auxClosing = new Map<string, Promise<void>>();
   private order: string[] = [];
@@ -233,6 +236,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       runtime: null,
       aux: null,
       permission: null,
+      outputSeq: 0,
     };
   }
 
@@ -1034,6 +1038,8 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   };
 
   private deliver(id: string, runtime: Stream, chunk: string): void {
+    const entry = this.entries.get(id);
+    if (entry && entry.runtime === runtime) entry.outputSeq = ++this.outputCounter;
     runtime.history.write(chunk, () => this.relieve(id, runtime));
     if (runtime.attached !== 'no') {
       runtime.buffer.push(chunk);
@@ -1262,6 +1268,23 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     if (!runtime) return '';
     await runtime.history.flush();
     return runtime.history.screenText();
+  }
+
+  /**
+   * A number that grows whenever the agent of the session writes something: the same number
+   * means the same last lines. Zero for a session that never ran.
+   */
+  outputSeq(id: string): number {
+    return this.entries.get(id)?.outputSeq ?? 0;
+  }
+
+  /** The last lines of the agent's output, as plain text (see `ScreenHistory.tail`). */
+  async tail(id: string, lines: number): Promise<string[]> {
+    const runtime = this.entries.get(id)?.runtime;
+    if (!runtime) return [];
+    await runtime.history.flush();
+    // The agent may have been restarted, and this history disposed, while it caught up.
+    return this.entries.get(id)?.runtime === runtime ? runtime.history.tail(lines) : [];
   }
 
   attachedCount(): number {

@@ -65,19 +65,19 @@ Com as propostas 4, 5, 6, 8, 9, 10 e 11 prontas, a linha muda: o app passa a **c
 
 ### Leva 1: orquestração de agentes
 
-Feitas: 12 ([ADR 0020](../../adr/0020-responder-permissao-fora-do-terminal.md)), 13 (revisão da [ADR 0015](../../adr/0015-app-escreve-no-terminal-a-pedido.md)), 14 ([ADR 0021](../../adr/0021-refs-proprias-no-repositorio.md)) e 15 (sem ADR nova).
+Concluídas: 12 ([ADR 0020](../../adr/0020-responder-permissao-fora-do-terminal.md)), 13 (revisão da [ADR 0015](../../adr/0015-app-escreve-no-terminal-a-pedido.md)), 14 ([ADR 0021](../../adr/0021-refs-proprias-no-repositorio.md)), 15 (sem ADR nova) e 16 (sem ADR nova).
 
-| # | Funcionalidade | Em uma frase | Valor | Esforço | ADR nova |
-|---|---|---|---|---|---|
-| 12 | [Responder sem abrir a sessão](responder-sem-abrir/README.md) | Permitir ou negar o pedido do agente pela barra lateral ou pela notificação | Muito alto | M | Sim ([0020](../../adr/0020-responder-permissao-fora-do-terminal.md)) |
-| 13 | [Fila de prompts](fila-de-prompts/README.md) | Vários prompts por sessão, mandados um a cada fim de turno | Alto | P a M | Não |
-| 14 | [Checkpoints por turno](checkpoints-por-turno/README.md) | Uma foto da pasta a cada turno, em ref escondida do git: comparar e voltar | Muito alto | M | Sim (revê a 0018) |
-| 15 | [Conflito entre sessões](conflito-entre-sessoes/README.md) | Aviso quando duas sessões do mesmo repositório mexem no mesmo arquivo | Médio | P a M | Não |
-| 16 | [Painel geral](painel-geral/README.md) | Todas as sessões numa grade, com estado e as últimas linhas | Alto | M | Não |
-| 17 | [Melhor de N](melhor-de-n/README.md) | O mesmo pedido em N cópias e agentes, comparados lado a lado | Alto | M | Sim |
-| 18 | [Revisor automático](revisor-automatico/README.md) | Uma segunda sessão revisa cada turno e devolve as observações | Alto | M | Sim |
-| 19 | [Encadear sessões](encadear-sessoes/README.md) | Regras "quando A terminar, mandar isto para B", com limite de voltas | Alto | M a G | Sim |
-| 20 | [Quadro de tarefas](quadro-de-tarefas/README.md) | Cartões que viram sessões e andam sozinhos pelas colunas | Alto, a longo prazo | G | Sim |
+| # | Funcionalidade | Em uma frase | Valor | Esforço | ADR nova | Estado |
+|---|---|---|---|---|---|---|
+| 12 | [Responder sem abrir a sessão](responder-sem-abrir/README.md) | Permitir ou negar o pedido do agente pela barra lateral ou pela notificação | Muito alto | M | Sim ([0020](../../adr/0020-responder-permissao-fora-do-terminal.md)) | Concluída |
+| 13 | [Fila de prompts](fila-de-prompts/README.md) | Vários prompts por sessão, mandados um a cada fim de turno | Alto | P a M | Não | Concluída |
+| 14 | [Checkpoints por turno](checkpoints-por-turno/README.md) | Uma foto da pasta a cada turno, em ref escondida do git: comparar e voltar | Muito alto | M | Sim (revê a 0018) | Concluída |
+| 15 | [Conflito entre sessões](conflito-entre-sessoes/README.md) | Aviso quando duas sessões do mesmo repositório mexem no mesmo arquivo | Médio | P a M | Não | Concluída |
+| 16 | [Painel geral](painel-geral/README.md) | Todas as sessões numa grade, com estado e as últimas linhas | Alto | M | Não | Concluída |
+| 17 | [Melhor de N](melhor-de-n/README.md) | O mesmo pedido em N cópias e agentes, comparados lado a lado | Alto | M | Sim | Pendente |
+| 18 | [Revisor automático](revisor-automatico/README.md) | Uma segunda sessão revisa cada turno e devolve as observações | Alto | M | Sim | Pendente |
+| 19 | [Encadear sessões](encadear-sessoes/README.md) | Regras "quando A terminar, mandar isto para B", com limite de voltas | Alto | M a G | Sim | Pendente |
+| 20 | [Quadro de tarefas](quadro-de-tarefas/README.md) | Cartões que viram sessões e andam sozinhos pelas colunas | Alto, a longo prazo | G | Sim | Pendente |
 
 ```
 Primeiro    12 responder-sem-abrir      13 fila-de-prompts       (em paralelo, sem dependência)
@@ -97,17 +97,17 @@ O porquê dessa ordem:
 
 ### Leva 2: o que falta de IDE
 
-| # | Funcionalidade | Em uma frase | Valor | Esforço | ADR nova |
-|---|---|---|---|---|---|
-| 21 | [Links no terminal](links-no-terminal/README.md) | `Ctrl+clique` em `arquivo:linha` abre o editor na linha | Alto | P a M | Não |
-| 22 | [Abrir arquivo rápido](abrir-arquivo-rapido/README.md) | `Ctrl+P` com busca aproximada pelo nome | Alto | P | Não |
-| 23 | [Abrir no editor externo](abrir-no-editor-externo/README.md) | O arquivo na linha, ou a pasta, no VS Code, Cursor ou Zed | Médio | P | Não |
-| 24 | [Painel de problemas](painel-de-problemas/README.md) | Os erros das verificações numa lista clicável, mandados ao agente um a um | Alto | M | Não |
-| 25 | [Buscar no projeto](buscar-no-projeto/README.md) | `Ctrl+Shift+F` com ripgrep, e os resultados ao agente | Alto | M | Sim |
-| 26 | [Seguir o agente](seguir-o-agente/README.md) | O editor acompanha, ao vivo, o arquivo que o agente edita | Médio | M | Sim |
-| 27 | [Histórico do arquivo](historico-do-arquivo/README.md) | Log e autoria (blame) do arquivo, e comparar com um commit | Médio | M | Não |
-| 28 | [Dividir a tela](dividir-a-tela/README.md) | Duas a quatro sessões à vista ao mesmo tempo | Médio | M | Sim |
-| 29 | [Multibuffer](multibuffer/README.md) | Todos os trechos do turno numa rolagem só, editável | Alto | G | Sim (revê a 0012) |
+| # | Funcionalidade | Em uma frase | Valor | Esforço | ADR nova | Estado |
+|---|---|---|---|---|---|---|
+| 21 | [Links no terminal](links-no-terminal/README.md) | `Ctrl+clique` em `arquivo:linha` abre o editor na linha | Alto | P a M | Não | Pendente |
+| 22 | [Abrir arquivo rápido](abrir-arquivo-rapido/README.md) | `Ctrl+P` com busca aproximada pelo nome | Alto | P | Não | Pendente |
+| 23 | [Abrir no editor externo](abrir-no-editor-externo/README.md) | O arquivo na linha, ou a pasta, no VS Code, Cursor ou Zed | Médio | P | Não | Pendente |
+| 24 | [Painel de problemas](painel-de-problemas/README.md) | Os erros das verificações numa lista clicável, mandados ao agente um a um | Alto | M | Não | Pendente |
+| 25 | [Buscar no projeto](buscar-no-projeto/README.md) | `Ctrl+Shift+F` com ripgrep, e os resultados ao agente | Alto | M | Sim | Pendente |
+| 26 | [Seguir o agente](seguir-o-agente/README.md) | O editor acompanha, ao vivo, o arquivo que o agente edita | Médio | M | Sim | Pendente |
+| 27 | [Histórico do arquivo](historico-do-arquivo/README.md) | Log e autoria (blame) do arquivo, e comparar com um commit | Médio | M | Não | Pendente |
+| 28 | [Dividir a tela](dividir-a-tela/README.md) | Duas a quatro sessões à vista ao mesmo tempo | Médio | M | Sim | Pendente |
+| 29 | [Multibuffer](multibuffer/README.md) | Todos os trechos do turno numa rolagem só, editável | Alto | G | Sim (revê a 0012) | Pendente |
 
 ```
 Primeiro    21 links-no-terminal   22 abrir-arquivo-rapido   23 abrir-no-editor-externo

@@ -1,6 +1,6 @@
 # Responder sem abrir a sessão
 
-- **Estado:** feita (leva 1). A sondagem com os agentes reais (12.1) e o smoke (12.6) esperam autorização para usar os agentes; veja a ADR.
+- **Estado:** concluída (leva 1). A sondagem com os agentes reais (12.1) e o smoke (12.6) esperam autorização para usar os agentes; veja a ADR.
 - **ADR:** [0020, "Responder ao pedido de permissão fora do terminal"](../../../adr/0020-responder-permissao-fora-do-terminal.md). Reaproveita a [ADR 0015](../../../adr/0015-app-escreve-no-terminal-a-pedido.md) (o app escreve no terminal a pedido do usuário).
 
 ## O problema

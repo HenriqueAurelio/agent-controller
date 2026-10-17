@@ -19,6 +19,7 @@ import { OverlapService } from '@core/git/OverlapService';
 import { repositoryRoot } from '@core/git/GitService';
 import { cleanDiscarded } from '@core/git/GitWriteService';
 import { MetricsSampler } from '@core/metrics/MetricsSampler';
+import { TailFeed } from '@core/sessions/TailFeed';
 import { PromptQueue } from '@core/prompts/PromptQueue';
 import { PtyManager } from '@core/pty/PtyManager';
 import { NotificationPolicy, type NotificationRequest } from '@core/sessions/NotificationPolicy';
@@ -212,6 +213,15 @@ export async function startApp(): Promise<void> {
     onSample: (sample) => send('metrics:update', sample),
   });
 
+  // The last lines of each session, for the overview: read only while it is open.
+  const tails = new TailFeed({
+    sessionIds: () => manager.list().map((session) => session.id),
+    outputSeq: (id) => manager.outputSeq(id),
+    tail: (id, lines) => manager.tail(id, lines),
+    onTails: (batch) => send('sessions:tails', batch),
+    onError: (err) => console.error('Falha ao ler as últimas linhas das sessões:', err),
+  });
+
   const notifications = new NotificationPolicy();
   const openSession = (sessionId: string) => {
     if (!window || window.isDestroyed()) return;
@@ -400,6 +410,7 @@ export async function startApp(): Promise<void> {
     checkpoints,
     overlaps,
     queue,
+    tails,
     data,
     discardDir,
     codeThemes: new CodeThemeStore(path.join(userData, 'themes')),
@@ -452,6 +463,7 @@ export async function startApp(): Promise<void> {
   const shutdown = async () => {
     closing = true;
     metrics.stop();
+    tails.dispose();
     changes.dispose();
     overlaps.dispose();
     checks.dispose();

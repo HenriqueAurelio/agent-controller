@@ -1,6 +1,25 @@
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { Terminal } from '@xterm/headless';
 
+/** How far up `tail` looks for lines worth showing, in rows. */
+const TAIL_SCAN_ROWS = 400;
+/** A longer line is cut: a glance has no room for it. */
+export const TAIL_LINE_LIMIT = 300;
+
+// Box drawing (U+2500 to U+257F) and the ASCII bar TUIs frame their text with, at the edges of a
+// row.
+const EDGE = /^[\s─-╿|]+|[\s─-╿|]+$/gu;
+// Rules, spinners and frames have no letter nor digit in them.
+const READABLE = /[\p{L}\p{N}]/u;
+
+/** A row of the terminal as a glance shows it; empty when nothing in it reads as text. */
+export function tailLine(row: string): string {
+  const text = row.replace(EDGE, '').replace(/\s{3,}/g, '  ');
+  if (!READABLE.test(text)) return '';
+  const chars = [...text];
+  return chars.length > TAIL_LINE_LIMIT ? `${chars.slice(0, TAIL_LINE_LIMIT - 1).join('')}…` : text;
+}
+
 export interface ScreenHistoryOptions {
   cols: number;
   rows: number;
@@ -80,6 +99,33 @@ export class ScreenHistory {
     }
     while (lines.length && lines[lines.length - 1] === '') lines.pop();
     return lines.join('\n');
+  }
+
+  /**
+   * The last `count` lines of the output, as plain text for a glance: a line the terminal wrapped
+   * is one line again, and what a TUI draws around its text (borders, rules, empty rows) is left
+   * out. Only the end of the buffer is read, so the cost does not grow with the scrollback.
+   */
+  tail(count: number): string[] {
+    const wanted = Math.max(0, Math.floor(count));
+    const buffer = this.terminal.buffer.active;
+    const lines: string[] = [];
+    let y = buffer.length - 1;
+    // The empty rows at the bottom of the screen do not count against how far it looks.
+    const stop = Math.max(0, y - this.terminal.rows - TAIL_SCAN_ROWS);
+    while (y >= stop && lines.length < wanted) {
+      // A wrapped row continues the one above it: walk up to where the line starts.
+      let start = y;
+      while (start > 0 && buffer.getLine(start)?.isWrapped) start--;
+      let text = '';
+      for (let row = start; row <= y; row++) {
+        text += buffer.getLine(row)?.translateToString(row === y) ?? '';
+      }
+      const clean = tailLine(text);
+      if (clean) lines.push(clean);
+      y = start - 1;
+    }
+    return lines.reverse();
   }
 
   cursor(): { x: number; y: number } {

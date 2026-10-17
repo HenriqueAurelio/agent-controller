@@ -1,16 +1,10 @@
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
 import { isHorizontal } from '@shared/layout';
-import {
-  requestText,
-  statusLabel,
-  type PermissionChoice,
-  type SessionGroup,
-  type SessionView,
-} from '@shared/session';
+import { statusLabel, type SessionGroup, type SessionView } from '@shared/session';
 import { formatCpu, formatMemory, hint, PROFILE_LABEL } from '../lib/format';
 import { ChecksBadge } from './ChecksDialog';
+import { OverlapBadge, PermissionAsk, QueueBadge } from './SessionMarks';
 import { useT } from '../lib/i18n';
-import { overlapBadgeText } from '../lib/overlaps';
 import { store, useAppState } from '../lib/store';
 
 interface Props {
@@ -26,6 +20,9 @@ interface Props {
   marked: string[];
   onMarkedChange(ids: string[]): void;
   onSendPrompt(ids: string[]): void;
+  /** Opens or closes the overview of every session. */
+  onOverview(): void;
+  overviewOpen: boolean;
 }
 
 type Dragging = { kind: 'session'; id: string } | { kind: 'group'; id: string };
@@ -77,6 +74,8 @@ export function Sidebar({
   marked,
   onMarkedChange,
   onSendPrompt,
+  onOverview,
+  overviewOpen,
 }: Props) {
   const sessions = useAppState((s) => s.sessions);
   const groups = useAppState((s) => s.groups);
@@ -84,7 +83,6 @@ export function Sidebar({
   const metrics = useAppState((s) => s.metrics);
   const t = useT();
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
-  const permissionButtons = useAppState((s) => s.prefs.permissionButtons);
   const permissionStale = useAppState((s) => s.permissionStale);
   // On top or at the bottom the list runs sideways, and so do the arrows.
   const horizontal = useAppState((s) => isHorizontal(s.prefs.layout.sessions));
@@ -255,64 +253,6 @@ export function Sidebar({
     }
   };
 
-  /** The second line of a session asking permission: what for, and the answers. */
-  const renderPermission = (session: SessionView) => {
-    const ask = session.permission!;
-    const request = requestText(ask);
-    const answer = (choice: PermissionChoice) => ({
-      onClick: (e: { stopPropagation(): void }) => {
-        e.stopPropagation();
-        void store.answerPermission(session.id, choice);
-      },
-      // Enter on a button answers; the row would take it to open the session.
-      onKeyDown: (e: KeyboardEvent) => e.stopPropagation(),
-      onDoubleClick: (e: { stopPropagation(): void }) => e.stopPropagation(),
-    });
-    return (
-      <span
-        className="permission-ask"
-        role="group"
-        data-testid="permission-ask"
-        aria-label={t('permission.region', { name: session.name, request })}
-      >
-        <span className="permission-text" title={request}>
-          <span className="permission-tool">{ask.tool}</span>
-          {ask.target && <span className="permission-target">{ask.target}</span>}
-        </span>
-        {permissionButtons && (
-          <span className="permission-buttons">
-            <button
-              className="permission-button allow"
-              title={hint(t('permission.allow'), shortcuts.allowPermission[0])}
-              aria-label={t('permission.allowLabel', { name: session.name })}
-              {...answer('allow')}
-            >
-              ✓
-            </button>
-            {ask.choices.includes('allowAlways') && (
-              <button
-                className="permission-button always"
-                title={t('permission.allowAlways')}
-                aria-label={t('permission.alwaysLabel', { name: session.name })}
-                {...answer('allowAlways')}
-              >
-                {t('permission.always')}
-              </button>
-            )}
-            <button
-              className="permission-button deny"
-              title={hint(t('permission.deny'), shortcuts.denyPermission[0])}
-              aria-label={t('permission.denyLabel', { name: session.name })}
-              {...answer('deny')}
-            >
-              ✕
-            </button>
-          </span>
-        )}
-      </span>
-    );
-  };
-
   const renderSession = (session: SessionView) => {
     const index = visible.indexOf(session);
     const m = session.running ? metrics[session.id] : undefined;
@@ -387,31 +327,8 @@ export function Sidebar({
           )}
           <span className="session-meta">
             {/* First: the end of the line is cut when the list is narrow. */}
-            {session.overlaps && (
-              <span
-                className={`overlap-badge ${session.overlaps.likely > 0 ? 'likely' : ''}`}
-                data-testid="overlap-badge"
-                title={overlapBadgeText(t, session.overlaps, sessions)}
-                aria-label={overlapBadgeText(t, session.overlaps, sessions)}
-              >
-                ⚠ {session.overlaps.files}
-              </span>
-            )}
-            {session.queue && (
-              <span
-                className={`queue-badge ${session.queue.paused ? 'paused' : ''}`}
-                data-testid="queue-badge"
-                title={t(session.queue.paused ? 'sidebar.queuePausedLabel' : 'sidebar.queueLabel', {
-                  count: session.queue.items,
-                })}
-                aria-label={t(
-                  session.queue.paused ? 'sidebar.queuePausedLabel' : 'sidebar.queueLabel',
-                  { count: session.queue.items },
-                )}
-              >
-                {session.queue.paused ? '⏸' : '⏵'} {session.queue.items}
-              </span>
-            )}
+            <OverlapBadge session={session} />
+            <QueueBadge session={session} />
             <span className={`profile-tag profile-${session.profile}`}>
               {PROFILE_LABEL[session.profile]}
             </span>
@@ -422,7 +339,7 @@ export function Sidebar({
             </span>
             {session.checks && <ChecksBadge summary={session.checks} />}
           </span>
-          {session.permission && renderPermission(session)}
+          <PermissionAsk session={session} />
           {permissionStale === session.id && (
             <span className="permission-stale" role="status" data-testid="permission-stale">
               {t('permission.stale')}
@@ -604,6 +521,16 @@ export function Sidebar({
       <div className="sidebar-header">
         <span className="sidebar-title">{t('common.sessions')}</span>
         <span className="spacer" />
+        <button
+          className={`icon-button ${overviewOpen ? 'active' : ''}`}
+          title={hint(t('overview.open'), shortcuts.overview[0])}
+          aria-label={t('overview.open')}
+          aria-pressed={overviewOpen}
+          data-testid="overview-button"
+          onClick={onOverview}
+        >
+          ▦
+        </button>
         <button
           className="icon-button"
           title={t('sidebar.newGroup')}

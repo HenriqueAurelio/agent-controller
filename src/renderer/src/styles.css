@@ -150,6 +150,7 @@ kbd {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 .content {
   flex: 1;
@@ -2246,4 +2247,161 @@ textarea.associations {
   width: 100%;
   min-height: 7em;
   font-family: var(--mono, monospace);
+}
+
+/* The overview: every session in a grid, over the terminal, which stays mounted beneath it. */
+.overview {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+}
+.overview:focus {
+  outline: none;
+}
+.overview-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+.overview-header h2 {
+  margin: 0;
+  font-size: 14px;
+}
+.overview-filters {
+  display: flex;
+  gap: 4px;
+}
+.overview-count {
+  margin-left: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.overview-sort {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+.overview-keys {
+  font-size: 11px;
+}
+.overview-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+.overview-empty {
+  margin: 24px 0;
+  text-align: center;
+}
+.overview-group + .overview-group {
+  margin-top: 16px;
+}
+.overview-group h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px;
+}
+.overview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  cursor: pointer;
+}
+.overview-card:hover {
+  background: var(--bg-hover);
+}
+.overview-card.current {
+  border-color: var(--accent);
+}
+.overview-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.overview-card[data-state='aguardando'] {
+  border-color: var(--waiting);
+  background: color-mix(in srgb, var(--waiting) 8%, var(--bg-raised));
+}
+.overview-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.overview-card-head .state-dot {
+  margin-top: 0;
+}
+.overview-card-head .badge {
+  margin-top: 0;
+}
+.overview-card-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.overview-card-state {
+  align-self: flex-start;
+  font-size: 12px;
+}
+.overview-card-lines {
+  margin: 0;
+  /* Six lines, always: the cards of a row line up whatever their output. */
+  height: calc(6 * 1.35em + 8px);
+  padding: 4px 6px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--bg);
+  font-family: var(--mono, Consolas, monospace);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.overview-line {
+  overflow: hidden;
+  white-space: pre;
+  text-overflow: ellipsis;
+}
+.overview-card-lines.empty {
+  color: var(--muted);
+  font-family: inherit;
+  font-style: italic;
+}
+.overview-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 18px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.overview-card-foot .checks-badge,
+.overview-card-foot .queue-badge {
+  margin: 0;
+}
+.overview-branch {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
