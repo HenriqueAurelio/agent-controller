@@ -21,6 +21,8 @@ export interface CheckServiceOptions {
   /** How one check runs. The default is the user's shell; tests swap it. */
   run?: (check: CheckConfig, cwd: string, signal: AbortSignal) => Promise<RunResult>;
   fingerprint?: (cwd: string) => Promise<string | null>;
+  /** What a run waits for before its first check: the checkpoint of the turn (ADR 0021). */
+  before?: (sessionId: string) => Promise<void>;
   /** Sessions whose checks may run at the same time. */
   maxParallel?: number;
   now?: () => number;
@@ -211,6 +213,8 @@ export class CheckService extends EventEmitter<CheckEvents> {
       this.emit('changed', sessionId, next);
     };
     publish(state);
+    // The photo of the turn is of what the agent left, not of what a check writes.
+    await this.options.before?.(sessionId).catch(() => {});
     for (const check of entry.checks) {
       if (abort.signal.aborted) return;
       publish({ ...state, current: check.id });

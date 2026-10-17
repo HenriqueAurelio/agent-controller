@@ -1,7 +1,10 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CheckpointService } from '@core/git/CheckpointService';
 import { isAlive } from '@core/pty/killTree';
+import { turnEdge } from '@core/sessions/turns';
 import { PtyManager } from '@core/pty/PtyManager';
 import {
   BACKGROUND_FLUSH_MS,
@@ -232,6 +235,36 @@ describe('SessionManager', () => {
       await until(s.id, 'terminou');
       expect(states(s.id)).toEqual(['iniciando', 'aguardando', 'trabalhando', 'terminou']);
       expect(manager.statusOf(s.id)).toMatchObject({ origin: 'hook', confirmed: true });
+    });
+
+    it('the end of a turn takes one checkpoint, however many signals say the turn ended', async () => {
+      const git = (...args: string[]) =>
+        execFileSync('git', args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+      git('init', '-q');
+      fs.writeFileSync(path.join(dir, 'a.txt'), 'um\n');
+      const indexes = tempDir('ac-checkpoints-');
+      const checkpoints = new CheckpointService({ directory: indexes, rootOf: async () => dir });
+      const photos: string[] = [];
+      checkpoints.on('changed', (id) => photos.push(id));
+      // The same wiring as the app: the edge of the turn, not each signal of it.
+      manager.on('transition', ({ session, previous }) => {
+        if (turnEdge(session.status, previous) === 'ended') void checkpoints.turnEnded(session.id);
+      });
+      try {
+        const s = create();
+        manager.start(s.id, SIZE);
+        await until(s.id, 'aguardando');
+        fs.writeFileSync(path.join(dir, 'a.txt'), 'dois\n');
+        manager.input(s.id, 'work\r');
+        await until(s.id, 'terminou');
+        await sleep(500);
+        await checkpoints.idle(s.id);
+        // The hook and the title both said "done": one photo.
+        expect(photos).toEqual([s.id]);
+        expect((await checkpoints.list(s.id)).items).toMatchObject([{ kind: 'turn', turn: 1 }]);
+      } finally {
+        removeDir(indexes);
+      }
     });
 
     it('a permission request becomes "aguardando você" within 2 seconds', async () => {

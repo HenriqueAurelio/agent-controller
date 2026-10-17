@@ -14,12 +14,15 @@ import {
 import type { LaunchCommand } from '@core/agents';
 import { CheckService } from '@core/checks/CheckService';
 import { ChangesService } from '@core/git/ChangesService';
+import { CheckpointService } from '@core/git/CheckpointService';
+import { repositoryRoot } from '@core/git/GitService';
 import { cleanDiscarded } from '@core/git/GitWriteService';
 import { MetricsSampler } from '@core/metrics/MetricsSampler';
 import { PromptQueue } from '@core/prompts/PromptQueue';
 import { PtyManager } from '@core/pty/PtyManager';
 import { NotificationPolicy, type NotificationRequest } from '@core/sessions/NotificationPolicy';
 import { SessionManager } from '@core/sessions/SessionManager';
+import { turnEdge } from '@core/sessions/turns';
 import { installAgentctl } from '@core/signals/agentctlInstall';
 import { createSocketPath, HookServer } from '@core/signals/HookServer';
 import { createAppStore, type AppData } from '@core/store/appStore';
@@ -221,12 +224,27 @@ export async function startApp(): Promise<void> {
       },
     );
 
+  // A photo of the folder at the end of each turn that changed files (ADR 0021). The index files
+  // it goes through are the app's; what it keeps is in the repository, under refs of its own.
+  const checkpoints = new CheckpointService({
+    directory: path.join(userData, 'checkpoints'),
+    rootOf: async (sessionId) => {
+      const session = manager.get(sessionId);
+      return session ? repositoryRoot(session.cwd) : null;
+    },
+    settings: () => data.prefs.checkpoints,
+    knownSessions: () => new Set(manager.list().map((session) => session.id)),
+    onError: (sessionId, err) => console.error(`Checkpoint de ${sessionId} falhou:`, err),
+  });
+  checkpoints.on('changed', (sessionId) => send('checkpoints:changed', sessionId));
+
   const checks = new CheckService({
     targetOf: (sessionId) => {
       const session = manager.get(sessionId);
       if (!session) return null;
       return { cwd: session.cwd, checks: data.checks[folderKey(session.cwd)] ?? [] };
     },
+    before: (sessionId) => checkpoints.idle(sessionId),
   });
   checks.on('changed', (sessionId, run) => {
     manager.setChecks(sessionId, run ? summarizeRun(run) : undefined);
@@ -271,6 +289,12 @@ export async function startApp(): Promise<void> {
     send('queue:changed', sessionId, state);
   });
   checks.on('changed', (sessionId, run) => queue.onChecks(sessionId, run));
+  checks.on('changed', (sessionId, run) => {
+    // The ✓/✗ of the timeline: the checks of the turn, on the checkpoint of the turn.
+    if (run?.trigger !== 'turnEnd' || run.state !== 'done') return;
+    const { state } = summarizeRun(run);
+    if (state === 'passed' || state === 'failed') void checkpoints.recordChecks(sessionId, state);
+  });
 
   manager.on('permission', (session) => {
     const request = notifications.evaluatePermission(session, {
@@ -282,20 +306,26 @@ export async function startApp(): Promise<void> {
   manager.on('sessions', () => send('sessions:changed', snapshotOf(manager)));
   manager.on('data', (id, chunk) => send('terminal:data', id, chunk));
   manager.on('reset', (id) => send('terminal:reset', id));
-  manager.on('started', (session) => void changes.sessionStarted(session.id, session.cwd));
+  manager.on('started', (session) => {
+    void changes.sessionStarted(session.id, session.cwd);
+    void checkpoints.sessionStarted(session.id);
+  });
   manager.on('removed', (id) => {
     notifications.forget(id);
     checks.forget(id);
     queue.forget(id);
+    void checkpoints.forget(id);
     void changes.sessionClosed(id);
   });
   manager.on('transition', ({ session, previous }) => {
-    // A turn that ended is when the work can be checked; a new one makes any check stale.
-    const { state } = session.status;
-    if (state === 'terminou' && previous.state !== 'terminou') void checks.turnEnded(session.id);
-    if (state === 'trabalhando' && previous.state !== 'trabalhando') {
-      checks.turnStarted(session.id);
+    // A turn that ended is when the work is photographed and checked, the photo first; a new
+    // turn makes any check stale.
+    const edge = turnEdge(session.status, previous);
+    if (edge === 'ended') {
+      void checkpoints.turnEnded(session.id);
+      void checks.turnEnded(session.id);
     }
+    if (edge === 'started') checks.turnStarted(session.id);
     const request = notifications.evaluate(session, previous, {
       focused: manager.isFocused(session.id),
       prefs: data.prefs,
@@ -331,6 +361,7 @@ export async function startApp(): Promise<void> {
     manager,
     changes,
     checks,
+    checkpoints,
     queue,
     data,
     discardDir,

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { parseCheckpointBase } from '@shared/checkpoints';
 import {
   CHANGE_LETTER,
+  isCheckpointBase,
   type DiffBase,
   type FileChange,
   type GitOverview,
@@ -8,6 +10,7 @@ import {
 } from '@shared/git';
 import type { SessionView } from '@shared/session';
 import type { ParentMessage } from '../lib/diffProtocol';
+import { checkpointLabel, useCheckpoints } from '../lib/checkpoints';
 import { errorMessage } from '../lib/format';
 import { rich, useT } from '../lib/i18n';
 import { useAppState } from '../lib/store';
@@ -29,6 +32,8 @@ interface Props {
   onOpenFile(file: string | null): void;
   /** "Send to the agent with a prompt…" on a selection of the editor. */
   onSendSelection(file: string, selection: string): void;
+  /** A base asked for from outside (the timeline); a new nonce applies it again. */
+  requestedBase?: { base: DiffBase; nonce: number } | null;
 }
 
 interface Group {
@@ -107,12 +112,21 @@ export function ChangesPanel({
   onUnsavedChange,
   onOpenFile,
   onSendSelection,
+  requestedBase,
 }: Props) {
   const t = useT();
   const prefs = useAppState((s) => s.prefs);
   const [overview, setOverview] = useState<GitOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [base, setBase] = useState<DiffBase>('head');
+  const [base, setBase] = useState<DiffBase>(requestedBase?.base ?? 'head');
+  const timeline = useCheckpoints(session.id, session.cwd);
+  // A comparison asked for by the timeline, each time it is asked (a new nonce), applied while
+  // rendering so the panel never loads the old base first.
+  const [appliedRequest, setAppliedRequest] = useState(requestedBase?.nonce);
+  if (requestedBase && requestedBase.nonce !== appliedRequest) {
+    setAppliedRequest(requestedBase.nonce);
+    setBase(requestedBase.base);
+  }
   const [selected, setSelected] = useState<string | null>(null);
   /** The file open from the tree of all files; the list of changes keeps its own. */
   const [browsed, setBrowsed] = useState<string | null>(null);
@@ -172,6 +186,18 @@ export function ChangesPanel({
   useEffect(() => () => void window.api.invoke('git:close', sessionId), [sessionId]);
 
   const changes = useMemo(() => (overview?.ok ? overview.changes : []), [overview]);
+  /** How the select names a comparison the timeline asked for. */
+  const checkpointName = useMemo(() => {
+    const parsed = overview?.ok ? parseCheckpointBase(overview.base) : null;
+    if (!parsed) return null;
+    const name = (id: string) => {
+      const found = timeline?.items.find((c) => c.id === id);
+      return found ? checkpointLabel(t, found) : `#${id}`;
+    };
+    return parsed.to
+      ? t('changes.base.pair', { from: name(parsed.from), to: name(parsed.to) })
+      : t('changes.base.checkpoint', { label: name(parsed.from) });
+  }, [overview, timeline, t]);
   const repos = useMemo(() => (overview?.ok ? overview.repos : []), [overview]);
   /** Against the last commit, the list is also what can be staged, committed and discarded. */
   const operable = overview?.ok === true && overview.base === 'head';
@@ -390,10 +416,8 @@ export function ChangesPanel({
                 aria-label={t('changes.compareWith')}
                 value={overview.base}
                 onChange={(e) => {
-                  const next = e.target.value;
-                  if (mayLeave()) {
-                    setBase(next === 'session' || next === 'branchBase' ? next : 'head');
-                  }
+                  const next = e.target.value as DiffBase;
+                  if (mayLeave()) setBase(next);
                 }}
               >
                 <option value="head">{t('changes.base.head')}</option>
@@ -405,6 +429,12 @@ export function ChangesPanel({
                     {t('changes.base.branchBase', { base: session.worktree.base })}
                   </option>
                 )}
+                {timeline?.available && (
+                  <option value="previousTurn" disabled={timeline.items.length === 0}>
+                    {t('changes.base.previousTurn')}
+                  </option>
+                )}
+                {checkpointName && <option value={overview.base}>{checkpointName}</option>}
               </select>
             </label>
             <button
@@ -431,16 +461,18 @@ export function ChangesPanel({
         <div className="panel-message">
           <h3>{t('changes.none.title')}</h3>
           <p>
-            {overview.base === 'session'
-              ? t('changes.none.session')
-              : overview.base === 'branchBase'
-                ? t('changes.none.branchBase')
-                : repos.length > 1
-                  ? t('changes.none.repos', {
-                      count: repos.length,
-                      names: repos.map((r) => r.name).join(', '),
-                    })
-                  : t('changes.none.head')}
+            {isCheckpointBase(overview.base)
+              ? t('changes.none.checkpoint')
+              : overview.base === 'session'
+                ? t('changes.none.session')
+                : overview.base === 'branchBase'
+                  ? t('changes.none.branchBase')
+                  : repos.length > 1
+                    ? t('changes.none.repos', {
+                        count: repos.length,
+                        names: repos.map((r) => r.name).join(', '),
+                      })
+                    : t('changes.none.head')}
           </p>
         </div>
       )}

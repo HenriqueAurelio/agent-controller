@@ -70,6 +70,8 @@ Detalhes: [ADR 0012](adr/0012-see-changes-permite-editar.md), que emenda a [ADR 
 **Desde 2026-10-16:** fora do painel, o app passou a criar e remover **worktrees** (e a branch de cada uma) para as sessões em cópia isolada. Remove só sem nada sem commit, nunca com `--force`, e nunca apaga uma branch. Commit e push continuam fora. Detalhes: [ADR 0017](adr/0017-sessoes-em-worktree.md).
 **Revisão de 2026-10-16: três operações de git entraram no painel.** Marcar um arquivo para o commit (stage, reversível), fazer commit do que está marcado (com os hooks do repositório, sem push) e descartar as mudanças de um arquivo. O motivo da recusa era o descarte sem volta: agora o app guarda uma cópia antes, em `~/.agent-controller/descartados/`, e oferece **Desfazer**. Com o agente trabalhando, descartar e fazer commit pedem confirmação a mais. Fora continuam push, branch, merge, `--amend` e descartar tudo de uma vez. Detalhes: [ADR 0018](adr/0018-operacoes-de-git-no-painel.md).
 
+**Revisão de 2026-10-17: checkpoints por turno.** No fim de cada turno que mudou arquivos, o app guarda uma foto da pasta no próprio repositório, em refs só dele (`refs/agent-controller/checkpoints/…`), por um índice do app: o índice, a branch, o `HEAD` e o `git log` da pessoa não mudam. Voltar a um checkpoint escreve os arquivos e tira antes outra foto, para desfazer. É a primeira escrita no git que não vem de um clique no painel; fica limitada a esse namespace, com poda por quantidade e idade. Detalhes: [ADR 0021](adr/0021-refs-proprias-no-repositorio.md).
+
 ### 2.3 "See changes" só funciona em pastas com git
 
 - [ ] Concordo

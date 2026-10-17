@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { DiffBase } from '@shared/git';
 import { statusDetail, statusLabel, type SessionGroup, type SessionView } from '@shared/session';
 import {
   bindingFromEvent,
@@ -17,8 +18,10 @@ import { NewSessionDialog } from './components/NewSessionDialog';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { PromptDialog, type PromptContext } from './components/PromptDialog';
 import { QueueDialog, sendQueueFailure, skipQueueItem } from './components/QueueDialog';
+import { TimelineDialog } from './components/TimelineDialog';
 import { Sidebar } from './components/Sidebar';
 import { TerminalArea, type TerminalAreaHandle } from './components/TerminalArea';
+import { useCheckpoints } from './lib/checkpoints';
 import { hint, PROFILE_LABEL } from './lib/format';
 import { rich, useT } from './lib/i18n';
 import { shortcutRecording } from './lib/shortcuts';
@@ -30,7 +33,16 @@ const answerable = (state: ReturnType<typeof store.get>): boolean =>
   Boolean(state.sessions.find((s) => s.id === state.selectedId)?.permission);
 
 type Overlay =
-  'new' | 'prefs' | 'palette' | 'folder' | 'checks' | 'prompt' | 'group' | 'queue' | null;
+  | 'new'
+  | 'prefs'
+  | 'palette'
+  | 'folder'
+  | 'checks'
+  | 'prompt'
+  | 'group'
+  | 'queue'
+  | 'timeline'
+  | null;
 
 interface PromptRequest {
   promptId?: string;
@@ -61,6 +73,8 @@ export function App() {
   const [closing, setClosing] = useState<SessionView | null>(null);
   const [changesOpen, setChangesOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode>('changes');
+  /** A comparison asked for from the timeline: the panel takes it as its base. */
+  const [panelBase, setPanelBase] = useState<{ base: DiffBase; nonce: number } | null>(null);
   const [changeCount, setChangeCount] = useState<number | null>(null);
   const terminals = useRef<TerminalAreaHandle>(null);
   /** Sessions picked in the list with Ctrl+click. */
@@ -109,6 +123,7 @@ export function App() {
   }, [mayDiscardEdits]);
 
   const selected = sessions.find((s) => s.id === selectedId) ?? null;
+  const timeline = useCheckpoints(selected?.id ?? null, selected?.cwd);
   // Another session in the same copy of the repository: the two touch the same files.
   const sharing =
     selected?.worktree && sessions.find((s) => s.id !== selected.id && s.cwd === selected.cwd);
@@ -176,8 +191,18 @@ export function App() {
   const requestClose = useCallback((session: SessionView) => {
     // A running agent is only closed after confirmation; a copy of the repository, after asking
     // what to do with it.
-    if (session.running || session.worktree) setClosing(session);
-    else void window.api.invoke('sessions:remove', session.id);
+    if (session.running || session.worktree) {
+      setClosing(session);
+      return;
+    }
+    // Checkpoints in the repository are asked about too.
+    void window.api
+      .invoke('checkpoints:list', session.id)
+      .catch(() => ({ items: [] }))
+      .then((list) => {
+        if (list.items.length > 0) setClosing(session);
+        else void window.api.invoke('sessions:remove', session.id);
+      });
   }, []);
 
   /** The agent starts at the size of its terminal, which is mounted on the next frame. */
@@ -440,6 +465,11 @@ export function App() {
           run: () => setOverlay('queue'),
         },
         {
+          id: 'timeline',
+          title: t('command.timeline', { name: selected.name }),
+          run: () => setOverlay('timeline'),
+        },
+        {
           id: 'duplicate',
           title: t('command.duplicate', { name: selected.name }),
           run: () => duplicate(selected),
@@ -635,6 +665,18 @@ export function App() {
             >
               {t('app.aux')}
             </button>
+            {timeline?.available && (
+              <button
+                className="timeline-button"
+                onClick={() => setOverlay('timeline')}
+                title={t('app.timelineHint')}
+              >
+                {t('app.timeline')}
+                {timeline.items.length > 0 && (
+                  <span className="count">{timeline.items.length}</span>
+                )}
+              </button>
+            )}
             <button
               className="queue-button"
               onClick={() => setOverlay('queue')}
@@ -708,6 +750,7 @@ export function App() {
               onUnsavedChange={setUnsaved}
               onOpenFile={(file) => (panelFile.current = file)}
               onSendSelection={(file, selection) => openPrompt(undefined, { file, selection })}
+              requestedBase={panelBase}
             />
           )}
         </div>
@@ -752,6 +795,20 @@ export function App() {
       )}
       {overlay === 'queue' && selected && (
         <QueueDialog key={selected.id} session={selected} onClose={closeOverlay} />
+      )}
+      {overlay === 'timeline' && selected && (
+        <TimelineDialog
+          key={selected.id}
+          session={selected}
+          onClose={closeOverlay}
+          onCompare={(base) => {
+            if (changesOpen && !mayDiscardEdits()) return;
+            closeOverlay();
+            setPanelMode('changes');
+            setChangesOpen(true);
+            setPanelBase((current) => ({ base, nonce: (current?.nonce ?? 0) + 1 }));
+          }}
+        />
       )}
       {overlay === 'palette' && <CommandPalette commands={commands} onClose={closeOverlay} />}
       {overlay === 'prompt' && promptRequest && (

@@ -4,7 +4,8 @@ import { app, clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'elec
 import type { CheckService } from '@core/checks/CheckService';
 import { failureReport } from '@core/checks/report';
 import { suggestChecks } from '@core/checks/suggest';
-import type { ChangesService } from '@core/git/ChangesService';
+import type { ChangesService, CheckpointTrees } from '@core/git/ChangesService';
+import type { CheckpointService } from '@core/git/CheckpointService';
 import type { PromptQueue } from '@core/prompts/PromptQueue';
 import { currentBranch } from '@core/git/GitService';
 import { expandPrompt, promptVariables } from '@core/prompts/expand';
@@ -30,6 +31,7 @@ import { AGENT_COMMAND_LIMIT, sanitizeAgentCommand, type AgentAvailability } fro
 import { CHECKS_LIMIT, sanitizeChecks, type ChecksInfo } from '@shared/checks';
 import { CODE_THEME_MAX_BYTES } from '@shared/codeThemes';
 import { errorText, translate, UserError, type MessageKey } from '@shared/i18n';
+import { parseCheckpointBase, type CheckpointUsage } from '@shared/checkpoints';
 import type { DiffBase } from '@shared/git';
 import type {
   CommandChannel,
@@ -66,6 +68,7 @@ export interface IpcContext {
   manager: SessionManager;
   changes: ChangesService;
   checks: CheckService;
+  checkpoints: CheckpointService;
   queue: PromptQueue;
   data: AppData;
   /** Where the copies of discarded files go. */
@@ -127,7 +130,11 @@ const promptValues = (value: unknown): PromptValues => {
   };
 };
 const base = (value: unknown): DiffBase =>
-  value === 'session' || value === 'branchBase' ? value : 'head';
+  value === 'session' || value === 'branchBase' || value === 'previousTurn'
+    ? value
+    : typeof value === 'string' && parseCheckpointBase(value)
+      ? (value as DiffBase)
+      : 'head';
 /** Ids of sessions or groups: whatever is not one is left out, and the manager skips unknown ones. */
 const ids = (value: unknown): string[] => {
   if (!Array.isArray(value) || value.length > 1000) throw new UserError('error.invalidOrder');
@@ -193,7 +200,7 @@ export function snapshotOf(manager: SessionManager): SessionsSnapshot {
 }
 
 export function registerIpc(context: IpcContext): void {
-  const { manager, changes, checks, queue } = context;
+  const { manager, changes, checks, checkpoints, queue } = context;
 
   // Read at each use: the language may change at any moment.
   const language = () => context.data.prefs.language;
@@ -396,6 +403,8 @@ export function registerIpc(context: IpcContext): void {
     const removeCopy = options?.worktree === 'remove';
     // The watcher of the panel holds the folder open; on Windows that keeps it from going.
     if (removeCopy) changes.close(s.id);
+    // While the session still says which repository they are in.
+    if (options?.checkpoints === 'remove') await checkpoints.removeAll(s.id).catch(() => 0);
     await manager.remove(s.id, { worktree: removeCopy ? 'remove' : 'keep' });
   });
   handle('sessions:reorder', (list) => manager.reorder(ids(list)));
@@ -591,21 +600,43 @@ export function registerIpc(context: IpcContext): void {
 
   /** The base a session in a copy compares with: the one its branch started from. */
   const branchBase = (sessionId: string) => manager.get(sessionId)?.worktree?.base;
-  handle('git:open', (id, diffBase) => {
+  /**
+   * The trees a checkpoint base compares. The ids come from the renderer: only the checkpoints of
+   * that session are taken, from its own repository.
+   */
+  const checkpointTrees = async (
+    sessionId: string,
+    diffBase: DiffBase,
+  ): Promise<CheckpointTrees | undefined> => {
+    if (diffBase === 'previousTurn') {
+      const previous = await checkpoints.previous(sessionId);
+      return previous ? { from: previous.checkpoint.tree } : undefined;
+    }
+    const parsed = parseCheckpointBase(diffBase);
+    if (!parsed) return undefined;
+    const from = (await checkpoints.get(sessionId, parsed.from)).checkpoint.tree;
+    const to = parsed.to
+      ? (await checkpoints.get(sessionId, parsed.to)).checkpoint.tree
+      : undefined;
+    return { from, ...(to && { to }) };
+  };
+  const overview = async (id: unknown, diffBase: unknown, watch: boolean) => {
     const s = session(id);
-    return changes.overview(s.id, s.cwd, base(diffBase), {
-      watch: true,
+    const b = base(diffBase);
+    return changes.overview(s.id, s.cwd, b, {
+      watch,
       branchBase: branchBase(s.id),
+      checkpoint: await checkpointTrees(s.id, b),
     });
-  });
-  handle('git:refresh', (id, diffBase) => {
-    const s = session(id);
-    return changes.overview(s.id, s.cwd, base(diffBase), { branchBase: branchBase(s.id) });
-  });
+  };
+  handle('git:open', (id, diffBase) => overview(id, diffBase, true));
+  handle('git:refresh', (id, diffBase) => overview(id, diffBase, false));
   handle('git:close', (id) => changes.close(str(id, 'session', 64)));
-  handle('git:diff', (id, file, diffBase) =>
-    changes.diff(session(id).id, str(file, 'file'), base(diffBase)),
-  );
+  handle('git:diff', async (id, file, diffBase) => {
+    const s = session(id);
+    const b = base(diffBase);
+    return changes.diff(s.id, str(file, 'file'), b, await checkpointTrees(s.id, b));
+  });
   handle('git:save', async (id, file, content, expected) => {
     const result = await changes.save(
       session(id).id,
@@ -645,6 +676,30 @@ export function registerIpc(context: IpcContext): void {
   handle('files:list', (id, dir, showHidden) => {
     const s = session(id);
     return changes.list(s.id, s.cwd, str(dir, 'folder'), showHidden === true);
+  });
+
+  const checkpointId = (value: unknown) => {
+    const id = str(value, 'checkpoint', 16);
+    if (!/^\d{1,9}$/.test(id)) {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.checkpoint' } });
+    }
+    return id;
+  };
+  handle('checkpoints:list', (id) => checkpoints.list(session(id).id));
+  handle('checkpoints:restore', (id, checkpoint) =>
+    checkpoints.restore(session(id).id, checkpointId(checkpoint)),
+  );
+  handle('checkpoints:prune', (id) => checkpoints.prune(session(id).id));
+  handle('checkpoints:usage', async () => {
+    const usage = await Promise.all(
+      manager.list().map(async (s): Promise<CheckpointUsage> => ({
+        sessionId: s.id,
+        name: s.name,
+        folder: s.cwd,
+        ...(await checkpoints.usage(s.id).catch(() => ({ count: 0, bytes: 0 }))),
+      })),
+    );
+    return usage.filter((u) => u.count > 0);
   });
 
   const checksInfo = (sessionId: string): ChecksInfo => {

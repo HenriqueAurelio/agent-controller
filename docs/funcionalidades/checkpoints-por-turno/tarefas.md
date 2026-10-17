@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 14.1 Tirar a foto
+## [x] 14.1 Tirar a foto
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** nada
 
@@ -17,7 +17,7 @@
 
 ---
 
-## [ ] 14.2 Listar, voltar e podar
+## [x] 14.2 Listar, voltar e podar
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** 14.1
 
@@ -31,7 +31,7 @@
 
 ---
 
-## [ ] 14.3 Gatilho e IPC
+## [x] 14.3 Gatilho e IPC
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** 14.2
 
@@ -44,7 +44,7 @@
 
 ---
 
-## [ ] 14.4 Linha do tempo e "Comparar com"
+## [x] 14.4 Linha do tempo e "Comparar com"
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 14.3
 
@@ -58,7 +58,7 @@
 
 ---
 
-## [ ] 14.5 ADR, README e evidências
+## [x] 14.5 ADR, README e evidências
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 14.4
 

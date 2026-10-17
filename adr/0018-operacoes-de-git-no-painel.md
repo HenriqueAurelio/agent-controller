@@ -2,6 +2,7 @@
 
 - **Status:** Aceita
 - **Data:** 2026-10-16
+- **Revisão (2026-10-17):** a [ADR 0021](0021-refs-proprias-no-repositorio.md) acrescenta, fora do painel, os checkpoints por turno em `refs/agent-controller/`. A lista fechada abaixo continua sendo a das operações do painel.
 - **Substitui:** a parte da [ADR 0012](0012-see-changes-permite-editar.md) que deixava as operações de git fora do painel ("é outro produto, e descartar apaga trabalho sem volta"). O resto da 0012 (o lado do arquivo editável, as regras de conflito com o agente) continua valendo.
 
 ## Contexto

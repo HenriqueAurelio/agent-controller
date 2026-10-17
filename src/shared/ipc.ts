@@ -2,6 +2,7 @@
 // This is the meeting point of the core and interface fronts: change it only together.
 import type { AgentAvailability } from './agents';
 import type { CheckConfig, ChecksInfo } from './checks';
+import type { CheckpointList, CheckpointUsage, RestoreResult } from './checkpoints';
 import type { DiffBase, FileChange, FileDiff, FileListing, GitOverview } from './git';
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
@@ -125,7 +126,11 @@ export interface IpcCommands {
   /** A new session in the same folder, with the same agent, right below the original. */
   'sessions:duplicate': (id: string) => SessionView;
   /** `worktree`, for a session in a copy of its repository: keep the copy (default) or remove it. */
-  'sessions:remove': (id: string, options?: { worktree?: WorktreeOnClose }) => void;
+  /** `checkpoints`: remove the checkpoints of the session from its repository (default: keep). */
+  'sessions:remove': (
+    id: string,
+    options?: { worktree?: WorktreeOnClose; checkpoints?: 'keep' | 'remove' },
+  ) => void;
   /** The order within each group; a session never leaves its group by being reordered. */
   'sessions:reorder': (orderedIds: string[]) => void;
   /** Moves sessions to the end of a group; `null` takes them out of their group. */
@@ -224,6 +229,17 @@ export interface IpcCommands {
   /** Discards the changes of one file, after keeping a copy of it; the id gives it back. */
   'git:discard': (sessionId: string, file: string) => { id: string };
   'git:undoDiscard': (sessionId: string, id: string) => void;
+  /** The timeline of a session: its checkpoints, oldest first (ADR 0021). */
+  'checkpoints:list': (sessionId: string) => CheckpointList;
+  /**
+   * Puts the files of the folder back as they were at a checkpoint of the session, after one more
+   * checkpoint of how they are now: the result names it, and restoring it undoes this.
+   */
+  'checkpoints:restore': (sessionId: string, id: string) => RestoreResult;
+  /** Applies how many and for how long checkpoints are kept, now. Resolves to how many went. */
+  'checkpoints:prune': (sessionId: string) => number;
+  /** What the checkpoints of each session take, for the preferences. */
+  'checkpoints:usage': () => CheckpointUsage[];
   /** One folder of the session, relative to its root (the repository, or the session folder). */
   'files:list': (sessionId: string, dir: string, showHidden: boolean) => FileListing;
 
@@ -249,6 +265,8 @@ export interface IpcEvents {
   /** The run of the checks of a session changed. */
   'checks:changed': (sessionId: string) => void;
   'queue:changed': (sessionId: string, state: QueueState) => void;
+  /** The timeline of a session changed: a checkpoint came, went or was restored. */
+  'checkpoints:changed': (sessionId: string) => void;
 }
 
 export type CommandChannel = keyof IpcCommands;
@@ -325,6 +343,10 @@ export const COMMAND_CHANNELS = [
   'git:commit',
   'git:discard',
   'git:undoDiscard',
+  'checkpoints:list',
+  'checkpoints:restore',
+  'checkpoints:prune',
+  'checkpoints:usage',
   'files:list',
   'checks:get',
   'checks:configure',
@@ -343,6 +365,7 @@ export const EVENT_CHANNELS = [
   'app:focusSession',
   'checks:changed',
   'queue:changed',
+  'checkpoints:changed',
 ] as const satisfies readonly EventChannel[];
 
 // Compile-time check that the runtime lists cover every channel of the contract.

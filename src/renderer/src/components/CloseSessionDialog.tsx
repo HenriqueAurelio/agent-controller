@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FileChange } from '@shared/git';
 import type { SessionView, WorktreeOnClose } from '@shared/session';
+import { useCheckpoints } from '../lib/checkpoints';
 import { errorMessage } from '../lib/format';
 import { rich, useT } from '../lib/i18n';
 import { useAppState } from '../lib/store';
@@ -25,6 +26,9 @@ export function CloseSessionDialog({ session, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const sharedWith = sessions.find((s) => s.id !== session.id && s.cwd === session.cwd);
+  const keepDays = useAppState((s) => s.prefs.checkpoints.days);
+  const checkpoints = useCheckpoints(session.id, session.cwd)?.items.length ?? 0;
+  const [removeCheckpoints, setRemoveCheckpoints] = useState(false);
 
   useEffect(() => {
     if (!worktree) return;
@@ -45,6 +49,7 @@ export function CloseSessionDialog({ session, onClose }: Props) {
     try {
       await window.api.invoke('sessions:remove', session.id, {
         worktree: worktree && canRemove ? choice : 'keep',
+        checkpoints: checkpoints > 0 && removeCheckpoints ? 'remove' : 'keep',
       });
       onClose();
     } catch (err) {
@@ -118,6 +123,25 @@ export function CloseSessionDialog({ session, onClose }: Props) {
               </ul>
             </div>
           )}
+        </fieldset>
+      )}
+      {checkpoints > 0 && (
+        <fieldset className="field checkpoints-close">
+          <legend>{t('closeCheckpoints.question', { count: checkpoints })}</legend>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={removeCheckpoints}
+              onChange={(e) => setRemoveCheckpoints(e.target.checked)}
+            />
+            <span>
+              {t('closeCheckpoints.remove')}
+              <span className="muted">
+                {' '}
+                — {t('closeCheckpoints.removeHint', { days: keepDays })}
+              </span>
+            </span>
+          </label>
         </fieldset>
       )}
       {error && (
