@@ -5,6 +5,13 @@ import type { CheckConfig, ChecksInfo } from './checks';
 import type { CheckpointList, CheckpointUsage, RestoreResult } from './checkpoints';
 import type { DiffBase, FileChange, FileDiff, FileListing, GitOverview } from './git';
 import type { OverlapFile } from './overlaps';
+import type {
+  AttemptDiff,
+  Comparison,
+  ExperimentCreated,
+  KeepResult,
+  NewExperimentInput,
+} from './experiments';
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
 import type {
@@ -218,6 +225,15 @@ export interface IpcCommands {
   /** Removes a copy no session works in, when nothing in it is uncommitted. */
   'worktrees:remove': (folder: string) => WorktreesInfo;
 
+  /** An experiment: the same request in several copies of a repository (ADR 0022). */
+  'experiments:create': (input: NewExperimentInput) => ExperimentCreated;
+  /** The attempts as they are now, and the files any of them changed. */
+  'experiments:compare': (experimentId: string) => Comparison;
+  /** One file in every attempt, against the same base. */
+  'experiments:diff': (experimentId: string, file: string) => AttemptDiff[];
+  /** Keeps one attempt and closes the others with their copies; says which could not go. */
+  'experiments:keep': (experimentId: string, sessionId: string) => KeepResult;
+
   'git:open': (sessionId: string, base: DiffBase) => GitOverview;
   'git:refresh': (sessionId: string, base: DiffBase) => GitOverview;
   'git:close': (sessionId: string) => void;
@@ -356,6 +372,10 @@ export const COMMAND_CHANNELS = [
   'worktrees:list',
   'worktrees:configure',
   'worktrees:remove',
+  'experiments:create',
+  'experiments:compare',
+  'experiments:diff',
+  'experiments:keep',
   'git:open',
   'git:refresh',
   'git:close',

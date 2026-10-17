@@ -14,6 +14,10 @@ interface Props {
   onDuplicate(session: SessionView): void;
   /** Without a group, asks for a new one. */
   onEditGroup(group?: SessionGroup): void;
+  /** Asks for a new experiment: the same request in several copies. */
+  onNewExperiment(): void;
+  /** Opens the comparison of the attempts of an experiment. */
+  onCompare(experimentId: string): void;
   /** The keyboard goes back to the terminal after an action in the list. */
   onDone(): void;
   /** Sessions picked with Ctrl+click, to send a prompt to all of them. */
@@ -70,6 +74,8 @@ export function Sidebar({
   onClose,
   onDuplicate,
   onEditGroup,
+  onNewExperiment,
+  onCompare,
   onDone,
   marked,
   onMarkedChange,
@@ -477,6 +483,20 @@ export function Sidebar({
           >
             +
           </button>
+          {group.experimentId && (
+            <button
+              className="icon-button item-button compare-button"
+              title={t('group.compare', { name: group.name })}
+              aria-label={t('group.compare', { name: group.name })}
+              data-testid="compare-button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCompare(group.experimentId!);
+              }}
+            >
+              ⇄
+            </button>
+          )}
           <button
             className="icon-button item-button"
             title={t('group.edit', { name: group.name })}
@@ -538,6 +558,15 @@ export function Sidebar({
           onClick={() => onEditGroup()}
         >
           ⊞
+        </button>
+        <button
+          className="icon-button"
+          title={t('command.newExperiment')}
+          aria-label={t('command.newExperiment')}
+          data-testid="new-experiment-button"
+          onClick={onNewExperiment}
+        >
+          ⑂
         </button>
         <button
           className="icon-button"

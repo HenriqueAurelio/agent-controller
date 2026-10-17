@@ -1,7 +1,8 @@
 # Melhor de N
 
-- **Estado:** proposta, leva 1.
-- **ADR:** nova, "Experimentos: o mesmo pedido em várias cópias".
+- **Estado:** concluída (leva 1). O smoke com os agentes reais (Claude Code e Codex) não foi rodado; os testes usam um agente falso e um shell.
+- **ADR:** [0022, "Experimentos: o mesmo pedido em várias cópias"](../../../adr/0022-experimentos-melhor-de-n.md).
+- **Como ficou, onde mudou do desenho:** além dos três canais, `experiments:diff` devolve o diff de um arquivo em cada tentativa (texto unificado, não Monaco), e a tela de comparação busca o estado a cada 3 s em vez de ouvir um evento. O grupo leva `experimentId` (o botão ⇄ do cabeçalho abre a comparação). O pedido só vai 1,5 s depois de o agente ficar pronto. Se `keep` não puder remover uma cópia, a sessão fica aberta e a resposta a lista; chamar de novo termina. Sem `npm run measure` com quatro tentativas: nenhum processo ou monitor novo fica residente, são N sessões comuns.
 
 ## O problema
 

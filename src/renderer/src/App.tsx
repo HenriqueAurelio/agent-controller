@@ -12,6 +12,8 @@ import { ChangesPanel, type PanelMode } from './components/ChangesPanel';
 import { ChecksBadge, ChecksDialog } from './components/ChecksDialog';
 import { CloseSessionDialog } from './components/CloseSessionDialog';
 import { CommandPalette, type Command } from './components/CommandPalette';
+import { ExperimentCompare } from './components/ExperimentCompare';
+import { ExperimentDialog } from './components/ExperimentDialog';
 import { GroupDialog } from './components/GroupDialog';
 import { codeThemeName, themesOfKind, useCustomThemes } from './lib/codeThemes';
 import { NewSessionDialog } from './components/NewSessionDialog';
@@ -43,6 +45,8 @@ type Overlay =
   | 'group'
   | 'queue'
   | 'timeline'
+  | 'experiment'
+  | 'compare'
   | null;
 
 interface PromptRequest {
@@ -85,6 +89,8 @@ export function App() {
   const [changeCount, setChangeCount] = useState<number | null>(null);
   /** The grid of every session, in place of the terminal. */
   const [overviewOpen, setOverviewOpen] = useState(false);
+  /** The experiment whose attempts the comparison shows. */
+  const [comparing, setComparing] = useState<string | null>(null);
   const terminals = useRef<TerminalAreaHandle>(null);
   /** Sessions picked in the list with Ctrl+click. */
   const [marked, setMarked] = useState<string[]>([]);
@@ -438,6 +444,11 @@ export function App() {
       action('focusSidebar'),
       action('preferences'),
       action('newGroup', t('command.newGroup')),
+      {
+        id: 'new-experiment',
+        title: t('command.newExperiment'),
+        run: () => setOverlay('experiment'),
+      },
     ];
     for (const group of groups) {
       list.push({
@@ -631,6 +642,11 @@ export function App() {
       <Sidebar
         onNew={(groupId) => openNew(undefined, groupId)}
         onEditGroup={editGroup}
+        onNewExperiment={() => setOverlay('experiment')}
+        onCompare={(experimentId) => {
+          setComparing(experimentId);
+          setOverlay('compare');
+        }}
         onPreferences={() => setOverlay('prefs')}
         onClose={requestClose}
         onDuplicate={duplicate}
@@ -841,6 +857,27 @@ export function App() {
       )}
       {dropping && <div className="drop-hint">{t('app.dropHint')}</div>}
       {overlay === 'prefs' && <PreferencesDialog onClose={closeOverlay} />}
+      {overlay === 'experiment' && (
+        <ExperimentDialog
+          onClose={closeOverlay}
+          onCreated={(created) => {
+            closeOverlay();
+            // The first attempt is in sight, and every agent was started by the app.
+            const first = created.sessionIds[0];
+            if (first) store.select(first);
+          }}
+        />
+      )}
+      {overlay === 'compare' && comparing && (
+        <ExperimentCompare
+          experimentId={comparing}
+          onClose={closeOverlay}
+          onOpenSession={(sessionId) => {
+            closeOverlay();
+            store.select(sessionId);
+          }}
+        />
+      )}
       {overlay === 'group' && <GroupDialog group={editedGroup} onClose={closeOverlay} />}
       {overlay === 'checks' && selected && (
         <ChecksDialog

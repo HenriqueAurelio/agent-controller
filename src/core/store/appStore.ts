@@ -120,7 +120,16 @@ export function sanitizeGroups(value: unknown): SessionGroup[] {
     const name = typeof g.name === 'string' ? g.name.trim().slice(0, GROUP_NAME_LIMIT) : '';
     if (!name) continue;
     seen.add(g.id);
-    groups.push({ id: g.id, name, collapsed: g.collapsed === true });
+    const experimentId =
+      typeof g.experimentId === 'string' && g.experimentId && g.experimentId.length <= 64
+        ? g.experimentId
+        : undefined;
+    groups.push({
+      id: g.id,
+      name,
+      collapsed: g.collapsed === true,
+      ...(experimentId && { experimentId }),
+    });
     if (groups.length === GROUPS_LIMIT) break;
   }
   return groups;

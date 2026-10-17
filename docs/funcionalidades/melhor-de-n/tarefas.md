@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 17.1 `ExperimentService`
+## [x] 17.1 `ExperimentService`
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** nada
 
@@ -17,7 +17,7 @@
 
 ---
 
-## [ ] 17.2 Comparação
+## [x] 17.2 Comparação
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** 17.1
 
@@ -30,7 +30,7 @@
 
 ---
 
-## [ ] 17.3 IPC e diálogo de criação
+## [x] 17.3 IPC e diálogo de criação
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 17.1
 
@@ -43,7 +43,7 @@
 
 ---
 
-## [ ] 17.4 Tela de comparação e "ficar com esta"
+## [x] 17.4 Tela de comparação e "ficar com esta"
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 17.2, 17.3
 
@@ -56,7 +56,7 @@
 
 ---
 
-## [ ] 17.5 ADR, medição, README e evidências
+## [x] 17.5 ADR, medição, README e evidências
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 17.4
 
