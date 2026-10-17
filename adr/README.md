@@ -18,7 +18,7 @@ Registro das decisões de arquitetura do agent-controller. Cada arquivo traz o c
 | [0012](0012-see-changes-permite-editar.md) | "See changes" permite editar o arquivo | Aceita, emendada pela 0014 e pela 0017; a parte das operações de git foi substituída pela 0018 |
 | [0013](0013-comando-do-usuario-no-lugar-do-agente.md) | Comando do usuário no lugar do executável do agente | Aceita |
 | [0014](0014-verificacoes-ao-fim-do-turno.md) | Verificações do projeto ao fim do turno | Aceita, emendada pela 0015 |
-| [0015](0015-app-escreve-no-terminal-a-pedido.md) | O app escreve no terminal do agente a pedido do usuário | Aceita, ampliada pela 0020 |
+| [0015](0015-app-escreve-no-terminal-a-pedido.md) | O app escreve no terminal do agente a pedido do usuário | Aceita, ampliada pela 0020 e revista pela fila de prompts |
 | [0016](0016-terminal-auxiliar.md) | Terminal auxiliar ao lado do agente | Aceita |
 | [0017](0017-sessoes-em-worktree.md) | Sessões em worktree | Aceita |
 | [0018](0018-operacoes-de-git-no-painel.md) | Operações de git no painel de mudanças | Aceita |

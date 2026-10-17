@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   PROMPT_TEXT_LIMIT,
   promptQuestions,
+  QUEUE_CONDITIONS,
   SELECTION_LIMIT,
   type PromptValues,
+  type QueueCondition,
 } from '@shared/prompts';
 import { isBusyForText } from '@shared/session';
 import { errorMessage, PROFILE_LABEL } from '../lib/format';
@@ -52,6 +54,7 @@ export function PromptDialog({
   );
   const [submit, setSubmit] = useState(promptSubmit);
   const [now, setNow] = useState(false);
+  const [condition, setCondition] = useState<QueueCondition>('turnEnd');
   const [preview, setPreview] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -102,6 +105,20 @@ export function PromptDialog({
     setError(null);
     try {
       await window.api.invoke('terminal:sendText', targets, { text, values }, { submit, now });
+      onSent();
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(false);
+    }
+  };
+
+  /** Into the queue of each session: it goes, with Enter, when the turn before it ends. */
+  const enqueue = async () => {
+    if (!targets.length || !text.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await window.api.invoke('queue:add', targets, { text, values, condition });
       onSent();
     } catch (err) {
       setError(errorMessage(err));
@@ -227,6 +244,22 @@ export function PromptDialog({
           </>
         )}
 
+        <label className="field-inline">
+          <span>{t('prompts.send.condition')}</span>
+          <select
+            aria-label={t('prompts.send.condition')}
+            value={condition}
+            onChange={(e) => setCondition(e.target.value as QueueCondition)}
+          >
+            {QUEUE_CONDITIONS.map((c) => (
+              <option key={c} value={c}>
+                {t(`queue.condition.${c}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {!promptSubmit && <p className="muted queue-note">{t('prompts.send.queueNote')}</p>}
+
         {error && (
           <p className="form-error" role="alert">
             {error}
@@ -236,6 +269,15 @@ export function PromptDialog({
         <div className="dialog-actions">
           <button type="button" onClick={onClose}>
             {t('common.cancel')}
+          </button>
+          <button
+            type="button"
+            disabled={!targets.length || !text.trim() || busy}
+            onClick={() => void enqueue()}
+          >
+            {targets.length > 1
+              ? t('prompts.send.queueMany', { count: targets.length })
+              : t('prompts.send.queue')}
           </button>
           <button
             type="submit"

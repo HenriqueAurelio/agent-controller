@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 13.1 `PromptQueue` no core
+## [x] 13.1 `PromptQueue` no core
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** nada
 
@@ -18,7 +18,7 @@
 
 ---
 
-## [ ] 13.2 IPC
+## [x] 13.2 IPC
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** 13.1
 
@@ -30,7 +30,7 @@
 
 ---
 
-## [ ] 13.3 Interface
+## [x] 13.3 Interface
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 13.2
 

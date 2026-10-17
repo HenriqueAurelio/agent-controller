@@ -1,5 +1,6 @@
 import type { ChecksSummary } from './checks';
 import type { Translate } from './i18n';
+import type { QueueSummary } from './prompts';
 
 export type AgentProfileId = 'claude-code' | 'codex';
 
@@ -139,6 +140,8 @@ export interface SessionView extends Session {
   auxOpen?: boolean;
   /** The permission the agent is asking for, once its menu is on the screen. */
   permission?: PermissionAsk;
+  /** The prompts waiting in the queue of the session, when there are any. */
+  queue?: QueueSummary;
 }
 
 export interface NewSessionInput {

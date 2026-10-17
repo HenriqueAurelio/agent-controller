@@ -385,6 +385,22 @@ export function Sidebar({
             <span className="session-name">{session.name}</span>
           )}
           <span className="session-meta">
+            {/* First: the end of the line is cut when the list is narrow. */}
+            {session.queue && (
+              <span
+                className={`queue-badge ${session.queue.paused ? 'paused' : ''}`}
+                data-testid="queue-badge"
+                title={t(session.queue.paused ? 'sidebar.queuePausedLabel' : 'sidebar.queueLabel', {
+                  count: session.queue.items,
+                })}
+                aria-label={t(
+                  session.queue.paused ? 'sidebar.queuePausedLabel' : 'sidebar.queueLabel',
+                  { count: session.queue.items },
+                )}
+              >
+                {session.queue.paused ? '⏸' : '⏵'} {session.queue.items}
+              </span>
+            )}
             <span className={`profile-tag profile-${session.profile}`}>
               {PROFILE_LABEL[session.profile]}
             </span>

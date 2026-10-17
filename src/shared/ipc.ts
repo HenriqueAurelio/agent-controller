@@ -5,7 +5,14 @@ import type { CheckConfig, ChecksInfo } from './checks';
 import type { DiffBase, FileChange, FileDiff, FileListing, GitOverview } from './git';
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
-import type { PromptValues, SendOutcome, SendTextOptions } from './prompts';
+import type {
+  PromptValues,
+  QueueCondition,
+  QueueItemUpdate,
+  QueueState,
+  SendOutcome,
+  SendTextOptions,
+} from './prompts';
 import type {
   GroupUpdate,
   NewSessionInput,
@@ -163,6 +170,24 @@ export interface IpcCommands {
   'terminal:cancelSend': (sessionId: string) => void;
   /** A prompt as it would reach the agent of a session, variables filled in. */
   'prompts:preview': (sessionId: string, text: string, values: PromptValues) => string;
+  /** The queue of prompts of a session. */
+  'queue:get': (sessionId: string) => QueueState;
+  /**
+   * Puts a prompt at the end of the queue of each session. Items of the queue go with Enter; a
+   * free agent gets it at once.
+   */
+  'queue:add': (
+    sessionIds: string[],
+    prompt: { text: string; values?: PromptValues; condition: QueueCondition },
+  ) => void;
+  'queue:update': (sessionId: string, itemId: string, update: QueueItemUpdate) => void;
+  'queue:remove': (sessionId: string, itemId: string) => void;
+  'queue:reorder': (sessionId: string, itemIds: string[]) => void;
+  'queue:pause': (sessionId: string) => void;
+  /** `afterTurn`: the first item waits for the end of the next turn, even with the agent free. */
+  'queue:resume': (sessionId: string, options?: { afterTurn?: boolean }) => void;
+  /** The first item goes now, whatever its condition: the user's own click. */
+  'queue:sendNext': (sessionId: string) => void;
   /** Opens a plain shell in the folder of the session, beside its agent. Its id on the terminal
    * channels is `auxTerminalId(sessionId)`. */
   'aux:open': (sessionId: string, size: TerminalSize) => void;
@@ -223,6 +248,7 @@ export interface IpcEvents {
   'app:focusSession': (id: string) => void;
   /** The run of the checks of a session changed. */
   'checks:changed': (sessionId: string) => void;
+  'queue:changed': (sessionId: string, state: QueueState) => void;
 }
 
 export type CommandChannel = keyof IpcCommands;
@@ -273,6 +299,14 @@ export const COMMAND_CHANNELS = [
   'terminal:sendText',
   'terminal:cancelSend',
   'prompts:preview',
+  'queue:get',
+  'queue:add',
+  'queue:update',
+  'queue:remove',
+  'queue:reorder',
+  'queue:pause',
+  'queue:resume',
+  'queue:sendNext',
   'aux:open',
   'aux:close',
   'worktrees:inspect',
@@ -308,6 +342,7 @@ export const EVENT_CHANNELS = [
   'prefs:changed',
   'app:focusSession',
   'checks:changed',
+  'queue:changed',
 ] as const satisfies readonly EventChannel[];
 
 // Compile-time check that the runtime lists cover every channel of the contract.

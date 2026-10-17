@@ -1,7 +1,7 @@
 # Fila de prompts por sessão
 
-- **Estado:** proposta, leva 1.
-- **ADR:** nenhuma nova. Amplia o "enviar quando terminar" da [ADR 0015](../../../adr/0015-app-escreve-no-terminal-a-pedido.md) de um envio pendente para uma fila.
+- **Estado:** feita (leva 1). O smoke com os agentes reais (13.4) espera autorização para usá-los.
+- **ADR:** nenhuma nova. Amplia o "enviar quando terminar" da [ADR 0015](../../../adr/0015-app-escreve-no-terminal-a-pedido.md) de um envio pendente para uma fila; a ADR ganhou uma revisão que diz quando a fila envia sozinha.
 
 ## O problema
 

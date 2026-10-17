@@ -65,7 +65,7 @@ Com as propostas 4, 5, 6, 8, 9, 10 e 11 prontas, a linha muda: o app passa a **c
 
 ### Leva 1: orquestração de agentes
 
-Feitas: 12 ([ADR 0020](../../adr/0020-responder-permissao-fora-do-terminal.md)).
+Feitas: 12 ([ADR 0020](../../adr/0020-responder-permissao-fora-do-terminal.md)) e 13 (revisão da [ADR 0015](../../adr/0015-app-escreve-no-terminal-a-pedido.md)).
 
 | # | Funcionalidade | Em uma frase | Valor | Esforço | ADR nova |
 |---|---|---|---|---|---|
