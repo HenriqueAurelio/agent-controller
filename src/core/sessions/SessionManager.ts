@@ -6,6 +6,7 @@ import type { ChecksSummary } from '@shared/checks';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import type { Preferences } from '@shared/prefs';
 import { sameOverlapSummary, type OverlapSummary } from '@shared/overlaps';
+import type { FlowMark, GroupFlow } from '@shared/flows';
 import type { ReviewerSummary } from '@shared/reviewer';
 import type { QueueSummary, SendOutcome, SendTextOptions } from '@shared/prompts';
 import {
@@ -162,6 +163,8 @@ interface Entry {
   /** The reviewer of the session, and the session this one reviews (ADR 0023). */
   reviewer?: ReviewerSummary;
   reviewing?: string;
+  /** The rules of the group that start or end at the session (ADR 0024). */
+  flow?: FlowMark;
   /** Texts the user sent while the agent worked: they go when the turn ends, in order. */
   pending: PendingSend[];
   /** A visual terminal exists for this session, whether or not the agent is running. */
@@ -259,6 +262,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       ...(entry.overlaps && { overlaps: entry.overlaps }),
       ...(entry.reviewer && { reviewer: entry.reviewer }),
       ...(entry.reviewing && { reviewing: entry.reviewing }),
+      ...(entry.flow && { flow: entry.flow }),
       ...(entry.pending.length > 0 && { pendingSends: entry.pending.length }),
       ...(entry.aux && { auxOpen: true }),
       ...(entry.permission?.shown && {
@@ -304,6 +308,22 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     entry.reviewer = reviewer;
     entry.reviewing = reviewing;
     this.changed();
+  }
+
+  /** What the list shows of the flow of the group of a session. Not persisted. */
+  setFlowMark(id: string, flow: FlowMark | undefined): void {
+    const entry = this.entries.get(id);
+    if (!entry || JSON.stringify(entry.flow) === JSON.stringify(flow)) return;
+    entry.flow = flow;
+    this.changed();
+  }
+
+  /** The rules of a group are kept with it, so they come back with the app. */
+  setGroupFlow(groupId: string, flow: GroupFlow | undefined): void {
+    const group = this.group(groupId);
+    if (flow && flow.rules.length) group.flow = flow;
+    else delete group.flow;
+    this.changed(true);
   }
 
   /** In the order they are listed: the sessions with no group, then each group's, in turn. */

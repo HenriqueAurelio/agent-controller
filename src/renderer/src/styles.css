@@ -2591,3 +2591,98 @@ textarea.associations {
 .review-text {
   white-space: pre-wrap;
 }
+
+.flow-badge {
+  display: inline-block;
+  flex-shrink: 0;
+  margin-right: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.flow-badge.pending {
+  border-color: var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+}
+.flow-badge.paused {
+  opacity: 0.6;
+}
+.flow-dialog {
+  width: min(720px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+}
+.flow-dialog h3 {
+  margin: 12px 0 6px;
+  font-size: 13px;
+}
+.flow-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.flow-status.stopped {
+  color: var(--accent);
+}
+.flow-templates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.flow-rule {
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.flow-rule-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.flow-rule-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+}
+.flow-rule textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.flow-pending-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+.flow-pending-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.flow-history {
+  max-height: 160px;
+  overflow: auto;
+  font-size: 12px;
+}
+.flow-history li.failed {
+  color: var(--danger, #d9534f);
+}
+.flow-history time {
+  color: var(--muted);
+}

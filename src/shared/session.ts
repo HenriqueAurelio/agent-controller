@@ -1,4 +1,5 @@
 import type { ChecksSummary } from './checks';
+import type { FlowMark, GroupFlow } from './flows';
 import type { Translate } from './i18n';
 import type { OverlapSummary } from './overlaps';
 import type { QueueSummary } from './prompts';
@@ -75,6 +76,8 @@ export interface SessionGroup {
   collapsed: boolean;
   /** The group holds the attempts of an experiment, which the header can compare (ADR 0022). */
   experimentId?: string;
+  /** The rules that chain the sessions of the group (ADR 0024). */
+  flow?: GroupFlow;
 }
 
 export const GROUP_NAME_LIMIT = 100;
@@ -154,6 +157,8 @@ export interface SessionView extends Session {
   reviewer?: ReviewerSummary;
   /** This session is the reviewer of the one with this id. */
   reviewing?: string;
+  /** The rules of its group that start or end at this session. */
+  flow?: FlowMark;
 }
 
 export interface NewSessionInput {

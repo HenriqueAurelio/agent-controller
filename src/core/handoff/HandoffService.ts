@@ -62,6 +62,14 @@ export class HandoffService {
     return files;
   }
 
+  /** Writes only the diff, keeping the answer file: a flow rule hands over the diff of a turn. */
+  async writeDiff(id: string, diff: string): Promise<HandoffFiles> {
+    const files = this.files(id);
+    await fs.promises.mkdir(files.dir, { recursive: true });
+    await fs.promises.writeFile(files.diffFile, diff, 'utf8');
+    return files;
+  }
+
   /** Whether an answer is already in the folder, and what it says. */
   async read(id: string): Promise<string | null> {
     const { reviewFile } = this.files(id);
@@ -85,7 +93,7 @@ export class HandoffService {
    */
   waitForReview(
     id: string,
-    options: { timeoutMs?: number; signal?: AbortSignal } = {},
+    options: { timeoutMs?: number; signal?: AbortSignal; since?: number } = {},
   ): Promise<WaitOutcome> {
     const { reviewFile } = this.files(id);
     const deadline = this.now() + (options.timeoutMs ?? REVIEW_TIMEOUT_MS);
@@ -105,7 +113,8 @@ export class HandoffService {
           const stat = await fs.promises.stat(reviewFile);
           const mark = `${stat.size}:${stat.mtimeMs}`;
           const at = this.now();
-          if (stat.size > 0) {
+          // A file from before `since` is an old answer, not the one that is waited for.
+          if (stat.size > 0 && (options.since === undefined || stat.mtimeMs >= options.since)) {
             if (mark !== last) {
               last = mark;
               sameSince = at;

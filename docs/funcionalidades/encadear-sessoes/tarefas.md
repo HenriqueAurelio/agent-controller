@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 19.1 `FlowEngine`
+## [x] 19.1 `FlowEngine`
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** [fila de prompts](../fila-de-prompts/tarefas.md) 13.1, [revisor](../revisor-automatico/tarefas.md) 18.1
 
@@ -18,7 +18,7 @@
 
 ---
 
-## [ ] 19.2 Persistência e IPC
+## [x] 19.2 Persistência e IPC
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** 19.1
 
@@ -31,7 +31,7 @@
 
 ---
 
-## [ ] 19.3 Editor de regras e modelos
+## [x] 19.3 Editor de regras e modelos
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 19.2
 
@@ -44,7 +44,7 @@
 
 ---
 
-## [ ] 19.4 Barra lateral e histórico
+## [x] 19.4 Barra lateral e histórico
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 19.3
 
@@ -56,7 +56,7 @@
 
 ---
 
-## [ ] 19.5 ADR, smoke, README e evidências
+## [x] 19.5 ADR, smoke, README e evidências
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 19.4
 

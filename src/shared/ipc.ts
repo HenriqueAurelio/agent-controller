@@ -12,6 +12,7 @@ import type {
   KeepResult,
   NewExperimentInput,
 } from './experiments';
+import type { FlowState } from './flows';
 import type { ReviewResult, ReviewerSetInput, ReviewerSummary } from './reviewer';
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
@@ -242,6 +243,17 @@ export interface IpcCommands {
   /** The observations of the latest review of the session. */
   'reviewer:result': (sessionId: string) => ReviewResult;
 
+  /** The rules that chain the sessions of a group, what waits for approval and what was sent. */
+  'flows:get': (groupId: string) => FlowState;
+  /** Replaces the rules of the group; both ends of each must be sessions of it (ADR 0024). */
+  'flows:set': (groupId: string, rules: unknown) => FlowState;
+  /** Suspends every rule of the group, or lets them go again from a clean start. */
+  'flows:pause': (groupId: string, paused: boolean) => FlowState;
+  /** Sends a prepared send to the queue of its destination. */
+  'flows:approve': (groupId: string, pendingId: string) => FlowState;
+  /** Throws a prepared send away. */
+  'flows:discard': (groupId: string, pendingId: string) => FlowState;
+
   'git:open': (sessionId: string, base: DiffBase) => GitOverview;
   'git:refresh': (sessionId: string, base: DiffBase) => GitOverview;
   'git:close': (sessionId: string) => void;
@@ -307,6 +319,8 @@ export interface IpcEvents {
   'git:overlapsChanged': (sessionId: string) => void;
   /** The reviewer of the session, or its review, changed: `reviewer:result` has the new one. */
   'reviewer:changed': (sessionId: string) => void;
+  /** The rules, the prepared sends or the history of the flow of the group changed. */
+  'flows:changed': (groupId: string) => void;
   'metrics:update': (metrics: Record<string, SessionMetrics>) => void;
   /** The last lines of the sessions that changed, once a second at most, while watched. */
   'sessions:tails': (tails: Record<string, string[]>) => void;
@@ -389,6 +403,11 @@ export const COMMAND_CHANNELS = [
   'reviewer:set',
   'reviewer:runNow',
   'reviewer:result',
+  'flows:get',
+  'flows:set',
+  'flows:pause',
+  'flows:approve',
+  'flows:discard',
   'git:open',
   'git:refresh',
   'git:close',
@@ -422,6 +441,7 @@ export const EVENT_CHANNELS = [
   'git:changed',
   'git:overlapsChanged',
   'reviewer:changed',
+  'flows:changed',
   'metrics:update',
   'sessions:tails',
   'prefs:changed',

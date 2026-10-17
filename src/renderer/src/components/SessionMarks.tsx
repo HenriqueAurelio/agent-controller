@@ -141,3 +141,52 @@ export function ReviewBadge({ session }: { session: SessionView }) {
     </span>
   );
 }
+
+/** → name: where the rules of the flow send from this session; ✓ when a send waits for a click. */
+export function FlowBadge({ session }: { session: SessionView }) {
+  const t = useT();
+  const sessions = useAppState((s) => s.sessions);
+  const flow = session.flow;
+  if (!flow || !session.groupId) return null;
+  const nameOf = (id: string) => sessions.find((s) => s.id === id)?.name ?? '';
+  const groupId = session.groupId;
+  const stop = (e: { stopPropagation(): void }) => e.stopPropagation();
+  return (
+    <>
+      {flow.pending.map((pending) => {
+        const label = t('flow.mark.pending', { name: nameOf(pending.toId) });
+        return (
+          <button
+            key={pending.id}
+            type="button"
+            className="flow-badge pending"
+            data-testid="flow-pending-badge"
+            title={label}
+            aria-label={label}
+            onClick={(e) => {
+              stop(e);
+              void window.api.invoke('flows:approve', groupId, pending.id).catch(() => {});
+            }}
+            onDoubleClick={stop}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            → {nameOf(pending.toId)} ✓
+          </button>
+        );
+      })}
+      {flow.pending.length === 0 && flow.to.length > 0 && (
+        <span
+          className={`flow-badge ${flow.paused ? 'paused' : ''}`}
+          data-testid="flow-badge"
+          title={
+            flow.paused
+              ? t('flow.mark.paused')
+              : flow.to.map((id) => t('flow.mark.to', { name: nameOf(id) })).join(', ')
+          }
+        >
+          →
+        </span>
+      )}
+    </>
+  );
+}
