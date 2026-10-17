@@ -1,6 +1,6 @@
 # Conflito entre sessões
 
-- **Estado:** proposta, leva 1.
+- **Estado:** feita, leva 1.
 - **ADR:** nenhuma nova. Só lê o git, como o painel de mudanças.
 
 ## O problema

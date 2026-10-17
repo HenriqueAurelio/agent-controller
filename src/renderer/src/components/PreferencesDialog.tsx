@@ -19,6 +19,7 @@ import { FavoriteFolders } from './FavoriteFolders';
 import { LayoutEditor } from './LayoutEditor';
 import { PromptsEditor } from './PromptsEditor';
 import { ShortcutsEditor } from './ShortcutsEditor';
+import { OverlapsSettings } from './OverlapsSettings';
 import { WorktreesSettings } from './WorktreesSettings';
 
 const set = (patch: Partial<Preferences>) => void window.api.invoke('prefs:set', patch);
@@ -273,6 +274,7 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
         {tab === 'sessoes' && (
           <>
             <WorktreesSettings />
+            <OverlapsSettings />
             <CheckpointsSettings />
           </>
         )}

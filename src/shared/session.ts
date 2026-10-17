@@ -1,5 +1,6 @@
 import type { ChecksSummary } from './checks';
 import type { Translate } from './i18n';
+import type { OverlapSummary } from './overlaps';
 import type { QueueSummary } from './prompts';
 
 export type AgentProfileId = 'claude-code' | 'codex';
@@ -142,6 +143,8 @@ export interface SessionView extends Session {
   permission?: PermissionAsk;
   /** The prompts waiting in the queue of the session, when there are any. */
   queue?: QueueSummary;
+  /** Files other sessions also changed, in other copies of the same repository. */
+  overlaps?: OverlapSummary;
 }
 
 export interface NewSessionInput {

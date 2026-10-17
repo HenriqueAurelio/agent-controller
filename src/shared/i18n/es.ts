@@ -749,4 +749,23 @@ export const es: Record<keyof typeof ptBR, string> = {
   'checkpoints.prune': 'Podar ahora',
   'checkpoints.pruneOf': 'Podar los checkpoints de {name}',
   'checkpoints.pruned': '{count} checkpoint(s) eliminado(s).',
+  'overlap.name': '“{name}”',
+  'overlap.badge': '{count} archivo(s) también cambiado(s) en {names}',
+  'overlap.badgeLikely':
+    '{count} archivo(s) también cambiado(s) en {names}; {likely} con conflicto probable',
+  'overlap.fileSame':
+    'Mismo archivo: también cambió en {names}, en otras líneas. Haz clic para abrir el archivo allí.',
+  'overlap.fileLikely':
+    'Conflicto probable: las mismas líneas también cambiaron en {names}. Haz clic para abrir el archivo allí.',
+  'overlap.openIn': 'Abrir {file} en “{name}”',
+  'overlaps.title': 'Conflicto entre sesiones',
+  'overlaps.intro':
+    'Las sesiones en copias distintas del mismo repositorio (git worktree, o la carpeta original) que cambian el mismo archivo reciben un ⚠ en la lista y en el panel de cambios. Cuenta lo que no tiene commit y los commits de la rama desde su base. Cuando las líneas cambiadas se cruzan, el aviso dice “conflicto probable”.',
+  'overlaps.enabled': 'Avisar cuando dos sesiones cambian el mismo archivo',
+  'overlaps.includeStopped':
+    'Contar también las sesiones detenidas (su copia todavía guarda el trabajo)',
+  'overlaps.ignored': 'Archivos que el aviso ignora, un patrón por línea',
+  'overlaps.ignoredHint':
+    'Sin “/”, vale para el nombre en cualquier carpeta (package-lock.json); con “/”, para la ruta desde la raíz (generado/**). * no pasa de una carpeta, ** sí.',
+  'overlaps.restore': 'Volver a la lista predeterminada',
 };

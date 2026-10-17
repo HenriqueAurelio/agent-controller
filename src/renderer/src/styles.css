@@ -2205,3 +2205,45 @@ textarea.associations {
   margin-top: 6px;
   font-weight: 600;
 }
+
+/* Conflicts between sessions: files other copies of the repository also changed. */
+.overlap-badge {
+  display: inline-block;
+  flex-shrink: 0;
+  margin-right: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--waiting);
+  border-radius: 9px;
+  color: var(--waiting);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.overlap-badge.likely {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #fff;
+}
+.overlap-mark {
+  flex-shrink: 0;
+  padding: 0 4px;
+  line-height: 1.2;
+  background: transparent;
+  border-color: transparent;
+  color: var(--waiting);
+  font-size: 12px;
+}
+.overlap-mark.likely {
+  color: var(--danger);
+  font-weight: 700;
+}
+.overlap-mark:hover {
+  border-color: var(--border);
+}
+.overlaps-settings textarea {
+  width: 100%;
+  min-height: 7em;
+  font-family: var(--mono, monospace);
+}

@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 15.1 `OverlapService`
+## [x] 15.1 `OverlapService`
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** nada
 
@@ -18,7 +18,7 @@
 
 ---
 
-## [ ] 15.2 Gatilho e IPC
+## [x] 15.2 Gatilho e IPC
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** 15.1
 
@@ -31,7 +31,7 @@
 
 ---
 
-## [ ] 15.3 Interface
+## [x] 15.3 Interface
 
 - **Frente:** B · **Tamanho:** P · **Depende de:** 15.2
 
@@ -44,7 +44,7 @@
 
 ---
 
-## [ ] 15.4 README, medição e evidências
+## [x] 15.4 README, medição e evidências
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 15.3
 
