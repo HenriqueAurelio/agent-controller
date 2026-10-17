@@ -66,7 +66,6 @@ test('evidences: experiments, best of N', async () => {
         (await window.api.invoke('sessions:list')).sessions.find((s) => s.name === n)!.cwd,
       name,
     );
-  const idOf = async (name: string) => (await row(page, name).getAttribute('data-session-id'))!;
   try {
     await page.evaluate(
       (folder) => window.api.invoke('worktrees:configure', { folder, setup: '' }),

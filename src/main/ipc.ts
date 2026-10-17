@@ -7,6 +7,8 @@ import { suggestChecks } from '@core/checks/suggest';
 import type { ChangesService, CheckpointTrees } from '@core/git/ChangesService';
 import type { CheckpointService } from '@core/git/CheckpointService';
 import type { ExperimentService } from '@core/experiments/ExperimentService';
+import { REVIEW_TRIGGERS, type ReviewerSetInput } from '@shared/reviewer';
+import type { ReviewerService } from '@core/handoff/ReviewerService';
 import type { OverlapService } from '@core/git/OverlapService';
 import type { PromptQueue } from '@core/prompts/PromptQueue';
 import type { TailFeed } from '@core/sessions/TailFeed';
@@ -69,6 +71,7 @@ import {
   AGENT_PROFILE_IDS,
   GROUP_NAME_LIMIT,
   PERMISSION_CHOICES,
+  type AgentProfileId,
   type GroupUpdate,
   type PermissionChoice,
   type TerminalSize,
@@ -82,6 +85,7 @@ export interface IpcContext {
   overlaps: OverlapService;
   queue: PromptQueue;
   experiments: ExperimentService;
+  reviewer: ReviewerService;
   tails: TailFeed;
   data: AppData;
   /** Where the copies of discarded files go. */
@@ -213,7 +217,7 @@ export function snapshotOf(manager: SessionManager): SessionsSnapshot {
 }
 
 export function registerIpc(context: IpcContext): void {
-  const { manager, changes, checks, checkpoints, overlaps, queue, experiments } = context;
+  const { manager, changes, checks, checkpoints, overlaps, queue, experiments, reviewer } = context;
 
   // Read at each use: the language may change at any moment.
   const language = () => context.data.prefs.language;
@@ -678,6 +682,40 @@ export function registerIpc(context: IpcContext): void {
   handle('experiments:keep', (id, sessionId) =>
     experiments.keep(str(id, 'session', 64), session(sessionId).id),
   );
+
+  const reviewerInput = (value: unknown): ReviewerSetInput => {
+    const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+    const trigger = REVIEW_TRIGGERS.find((t) => t === v.trigger);
+    if (!trigger) throw new UserError('error.invalidArgument', { name: { key: 'arg.trigger' } });
+    const sessionId = session(v.sessionId).id;
+    if (v.reviewer === null) return { sessionId, trigger, reviewer: null };
+    const r = (v.reviewer && typeof v.reviewer === 'object' ? v.reviewer : {}) as Record<
+      string,
+      unknown
+    >;
+    if (r.kind === 'existing') {
+      return {
+        sessionId,
+        trigger,
+        reviewer: { kind: 'existing', sessionId: session(r.sessionId).id },
+      };
+    }
+    if (r.kind !== 'new' || !AGENT_PROFILE_IDS.includes(r.profile as never)) {
+      throw new UserError('error.unknownProfile');
+    }
+    return {
+      sessionId,
+      trigger,
+      reviewer: {
+        kind: 'new',
+        profile: r.profile as AgentProfileId,
+        ...(typeof r.command === 'string' && r.command.trim() && { command: command(r.command) }),
+      },
+    };
+  };
+  handle('reviewer:set', (input) => reviewer.set(reviewerInput(input)));
+  handle('reviewer:runNow', (id) => reviewer.runNow(session(id).id));
+  handle('reviewer:result', (id) => reviewer.result(session(id).id));
 
   handle('git:open', (id, diffBase) => {
     // A panel that opens shows what is in common as of now, not as of the latest turn.

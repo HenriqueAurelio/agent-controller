@@ -5,7 +5,7 @@ import { hint, PROFILE_LABEL } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { store, useAppState } from '../lib/store';
 import { ChecksBadge } from './ChecksDialog';
-import { OverlapBadge, PermissionAsk, QueueBadge } from './SessionMarks';
+import { OverlapBadge, PermissionAsk, QueueBadge, ReviewBadge } from './SessionMarks';
 
 export type OverviewFilter = 'all' | 'waiting' | 'working';
 
@@ -266,6 +266,7 @@ export function Overview({ onOpen, onClose }: Props) {
             </span>
           ) : null}
           {session.checks && <ChecksBadge summary={session.checks} />}
+          <ReviewBadge session={session} />
           <QueueBadge session={session} />
           <OverlapBadge session={session} />
         </div>

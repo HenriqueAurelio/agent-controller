@@ -25,6 +25,8 @@ interface Props {
   /** The sessions it goes to, unless the user changes them. */
   targets: string[];
   context: PromptContext;
+  /** The text the dialog opens with, in place of the one of the saved prompt. */
+  text?: string;
   onClose(): void;
   onSent(): void;
 }
@@ -37,6 +39,7 @@ export function PromptDialog({
   promptId,
   targets: initialTargets,
   context,
+  text: initialText,
   onClose,
   onSent,
 }: Props) {
@@ -47,7 +50,9 @@ export function PromptDialog({
   const [chosen, setChosen] = useState(
     () => prompts.find((p) => p.id === promptId)?.id ?? prompts[0]?.id ?? '',
   );
-  const [text, setText] = useState(() => prompts.find((p) => p.id === chosen)?.text ?? '');
+  const [text, setText] = useState(
+    () => initialText ?? prompts.find((p) => p.id === chosen)?.text ?? '',
+  );
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [targets, setTargets] = useState<string[]>(() =>
     initialTargets.filter((id) => sessions.some((s) => s.id === id && s.running)),

@@ -6,6 +6,7 @@ import type { ChecksSummary } from '@shared/checks';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import type { Preferences } from '@shared/prefs';
 import { sameOverlapSummary, type OverlapSummary } from '@shared/overlaps';
+import type { ReviewerSummary } from '@shared/reviewer';
 import type { QueueSummary, SendOutcome, SendTextOptions } from '@shared/prompts';
 import {
   AUX_SCROLLBACK,
@@ -158,6 +159,9 @@ interface Entry {
   /** What the list shows of the queue of prompts of the session, which `PromptQueue` owns. */
   queue?: QueueSummary;
   overlaps?: OverlapSummary;
+  /** The reviewer of the session, and the session this one reviews (ADR 0023). */
+  reviewer?: ReviewerSummary;
+  reviewing?: string;
   /** Texts the user sent while the agent worked: they go when the turn ends, in order. */
   pending: PendingSend[];
   /** A visual terminal exists for this session, whether or not the agent is running. */
@@ -253,6 +257,8 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       ...(entry.checks && { checks: entry.checks }),
       ...(entry.queue && { queue: entry.queue }),
       ...(entry.overlaps && { overlaps: entry.overlaps }),
+      ...(entry.reviewer && { reviewer: entry.reviewer }),
+      ...(entry.reviewing && { reviewing: entry.reviewing }),
       ...(entry.pending.length > 0 && { pendingSends: entry.pending.length }),
       ...(entry.aux && { auxOpen: true }),
       ...(entry.permission?.shown && {
@@ -282,6 +288,21 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     const entry = this.entries.get(id);
     if (!entry || sameOverlapSummary(entry.overlaps, overlaps)) return;
     entry.overlaps = overlaps;
+    this.changed();
+  }
+
+  /** What the list shows of the reviewer of a session, or of whom it reviews. Not persisted. */
+  setReviewer(id: string, reviewer: ReviewerSummary | undefined, reviewing?: string): void {
+    const entry = this.entries.get(id);
+    if (!entry) return;
+    if (
+      JSON.stringify(entry.reviewer) === JSON.stringify(reviewer) &&
+      entry.reviewing === reviewing
+    ) {
+      return;
+    }
+    entry.reviewer = reviewer;
+    entry.reviewing = reviewing;
     this.changed();
   }
 
@@ -340,6 +361,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       cwd,
       profile: input.profile,
       ...(command && { command }),
+      ...(input.readOnly === true && { readOnly: true }),
       ...(groupId && { groupId }),
       order: this.order.length,
     };

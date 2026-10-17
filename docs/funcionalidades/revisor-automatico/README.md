@@ -1,7 +1,8 @@
 # Revisor automático
 
-- **Estado:** proposta, leva 1.
-- **ADR:** nova, "Passagem de trabalho entre sessões por arquivo". A [encadear sessões](../encadear-sessoes/README.md) reaproveita essa mesma ADR.
+- **Estado:** concluída (leva 1). O smoke com os agentes reais (Claude Code e Codex) não foi rodado: o modo só leitura do Codex (`--sandbox read-only`) e os dois agentes seguindo a instrução do arquivo de volta seguem sem sondagem; os testes usam um agente falso e dois shells.
+- **ADR:** [0023, "Passagem de trabalho entre sessões por arquivo"](../../../adr/0023-passagem-de-trabalho-por-arquivo.md). A [encadear sessões](../encadear-sessoes/README.md) reaproveita essa mesma ADR.
+- **Como ficou, onde mudou do desenho:** além dos três canais, `reviewer:set` também desliga e troca o gatilho. O par vive em `reviewers.json`; a sessão revisada mostra "Revisão pronta (n)" no cabeçalho e 🔍 na lista, e o revisor leva 🔍. O botão **Revisor** abre um diálogo só (escolher, ver as observações, marcar, devolver, revisar agora, tirar). "Devolver ao agente" abre o diálogo de envio de hoje com as observações marcadas já escritas, no formato `- arquivo:linha — texto`. A resposta é dada como escrita quando o arquivo para de mudar por 1,5 s. O prompt "Revisar o turno" entra na lista de fábrica; quem já tinha a lista o usa pelo de fábrica até restaurar. Sem verificações configuradas, o gatilho é o fim do turno com checkpoint novo. O encaixe com "comentar no diff" fica para quando ele existir.
 
 ## O problema
 

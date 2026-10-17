@@ -161,6 +161,7 @@ function validate(raw: unknown): AppData {
       profile: s.profile,
       ...(command && { command }),
       ...(worktree && { worktree }),
+      ...(s.readOnly === true && { readOnly: true }),
       ...(groupId && { groupId }),
       order: typeof s.order === 'number' ? s.order : sessions.length,
     });

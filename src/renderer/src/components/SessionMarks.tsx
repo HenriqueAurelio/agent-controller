@@ -105,3 +105,39 @@ export function OverlapBadge({ session }: { session: SessionView }) {
     </span>
   );
 }
+
+/** 🔍 on the session that reviews, and the state of the review on the one that is reviewed. */
+export function ReviewBadge({ session }: { session: SessionView }) {
+  const t = useT();
+  const sessions = useAppState((s) => s.sessions);
+  if (session.reviewing) {
+    const name = sessions.find((s) => s.id === session.reviewing)?.name ?? '';
+    const label = t('reviewer.badge.reviewing', { name });
+    return (
+      <span
+        className="review-badge"
+        data-testid="review-badge-reviewer"
+        title={label}
+        aria-label={label}
+      >
+        🔍
+      </span>
+    );
+  }
+  const review = session.reviewer;
+  if (!review || review.state === 'idle') return null;
+  const label =
+    review.state === 'ready'
+      ? t('reviewer.badge.ready', { count: review.count ?? 0 })
+      : t(`reviewer.badge.${review.state}`);
+  return (
+    <span
+      className={`review-badge ${review.state}`}
+      data-testid="review-badge"
+      title={label}
+      aria-label={label}
+    >
+      🔍{review.state === 'ready' ? ` ${review.count ?? 0}` : '…'}
+    </span>
+  );
+}

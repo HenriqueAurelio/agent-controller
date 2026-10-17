@@ -22,7 +22,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 
 | Área | O que já existe |
 |---|---|
-| Sessões | Claude Code e Codex em terminais reais, grupos por repositório, comando próprio por sessão (aliases e funções do seu shell), pastas recentes e favoritas, arrastar pasta para abrir; painel geral com todas as sessões numa grade; experimentos "melhor de N" (o mesmo pedido em até 4 cópias, comparadas e escolhidas) |
+| Sessões | Claude Code e Codex em terminais reais, grupos por repositório, comando próprio por sessão (aliases e funções do seu shell), pastas recentes e favoritas, arrastar pasta para abrir; painel geral com todas as sessões numa grade; experimentos "melhor de N" (o mesmo pedido em até 4 cópias, comparadas e escolhidas); revisor automático (uma segunda sessão lê cada turno e devolve observações) |
 | Estado e avisos | Estado de cada sessão pelos sinais do próprio agente, notificação do sistema, contador de "aguardando" no título da janela, pedidos de permissão respondidos pela barra lateral ou pela notificação |
 | Isolamento | Cópia isolada por sessão (git worktree), com comando de preparo e limpeza; aviso quando sessões em cópias diferentes mudam o mesmo arquivo, com "provável conflito" quando as linhas se cruzam |
 | Verificações | Lint, typecheck e testes ao fim de cada turno, com ✓/✗ na sessão e "mandar o erro ao agente" |
@@ -34,7 +34,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 
 **Próximos passos**, já priorizados em [`docs/funcionalidades`](docs/funcionalidades/README.md#segunda-rodada-de-painel-de-agentes-a-orquestrador-e-ide-leve):
 
-- **Leva 1, orquestração:** revisor automático, encadear sessões e quadro de tarefas.
+- **Leva 1, orquestração:** encadear sessões e quadro de tarefas.
 - **Leva 2, IDE:** links `arquivo:linha` no terminal, `Ctrl+P`, abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
 - **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
 
@@ -203,6 +203,17 @@ O mesmo pedido, feito por várias tentativas, para ficar com a melhor. Clique em
 O app cria um grupo com o nome do experimento e uma sessão por tentativa (`ac/<nome>-1`, `-2`...), cada uma em uma cópia isolada ([abaixo](#cópia-isolada-git-worktree)), inicia os agentes e manda o pedido a cada um quando ele fica pronto. As verificações da pasta rodam em cada tentativa ao fim do turno, e você pode conversar com qualquer uma delas.
 
 **⇄** no cabeçalho do grupo abre a comparação: uma linha por tentativa, com estado, verificações, arquivos mudados, linhas `+/−` e tempo, sempre contra o mesmo commit de base. Escolha um arquivo para ver o diff dele em cada tentativa, lado a lado (acima de 200 KB, só a tabela). **Ficar com esta** fecha as outras tentativas e remove as cópias delas; uma cópia com mudança sem commit não é removida, e a janela diz quais são. As branches ficam, e você as apaga depois, se quiser. A decisão está na [ADR 0022](adr/0022-experimentos-melhor-de-n.md).
+
+### Revisor automático
+
+Outra sessão, com o contexto limpo, lê o que cada turno mudou e escreve observações; você escolhe quais devolver ao agente. Clique em **Revisor** no cabeçalho da sessão (a pasta precisa estar em um repositório git, e os [checkpoints](#linha-do-tempo-e-checkpoints) ligados) e escolha quem revisa: uma **sessão nova** (o app a cria na mesma pasta e no mesmo grupo, no modo só leitura do agente) ou uma que já existe, de qualquer agente. O revisor leva um 🔍 na lista.
+
+- **Quando:** a cada turno que mudou arquivos e passou nas verificações do fim do turno (de fábrica), ou só quando você clicar em **Revisar agora**. Cada revisão é um turno a mais de um agente: com o gatilho a cada turno, o custo dobra.
+- **O que o revisor recebe:** o prompt guardado "Revisar o turno" (Preferências → Prompts), com o caminho de um arquivo com o diff do turno; o diff não vai colado no terminal. Um diff acima de 200 KB vira a lista de arquivos e o comando do git para lê-los.
+- **O que volta:** o revisor escreve as observações em `~/.agent-controller/handoffs/<id>/revisao.md`, fora do repositório, uma por linha (`- arquivo:linha — texto`). Quando o arquivo aparece, a sessão mostra **Revisão pronta (n)** no cabeçalho e 🔍 n na lista. Sem resposta em 15 minutos, o app desiste e avisa; leia então o terminal do revisor. Um agente em modo só leitura pede permissão para escrever esse arquivo: libere uma vez.
+- **Devolver:** abra **Revisão pronta**, marque as observações que valem e clique em **Devolver ao agente**: o diálogo de envio abre com elas escritas, para você ler, editar e enviar. O app nunca manda a revisão ao agente por conta própria.
+
+A decisão está na [ADR 0023](adr/0023-passagem-de-trabalho-por-arquivo.md).
 
 ### Ver o que o agente alterou
 

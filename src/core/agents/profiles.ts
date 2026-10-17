@@ -12,6 +12,8 @@ export interface AgentProfile {
   /** Looked up on the PATH. */
   executable: string;
   baseArgs: string[];
+  /** Added when the session must only read (a reviewer). Absent: the agent has no such mode. */
+  readOnlyArgs?: string[];
   env: Record<string, string>;
   signals: {
     hooks: HookSupport;
@@ -42,6 +44,8 @@ export const CLAUDE_CODE: AgentProfile = {
   displayName: 'Claude Code',
   executable: 'claude',
   baseArgs: [],
+  // Plan mode: the agent reads and proposes, and asks before anything that writes.
+  readOnlyArgs: ['--permission-mode', 'plan'],
   env: {},
   signals: {
     hooks: 'always',
@@ -73,6 +77,7 @@ export const CODEX: AgentProfile = {
   displayName: 'Codex',
   executable: 'codex',
   baseArgs: [],
+  readOnlyArgs: ['--sandbox', 'read-only'],
   env: {},
   signals: {
     hooks: 'needs-trust',

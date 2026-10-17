@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 18.1 `HandoffService`
+## [x] 18.1 `HandoffService`
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** [checkpoints](../checkpoints-por-turno/tarefas.md) 14.2
 
@@ -18,7 +18,7 @@
 
 ---
 
-## [ ] 18.2 Ler as observações
+## [x] 18.2 Ler as observações
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** nada
 
@@ -30,7 +30,7 @@
 
 ---
 
-## [ ] 18.3 Ligar o revisor à sessão
+## [x] 18.3 Ligar o revisor à sessão
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** 18.1, 18.2
 
@@ -43,7 +43,7 @@
 
 ---
 
-## [ ] 18.4 Interface
+## [x] 18.4 Interface
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 18.3
 
@@ -56,7 +56,7 @@
 
 ---
 
-## [ ] 18.5 Sondagem, ADR, README e evidências
+## [x] 18.5 Sondagem, ADR, README e evidências
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 18.4
 

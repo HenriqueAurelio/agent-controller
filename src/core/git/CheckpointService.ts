@@ -551,6 +551,16 @@ export class CheckpointService extends EventEmitter<CheckpointEvents> {
     return root && checkpoint ? { root, checkpoint } : null;
   }
 
+  /** The last two checkpoints: what the latest turn changed lies between them. */
+  async latestPair(
+    sessionId: string,
+  ): Promise<{ root: string; from: Checkpoint; to: Checkpoint } | null> {
+    const { root, items } = await this.all(sessionId);
+    const to = items.at(-1);
+    const from = items.at(-2);
+    return root && from && to ? { root, from, to } : null;
+  }
+
   /**
    * Puts the folder back as it was at checkpoint `id`, after a checkpoint of how it is now, which
    * the result names: restoring that one undoes this.
