@@ -512,10 +512,19 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   }
 
   /** A new group, listed last, holding the sessions given. */
-  createGroup(name: string, sessionIds: string[] = []): SessionGroup {
+  createGroup(
+    name: string,
+    sessionIds: string[] = [],
+    options: { experimentId?: string } = {},
+  ): SessionGroup {
     const clean = this.groupName(name);
     if (this.groups.length >= GROUPS_LIMIT) throw new UserError('error.group.tooMany');
-    const group: SessionGroup = { id: randomUUID(), name: clean, collapsed: false };
+    const group: SessionGroup = {
+      id: randomUUID(),
+      name: clean,
+      collapsed: false,
+      ...(options.experimentId && { experimentId: options.experimentId }),
+    };
     this.groups.push(group);
     this.assign(sessionIds, group.id);
     this.normalize();

@@ -70,6 +70,8 @@ export interface SessionGroup {
   name: string;
   /** Only the header shows, with a summary of the sessions inside. */
   collapsed: boolean;
+  /** The group holds the attempts of an experiment, which the header can compare (ADR 0022). */
+  experimentId?: string;
 }
 
 export const GROUP_NAME_LIMIT = 100;

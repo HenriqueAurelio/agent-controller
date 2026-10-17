@@ -20,6 +20,8 @@ import { repositoryRoot } from '@core/git/GitService';
 import { cleanDiscarded } from '@core/git/GitWriteService';
 import { MetricsSampler } from '@core/metrics/MetricsSampler';
 import { TailFeed } from '@core/sessions/TailFeed';
+import { ExperimentService } from '@core/experiments/ExperimentService';
+import { defaultWorktreesFolder } from '@core/git/WorktreeService';
 import { PromptQueue } from '@core/prompts/PromptQueue';
 import { PtyManager } from '@core/pty/PtyManager';
 import { NotificationPolicy, type NotificationRequest } from '@core/sessions/NotificationPolicy';
@@ -403,6 +405,21 @@ export async function startApp(): Promise<void> {
     return agentsCache;
   };
 
+  const experiments = new ExperimentService({
+    manager,
+    file: path.join(userData, 'experiments.json'),
+    worktrees: () => ({
+      parent: data.worktrees.folder || defaultWorktreesFolder(),
+      setup: data.worktrees.setup,
+    }),
+    // The watcher of the panel holds the folder open; on Windows that keeps it from going.
+    beforeRemove: async (sessionId) => {
+      changes.close(sessionId);
+      await checkpoints.removeAll(sessionId).catch(() => 0);
+    },
+    describeError: (err) => errorText(data.prefs.language, err),
+  });
+
   registerIpc({
     manager,
     changes,
@@ -410,6 +427,7 @@ export async function startApp(): Promise<void> {
     checkpoints,
     overlaps,
     queue,
+    experiments,
     tails,
     data,
     discardDir,

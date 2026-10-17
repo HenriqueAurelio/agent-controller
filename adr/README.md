@@ -25,6 +25,7 @@ Registro das decisões de arquitetura do agent-controller. Cada arquivo traz o c
 | [0019](0019-realce-textmate-e-temas.md) | Realce TextMate e temas de cores no painel de mudanças | Aceita |
 | [0020](0020-responder-permissao-fora-do-terminal.md) | Responder ao pedido de permissão fora do terminal | Aceita |
 | [0021](0021-refs-proprias-no-repositorio.md) | O app grava refs próprias no repositório do usuário (checkpoints por turno; revê a 0018) | Aceita |
+| [0022](0022-experimentos-melhor-de-n.md) | Experimentos: o mesmo pedido em várias cópias (melhor de N) | Aceita |
 
 ## Status
 

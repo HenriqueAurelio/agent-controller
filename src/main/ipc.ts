@@ -6,6 +6,7 @@ import { failureReport } from '@core/checks/report';
 import { suggestChecks } from '@core/checks/suggest';
 import type { ChangesService, CheckpointTrees } from '@core/git/ChangesService';
 import type { CheckpointService } from '@core/git/CheckpointService';
+import type { ExperimentService } from '@core/experiments/ExperimentService';
 import type { OverlapService } from '@core/git/OverlapService';
 import type { PromptQueue } from '@core/prompts/PromptQueue';
 import type { TailFeed } from '@core/sessions/TailFeed';
@@ -34,6 +35,13 @@ import { CHECKS_LIMIT, sanitizeChecks, type ChecksInfo } from '@shared/checks';
 import { CODE_THEME_MAX_BYTES } from '@shared/codeThemes';
 import { errorText, translate, UserError, type MessageKey } from '@shared/i18n';
 import { parseCheckpointBase, type CheckpointUsage } from '@shared/checkpoints';
+import {
+  ATTEMPTS_MAX,
+  EXPERIMENT_NAME_LIMIT,
+  EXPERIMENT_PROMPT_LIMIT,
+  type AttemptSpec,
+  type NewExperimentInput,
+} from '@shared/experiments';
 import type { DiffBase } from '@shared/git';
 import type {
   CommandChannel,
@@ -73,6 +81,7 @@ export interface IpcContext {
   checkpoints: CheckpointService;
   overlaps: OverlapService;
   queue: PromptQueue;
+  experiments: ExperimentService;
   tails: TailFeed;
   data: AppData;
   /** Where the copies of discarded files go. */
@@ -204,7 +213,7 @@ export function snapshotOf(manager: SessionManager): SessionsSnapshot {
 }
 
 export function registerIpc(context: IpcContext): void {
-  const { manager, changes, checks, checkpoints, overlaps, queue } = context;
+  const { manager, changes, checks, checkpoints, overlaps, queue, experiments } = context;
 
   // Read at each use: the language may change at any moment.
   const language = () => context.data.prefs.language;
@@ -633,6 +642,43 @@ export function registerIpc(context: IpcContext): void {
       checkpoint: await checkpointTrees(s.id, b),
     });
   };
+  const experimentInput = (value: unknown): NewExperimentInput => {
+    const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+    if (!Array.isArray(v.attempts) || v.attempts.length > ATTEMPTS_MAX) {
+      throw new UserError('error.experiment.attempts', { min: 1, max: ATTEMPTS_MAX });
+    }
+    const attempts = v.attempts.map((raw: unknown): AttemptSpec => {
+      const a = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+      if (!AGENT_PROFILE_IDS.includes(a.profile as never)) {
+        throw new UserError('error.unknownProfile');
+      }
+      return {
+        profile: a.profile as AttemptSpec['profile'],
+        ...(typeof a.command === 'string' && a.command.trim() && { command: command(a.command) }),
+      };
+    });
+    return {
+      name: str(v.name, 'name', EXPERIMENT_NAME_LIMIT * 4),
+      cwd: str(v.cwd, 'folder'),
+      prompt: str(v.prompt, 'text', EXPERIMENT_PROMPT_LIMIT),
+      base: str(v.base, 'branch', 200),
+      attempts,
+    };
+  };
+  handle('experiments:create', async (input) => {
+    const clean = experimentInput(input);
+    const created = await experiments.create(clean);
+    remember(clean.cwd);
+    return created;
+  });
+  handle('experiments:compare', (id) => experiments.compare(str(id, 'session', 64)));
+  handle('experiments:diff', (id, file) =>
+    experiments.diff(str(id, 'session', 64), str(file, 'file')),
+  );
+  handle('experiments:keep', (id, sessionId) =>
+    experiments.keep(str(id, 'session', 64), session(sessionId).id),
+  );
+
   handle('git:open', (id, diffBase) => {
     // A panel that opens shows what is in common as of now, not as of the latest turn.
     void overlaps.touch(session(id).id);
