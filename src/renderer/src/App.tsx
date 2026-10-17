@@ -32,7 +32,9 @@ import { hint, PROFILE_LABEL } from './lib/format';
 import { rich, useT } from './lib/i18n';
 import { shortcutRecording } from './lib/shortcuts';
 import { store, useAppState } from './lib/store';
-import { onOpenLocation } from './lib/terminalLinks';
+import { onOpenLocation, requestOpenLocation } from './lib/terminalLinks';
+import { recentFiles } from './lib/recentFiles';
+import { QuickOpen } from './components/QuickOpen';
 
 /** The session in sight asks a permission that may be answered from outside the terminal. */
 const answerable = (state: ReturnType<typeof store.get>): boolean =>
@@ -43,6 +45,7 @@ type Overlay =
   | 'new'
   | 'prefs'
   | 'palette'
+  | 'quickOpen'
   | 'folder'
   | 'checks'
   | 'prompt'
@@ -70,6 +73,7 @@ export function App() {
   const theme = useAppState((s) => s.prefs.theme);
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
   const layout = useAppState((s) => s.prefs.layout);
+  const showHiddenFiles = useAppState((s) => s.prefs.showHiddenFiles);
   const language = useAppState((s) => s.prefs.language);
   const agentCommands = useAppState((s) => s.prefs.agentCommands);
   const prompts = useAppState((s) => s.prefs.prompts);
@@ -118,6 +122,7 @@ export function App() {
     () =>
       onOpenLocation((place) => {
         if (store.get().selectedId !== place.sessionId) return;
+        recentFiles.add(place.sessionId, place.path);
         // An open panel asks about unsaved edits itself; a closed one starts on the right mode.
         if (!changesOpenRef.current) setPanelMode('files');
         setChangesOpen(true);
@@ -436,6 +441,7 @@ export function App() {
           requestAnimationFrame(() => focusTerminal(true));
         },
         palette: () => setOverlay((o) => (o === 'palette' ? null : 'palette')),
+        quickOpen: () => session && setOverlay((o) => (o === 'quickOpen' ? null : 'quickOpen')),
         overview: () => {
           setOverlay(null);
           setBoardOpen(false);
@@ -529,6 +535,7 @@ export function App() {
       list.unshift(
         action('toggleChanges', t('command.seeChanges'), () => showPanel('changes')),
         action('toggleFiles', t('command.files'), () => showPanel('files')),
+        action('quickOpen', t('command.quickOpen')),
         action('toggleHidden', t('command.toggleHidden')),
         action(
           'toggleAux',
@@ -682,6 +689,15 @@ export function App() {
       if (!binding) return;
       const position = SESSION_BINDING.exec(binding)?.[1];
       const action = bindings.get(binding);
+      if (
+        action === 'quickOpen' &&
+        !store.get().prefs.quickOpenInTerminal &&
+        event.target instanceof Element &&
+        event.target.closest('.xterm')
+      ) {
+        // In a terminal Ctrl+P is the shell's: it asks for the previous command.
+        return;
+      }
       if (
         (action === 'allowPermission' || action === 'denyPermission') &&
         !answerable(store.get())
@@ -1022,6 +1038,16 @@ export function App() {
         />
       )}
       {overlay === 'palette' && <CommandPalette commands={commands} onClose={closeOverlay} />}
+      {overlay === 'quickOpen' && selected && (
+        <QuickOpen
+          sessionId={selected.id}
+          showHidden={showHiddenFiles}
+          onClose={closeOverlay}
+          onOpen={(path, line, column) =>
+            requestOpenLocation({ sessionId: selected.id, path, line, column })
+          }
+        />
+      )}
       {overlay === 'prompt' && promptRequest && (
         <PromptDialog
           promptId={promptRequest.promptId}

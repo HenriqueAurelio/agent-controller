@@ -1045,4 +1045,19 @@ export const es: Record<keyof typeof ptBR, string> = {
   'task.submit': 'Crear',
   'task.submitMany': 'Crear {count} tarjetas',
   'task.creating': 'Creando…',
+  'shortcut.quickOpen': 'Abrir un archivo por su nombre',
+  'command.quickOpen': 'Abrir un archivo por su nombre…',
+  'prefs.quickOpenInTerminal':
+    'Ctrl+P (abrir archivo) también vale con el foco en el terminal, quitándole la tecla al historial del shell',
+  'quickOpen.title': 'Abrir archivo',
+  'quickOpen.input': 'Nombre del archivo',
+  'quickOpen.placeholder': 'Nombre del archivo, o nombre:línea',
+  'quickOpen.loading': 'Leyendo los archivos…',
+  'quickOpen.empty': 'Ningún archivo con ese nombre.',
+  'quickOpen.noFiles': 'Esta carpeta no tiene archivos.',
+  'quickOpen.recent': 'reciente',
+  'quickOpen.truncated':
+    'La carpeta tiene más de {count} archivos: solo los primeros entran en la búsqueda.',
+  'quickOpen.line': 'Abre en la línea {line}',
+  'quickOpen.error': 'No se pudieron leer los archivos: {error}',
 };

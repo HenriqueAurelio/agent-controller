@@ -5,6 +5,7 @@ import {
   type DiffBase,
   type FileChange,
   type FileDiff,
+  type FileIndexResult,
   type FileListing,
   type GitOverview,
   type RepoInfo,
@@ -37,6 +38,7 @@ import {
   type CommitResult,
   type DiscardRecord,
 } from './GitWriteService';
+import { buildFileIndex, FileIndexCache } from './FileIndex';
 import { RepoWatcher } from './RepoWatcher';
 import { findRepositories, isRepository, MAX_REPOSITORIES } from './Workspace';
 
@@ -102,6 +104,7 @@ export interface CheckpointTrees {
 export class ChangesService {
   private readonly sessions = new Map<string, SessionGit>();
   private versionCheck: Promise<string | null> | null = null;
+  private readonly indexes = new FileIndexCache();
 
   constructor(private readonly options: ChangesServiceOptions) {}
 
@@ -296,6 +299,7 @@ export class ChangesService {
     if (!entry) return;
     entry.watcher?.stop();
     this.sessions.delete(sessionId);
+    this.indexes.dropPrefix(`${sessionId}|`);
     await fs.promises.rm(entry.workDir, { recursive: true, force: true }).catch(() => {});
   }
 
@@ -413,6 +417,33 @@ export class ChangesService {
       git: repo !== null,
       repo: repo ? { root: repo.root, prefix: repo.prefix } : undefined,
     });
+  }
+
+  /**
+   * Every file of the folder the "all files" tree shows, by path, and what changed against HEAD.
+   * The list is kept for a few seconds and dropped a minute after the last request.
+   */
+  async index(sessionId: string, cwd: string, showHidden: boolean): Promise<FileIndexResult> {
+    const entry = this.entry(sessionId, cwd);
+    await this.discover(entry, false).catch(() => {});
+    entry.browseRoot = entry.root ?? cwd;
+    const root = entry.browseRoot;
+    const [listing, changed] = await Promise.all([
+      this.indexes.get(`${sessionId}|${showHidden}`, () => buildFileIndex(root, { showHidden })),
+      entry.root
+        ? this.scan(entry, 'head').then(
+            (result) => result.changes,
+            () => [] as FileChange[],
+          )
+        : [],
+    ]);
+    // What git lists of a file taken out of the folder is not there to open.
+    const removed = new Set(changed.filter((c) => c.kind === 'removed').map((c) => c.path));
+    return {
+      files: removed.size > 0 ? listing.files.filter((file) => !removed.has(file)) : listing.files,
+      truncated: listing.truncated,
+      changed: changed.slice(0, 200),
+    };
   }
 
   /** Number of changed files against HEAD, for the counter on the button. Null without git. */
@@ -559,5 +590,6 @@ export class ChangesService {
   dispose(): void {
     for (const entry of this.sessions.values()) entry.watcher?.stop();
     this.sessions.clear();
+    this.indexes.dropPrefix('');
   }
 }

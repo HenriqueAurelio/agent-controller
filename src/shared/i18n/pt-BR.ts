@@ -1039,4 +1039,18 @@ export const ptBR = {
   'task.submit': 'Criar',
   'task.submitMany': 'Criar {count} cartões',
   'task.creating': 'Criando…',
+  'shortcut.quickOpen': 'Abrir arquivo pelo nome',
+  'command.quickOpen': 'Abrir arquivo pelo nome…',
+  'prefs.quickOpenInTerminal':
+    'Ctrl+P (abrir arquivo) também vale com o foco no terminal, tirando a tecla do histórico do shell',
+  'quickOpen.title': 'Abrir arquivo',
+  'quickOpen.input': 'Nome do arquivo',
+  'quickOpen.placeholder': 'Nome do arquivo, ou nome:linha',
+  'quickOpen.loading': 'Lendo os arquivos…',
+  'quickOpen.empty': 'Nenhum arquivo com esse nome.',
+  'quickOpen.noFiles': 'Esta pasta não tem arquivos.',
+  'quickOpen.recent': 'recente',
+  'quickOpen.truncated': 'A pasta tem mais de {count} arquivos: só os primeiros entram na busca.',
+  'quickOpen.line': 'Abre na linha {line}',
+  'quickOpen.error': 'Não foi possível ler os arquivos: {error}',
 } as const;

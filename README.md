@@ -29,13 +29,14 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 | Prompts | Prompts guardados com variáveis, enviados a uma ou várias sessões, com espera pelo fim do turno; fila de prompts por sessão, um a cada fim de turno |
 | Revisão de código | Painel de mudanças com diff editável, árvore de arquivos, stage, commit e descarte com desfazer, vários repositórios na mesma pasta, realce TextMate e temas do VS Code |
 | Checkpoints | Uma foto da pasta no fim de cada turno, no próprio git e fora das branches: ver só o que o último turno mudou, comparar dois turnos, voltar a um turno e desfazer |
+| Abrir arquivo | `Ctrl+P`: busca aproximada pelo nome (`sesmgr` acha `SessionManager.ts`), `nome:42` abre na linha, sobre todos os arquivos da pasta da sessão |
 | Terminal | Links com `Ctrl+clique` (`arquivo:linha` abre o editor na linha, `http://…` abre o navegador), terminal auxiliar por sessão, layout configurável, atalhos editáveis e uso completo sem mouse |
 | Interface | Português, inglês e espanhol |
 
 **Próximos passos**, já priorizados em [`docs/funcionalidades`](docs/funcionalidades/README.md#segunda-rodada-de-painel-de-agentes-a-orquestrador-e-ide-leve):
 
 - **Leva 1, orquestração:** concluída (a última foi o quadro de tarefas).
-- **Leva 2, IDE:** links `arquivo:linha` no terminal (concluído), depois `Ctrl+P`, abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
+- **Leva 2, IDE:** links `arquivo:linha` no terminal e `Ctrl+P` (concluídos), depois abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
 - **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
 
 A `v0.1.0` existe como release em rascunho, com os três instaladores, e ainda falta testá-la numa máquina limpa antes de publicar. O que falta está em [`docs/pendencias/primeira-release.md`](docs/pendencias/primeira-release.md).
@@ -256,6 +257,7 @@ A decisão está na [ADR 0024](adr/0024-regras-que-enviam-sozinhas.md).
   - Com o agente trabalhando, descartar e fazer commit pedem uma confirmação a mais. Se o agente estiver usando o git ao mesmo tempo, o app avisa que o repositório está ocupado; é só tentar de novo.
 - A lista se atualiza sozinha enquanto o painel está aberto.
 - **Links no terminal:** `Ctrl+clique` num caminho impresso no terminal do agente, no terminal auxiliar ou na saída das verificações abre o arquivo no editor do painel (em **Todos os arquivos**), já na linha. Valem `src/x.ts:12`, `src/x.ts:12:3`, `src/x.ts(12,3)` (tsc), `File "x.py", line 12` (Python) e o caminho sozinho, relativo à pasta da sessão ou absoluto (no Windows também `C:\x\y.ts`, `/c/x/y.ts` e `x\y.ts`). Só vira link o que **é um arquivo dentro da pasta da sessão** (um link simbólico para fora não conta): um caminho de fora ou que não existe fica como texto. `http://…`, `https://…` e `localhost:3000` abrem no navegador. Sem o `Ctrl` nada muda (não há sublinhado, e o clique só seleciona), então copiar texto continua como sempre; por isso o clique simples numa `http://…` já não abre o navegador.
+- **Abrir arquivo rápido:** `Ctrl+P` (ou "Abrir arquivo pelo nome…" na paleta) abre uma caixa no topo, no estilo da paleta de comandos, que busca pelo nome entre **todos** os arquivos da pasta da sessão. A busca é aproximada: as letras só precisam aparecer na ordem, e valem mais as que começam uma palavra (depois de `/`, `_`, `-` ou `.`), as maiúsculas de um nome em `camelCase` e as que estão no nome do arquivo e não nas pastas (`sesmgr` acha `SessionManager.ts`, `ipcts` acha `ipc.ts`, `s/c/git` acha `src/core/git/…`). As letras encontradas aparecem em destaque. `Enter` abre o arquivo no editor do painel (em **Todos os arquivos**); `nome:42` (ou `nome:42:7`) abre na linha. Com a caixa vazia ela lista os arquivos que você abriu por último naquela sessão (por ela ou por um link do terminal), marcados `recente`, e os que **mudaram**, com a letra do painel (`M`, `A`, `U`…). Os arquivos ocultos e os ignorados pelo git seguem a caixa **Ocultos** do painel (em Preferências → Geral e no atalho `Ctrl+Shift+H`); numa pasta ignorada inteira (`node_modules`) não se entra. Num repositório a lista vem de `git ls-files`; fora do git a pasta é percorrida; ambos com limite de 50 mil arquivos (a caixa avisa). A lista fica na memória só enquanto a caixa está em uso e é descartada um minuto depois. Com o foco **no terminal** o `Ctrl+P` continua sendo da tecla do shell (histórico); para usá-lo também ali, marque **Ctrl+P também vale com o foco no terminal** em Preferências → Geral. A paleta funciona de qualquer lugar.
 - **Vários repositórios:** se a pasta da sessão guarda mais de um repositório (lado a lado numa pasta comum, ou um dentro do outro), a lista ganha um cabeçalho por repositório, com a branch e a contagem de cada um, e o contador do botão soma todos. Com um repositório só, nada muda.
 
 ### Ver todos os arquivos da pasta
@@ -409,6 +411,7 @@ As sessões, as verificações de cada pasta e os temas importados não vão no 
 | `Ctrl+Shift+M` | Enviar um prompt às sessões marcadas, ou à atual |
 | `Alt+Y` / `Alt+N` | Permitir / negar o pedido de permissão da sessão atual (sem pedido aberto, a tecla vai para o terminal) |
 | `Ctrl+Shift+P` | Paleta de comandos |
+| `Ctrl+P` | Abrir arquivo pelo nome (com o foco fora do terminal, ou em qualquer lugar com a preferência) |
 | `Ctrl+Shift+O` | Abrir ou fechar o painel geral |
 | `Ctrl+Shift+B` | Abrir ou fechar o quadro de tarefas |
 | `Ctrl+,` | Preferências |

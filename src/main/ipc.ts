@@ -852,6 +852,10 @@ export function registerIpc(context: IpcContext): void {
     const s = session(id);
     return changes.list(s.id, s.cwd, str(dir, 'folder'), showHidden === true);
   });
+  handle('files:index', (id, showHidden) => {
+    const s = session(id);
+    return changes.index(s.id, s.cwd, showHidden === true);
+  });
   handle('files:locate', (id, candidates) => {
     if (!Array.isArray(candidates) || candidates.length > MAX_CANDIDATES) {
       throw new UserError('error.invalidArgument', { name: { key: 'arg.file' } });

@@ -11,6 +11,7 @@ export const SHORTCUT_ACTIONS = [
   'focusSidebar',
   'focusTerminal',
   'palette',
+  'quickOpen',
   'overview',
   'board',
   'toggleChanges',
@@ -36,6 +37,8 @@ export const DEFAULT_SHORTCUTS: ShortcutMap = {
   focusSidebar: ['Ctrl+0'],
   focusTerminal: ['Ctrl+Shift+T'],
   palette: ['Ctrl+Shift+P'],
+  // In a terminal it is the key of the shell's history, so it only works there if the preference says so.
+  quickOpen: ['Ctrl+P'],
   overview: ['Ctrl+Shift+O'],
   board: ['Ctrl+Shift+B'],
   toggleChanges: ['Ctrl+Shift+G'],

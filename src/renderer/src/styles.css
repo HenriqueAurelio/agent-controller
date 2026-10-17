@@ -2855,3 +2855,36 @@ textarea.associations {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Quick open */
+.quick-open-note {
+  padding: 4px 10px 0;
+  font-size: 12px;
+}
+.quick-open .palette-list li {
+  gap: 12px;
+  align-items: baseline;
+}
+.quick-open-path {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+  align-items: baseline;
+}
+.quick-open-name {
+  white-space: nowrap;
+}
+.quick-open-dir {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.quick-open mark {
+  background: none;
+  color: var(--accent);
+  font-weight: 700;
+}
+.quick-open-tag {
+  flex: none;
+}

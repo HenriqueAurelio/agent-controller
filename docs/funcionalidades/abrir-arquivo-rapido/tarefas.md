@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 22.1 `FileIndex`
+## [x] 22.1 `FileIndex`
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** nada
 
@@ -17,7 +17,7 @@
 
 ---
 
-## [ ] 22.2 Correspondência aproximada
+## [x] 22.2 Correspondência aproximada
 
 - **Frente:** B · **Tamanho:** P · **Depende de:** nada
 
@@ -29,7 +29,7 @@
 
 ---
 
-## [ ] 22.3 A caixa
+## [x] 22.3 A caixa
 
 - **Frente:** B · **Tamanho:** P · **Depende de:** 22.1, 22.2
 
@@ -42,7 +42,7 @@
 
 ---
 
-## [ ] 22.4 Medição, README e evidências
+## [x] 22.4 Medição, README e evidências
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 22.3
 

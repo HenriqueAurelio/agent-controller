@@ -1,6 +1,6 @@
 # Abrir arquivo rápido
 
-- **Estado:** proposta, leva 2.
+- **Estado:** concluída (leva 2). Medida em 50 mil arquivos: ver o PR.
 - **ADR:** nenhuma nova.
 
 ## O problema

@@ -60,7 +60,13 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
   };
 
   const check = (
-    key: 'notifyWaiting' | 'notifyDone' | 'notifySound' | 'permissionButtons' | 'showHiddenFiles',
+    key:
+      | 'notifyWaiting'
+      | 'notifyDone'
+      | 'notifySound'
+      | 'permissionButtons'
+      | 'showHiddenFiles'
+      | 'quickOpenInTerminal',
     label: MessageKey,
   ) => (
     <label className="check">
@@ -206,6 +212,7 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
             <fieldset className="field">
               <legend>{t('common.files')}</legend>
               {check('showHiddenFiles', 'prefs.showHidden')}
+              {check('quickOpenInTerminal', 'prefs.quickOpenInTerminal')}
             </fieldset>
           </>
         )}
