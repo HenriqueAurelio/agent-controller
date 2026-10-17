@@ -15,6 +15,7 @@ import type { LaunchCommand } from '@core/agents';
 import { CheckService } from '@core/checks/CheckService';
 import { ChangesService } from '@core/git/ChangesService';
 import { CheckpointService } from '@core/git/CheckpointService';
+import { OverlapService } from '@core/git/OverlapService';
 import { repositoryRoot } from '@core/git/GitService';
 import { cleanDiscarded } from '@core/git/GitWriteService';
 import { MetricsSampler } from '@core/metrics/MetricsSampler';
@@ -165,9 +166,31 @@ export async function startApp(): Promise<void> {
     }
   };
 
+  // Sessions in other copies of the same repository that change the same files. It looks again
+  // when the watcher of an open panel sees a change and at the end of a turn, never more than
+  // once every few seconds per repository; it starts no watcher of its own.
+  const overlaps = new OverlapService({
+    sessions: () =>
+      manager.list().map((s) => ({
+        id: s.id,
+        cwd: s.cwd,
+        base: s.worktree?.base,
+        running: s.running,
+      })),
+    settings: () => data.prefs.overlaps,
+    onChange: (sessionId, summary) => {
+      manager.setOverlaps(sessionId, summary);
+      send('git:overlapsChanged', sessionId);
+    },
+    onError: (err) => console.error('Falha ao cruzar as mudanças das sessões:', err),
+  });
+
   const changes = new ChangesService({
     workDirectory: path.join(userData, 'snapshots'),
-    onChange: (sessionId) => send('git:changed', sessionId),
+    onChange: (sessionId) => {
+      send('git:changed', sessionId);
+      void overlaps.touch(sessionId);
+    },
   });
   // Snapshots of a previous run are useless: sessions always come back stopped.
   fs.rmSync(path.join(userData, 'snapshots'), { recursive: true, force: true });
@@ -303,7 +326,18 @@ export async function startApp(): Promise<void> {
     });
     if (request) notify(request);
   });
-  manager.on('sessions', () => send('sessions:changed', snapshotOf(manager)));
+  // What the warning depends on in the list: which sessions, in which folders, running or not.
+  let overlapShape = '';
+  manager.on('sessions', () => {
+    send('sessions:changed', snapshotOf(manager));
+    const shape = manager
+      .list()
+      .map((s) => [s.id, s.cwd, s.worktree?.base ?? '', s.running].join('|'))
+      .join('\n');
+    if (shape === overlapShape) return;
+    overlapShape = shape;
+    void overlaps.refreshAll();
+  });
   manager.on('data', (id, chunk) => send('terminal:data', id, chunk));
   manager.on('reset', (id) => send('terminal:reset', id));
   manager.on('started', (session) => {
@@ -314,6 +348,7 @@ export async function startApp(): Promise<void> {
     notifications.forget(id);
     checks.forget(id);
     queue.forget(id);
+    overlaps.forget(id);
     void checkpoints.forget(id);
     void changes.sessionClosed(id);
   });
@@ -324,6 +359,7 @@ export async function startApp(): Promise<void> {
     if (edge === 'ended') {
       void checkpoints.turnEnded(session.id);
       void checks.turnEnded(session.id);
+      void overlaps.touch(session.id);
     }
     if (edge === 'started') checks.turnStarted(session.id);
     const request = notifications.evaluate(session, previous, {
@@ -362,6 +398,7 @@ export async function startApp(): Promise<void> {
     changes,
     checks,
     checkpoints,
+    overlaps,
     queue,
     data,
     discardDir,
@@ -375,7 +412,9 @@ export async function startApp(): Promise<void> {
       unsavedFile = file;
     },
     savePrefs: (prefs) => {
+      const overlapsBefore = JSON.stringify(data.prefs.overlaps);
       data.prefs = prefs;
+      if (JSON.stringify(prefs.overlaps) !== overlapsBefore) void overlaps.refreshAll();
       manager.setPreferences(prefs);
       manager.flushPersist();
       send('prefs:changed', prefs);
@@ -414,6 +453,7 @@ export async function startApp(): Promise<void> {
     closing = true;
     metrics.stop();
     changes.dispose();
+    overlaps.dispose();
     checks.dispose();
     if (window && !window.isDestroyed()) saveWindowState(window, data.window);
     // Every agent, and whatever it started, ends with the app (ADR 0006).

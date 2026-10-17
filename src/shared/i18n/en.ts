@@ -743,4 +743,21 @@ export const en: Record<keyof typeof ptBR, string> = {
   'checkpoints.prune': 'Prune now',
   'checkpoints.pruneOf': 'Prune the checkpoints of {name}',
   'checkpoints.pruned': '{count} checkpoint(s) removed.',
+  'overlap.name': '“{name}”',
+  'overlap.badge': '{count} file(s) also changed in {names}',
+  'overlap.badgeLikely': '{count} file(s) also changed in {names}; {likely} likely to conflict',
+  'overlap.fileSame':
+    'Same file: also changed in {names}, on other lines. Click to open the file there.',
+  'overlap.fileLikely':
+    'Likely conflict: the same lines also changed in {names}. Click to open the file there.',
+  'overlap.openIn': 'Open {file} in “{name}”',
+  'overlaps.title': 'Conflicts between sessions',
+  'overlaps.intro':
+    'Sessions in different copies of the same repository (git worktree, or the original folder) that change the same file get a ⚠ in the list and in the changes panel. It counts what is not committed and the commits of the branch since its base. When the changed lines cross, the warning says “likely conflict”.',
+  'overlaps.enabled': 'Warn when two sessions change the same file',
+  'overlaps.includeStopped': 'Count stopped sessions too (their copy still holds the work)',
+  'overlaps.ignored': 'Files the warning ignores, one pattern per line',
+  'overlaps.ignoredHint':
+    'Without “/”, it matches the name in any folder (package-lock.json); with “/”, the path from the root (generated/**). * stays within a folder, ** does not.',
+  'overlaps.restore': 'Back to the default list',
 };

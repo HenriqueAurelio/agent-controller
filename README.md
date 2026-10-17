@@ -24,7 +24,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 |---|---|
 | Sessões | Claude Code e Codex em terminais reais, grupos por repositório, comando próprio por sessão (aliases e funções do seu shell), pastas recentes e favoritas, arrastar pasta para abrir |
 | Estado e avisos | Estado de cada sessão pelos sinais do próprio agente, notificação do sistema, contador de "aguardando" no título da janela, pedidos de permissão respondidos pela barra lateral ou pela notificação |
-| Isolamento | Cópia isolada por sessão (git worktree), com comando de preparo e limpeza |
+| Isolamento | Cópia isolada por sessão (git worktree), com comando de preparo e limpeza; aviso quando sessões em cópias diferentes mudam o mesmo arquivo, com "provável conflito" quando as linhas se cruzam |
 | Verificações | Lint, typecheck e testes ao fim de cada turno, com ✓/✗ na sessão e "mandar o erro ao agente" |
 | Prompts | Prompts guardados com variáveis, enviados a uma ou várias sessões, com espera pelo fim do turno; fila de prompts por sessão, um a cada fim de turno |
 | Revisão de código | Painel de mudanças com diff editável, árvore de arquivos, stage, commit e descarte com desfazer, vários repositórios na mesma pasta, realce TextMate e temas do VS Code |
@@ -34,7 +34,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 
 **Próximos passos**, já priorizados em [`docs/funcionalidades`](docs/funcionalidades/README.md#segunda-rodada-de-painel-de-agentes-a-orquestrador-e-ide-leve):
 
-- **Leva 1, orquestração:** aviso de conflito entre sessões, painel geral em mosaico, "melhor de N", revisor automático, encadear sessões e quadro de tarefas.
+- **Leva 1, orquestração:** painel geral em mosaico, "melhor de N", revisor automático, encadear sessões e quadro de tarefas.
 - **Leva 2, IDE:** links `arquivo:linha` no terminal, `Ctrl+P`, abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
 - **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
 
@@ -167,6 +167,15 @@ Depois disso:
 - **Duplicar** uma sessão em cópia abre a nova na mesma cópia. Enquanto as duas existirem, uma faixa avisa que elas mexem nos mesmos arquivos.
 - **Ao fechar**, o app pergunta o que fazer com a cópia. **Manter** (o padrão) deixa a pasta e a branch; dá para abrir outra sessão nela depois. **Remover a cópia** apaga a pasta, e só é possível quando nada nela está sem commit e nenhuma outra sessão a usa; com mudanças, o app diz quais e não remove. A **branch nunca é apagada**.
 - O app não faz commit nem push: abrir o PR fica com você ou com o agente.
+
+**Conflito entre sessões.** As cópias evitam que dois agentes escrevam no mesmo arquivo ao mesmo tempo, mas não o conflito na hora de juntar as branches. Por isso o app cruza o que cada sessão mudou em todas as cópias do mesmo repositório (e na pasta original dele) e avisa quando duas mexem no mesmo arquivo:
+
+- Na barra lateral, a sessão ganha um **⚠ n**: n arquivos dela também mudaram em outra sessão. Passe o mouse para ver em qual ("2 arquivos também mudados em “refatorar-ipc”"). Fica vermelho quando há **provável conflito**: as linhas mudadas nas duas se cruzam ou encostam, que é quando o merge do git para. Sem isso, é só "mesmo arquivo".
+- No painel de mudanças, o arquivo em comum tem a mesma marca. Passar o mouse diz com qual sessão; **um clique abre o mesmo arquivo nela**, com o painel em **A base da branch** quando o arquivo já tem commit lá.
+- Conta o que ainda não tem commit e os commits da branch desde a base, os mesmos de **A base da branch**. Sessões na mesma cópia não se avisam entre si: elas dividem os próprios arquivos.
+- O app olha de novo quando o painel de uma das sessões vê uma mudança e no fim de cada turno, no máximo uma vez a cada 5 segundos por repositório. Ele não abre observador de pasta novo para isso: uma sessão sem o painel aberto é revista no fim do turno.
+
+Em **Preferências → Sessões → Conflito entre sessões** dá para desligar o aviso, deixar de contar as sessões paradas e editar a lista de arquivos que ele ignora: um padrão por linha, já com os lockfiles (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock` e outros).
 
 Em **Preferências → Sessões** você escolhe a **pasta das cópias** e um **comando para preparar cada cópia nova** (por exemplo, `npm ci`), que roda uma vez, na cópia, antes de a sessão abrir; se ele falhar, a sessão não abre, e a cópia fica. A mesma aba lista as cópias, com branch, tamanho, data e quais sessões as usam, e remove as que nenhuma sessão usa. Esses dois ajustes ficam com as sessões, não vão no arquivo de exportação das preferências.
 

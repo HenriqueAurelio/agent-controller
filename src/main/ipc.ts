@@ -6,6 +6,7 @@ import { failureReport } from '@core/checks/report';
 import { suggestChecks } from '@core/checks/suggest';
 import type { ChangesService, CheckpointTrees } from '@core/git/ChangesService';
 import type { CheckpointService } from '@core/git/CheckpointService';
+import type { OverlapService } from '@core/git/OverlapService';
 import type { PromptQueue } from '@core/prompts/PromptQueue';
 import { currentBranch } from '@core/git/GitService';
 import { expandPrompt, promptVariables } from '@core/prompts/expand';
@@ -69,6 +70,7 @@ export interface IpcContext {
   changes: ChangesService;
   checks: CheckService;
   checkpoints: CheckpointService;
+  overlaps: OverlapService;
   queue: PromptQueue;
   data: AppData;
   /** Where the copies of discarded files go. */
@@ -200,7 +202,7 @@ export function snapshotOf(manager: SessionManager): SessionsSnapshot {
 }
 
 export function registerIpc(context: IpcContext): void {
-  const { manager, changes, checks, checkpoints, queue } = context;
+  const { manager, changes, checks, checkpoints, overlaps, queue } = context;
 
   // Read at each use: the language may change at any moment.
   const language = () => context.data.prefs.language;
@@ -629,8 +631,13 @@ export function registerIpc(context: IpcContext): void {
       checkpoint: await checkpointTrees(s.id, b),
     });
   };
-  handle('git:open', (id, diffBase) => overview(id, diffBase, true));
+  handle('git:open', (id, diffBase) => {
+    // A panel that opens shows what is in common as of now, not as of the latest turn.
+    void overlaps.touch(session(id).id);
+    return overview(id, diffBase, true);
+  });
   handle('git:refresh', (id, diffBase) => overview(id, diffBase, false));
+  handle('git:overlaps', (id) => overlaps.detail(session(id).id));
   handle('git:close', (id) => changes.close(str(id, 'session', 64)));
   handle('git:diff', async (id, file, diffBase) => {
     const s = session(id);

@@ -75,6 +75,12 @@ export function App() {
   const [panelMode, setPanelMode] = useState<PanelMode>('changes');
   /** A comparison asked for from the timeline: the panel takes it as its base. */
   const [panelBase, setPanelBase] = useState<{ base: DiffBase; nonce: number } | null>(null);
+  /** A file asked for from the ⚠ of another session: the panel of this one opens on it. */
+  const [panelFileRequest, setPanelFileRequest] = useState<{
+    sessionId: string;
+    path: string;
+    nonce: number;
+  } | null>(null);
   const [changeCount, setChangeCount] = useState<number | null>(null);
   const terminals = useRef<TerminalAreaHandle>(null);
   /** Sessions picked in the list with Ctrl+click. */
@@ -745,12 +751,28 @@ export function App() {
               session={selected}
               mode={panelMode}
               onModeChange={setPanelMode}
-              onClose={() => setChangesOpen(false)}
+              onClose={() => {
+                setChangesOpen(false);
+                setPanelFileRequest(null);
+              }}
               onCount={setChangeCount}
               onUnsavedChange={setUnsaved}
               onOpenFile={(file) => (panelFile.current = file)}
               onSendSelection={(file, selection) => openPrompt(undefined, { file, selection })}
               requestedBase={panelBase}
+              requestedFile={panelFileRequest?.sessionId === selected.id ? panelFileRequest : null}
+              onOpenInSession={(sessionId, file) => {
+                store.select(sessionId);
+                // The guard of unsaved edits may have kept the current session.
+                if (store.get().selectedId !== sessionId) return;
+                setPanelMode('changes');
+                setChangesOpen(true);
+                setPanelFileRequest((current) => ({
+                  sessionId,
+                  path: file,
+                  nonce: (current?.nonce ?? 0) + 1,
+                }));
+              }}
             />
           )}
         </div>

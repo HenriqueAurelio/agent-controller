@@ -4,6 +4,7 @@ import type { AgentAvailability } from './agents';
 import type { CheckConfig, ChecksInfo } from './checks';
 import type { CheckpointList, CheckpointUsage, RestoreResult } from './checkpoints';
 import type { DiffBase, FileChange, FileDiff, FileListing, GitOverview } from './git';
+import type { OverlapFile } from './overlaps';
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
 import type {
@@ -229,6 +230,11 @@ export interface IpcCommands {
   /** Discards the changes of one file, after keeping a copy of it; the id gives it back. */
   'git:discard': (sessionId: string, file: string) => { id: string };
   'git:undoDiscard': (sessionId: string, id: string) => void;
+  /**
+   * The files of the session that sessions in other copies of the same repository also changed,
+   * as of the latest look; the count is in `SessionView.overlaps`.
+   */
+  'git:overlaps': (sessionId: string) => OverlapFile[];
   /** The timeline of a session: its checkpoints, oldest first (ADR 0021). */
   'checkpoints:list': (sessionId: string) => CheckpointList;
   /**
@@ -259,6 +265,8 @@ export interface IpcEvents {
   'terminal:data': (id: string, data: string) => void;
   'terminal:reset': (id: string) => void;
   'git:changed': (sessionId: string) => void;
+  /** What the session has in common with the others changed: `git:overlaps` has the new detail. */
+  'git:overlapsChanged': (sessionId: string) => void;
   'metrics:update': (metrics: Record<string, SessionMetrics>) => void;
   'prefs:changed': (prefs: Preferences) => void;
   'app:focusSession': (id: string) => void;
@@ -343,6 +351,7 @@ export const COMMAND_CHANNELS = [
   'git:commit',
   'git:discard',
   'git:undoDiscard',
+  'git:overlaps',
   'checkpoints:list',
   'checkpoints:restore',
   'checkpoints:prune',
@@ -360,6 +369,7 @@ export const EVENT_CHANNELS = [
   'terminal:data',
   'terminal:reset',
   'git:changed',
+  'git:overlapsChanged',
   'metrics:update',
   'prefs:changed',
   'app:focusSession',

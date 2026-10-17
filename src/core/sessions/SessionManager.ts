@@ -5,6 +5,7 @@ import { sanitizeAgentCommand } from '@shared/agents';
 import type { ChecksSummary } from '@shared/checks';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import type { Preferences } from '@shared/prefs';
+import { sameOverlapSummary, type OverlapSummary } from '@shared/overlaps';
 import type { QueueSummary, SendOutcome, SendTextOptions } from '@shared/prompts';
 import {
   AUX_SCROLLBACK,
@@ -156,6 +157,7 @@ interface Entry {
   checks?: ChecksSummary;
   /** What the list shows of the queue of prompts of the session, which `PromptQueue` owns. */
   queue?: QueueSummary;
+  overlaps?: OverlapSummary;
   /** Texts the user sent while the agent worked: they go when the turn ends, in order. */
   pending: PendingSend[];
   /** A visual terminal exists for this session, whether or not the agent is running. */
@@ -246,6 +248,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       unread: entry.unread,
       ...(entry.checks && { checks: entry.checks }),
       ...(entry.queue && { queue: entry.queue }),
+      ...(entry.overlaps && { overlaps: entry.overlaps }),
       ...(entry.pending.length > 0 && { pendingSends: entry.pending.length }),
       ...(entry.aux && { auxOpen: true }),
       ...(entry.permission?.shown && {
@@ -267,6 +270,14 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     const entry = this.entries.get(id);
     if (!entry) return;
     entry.queue = queue;
+    this.changed();
+  }
+
+  /** What the list shows of the files other sessions also changed. Not persisted either. */
+  setOverlaps(id: string, overlaps: OverlapSummary | undefined): void {
+    const entry = this.entries.get(id);
+    if (!entry || sameOverlapSummary(entry.overlaps, overlaps)) return;
+    entry.overlaps = overlaps;
     this.changed();
   }
 

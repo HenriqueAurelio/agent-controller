@@ -8,11 +8,13 @@ import {
   type GitOverview,
   type RepoInfo,
 } from '@shared/git';
+import type { OverlapFile } from '@shared/overlaps';
 import type { SessionView } from '@shared/session';
 import type { ParentMessage } from '../lib/diffProtocol';
 import { checkpointLabel, useCheckpoints } from '../lib/checkpoints';
 import { errorMessage } from '../lib/format';
 import { rich, useT } from '../lib/i18n';
+import { sessionNames, useOverlaps } from '../lib/overlaps';
 import { useAppState } from '../lib/store';
 import { DiffView } from './DiffView';
 import { FileTree } from './FileTree';
@@ -34,6 +36,10 @@ interface Props {
   onSendSelection(file: string, selection: string): void;
   /** A base asked for from outside (the timeline); a new nonce applies it again. */
   requestedBase?: { base: DiffBase; nonce: number } | null;
+  /** A file to open, asked for from another session that also changed it. */
+  requestedFile?: { path: string; nonce: number } | null;
+  /** Opens a file in the panel of another session: the ⚠ of a file that both changed. */
+  onOpenInSession(sessionId: string, file: string): void;
 }
 
 interface Group {
@@ -113,9 +119,24 @@ export function ChangesPanel({
   onOpenFile,
   onSendSelection,
   requestedBase,
+  requestedFile,
+  onOpenInSession,
 }: Props) {
   const t = useT();
   const prefs = useAppState((s) => s.prefs);
+  const sessions = useAppState((s) => s.sessions);
+  const overlapFiles = useOverlaps(session.id, session.overlaps);
+  const overlapOf = useMemo(
+    () => new Map(overlapFiles.map((file) => [file.path, file] as const)),
+    [overlapFiles],
+  );
+  /** The file asked for from another session, until the list that has it arrives. */
+  const [wantedFile, setWantedFile] = useState(requestedFile?.path ?? null);
+  const [appliedFile, setAppliedFile] = useState(requestedFile?.nonce);
+  if (requestedFile && requestedFile.nonce !== appliedFile) {
+    setAppliedFile(requestedFile.nonce);
+    setWantedFile(requestedFile.path);
+  }
   const [overview, setOverview] = useState<GitOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [base, setBase] = useState<DiffBase>(requestedBase?.base ?? 'head');
@@ -164,6 +185,19 @@ export function ChangesPanel({
     },
     [onCount],
   );
+  // The file another session asked for. Committed in a copy, it is only in the list against the
+  // base of the branch, which is what the warning compares.
+  useEffect(() => {
+    if (!wantedFile || !overview?.ok) return;
+    if (overview.changes.some((c) => c.path === wantedFile)) {
+      setSelected(wantedFile);
+      setWantedFile(null);
+    } else if (overview.base === 'head' && overview.hasBranchBase) {
+      setBase('branchBase');
+    } else {
+      setWantedFile(null);
+    }
+  }, [wantedFile, overview]);
 
   useEffect(() => {
     let cancelled = false;
@@ -360,6 +394,34 @@ export function ChangesPanel({
     if (next.path === selected || !mayLeave()) return;
     setSelected(next.path);
     document.getElementById(`change-${flat.indexOf(next)}`)?.scrollIntoView({ block: 'nearest' });
+  };
+
+  /** The ⚠ of a file another session also changed: it opens the file over there. */
+  const renderOverlap = (overlap: OverlapFile) => {
+    const names = sessionNames(
+      t,
+      overlap.others.map((o) => o.sessionId),
+      sessions,
+    );
+    const target = overlap.others.find((o) => o.likely) ?? overlap.others[0]!;
+    const targetName = sessions.find((s) => s.id === target.sessionId)?.name ?? '';
+    return (
+      <button
+        type="button"
+        className={`overlap-mark ${overlap.likely ? 'likely' : ''}`}
+        data-testid="overlap-mark"
+        data-likely={overlap.likely}
+        title={t(overlap.likely ? 'overlap.fileLikely' : 'overlap.fileSame', { names })}
+        aria-label={t('overlap.openIn', { file: overlap.path, name: targetName })}
+        onClick={(e) => {
+          e.stopPropagation();
+          // Leaving this session asks about unsaved edits by itself.
+          onOpenInSession(target.sessionId, target.path);
+        }}
+      >
+        ⚠
+      </button>
+    );
   };
 
   return (
@@ -606,6 +668,7 @@ export function ChangesPanel({
                         />
                       )}
                       <span className="change-name">{fileName(change.path)}</span>
+                      {overlapOf.has(change.path) && renderOverlap(overlapOf.get(change.path)!)}
                       {operable && change.kind !== 'conflict' && (
                         <button
                           type="button"

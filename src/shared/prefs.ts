@@ -4,6 +4,11 @@ import {
   type CheckpointSettings,
 } from './checkpoints';
 import { sanitizeAssociations } from './codeLanguages';
+import {
+  DEFAULT_OVERLAP_SETTINGS,
+  sanitizeOverlapSettings,
+  type OverlapSettings,
+} from './overlaps';
 import { sanitizeCodeThemeId } from './codeThemes';
 import { NO_AGENT_COMMANDS, sanitizeAgentCommands, type AgentCommands } from './agents';
 import { DEFAULT_LANGUAGE, sanitizeLanguage, type Language } from './i18n';
@@ -50,6 +55,8 @@ export interface Preferences {
   fileAssociations: Record<string, string>;
   /** Checkpoints per turn: whether they are taken, how many and how long they are kept. */
   checkpoints: CheckpointSettings;
+  /** The warning of sessions in other copies of the repository that change the same files. */
+  overlaps: OverlapSettings;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -75,6 +82,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   codeThemeLight: 'app-light',
   fileAssociations: {},
   checkpoints: DEFAULT_CHECKPOINT_SETTINGS,
+  overlaps: DEFAULT_OVERLAP_SETTINGS,
 };
 
 export const SCROLLBACK_LIMITS = { min: 200, max: 20000 } as const;
@@ -150,5 +158,6 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
     codeThemeLight: sanitizeCodeThemeId(p.codeThemeLight, 'light'),
     fileAssociations: sanitizeAssociations(p.fileAssociations),
     checkpoints: sanitizeCheckpointSettings(p.checkpoints),
+    overlaps: sanitizeOverlapSettings(p.overlaps),
   };
 }

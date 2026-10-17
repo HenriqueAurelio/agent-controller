@@ -10,6 +10,7 @@ import {
 import { formatCpu, formatMemory, hint, PROFILE_LABEL } from '../lib/format';
 import { ChecksBadge } from './ChecksDialog';
 import { useT } from '../lib/i18n';
+import { overlapBadgeText } from '../lib/overlaps';
 import { store, useAppState } from '../lib/store';
 
 interface Props {
@@ -386,6 +387,16 @@ export function Sidebar({
           )}
           <span className="session-meta">
             {/* First: the end of the line is cut when the list is narrow. */}
+            {session.overlaps && (
+              <span
+                className={`overlap-badge ${session.overlaps.likely > 0 ? 'likely' : ''}`}
+                data-testid="overlap-badge"
+                title={overlapBadgeText(t, session.overlaps, sessions)}
+                aria-label={overlapBadgeText(t, session.overlaps, sessions)}
+              >
+                ⚠ {session.overlaps.files}
+              </span>
+            )}
             {session.queue && (
               <span
                 className={`queue-badge ${session.queue.paused ? 'paused' : ''}`}

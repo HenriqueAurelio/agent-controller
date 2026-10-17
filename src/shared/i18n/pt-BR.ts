@@ -743,4 +743,23 @@ export const ptBR = {
   'checkpoints.prune': 'Podar agora',
   'checkpoints.pruneOf': 'Podar os checkpoints de {name}',
   'checkpoints.pruned': '{count} checkpoint(s) removido(s).',
+  'overlap.name': '“{name}”',
+  'overlap.badge': '{count} arquivo(s) também mudado(s) em {names}',
+  'overlap.badgeLikely':
+    '{count} arquivo(s) também mudado(s) em {names}; {likely} com provável conflito',
+  'overlap.fileSame':
+    'Mesmo arquivo: também mudou em {names}, em outras linhas. Clique para abrir o arquivo lá.',
+  'overlap.fileLikely':
+    'Provável conflito: as mesmas linhas também mudaram em {names}. Clique para abrir o arquivo lá.',
+  'overlap.openIn': 'Abrir {file} em “{name}”',
+  'overlaps.title': 'Conflito entre sessões',
+  'overlaps.intro':
+    'Sessões em cópias diferentes do mesmo repositório (git worktree, ou a pasta original) que mudam o mesmo arquivo ganham um ⚠ na lista e no painel de mudanças. Conta o que não tem commit e os commits da branch desde a base. Quando as linhas mudadas se cruzam, o aviso diz “provável conflito”.',
+  'overlaps.enabled': 'Avisar quando duas sessões mudam o mesmo arquivo',
+  'overlaps.includeStopped':
+    'Contar também as sessões paradas (a cópia delas ainda guarda o trabalho)',
+  'overlaps.ignored': 'Arquivos que o aviso ignora, um padrão por linha',
+  'overlaps.ignoredHint':
+    'Sem “/”, vale para o nome em qualquer pasta (package-lock.json); com “/”, para o caminho desde a raiz (gerado/**). * não passa de uma pasta, ** passa.',
+  'overlaps.restore': 'Voltar à lista padrão',
 } as const;
