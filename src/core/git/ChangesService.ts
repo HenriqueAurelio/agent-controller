@@ -504,6 +504,12 @@ export class ChangesService {
     return { ...(await fileDiff(repo.root, change, treeish)), path: file };
   }
 
+  /** The folder the paths of the panel are relative to, once the panel has been opened. */
+  rootFor(sessionId: string): string | null {
+    const entry = this.sessions.get(sessionId);
+    return entry?.root ?? entry?.browseRoot ?? null;
+  }
+
   /** Saves an edit made in the panel to the file in the working tree. */
   async save(
     sessionId: string,

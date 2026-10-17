@@ -11,6 +11,7 @@ import {
 } from './overlaps';
 import { sanitizeCodeThemeId } from './codeThemes';
 import { NO_AGENT_COMMANDS, sanitizeAgentCommands, type AgentCommands } from './agents';
+import { NO_EXTERNAL_EDITOR, sanitizeExternalEditor, type ExternalEditorPrefs } from './editor';
 import { DEFAULT_LANGUAGE, sanitizeLanguage, type Language } from './i18n';
 import { DEFAULT_LAYOUT, sanitizeLayout, type Layout } from './layout';
 import { factoryPrompts, sanitizePrompts, type PromptTemplate } from './prompts';
@@ -43,6 +44,8 @@ export interface Preferences {
   favoriteFolders: string[];
   /** Per agent, the command sessions run in place of the agent's own. Empty: the agent's. */
   agentCommands: AgentCommands;
+  /** The editor "Open in editor" starts. The command of "other" does not go in the export. */
+  externalEditor: ExternalEditorPrefs;
   layout: Layout;
   shortcuts: ShortcutMap;
   /** Saved prompts. They are text only, and go with the exported preferences. */
@@ -77,6 +80,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   defaultFolder: '',
   favoriteFolders: [],
   agentCommands: NO_AGENT_COMMANDS,
+  externalEditor: NO_EXTERNAL_EDITOR,
   layout: DEFAULT_LAYOUT,
   shortcuts: DEFAULT_SHORTCUTS,
   prompts: factoryPrompts(DEFAULT_LANGUAGE),
@@ -149,6 +153,7 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
         : '',
     favoriteFolders: sanitizeFavoriteFolders(p.favoriteFolders),
     agentCommands: sanitizeAgentCommands(p.agentCommands),
+    externalEditor: sanitizeExternalEditor(p.externalEditor),
     layout: sanitizeLayout(p.layout),
     shortcuts,
     // Missing from what was saved (before prompts existed): the factory ones, in its language.

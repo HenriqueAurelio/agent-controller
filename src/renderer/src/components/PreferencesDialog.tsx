@@ -15,6 +15,7 @@ import { useT } from '../lib/i18n';
 import { CheckpointsSettings } from './CheckpointsSettings';
 import { Dialog } from './Dialog';
 import { EditorPreferences } from './EditorPreferences';
+import { ExternalEditorSettings } from './ExternalEditorSettings';
 import { FavoriteFolders } from './FavoriteFolders';
 import { LayoutEditor } from './LayoutEditor';
 import { PromptsEditor } from './PromptsEditor';
@@ -34,14 +35,20 @@ const TABS = [
   'sessoes',
   'configuracoes',
 ] as const;
-type TabId = (typeof TABS)[number];
+export type TabId = (typeof TABS)[number];
 
-export function PreferencesDialog({ onClose }: { onClose(): void }) {
+export function PreferencesDialog({
+  onClose,
+  initialTab = 'geral',
+}: {
+  onClose(): void;
+  initialTab?: TabId;
+}) {
   const t = useT();
   const prefs = useAppState((s) => s.prefs);
   const testMode = useAppState((s) => s.info.testMode);
   const agents = useAppState((s) => s.agents);
-  const [tab, setTab] = useState<TabId>('geral');
+  const [tab, setTab] = useState<TabId>(initialTab);
   // Kept as a message, not as its words: an import may bring another language with it.
   const [transfer, setTransfer] = useState<Message | { error: string } | null>(null);
 
@@ -116,7 +123,12 @@ export function PreferencesDialog({ onClose }: { onClose(): void }) {
         role="tabpanel"
         aria-labelledby={`prefs-tab-${tab}`}
       >
-        {tab === 'editor' && <EditorPreferences />}
+        {tab === 'editor' && (
+          <>
+            <ExternalEditorSettings />
+            <EditorPreferences />
+          </>
+        )}
         {tab === 'layout' && (
           <LayoutEditor layout={prefs.layout} onChange={(layout) => set({ layout })} />
         )}

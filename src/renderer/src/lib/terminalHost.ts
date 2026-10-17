@@ -3,6 +3,7 @@ import { WebglAddon } from '@xterm/addon-webgl';
 import { Terminal, type ITheme } from '@xterm/xterm';
 import type { Preferences, ThemeName } from '@shared/prefs';
 import type { TerminalSize } from '@shared/session';
+import { openInEditor } from './externalEditor';
 import { registerTerminalLinks } from './terminalLinks';
 
 const THEMES: Record<ThemeName, ITheme> = {
@@ -78,6 +79,8 @@ export class TerminalHost {
     const links = registerTerminalLinks(this.term, this.element, {
       sessionId: sessionId.replace(/:aux$/, ''),
       openUrl: (url) => void window.api.invoke('shell:openExternal', url),
+      openInEditor: (file, line, column) =>
+        void openInEditor(sessionId.replace(/:aux$/, ''), { file, line, column }),
     });
     this.unsubscribe.push(
       links.dispose,

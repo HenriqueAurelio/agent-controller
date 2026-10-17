@@ -1,6 +1,6 @@
 /** Quotes one argument the way the Microsoft C runtime parses a command line. */
-export function quoteWindowsArg(arg: string): string {
-  if (arg !== '' && !/[\s"]/.test(arg)) return arg;
+export function quoteWindowsArg(arg: string, always = false): string {
+  if (!always && arg !== '' && !/[\s"]/.test(arg)) return arg;
   let out = '"';
   let backslashes = 0;
   for (const ch of arg) {

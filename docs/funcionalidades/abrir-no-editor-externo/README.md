@@ -1,6 +1,6 @@
 # Abrir no editor externo
 
-- **Estado:** proposta, leva 2.
+- **Estado:** concluída (leva 2). O WSL2 não foi testado de ponta a ponta (sem WSL2 nesta máquina): vale o desenho descrito abaixo, e o Linux foi coberto pelos testes do core no Docker.
 - **ADR:** nenhuma nova. É mais um caso de "o app roda um comando que a pessoa escolheu" ([ADR 0013](../../../adr/0013-comando-do-usuario-no-lugar-do-agente.md)).
 
 ## O problema

@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 23.1 Perfis e detecção
+## [x] 23.1 Perfis e detecção
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** nada
 
@@ -17,7 +17,7 @@
 
 ---
 
-## [ ] 23.2 Preferência e IPC
+## [x] 23.2 Preferência e IPC
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** 23.1
 
@@ -30,7 +30,7 @@
 
 ---
 
-## [ ] 23.3 Botões e atalho
+## [x] 23.3 Botões e atalho
 
 - **Frente:** B · **Tamanho:** P · **Depende de:** 23.2
 
@@ -42,7 +42,7 @@
 
 ---
 
-## [ ] 23.4 README e evidências
+## [x] 23.4 README e evidências
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 23.3
 

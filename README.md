@@ -29,14 +29,14 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 | Prompts | Prompts guardados com variáveis, enviados a uma ou várias sessões, com espera pelo fim do turno; fila de prompts por sessão, um a cada fim de turno |
 | Revisão de código | Painel de mudanças com diff editável, árvore de arquivos, stage, commit e descarte com desfazer, vários repositórios na mesma pasta, realce TextMate e temas do VS Code |
 | Checkpoints | Uma foto da pasta no fim de cada turno, no próprio git e fora das branches: ver só o que o último turno mudou, comparar dois turnos, voltar a um turno e desfazer |
-| Abrir arquivo | `Ctrl+P`: busca aproximada pelo nome (`sesmgr` acha `SessionManager.ts`), `nome:42` abre na linha, sobre todos os arquivos da pasta da sessão |
+| Abrir arquivo | `Ctrl+P`: busca aproximada pelo nome (`sesmgr` acha `SessionManager.ts`), `nome:42` abre na linha, sobre todos os arquivos da pasta da sessão; **Abrir no editor** leva a pasta, ou o arquivo do painel na linha do cursor, ao VS Code, Cursor, Zed, Windsurf ou a um comando seu |
 | Terminal | Links com `Ctrl+clique` (`arquivo:linha` abre o editor na linha, `http://…` abre o navegador), terminal auxiliar por sessão, layout configurável, atalhos editáveis e uso completo sem mouse |
 | Interface | Português, inglês e espanhol |
 
 **Próximos passos**, já priorizados em [`docs/funcionalidades`](docs/funcionalidades/README.md#segunda-rodada-de-painel-de-agentes-a-orquestrador-e-ide-leve):
 
 - **Leva 1, orquestração:** concluída (a última foi o quadro de tarefas).
-- **Leva 2, IDE:** links `arquivo:linha` no terminal e `Ctrl+P` (concluídos), depois abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
+- **Leva 2, IDE:** links `arquivo:linha` no terminal, `Ctrl+P` e abrir no editor externo (concluídos), depois painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
 - **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
 
 A `v0.1.0` existe como release em rascunho, com os três instaladores, e ainda falta testá-la numa máquina limpa antes de publicar. O que falta está em [`docs/pendencias/primeira-release.md`](docs/pendencias/primeira-release.md).
@@ -260,6 +260,26 @@ A decisão está na [ADR 0024](adr/0024-regras-que-enviam-sozinhas.md).
 - **Abrir arquivo rápido:** `Ctrl+P` (ou "Abrir arquivo pelo nome…" na paleta) abre uma caixa no topo, no estilo da paleta de comandos, que busca pelo nome entre **todos** os arquivos da pasta da sessão. A busca é aproximada: as letras só precisam aparecer na ordem, e valem mais as que começam uma palavra (depois de `/`, `_`, `-` ou `.`), as maiúsculas de um nome em `camelCase` e as que estão no nome do arquivo e não nas pastas (`sesmgr` acha `SessionManager.ts`, `ipcts` acha `ipc.ts`, `s/c/git` acha `src/core/git/…`). As letras encontradas aparecem em destaque. `Enter` abre o arquivo no editor do painel (em **Todos os arquivos**); `nome:42` (ou `nome:42:7`) abre na linha. Com a caixa vazia ela lista os arquivos que você abriu por último naquela sessão (por ela ou por um link do terminal), marcados `recente`, e os que **mudaram**, com a letra do painel (`M`, `A`, `U`…). Os arquivos ocultos e os ignorados pelo git seguem a caixa **Ocultos** do painel (em Preferências → Geral e no atalho `Ctrl+Shift+H`); numa pasta ignorada inteira (`node_modules`) não se entra. Num repositório a lista vem de `git ls-files`; fora do git a pasta é percorrida; ambos com limite de 50 mil arquivos (a caixa avisa). A lista fica na memória só enquanto a caixa está em uso e é descartada um minuto depois. Com o foco **no terminal** o `Ctrl+P` continua sendo da tecla do shell (histórico); para usá-lo também ali, marque **Ctrl+P também vale com o foco no terminal** em Preferências → Geral. A paleta funciona de qualquer lugar.
 - **Vários repositórios:** se a pasta da sessão guarda mais de um repositório (lado a lado numa pasta comum, ou um dentro do outro), a lista ganha um cabeçalho por repositório, com a branch e a contagem de cada um, e o contador do botão soma todos. Com um repositório só, nada muda.
 
+### Abrir no editor externo
+
+O painel edita, mas não é uma IDE. Para depurar, refatorar ou usar extensões, **Abrir no editor** leva o que você está vendo ao editor que você escolheu:
+
+- No topo da sessão, o botão abre a **pasta da sessão** (numa cópia isolada, a cópia).
+- Na barra do arquivo do painel, o mesmo botão abre o **arquivo na linha e coluna do cursor**, junto com a pasta.
+- `Ctrl+Alt+O` (editável em Preferências → Atalhos) faz o mesmo: o arquivo do painel no cursor, ou, sem arquivo aberto, a pasta. "Abrir no editor externo" também está na paleta.
+- `Ctrl+Shift+clique` num caminho do terminal (`src/x.ts:12:3`) abre direto no editor, sem passar pelo painel (o `Ctrl+clique` continua abrindo o painel).
+
+**Preferências → Editor → Editor externo** escolhe qual: VS Code (`code`), Cursor (`cursor`), Zed (`zed`, `zeditor` ou `zed-editor`), Windsurf (`windsurf`) ou **Outro (comando próprio)**. A lista mostra quais dos conhecidos foram achados no `PATH`. Sem editor escolhido, o botão leva a essa tela.
+
+No **Outro**, o comando usa `{pasta}`, `{arquivo}`, `{linha}` e `{coluna}`, por exemplo `notepad++ {arquivo} -n{linha}`. Cada um é trocado por um argumento já protegido para o shell (PowerShell no Windows, `/bin/sh` nos outros), então um caminho com espaço, acento ou `&` continua sendo um argumento só: **não ponha aspas em volta**. O que não se sabe (sem arquivo aberto) vira argumento vazio (o PowerShell 5.1 do Windows descarta argumentos vazios). Se o programa tem espaço no caminho, no Windows escreva `& "C:\Program Files\x\x.exe" {arquivo}`. O comando roda com a pasta da sessão como diretório atual, sem esperar: o editor continua aberto mesmo que o app feche.
+
+Detalhes que valem saber:
+
+- O arquivo precisa ser **um arquivo dentro da pasta** (o app confere o caminho real, então um link simbólico para fora não passa); linha e coluna precisam ser números positivos.
+- No Windows `code` e `cursor` são arquivos `.cmd`: rodam por `cmd.exe` com os argumentos entre aspas quando têm espaço, `&`, `(`, `^` e afins. Um caminho com `%` é recusado (o `cmd.exe` o expandiria mesmo entre aspas).
+- **WSL2:** o app roda no Linux do WSL2, então vale o `code` que o WSL tem no `PATH`: o do VS Code do Windows instala um `code` que abre a pasta pela ponte do Remote WSL. Não foi testado aqui de ponta a ponta (a máquina de desenvolvimento não tem WSL2); o que roda é o mesmo caminho do Linux, coberto pelos testes do core no Docker.
+- O comando do **Outro** é o que você escreveu e pode rodar qualquer coisa: por isso **não vai na exportação** das preferências (a escolha do editor vai; ao importar, o comando que já estava nesta máquina fica).
+
 ### Ver todos os arquivos da pasta
 
 **Arquivos** (botão no topo da sessão, `Ctrl+Shift+E`, ou o botão **Todos os arquivos** dentro do painel) troca a lista de mudanças por uma árvore com tudo o que há na pasta, a partir da raiz do repositório. Funciona também em pastas sem git.
@@ -391,7 +411,7 @@ Na paleta de comandos, **Tema do código: …** troca o tema do modo atual do ap
 
 ### Exportar e importar as configurações
 
-Em **Preferências → Importar e exportar**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, prompts guardados, temas do código, linguagem por arquivo, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
+Em **Preferências → Importar e exportar**, **Exportar…** grava em um arquivo `.json`, onde você escolher, tudo o que está nas preferências: idioma, avisos, terminal, pasta inicial, pastas favoritas, comandos dos agentes, o editor externo (sem o comando do "Outro"), prompts guardados, temas do código, linguagem por arquivo, layout e atalhos. **Importar…** lê um arquivo desses e aplica na hora, substituindo as preferências atuais; o que o arquivo não disser volta ao padrão.
 
 As sessões, as verificações de cada pasta e os temas importados não vão no arquivo (um tema importado que falte na outra máquina volta ao tema do app). Caminhos de pasta (a inicial e as favoritas) vão como estão: em outra máquina, podem não existir. Os comandos dos agentes também vão, e passam a rodar nas sessões depois de importados: só importe um arquivo de origem conhecida, e confira **Preferências → Agentes** depois. Os prompts de um arquivo importado são só texto: nada é enviado sem você abrir o diálogo, ver o texto e clicar em **Enviar**.
 
@@ -414,9 +434,11 @@ As sessões, as verificações de cada pasta e os temas importados não vão no 
 | `Ctrl+P` | Abrir arquivo pelo nome (com o foco fora do terminal, ou em qualquer lugar com a preferência) |
 | `Ctrl+Shift+O` | Abrir ou fechar o painel geral |
 | `Ctrl+Shift+B` | Abrir ou fechar o quadro de tarefas |
+| `Ctrl+Alt+O` | Abrir no editor externo: o arquivo do painel no cursor, ou a pasta da sessão |
 | `Ctrl+,` | Preferências |
 | sem atalho de fábrica | Próxima sessão aguardando você; fechar a sessão atual; novo grupo de sessões |
 | `Ctrl+clique` | Num caminho (`arquivo:linha`) ou endereço, no terminal e na saída das verificações: abre o arquivo na linha, ou o navegador (fixo) |
+| `Ctrl+Shift+clique` | Num caminho do terminal: abre no editor externo, na linha (fixo) |
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copiar / colar no terminal. No Windows, `Ctrl+C` com texto selecionado e `Ctrl+V` também |
 
 Esses são os atalhos de fábrica. Em **Preferências → Atalhos** cada ação pode ter os seus: clique em **+**, pressione as teclas e pronto; o **×** ao lado de um atalho o remove, e **Restaurar padrões** desfaz tudo. Uma ação aceita até quatro atalhos. Se a combinação já era de outra ação, ela muda de dono. Para não atrapalhar o que você digita no terminal, um atalho precisa de `Ctrl`, `Alt` ou de uma tecla de função, e não pode ser um dos que o terminal, o editor e o painel usam (`Ctrl+C`, `Ctrl+V`, `Ctrl+S`, `F2`, `F6`, `F12`, `Ctrl+Espaço`).
