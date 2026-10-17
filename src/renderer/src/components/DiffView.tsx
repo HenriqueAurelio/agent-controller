@@ -24,6 +24,8 @@ interface Props {
   onDirtyChange(dirty: boolean): void;
   /** The user asked to send the selection (or the whole file) to the agent with a prompt. */
   onSendSelection(file: string, selection: string): void;
+  /** A line to put the cursor on, each time it is asked for (a new nonce), once its file shows. */
+  reveal?: { path: string; line: number; column?: number; nonce: number } | null;
 }
 
 function unavailable(t: Translate, side: SideContent): string | null {
@@ -85,6 +87,7 @@ export function DiffView({
   plain,
   onDirtyChange,
   onSendSelection,
+  reveal,
 }: Props) {
   const t = useT();
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
@@ -137,6 +140,14 @@ export function DiffView({
   }, [sessionId, path, base, send]);
 
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+
+  // Sent once per request, and only when the frame can hear it; the frame waits for the file.
+  const revealed = useRef<number | null>(null);
+  useEffect(() => {
+    if (!ready || !reveal || reveal.path !== path || revealed.current === reveal.nonce) return;
+    revealed.current = reveal.nonce;
+    send({ type: 'reveal', path: reveal.path, line: reveal.line, column: reveal.column });
+  }, [ready, reveal, path, send]);
 
   const save = useCallback(
     async (file: string, content: string, expected: string | null) => {

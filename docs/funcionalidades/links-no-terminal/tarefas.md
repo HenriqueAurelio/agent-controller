@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 21.1 `findLocations`
+## [x] 21.1 `findLocations`
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** nada
 
@@ -16,7 +16,7 @@
 
 ---
 
-## [ ] 21.2 `files:locate`
+## [x] 21.2 `files:locate`
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** 21.1
 
@@ -28,7 +28,7 @@
 
 ---
 
-## [ ] 21.3 Provedor de links e abrir na linha
+## [x] 21.3 Provedor de links e abrir na linha
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 21.2
 
@@ -41,7 +41,7 @@
 
 ---
 
-## [ ] 21.4 README e evidências
+## [x] 21.4 README e evidências
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 21.3
 

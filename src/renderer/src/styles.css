@@ -1746,6 +1746,17 @@ button.path:hover:not(:disabled) {
 .checks-failed-text {
   color: var(--error);
 }
+.output-link {
+  cursor: text;
+}
+
+/* Ctrl makes them links, as in the terminal; without it the text is just selectable. */
+.output-links.ctrl .output-link {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .checks-output {
   max-height: 260px;
   margin: 4px 0 0;

@@ -38,7 +38,9 @@ export type ParentMessage =
   /** Ask the frame for the text selected in the editor. */
   | { type: 'request-selection' }
   /** The keyboard goes to the editor, on the side that can be edited. */
-  | { type: 'focus' };
+  | { type: 'focus' }
+  /** Puts the cursor on a line of the file, once that file is the one shown. */
+  | { type: 'reveal'; path: string; line: number; column?: number };
 
 /** How the file is being colored. */
 export type HighlightEngine = 'textmate' | 'monarch' | 'plain';

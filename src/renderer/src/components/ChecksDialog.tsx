@@ -15,6 +15,7 @@ import type { SessionView } from '@shared/session';
 import { errorMessage } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Dialog } from './Dialog';
+import { LinkedOutput } from './LinkedOutput';
 
 const BADGE_TEXT: Record<ChecksSummary['state'], (s: ChecksSummary) => string> = {
   queued: () => '…',
@@ -64,7 +65,15 @@ function outcomeText(t: Translate, result: CheckResult): string {
   return t(`checks.outcome.${result.outcome}`);
 }
 
-function RunView({ run }: { run: ChecksRun }) {
+function RunView({
+  run,
+  sessionId,
+  onOpen,
+}: {
+  run: ChecksRun;
+  sessionId: string;
+  onOpen(): void;
+}) {
   const t = useT();
   const summary = summarizeRun(run);
   return (
@@ -106,7 +115,15 @@ function RunView({ run }: { run: ChecksRun }) {
                   <>
                     {result.truncated && <p className="muted">{t('checks.truncated')}</p>}
                     <pre className="checks-output">
-                      {result.output.trim() || t('checks.noOutput')}
+                      {result.output.trim() ? (
+                        <LinkedOutput
+                          sessionId={sessionId}
+                          text={result.output.trim()}
+                          onOpen={onOpen}
+                        />
+                      ) : (
+                        t('checks.noOutput')
+                      )}
                     </pre>
                   </>
                 )}
@@ -287,7 +304,11 @@ export function ChecksDialog({ session, onClose, onSent }: Props) {
       )}
 
       <h3 className="checks-section">{t('checks.lastRun')}</h3>
-      {run ? <RunView run={run} /> : <p className="muted">{t('checks.noRun')}</p>}
+      {run ? (
+        <RunView run={run} sessionId={session.id} onOpen={onClose} />
+      ) : (
+        <p className="muted">{t('checks.noRun')}</p>
+      )}
 
       {note && (
         <p className="form-note done" role="status">

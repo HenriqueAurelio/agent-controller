@@ -32,6 +32,7 @@ import { hint, PROFILE_LABEL } from './lib/format';
 import { rich, useT } from './lib/i18n';
 import { shortcutRecording } from './lib/shortcuts';
 import { store, useAppState } from './lib/store';
+import { onOpenLocation } from './lib/terminalLinks';
 
 /** The session in sight asks a permission that may be answered from outside the terminal. */
 const answerable = (state: ReturnType<typeof store.get>): boolean =>
@@ -93,6 +94,14 @@ export function App() {
     path: string;
     nonce: number;
   } | null>(null);
+  /** A file and line asked for by a link in a terminal: the panel opens on it. */
+  const [panelLocation, setPanelLocation] = useState<{
+    sessionId: string;
+    path: string;
+    line?: number;
+    column?: number;
+    nonce: number;
+  } | null>(null);
   const [changeCount, setChangeCount] = useState<number | null>(null);
   /** The grid of every session, in place of the terminal. */
   const [overviewOpen, setOverviewOpen] = useState(false);
@@ -104,6 +113,18 @@ export function App() {
   const [flowGroupId, setFlowGroupId] = useState<string | null>(null);
   const flowGroup = groups.find((g) => g.id === flowGroupId);
   const terminals = useRef<TerminalAreaHandle>(null);
+  // `Ctrl+click` on a path in a terminal: the changes panel opens on all files, at that line.
+  useEffect(
+    () =>
+      onOpenLocation((place) => {
+        if (store.get().selectedId !== place.sessionId) return;
+        // An open panel asks about unsaved edits itself; a closed one starts on the right mode.
+        if (!changesOpenRef.current) setPanelMode('files');
+        setChangesOpen(true);
+        setPanelLocation((current) => ({ ...place, nonce: (current?.nonce ?? 0) + 1 }));
+      }),
+    [],
+  );
   /** Sessions picked in the list with Ctrl+click. */
   const [marked, setMarked] = useState<string[]>([]);
   const [promptRequest, setPromptRequest] = useState<PromptRequest | null>(null);
@@ -885,6 +906,7 @@ export function App() {
               onClose={() => {
                 setChangesOpen(false);
                 setPanelFileRequest(null);
+                setPanelLocation(null);
               }}
               onCount={setChangeCount}
               onUnsavedChange={setUnsaved}
@@ -892,6 +914,7 @@ export function App() {
               onSendSelection={(file, selection) => openPrompt(undefined, { file, selection })}
               requestedBase={panelBase}
               requestedFile={panelFileRequest?.sessionId === selected.id ? panelFileRequest : null}
+              requestedLocation={panelLocation?.sessionId === selected.id ? panelLocation : null}
               onOpenInSession={(sessionId, file) => {
                 store.select(sessionId);
                 // The guard of unsaved edits may have kept the current session.

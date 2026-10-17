@@ -106,6 +106,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'checks.duration': '{seconds} s',
   'checks.truncated': 'La salida era larga: solo se guardó el final.',
   'checks.noOutput': '(sin salida)',
+  'links.ctrlClick': 'Ctrl+clic para abrir',
   'checks.runNow': 'Ejecutar ahora',
   'checks.cancel': 'Cancelar la ejecución',
   'checks.sendFailure': 'Enviar el error al agente',
