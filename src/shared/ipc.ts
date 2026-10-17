@@ -13,6 +13,7 @@ import type {
   NewExperimentInput,
 } from './experiments';
 import type { FlowState } from './flows';
+import type { NewTasksInput, TaskBoardState, TaskStartResult } from './tasks';
 import type { ReviewResult, ReviewerSetInput, ReviewerSummary } from './reviewer';
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
@@ -236,6 +237,24 @@ export interface IpcCommands {
   /** Keeps one attempt and closes the others with their copies; says which could not go. */
   'experiments:keep': (experimentId: string, sessionId: string) => KeepResult;
 
+  /** The task board of the repository of a folder; cards whose branch got into the base are done. */
+  'tasks:list': (folder: string) => TaskBoardState;
+  /** One card per draft, all with the same agent and options (ADR 0025). */
+  'tasks:create': (input: NewTasksInput) => TaskBoardState;
+  /** Edits the title or the description of a card that was not started. */
+  'tasks:update': (
+    taskId: string,
+    patch: { title?: string; description?: string },
+  ) => TaskBoardState;
+  /** Removes the card; the session it became, if any, stays. */
+  'tasks:remove': (taskId: string) => TaskBoardState;
+  /** The order of the cards of a repository. */
+  'tasks:reorder': (repo: string, taskIds: string[]) => TaskBoardState;
+  /** Starts up to four cards: a copy, a session and the description as the first prompt. */
+  'tasks:start': (taskIds: string[]) => TaskStartResult;
+  /** Marks the card done, or takes the mark back. Closing its session is a separate call. */
+  'tasks:done': (taskId: string, done: boolean) => TaskBoardState;
+
   /** The reviewer of a session: another session that reads each turn (ADR 0023). */
   'reviewer:set': (input: ReviewerSetInput) => ReviewerSummary | null;
   /** Asks for a review of the latest turn now, whatever the trigger. */
@@ -321,6 +340,8 @@ export interface IpcEvents {
   'reviewer:changed': (sessionId: string) => void;
   /** The rules, the prepared sends or the history of the flow of the group changed. */
   'flows:changed': (groupId: string) => void;
+  /** The cards of the board of this repository changed. */
+  'tasks:changed': (repo: string) => void;
   'metrics:update': (metrics: Record<string, SessionMetrics>) => void;
   /** The last lines of the sessions that changed, once a second at most, while watched. */
   'sessions:tails': (tails: Record<string, string[]>) => void;
@@ -400,6 +421,13 @@ export const COMMAND_CHANNELS = [
   'experiments:compare',
   'experiments:diff',
   'experiments:keep',
+  'tasks:list',
+  'tasks:create',
+  'tasks:update',
+  'tasks:remove',
+  'tasks:reorder',
+  'tasks:start',
+  'tasks:done',
   'reviewer:set',
   'reviewer:runNow',
   'reviewer:result',
@@ -442,6 +470,7 @@ export const EVENT_CHANNELS = [
   'git:overlapsChanged',
   'reviewer:changed',
   'flows:changed',
+  'tasks:changed',
   'metrics:update',
   'sessions:tails',
   'prefs:changed',

@@ -65,7 +65,7 @@ Com as propostas 4, 5, 6, 8, 9, 10 e 11 prontas, a linha muda: o app passa a **c
 
 ### Leva 1: orquestração de agentes
 
-Concluídas: 12 ([ADR 0020](../../adr/0020-responder-permissao-fora-do-terminal.md)), 13 (revisão da [ADR 0015](../../adr/0015-app-escreve-no-terminal-a-pedido.md)), 14 ([ADR 0021](../../adr/0021-refs-proprias-no-repositorio.md)), 15 (sem ADR nova), 16 (sem ADR nova), 17 ([ADR 0022](../../adr/0022-experimentos-melhor-de-n.md)), 18 ([ADR 0023](../../adr/0023-passagem-de-trabalho-por-arquivo.md)) e 19 ([ADR 0024](../../adr/0024-regras-que-enviam-sozinhas.md)).
+Concluídas: 12 ([ADR 0020](../../adr/0020-responder-permissao-fora-do-terminal.md)), 13 (revisão da [ADR 0015](../../adr/0015-app-escreve-no-terminal-a-pedido.md)), 14 ([ADR 0021](../../adr/0021-refs-proprias-no-repositorio.md)), 15 (sem ADR nova), 16 (sem ADR nova), 17 ([ADR 0022](../../adr/0022-experimentos-melhor-de-n.md)), 18 ([ADR 0023](../../adr/0023-passagem-de-trabalho-por-arquivo.md)) 19 ([ADR 0024](../../adr/0024-regras-que-enviam-sozinhas.md)) e 20 ([ADR 0025](../../adr/0025-tarefas-como-origem-das-sessoes.md)). A leva 1 está completa.
 
 | # | Funcionalidade | Em uma frase | Valor | Esforço | ADR nova | Estado |
 |---|---|---|---|---|---|---|
@@ -77,7 +77,7 @@ Concluídas: 12 ([ADR 0020](../../adr/0020-responder-permissao-fora-do-terminal.
 | 17 | [Melhor de N](melhor-de-n/README.md) | O mesmo pedido em N cópias e agentes, comparados lado a lado | Alto | M | Sim ([0022](../../adr/0022-experimentos-melhor-de-n.md)) | Concluída |
 | 18 | [Revisor automático](revisor-automatico/README.md) | Uma segunda sessão revisa cada turno e devolve as observações | Alto | M | Sim | Concluída |
 | 19 | [Encadear sessões](encadear-sessoes/README.md) | Regras "quando A terminar, mandar isto para B", com limite de voltas | Alto | M a G | Sim ([0024](../../adr/0024-regras-que-enviam-sozinhas.md)) | Concluída |
-| 20 | [Quadro de tarefas](quadro-de-tarefas/README.md) | Cartões que viram sessões e andam sozinhos pelas colunas | Alto, a longo prazo | G | Sim | Pendente |
+| 20 | [Quadro de tarefas](quadro-de-tarefas/README.md) | Cartões que viram sessões e andam sozinhos pelas colunas | Alto, a longo prazo | G | Sim ([0025](../../adr/0025-tarefas-como-origem-das-sessoes.md)) | Concluída |
 
 ```
 Primeiro    12 responder-sem-abrir      13 fila-de-prompts       (em paralelo, sem dependência)

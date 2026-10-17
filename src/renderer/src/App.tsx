@@ -18,6 +18,7 @@ import { GroupDialog } from './components/GroupDialog';
 import { codeThemeName, themesOfKind, useCustomThemes } from './lib/codeThemes';
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { Overview } from './components/Overview';
+import { TaskBoard } from './components/TaskBoard';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { PromptDialog, type PromptContext } from './components/PromptDialog';
 import { FlowDialog } from './components/FlowDialog';
@@ -95,6 +96,9 @@ export function App() {
   const [changeCount, setChangeCount] = useState<number | null>(null);
   /** The grid of every session, in place of the terminal. */
   const [overviewOpen, setOverviewOpen] = useState(false);
+  const [boardOpen, setBoardOpen] = useState(false);
+  // Bumped by the palette: the board opens its dialog of a new card.
+  const [boardNewCard, setBoardNewCard] = useState(0);
   /** The experiment whose attempts the comparison shows. */
   const [comparing, setComparing] = useState<string | null>(null);
   const [flowGroupId, setFlowGroupId] = useState<string | null>(null);
@@ -190,9 +194,11 @@ export function App() {
   const coveredRef = useRef(false);
   const overviewOpenRef = useRef(false);
   overviewOpenRef.current = overviewOpen;
+  const boardOpenRef = useRef(false);
+  boardOpenRef.current = boardOpen;
   // A panel beside the terminal leaves it in sight, and reachable.
   coveredRef.current = Boolean(
-    overlay || closing || overviewOpen || (changesOpen && layout.panel === 'cover'),
+    overlay || closing || overviewOpen || boardOpen || (changesOpen && layout.panel === 'cover'),
   );
 
   /**
@@ -214,6 +220,17 @@ export function App() {
     setOverviewOpen(false);
     focusTerminal(true);
   }, [focusTerminal]);
+  const closeBoard = useCallback(() => {
+    setBoardOpen(false);
+    focusTerminal(true);
+  }, [focusTerminal]);
+  const openFromBoard = useCallback(
+    (id: string) => {
+      store.select(id);
+      closeBoard();
+    },
+    [closeBoard],
+  );
   const openFromOverview = useCallback(
     (id: string) => {
       store.select(id);
@@ -227,6 +244,7 @@ export function App() {
     if (shownSelection.current === selectedId) return;
     shownSelection.current = selectedId;
     setOverviewOpen(false);
+    setBoardOpen(false);
   }, [selectedId]);
 
   const selectByOffset = useCallback((offset: number) => {
@@ -393,13 +411,21 @@ export function App() {
         focusTerminal: () => {
           setOverlay(null);
           setOverviewOpen(false);
+          setBoardOpen(false);
           requestAnimationFrame(() => focusTerminal(true));
         },
         palette: () => setOverlay((o) => (o === 'palette' ? null : 'palette')),
         overview: () => {
           setOverlay(null);
+          setBoardOpen(false);
           if (overviewOpenRef.current) closeOverview();
           else setOverviewOpen(true);
+        },
+        board: () => {
+          setOverlay(null);
+          setOverviewOpen(false);
+          if (boardOpenRef.current) closeBoard();
+          else setBoardOpen(true);
         },
         toggleChanges: () => togglePanel('changes'),
         toggleFiles: () => togglePanel('files'),
@@ -434,6 +460,7 @@ export function App() {
       openPrompt,
       editGroup,
       closeOverview,
+      closeBoard,
     ],
   );
 
@@ -450,6 +477,17 @@ export function App() {
       action('prevSession'),
       action('nextWaiting'),
       action('overview'),
+      action('board'),
+      {
+        id: 'new-task',
+        title: t('command.newTask'),
+        run: () => {
+          setOverlay(null);
+          setOverviewOpen(false);
+          setBoardOpen(true);
+          setBoardNewCard((n) => n + 1);
+        },
+      },
       action('focusSidebar'),
       action('preferences'),
       action('newGroup', t('command.newGroup')),
@@ -674,9 +712,19 @@ export function App() {
         onSendPrompt={(ids) => openPrompt(undefined, {}, ids)}
         onOverview={() => runAction('overview')}
         overviewOpen={overviewOpen}
+        onBoard={() => runAction('board')}
+        boardOpen={boardOpen}
       />
       <main className="main">
         {overviewOpen && <Overview onOpen={openFromOverview} onClose={closeOverview} />}
+        {boardOpen && (
+          <TaskBoard
+            onOpen={openFromBoard}
+            onClose={closeBoard}
+            onCloseSession={requestClose}
+            newCardRequest={boardNewCard}
+          />
+        )}
         {selected && (
           <header className="session-header">
             <span

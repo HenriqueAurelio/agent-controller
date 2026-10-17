@@ -36,7 +36,7 @@ export function matchesFilter(s: SessionView, filter: OverviewFilter): boolean {
 }
 
 /** "há 4 min": how long the session has been in its state. */
-function duration(t: ReturnType<typeof useT>, since: number, now: number): string {
+export function duration(t: ReturnType<typeof useT>, since: number, now: number): string {
   const seconds = Math.max(0, Math.floor((now - since) / 1000));
   if (seconds < 60) return t('overview.duration.seconds', { count: seconds });
   if (seconds < 3600) return t('overview.duration.minutes', { count: Math.floor(seconds / 60) });
@@ -48,7 +48,7 @@ function duration(t: ReturnType<typeof useT>, since: number, now: number): strin
  * The last lines of every session, while the overview is open: all of them at first, then the
  * ones that changed, at most once a second (`sessions:tails`).
  */
-function useTails(): Record<string, string[]> {
+export function useTails(): Record<string, string[]> {
   const [tails, setTails] = useState<Record<string, string[]>>({});
   useEffect(() => {
     let live = true;
@@ -72,7 +72,7 @@ function useTails(): Record<string, string[]> {
  * Branch and changed files of each session, asked again when its state or folder changes (a turn
  * that ended is when files change) or when the watcher of an open panel sees something.
  */
-function useGitInfo(sessions: SessionView[]): Record<string, OverviewGit> {
+export function useGitInfo(sessions: SessionView[]): Record<string, OverviewGit> {
   const [info, setInfo] = useState<Record<string, OverviewGit>>({});
   const asked = useRef(new Map<string, string>());
   const ask = (id: string) =>
@@ -93,13 +93,93 @@ function useGitInfo(sessions: SessionView[]): Record<string, OverviewGit> {
 }
 
 /** Re-renders now and then, for the "há 4 min" to move. */
-function useNow(everyMs: number): number {
+export function useNow(everyMs: number): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), everyMs);
     return () => clearInterval(timer);
   }, [everyMs]);
   return now;
+}
+
+/**
+ * What a session shows of itself in a card: state, the last lines of its screen, branch, changed
+ * files and the marks. The overview and the task board show the same thing.
+ */
+export function SessionSummary({
+  session,
+  lines,
+  info,
+  now,
+}: {
+  session: SessionView;
+  lines: string[];
+  info?: OverviewGit;
+  now: number;
+}) {
+  const t = useT();
+  const label = statusLabel(t, session.status);
+  const branch = session.worktree?.branch ?? info?.branch ?? null;
+  return (
+    <>
+      <div className="overview-card-head">
+        <span
+          className={`state-dot state-${session.status.state} ${session.status.confirmed ? '' : 'inferred'}`}
+          aria-hidden="true"
+        />
+        <strong className="overview-card-name">{session.name}</strong>
+        <span className={`profile-tag profile-${session.profile}`}>
+          {PROFILE_LABEL[session.profile]}
+        </span>
+        {session.unread && <span className="badge" aria-label={t('sidebar.unread')} />}
+      </div>
+      <div
+        className={`overview-card-state state-label state-label-${session.status.state} ${session.status.confirmed ? '' : 'inferred'}`}
+        data-testid="overview-state"
+      >
+        {t('overview.since', { state: label, duration: duration(t, session.status.since, now) })}
+      </div>
+      {lines.length ? (
+        <div
+          className="overview-card-lines"
+          data-testid="overview-lines"
+          role="log"
+          aria-label={t('overview.lines', { name: session.name })}
+        >
+          {lines.map((line, i) => (
+            <div key={i} className="overview-line" title={line}>
+              {line}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="overview-card-lines empty" data-testid="overview-lines">
+          {t('overview.noOutput')}
+        </div>
+      )}
+      <PermissionAsk session={session} />
+      <div className="overview-card-foot">
+        {branch && (
+          <span className="overview-branch" title={t('overview.branch', { branch })}>
+            <span aria-hidden="true">⑂</span> {branch}
+          </span>
+        )}
+        {info?.changes ? (
+          <span
+            className="overview-changes"
+            data-testid="overview-changes"
+            title={t('overview.changes', { count: info.changes })}
+          >
+            ± {info.changes}
+          </span>
+        ) : null}
+        {session.checks && <ChecksBadge summary={session.checks} />}
+        <ReviewBadge session={session} />
+        <QueueBadge session={session} />
+        <OverlapBadge session={session} />
+      </div>
+    </>
+  );
 }
 
 /**
@@ -201,7 +281,6 @@ export function Overview({ onOpen, onClose }: Props) {
     const label = statusLabel(t, session.status);
     const lines = tails[session.id] ?? [];
     const info = git[session.id];
-    const branch = session.worktree?.branch ?? info?.branch ?? null;
     return (
       <article
         key={session.id}
@@ -214,62 +293,7 @@ export function Overview({ onOpen, onClose }: Props) {
         onClick={() => onOpen(session.id)}
         onKeyDown={(e) => onCardKey(e, session)}
       >
-        <div className="overview-card-head">
-          <span
-            className={`state-dot state-${session.status.state} ${session.status.confirmed ? '' : 'inferred'}`}
-            aria-hidden="true"
-          />
-          <strong className="overview-card-name">{session.name}</strong>
-          <span className={`profile-tag profile-${session.profile}`}>
-            {PROFILE_LABEL[session.profile]}
-          </span>
-          {session.unread && <span className="badge" aria-label={t('sidebar.unread')} />}
-        </div>
-        <div
-          className={`overview-card-state state-label state-label-${session.status.state} ${session.status.confirmed ? '' : 'inferred'}`}
-          data-testid="overview-state"
-        >
-          {t('overview.since', { state: label, duration: duration(t, session.status.since, now) })}
-        </div>
-        {lines.length ? (
-          <div
-            className="overview-card-lines"
-            data-testid="overview-lines"
-            role="log"
-            aria-label={t('overview.lines', { name: session.name })}
-          >
-            {lines.map((line, i) => (
-              <div key={i} className="overview-line" title={line}>
-                {line}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="overview-card-lines empty" data-testid="overview-lines">
-            {t('overview.noOutput')}
-          </div>
-        )}
-        <PermissionAsk session={session} />
-        <div className="overview-card-foot">
-          {branch && (
-            <span className="overview-branch" title={t('overview.branch', { branch })}>
-              <span aria-hidden="true">⑂</span> {branch}
-            </span>
-          )}
-          {info?.changes ? (
-            <span
-              className="overview-changes"
-              data-testid="overview-changes"
-              title={t('overview.changes', { count: info.changes })}
-            >
-              ± {info.changes}
-            </span>
-          ) : null}
-          {session.checks && <ChecksBadge summary={session.checks} />}
-          <ReviewBadge session={session} />
-          <QueueBadge session={session} />
-          <OverlapBadge session={session} />
-        </div>
+        <SessionSummary session={session} lines={lines} info={info} now={now} />
       </article>
     );
   };

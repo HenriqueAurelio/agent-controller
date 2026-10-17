@@ -22,7 +22,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 
 | Área | O que já existe |
 |---|---|
-| Sessões | Claude Code e Codex em terminais reais, grupos por repositório, comando próprio por sessão (aliases e funções do seu shell), pastas recentes e favoritas, arrastar pasta para abrir; painel geral com todas as sessões numa grade; experimentos "melhor de N" (o mesmo pedido em até 4 cópias, comparadas e escolhidas); revisor automático (uma segunda sessão lê cada turno e devolve observações); fluxos entre sessões (regras "quando A terminar, mandar isto para B", com aprovação e limite de voltas) |
+| Sessões | Claude Code e Codex em terminais reais, grupos por repositório, comando próprio por sessão (aliases e funções do seu shell), pastas recentes e favoritas, arrastar pasta para abrir; painel geral com todas as sessões numa grade; quadro de tarefas (cartões que viram sessões e andam sozinhos pelas colunas); experimentos "melhor de N" (o mesmo pedido em até 4 cópias, comparadas e escolhidas); revisor automático (uma segunda sessão lê cada turno e devolve observações); fluxos entre sessões (regras "quando A terminar, mandar isto para B", com aprovação e limite de voltas) |
 | Estado e avisos | Estado de cada sessão pelos sinais do próprio agente, notificação do sistema, contador de "aguardando" no título da janela, pedidos de permissão respondidos pela barra lateral ou pela notificação |
 | Isolamento | Cópia isolada por sessão (git worktree), com comando de preparo e limpeza; aviso quando sessões em cópias diferentes mudam o mesmo arquivo, com "provável conflito" quando as linhas se cruzam |
 | Verificações | Lint, typecheck e testes ao fim de cada turno, com ✓/✗ na sessão e "mandar o erro ao agente" |
@@ -34,7 +34,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 
 **Próximos passos**, já priorizados em [`docs/funcionalidades`](docs/funcionalidades/README.md#segunda-rodada-de-painel-de-agentes-a-orquestrador-e-ide-leve):
 
-- **Leva 1, orquestração:** o quadro de tarefas (as outras funcionalidades da leva estão concluídas).
+- **Leva 1, orquestração:** concluída (a última foi o quadro de tarefas).
 - **Leva 2, IDE:** links `arquivo:linha` no terminal, `Ctrl+P`, abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
 - **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
 
@@ -195,6 +195,18 @@ Em **Preferências → Sessões → Conflito entre sessões** dá para desligar 
 Em **Preferências → Sessões** você escolhe a **pasta das cópias** e um **comando para preparar cada cópia nova** (por exemplo, `npm ci`), que roda uma vez, na cópia, antes de a sessão abrir; se ele falhar, a sessão não abre, e a cópia fica. A mesma aba lista as cópias, com branch, tamanho, data e quais sessões as usam, e remove as que nenhuma sessão usa. Esses dois ajustes ficam com as sessões, não vão no arquivo de exportação das preferências.
 
 Os agentes perguntam se confiam em cada pasta nova, e cada cópia é uma pasta nova. No Windows, um `node_modules` fundo dentro da cópia pode passar do limite de caminho; se acontecer, `git config --global core.longpaths true` ajuda o git, e uma pasta de cópias curta ajuda o resto.
+
+### Quadro de tarefas
+
+Cartões que viram sessões. Abra com `Ctrl+Shift+B`, com o botão **☷** no topo da barra lateral ou pela paleta ("Novo cartão no quadro de tarefas"); ele ocupa o lugar do terminal, como o painel geral. Há um quadro por repositório git, escolhido no topo (ele abre no da sessão à vista; **Outra pasta…** escolhe outro).
+
+- **Novo cartão:** título, descrição (vira o primeiro pedido; vazia, vale o título), agente, grupo e, se quiser, cópia isolada na branch `ac/<título>`. Cole uma lista de linhas no título e sai um cartão por linha (até 50).
+- **Iniciar** (no cartão, ou marque até 4 e use **Iniciar n selecionados**): cria a cópia, a sessão e manda a descrição quando o agente fica pronto. O quadro continua aberto.
+- **Colunas:** **A fazer** (sem sessão), **Em andamento** (trabalhando, ou com itens na fila), **Precisa de você** (aguardando, parado ou com as verificações falhas), **Revisar** (o turno terminou) e **Feito**. O cartão com sessão mostra o mesmo resumo do painel geral e abre a sessão ao clicar.
+- **Arrastar** só entre A fazer e Feito, e para reordenar; as outras colunas seguem o estado. **Feito** pergunta o que fazer com a sessão e a cópia, como ao fechar uma sessão. O cartão também fica feito quando a branch dele recebe commits e entra na base (conferido ao abrir o quadro e no fim do turno).
+- Se você fecha a sessão à mão, o cartão volta para **A fazer** com a marca "sessão fechada" e a branch, que continua no repositório.
+
+A decisão está na [ADR 0025](adr/0025-tarefas-como-origem-das-sessoes.md).
 
 ### Experimentos (melhor de N)
 
@@ -397,6 +409,7 @@ As sessões, as verificações de cada pasta e os temas importados não vão no 
 | `Alt+Y` / `Alt+N` | Permitir / negar o pedido de permissão da sessão atual (sem pedido aberto, a tecla vai para o terminal) |
 | `Ctrl+Shift+P` | Paleta de comandos |
 | `Ctrl+Shift+O` | Abrir ou fechar o painel geral |
+| `Ctrl+Shift+B` | Abrir ou fechar o quadro de tarefas |
 | `Ctrl+,` | Preferências |
 | sem atalho de fábrica | Próxima sessão aguardando você; fechar a sessão atual; novo grupo de sessões |
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copiar / colar no terminal. No Windows, `Ctrl+C` com texto selecionado e `Ctrl+V` também |
