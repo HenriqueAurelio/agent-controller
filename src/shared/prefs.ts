@@ -35,6 +35,8 @@ export interface Preferences {
   permissionButtons: boolean;
   /** The files of the folder also list what is hidden: dotfiles and what .gitignore covers. */
   showHiddenFiles: boolean;
+  /** The quick-open shortcut also works while the focus is in a terminal (taking Ctrl+P from it). */
+  quickOpenInTerminal: boolean;
   /** Folder a new session starts from. Empty: the folder of the latest session. */
   defaultFolder: string;
   /** Folders kept at hand, offered first when a session is created. */
@@ -71,6 +73,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   notifySound: true,
   permissionButtons: true,
   showHiddenFiles: false,
+  quickOpenInTerminal: false,
   defaultFolder: '',
   favoriteFolders: [],
   agentCommands: NO_AGENT_COMMANDS,
@@ -139,6 +142,7 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
     notifySound: p.notifySound !== false,
     permissionButtons: p.permissionButtons !== false,
     showHiddenFiles: p.showHiddenFiles === true,
+    quickOpenInTerminal: p.quickOpenInTerminal === true,
     defaultFolder:
       typeof p.defaultFolder === 'string' && p.defaultFolder.length <= 4096
         ? p.defaultFolder.trim()

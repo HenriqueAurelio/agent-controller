@@ -1037,4 +1037,19 @@ export const en: Record<keyof typeof ptBR, string> = {
   'task.submit': 'Create',
   'task.submitMany': 'Create {count} cards',
   'task.creating': 'Creating…',
+  'shortcut.quickOpen': 'Open a file by name',
+  'command.quickOpen': 'Open a file by name…',
+  'prefs.quickOpenInTerminal':
+    'Ctrl+P (open file) also works with the focus in a terminal, taking the key from the shell history',
+  'quickOpen.title': 'Open file',
+  'quickOpen.input': 'File name',
+  'quickOpen.placeholder': 'File name, or name:line',
+  'quickOpen.loading': 'Reading the files…',
+  'quickOpen.empty': 'No file with that name.',
+  'quickOpen.noFiles': 'This folder has no files.',
+  'quickOpen.recent': 'recent',
+  'quickOpen.truncated':
+    'The folder has more than {count} files: only the first ones are searched.',
+  'quickOpen.line': 'Opens at line {line}',
+  'quickOpen.error': 'Could not read the files: {error}',
 };

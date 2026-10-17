@@ -86,6 +86,16 @@ export interface FileEntry {
   hidden: boolean;
 }
 
+/** What the quick-open box searches: every file of the folder, and the ones that changed. */
+export interface FileIndexResult {
+  /** Paths relative to the root of the tree, with forward slashes. */
+  files: string[];
+  /** The folder has more files than the list carries. */
+  truncated: boolean;
+  /** Changed against HEAD, shown first when the box is empty. */
+  changed: FileChange[];
+}
+
 export interface FileListing {
   entries: FileEntry[];
   /** The folder has more entries than the listing carries. */
