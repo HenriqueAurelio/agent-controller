@@ -95,6 +95,8 @@ export interface LinkOptions {
   sessionId: string;
   /** The app's way of opening a web address. */
   openUrl(url: string): void;
+  /** Ctrl+Shift+click on a path: the external editor, instead of the panel. */
+  openInEditor(path: string, line?: number, column?: number): void;
 }
 
 /**
@@ -193,6 +195,10 @@ export function registerTerminalLinks(
             links.push(
               link(range, text.slice(match.start, match.end), (event) => {
                 if (!event.ctrlKey) return;
+                if (event.shiftKey) {
+                  options.openInEditor(answer.path, match.line, match.column);
+                  return;
+                }
                 requestOpenLocation({
                   sessionId: options.sessionId,
                   path: answer.path,

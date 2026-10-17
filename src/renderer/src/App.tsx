@@ -28,6 +28,12 @@ import { TimelineDialog } from './components/TimelineDialog';
 import { Sidebar } from './components/Sidebar';
 import { TerminalArea, type TerminalAreaHandle } from './components/TerminalArea';
 import { useCheckpoints } from './lib/checkpoints';
+import {
+  onEditorError,
+  onEditorSetup,
+  openInEditor,
+  requestOpenPanelFile,
+} from './lib/externalEditor';
 import { hint, PROFILE_LABEL } from './lib/format';
 import { rich, useT } from './lib/i18n';
 import { shortcutRecording } from './lib/shortcuts';
@@ -117,6 +123,19 @@ export function App() {
   const [flowGroupId, setFlowGroupId] = useState<string | null>(null);
   const flowGroup = groups.find((g) => g.id === flowGroupId);
   const terminals = useRef<TerminalAreaHandle>(null);
+  /** The tab the preferences open on: "Open in editor" with no editor picked leads to its own. */
+  const [prefsTab, setPrefsTab] = useState<'geral' | 'editor'>('geral');
+  /** Why the external editor did not open, until it is dismissed. */
+  const [editorError, setEditorError] = useState<string | null>(null);
+  useEffect(
+    () =>
+      onEditorSetup(() => {
+        setPrefsTab('editor');
+        setOverlay('prefs');
+      }),
+    [],
+  );
+  useEffect(() => onEditorError(setEditorError), []);
   // `Ctrl+click` on a path in a terminal: the changes panel opens on all files, at that line.
   useEffect(
     () =>
@@ -472,7 +491,16 @@ export function App() {
         allowPermission: () => session && void store.answerPermission(session.id, 'allow'),
         denyPermission: () => session && void store.answerPermission(session.id, 'deny'),
         newGroup: () => editGroup(),
-        preferences: () => setOverlay('prefs'),
+        preferences: () => {
+          setPrefsTab('geral');
+          setOverlay('prefs');
+        },
+        openInEditor: () => {
+          if (!session) return;
+          // A file open in the panel goes at its cursor; otherwise the folder of the session.
+          if (changesOpenRef.current && requestOpenPanelFile()) return;
+          void openInEditor(session.id);
+        },
       };
       run[action]();
     },
@@ -536,6 +564,7 @@ export function App() {
         action('toggleChanges', t('command.seeChanges'), () => showPanel('changes')),
         action('toggleFiles', t('command.files'), () => showPanel('files')),
         action('quickOpen', t('command.quickOpen')),
+        action('openInEditor', t('command.openInEditor')),
         action('toggleHidden', t('command.toggleHidden')),
         action(
           'toggleAux',
@@ -740,7 +769,7 @@ export function App() {
           setFlowGroupId(group.id);
           setOverlay('flow');
         }}
-        onPreferences={() => setOverlay('prefs')}
+        onPreferences={() => runAction('preferences')}
         onClose={requestClose}
         onDuplicate={duplicate}
         onDone={() => focusTerminal(true)}
@@ -821,6 +850,13 @@ export function App() {
               {t('common.files')}
             </button>
             <button
+              data-testid="open-in-editor"
+              onClick={() => runAction('openInEditor')}
+              title={hint(t('editor.openHint'), shortcuts.openInEditor[0])}
+            >
+              {t('editor.open')}
+            </button>
+            <button
               className={selected.auxOpen ? 'active' : ''}
               aria-pressed={selected.auxOpen === true}
               onClick={() => runAction('toggleAux')}
@@ -872,6 +908,12 @@ export function App() {
               {selected.checks && <ChecksBadge summary={selected.checks} />}
             </button>
           </header>
+        )}
+        {editorError && (
+          <div className="banner" role="alert" data-testid="editor-error">
+            <span>{editorError}</span>
+            <button onClick={() => setEditorError(null)}>{t('common.close')}</button>
+          </div>
         )}
         {sharing && (
           <div className="banner" role="status">
@@ -972,7 +1014,7 @@ export function App() {
         />
       )}
       {dropping && <div className="drop-hint">{t('app.dropHint')}</div>}
-      {overlay === 'prefs' && <PreferencesDialog onClose={closeOverlay} />}
+      {overlay === 'prefs' && <PreferencesDialog onClose={closeOverlay} initialTab={prefsTab} />}
       {overlay === 'experiment' && (
         <ExperimentDialog
           onClose={closeOverlay}
