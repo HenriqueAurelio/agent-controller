@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 16.1 Últimas linhas no core
+## [x] 16.1 Últimas linhas no core
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** nada
 
@@ -17,7 +17,7 @@
 
 ---
 
-## [ ] 16.2 Grade de cartões
+## [x] 16.2 Grade de cartões
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 16.1
 
@@ -31,7 +31,7 @@
 
 ---
 
-## [ ] 16.3 Encaixes das outras propostas
+## [x] 16.3 Encaixes das outras propostas
 
 - **Frente:** B · **Tamanho:** P · **Depende de:** 16.2 e, cada um, da proposta dele
 
@@ -41,9 +41,11 @@
 
 **Pronto quando:** cada encaixe entra no PR da proposta correspondente.
 
+**Como ficou:** permissão (12), fila (13) e conflito (15) já entram no cartão, pelos mesmos componentes da barra lateral (`components/SessionMarks.tsx`). O custo entra com a proposta [uso e custo](../uso-e-custo/README.md), que ainda não existe.
+
 ---
 
-## [ ] 16.4 Medição, README e evidências
+## [x] 16.4 Medição, README e evidências
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 16.2
 

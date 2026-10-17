@@ -1,6 +1,6 @@
 // Measures the memory of the app itself (main, renderer, GPU and utility processes; not the
-// agents running inside it) with 0, 1, 5 and 10 sessions, and with the changes panel open and
-// closed again. Compares the result with the ceiling of ADR 0009.
+// agents running inside it) with 0, 1, 5 and 10 sessions, and with the changes panel and the
+// overview open and closed again. Compares the result with the ceiling of ADR 0009.
 //
 //   npm run measure                      sessions run a plain shell
 //   npm run measure -- --profile real    real agents, idle (half Claude Code, half Codex)
@@ -123,6 +123,14 @@ try {
   await page.getByRole('button', { name: 'Fechar o painel de mudanças' }).click();
   await page.waitForSelector('.changes-panel', { state: 'detached' });
   rows.push(await measure(`${created} sessões, painel fechado`));
+  // The overview: no terminal of its own, only the last lines of each session, once a second.
+  await page.keyboard.press('Control+Shift+O');
+  await page.waitForSelector('.overview');
+  await sleep(3000);
+  rows.push(await measure(`${created} sessões + painel geral`));
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('.overview', { state: 'detached' });
+  rows.push(await measure(`${created} sessões, painel geral fechado`));
   // Chromium only gives freed memory back when it collects garbage, which it does lazily.
   // Forcing a collection shows what is actually still in use.
   const cdp = await page.context().newCDPSession(page);

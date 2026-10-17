@@ -15,6 +15,7 @@ import { CommandPalette, type Command } from './components/CommandPalette';
 import { GroupDialog } from './components/GroupDialog';
 import { codeThemeName, themesOfKind, useCustomThemes } from './lib/codeThemes';
 import { NewSessionDialog } from './components/NewSessionDialog';
+import { Overview } from './components/Overview';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { PromptDialog, type PromptContext } from './components/PromptDialog';
 import { QueueDialog, sendQueueFailure, skipQueueItem } from './components/QueueDialog';
@@ -82,6 +83,8 @@ export function App() {
     nonce: number;
   } | null>(null);
   const [changeCount, setChangeCount] = useState<number | null>(null);
+  /** The grid of every session, in place of the terminal. */
+  const [overviewOpen, setOverviewOpen] = useState(false);
   const terminals = useRef<TerminalAreaHandle>(null);
   /** Sessions picked in the list with Ctrl+click. */
   const [marked, setMarked] = useState<string[]>([]);
@@ -170,8 +173,12 @@ export function App() {
 
   // What is on top of the terminal right now, readable from a callback that runs later.
   const coveredRef = useRef(false);
+  const overviewOpenRef = useRef(false);
+  overviewOpenRef.current = overviewOpen;
   // A panel beside the terminal leaves it in sight, and reachable.
-  coveredRef.current = Boolean(overlay || closing || (changesOpen && layout.panel === 'cover'));
+  coveredRef.current = Boolean(
+    overlay || closing || overviewOpen || (changesOpen && layout.panel === 'cover'),
+  );
 
   /**
    * Hands the keyboard to the terminal on the next frame. By then the user may have opened or
@@ -186,6 +193,26 @@ export function App() {
       terminals.current?.focus();
     });
   }, []);
+
+  // The terminal gets the keyboard back on the next frame, once the overview is gone.
+  const closeOverview = useCallback(() => {
+    setOverviewOpen(false);
+    focusTerminal(true);
+  }, [focusTerminal]);
+  const openFromOverview = useCallback(
+    (id: string) => {
+      store.select(id);
+      closeOverview();
+    },
+    [closeOverview],
+  );
+  // A session picked anywhere else (the list, a notification) is what the user wants to see.
+  const shownSelection = useRef(selectedId);
+  useEffect(() => {
+    if (shownSelection.current === selectedId) return;
+    shownSelection.current = selectedId;
+    setOverviewOpen(false);
+  }, [selectedId]);
 
   const selectByOffset = useCallback((offset: number) => {
     const { sessions: list, selectedId: current } = store.get();
@@ -350,9 +377,15 @@ export function App() {
         },
         focusTerminal: () => {
           setOverlay(null);
+          setOverviewOpen(false);
           requestAnimationFrame(() => focusTerminal(true));
         },
         palette: () => setOverlay((o) => (o === 'palette' ? null : 'palette')),
+        overview: () => {
+          setOverlay(null);
+          if (overviewOpenRef.current) closeOverview();
+          else setOverviewOpen(true);
+        },
         toggleChanges: () => togglePanel('changes'),
         toggleFiles: () => togglePanel('files'),
         toggleHidden: () =>
@@ -385,6 +418,7 @@ export function App() {
       mayDiscardEdits,
       openPrompt,
       editGroup,
+      closeOverview,
     ],
   );
 
@@ -400,6 +434,7 @@ export function App() {
       action('nextSession'),
       action('prevSession'),
       action('nextWaiting'),
+      action('overview'),
       action('focusSidebar'),
       action('preferences'),
       action('newGroup', t('command.newGroup')),
@@ -603,8 +638,11 @@ export function App() {
         marked={liveMarked}
         onMarkedChange={setMarked}
         onSendPrompt={(ids) => openPrompt(undefined, {}, ids)}
+        onOverview={() => runAction('overview')}
+        overviewOpen={overviewOpen}
       />
       <main className="main">
+        {overviewOpen && <Overview onOpen={openFromOverview} onClose={closeOverview} />}
         {selected && (
           <header className="session-header">
             <span

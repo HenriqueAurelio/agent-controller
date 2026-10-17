@@ -22,7 +22,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 
 | Área | O que já existe |
 |---|---|
-| Sessões | Claude Code e Codex em terminais reais, grupos por repositório, comando próprio por sessão (aliases e funções do seu shell), pastas recentes e favoritas, arrastar pasta para abrir |
+| Sessões | Claude Code e Codex em terminais reais, grupos por repositório, comando próprio por sessão (aliases e funções do seu shell), pastas recentes e favoritas, arrastar pasta para abrir; painel geral com todas as sessões numa grade |
 | Estado e avisos | Estado de cada sessão pelos sinais do próprio agente, notificação do sistema, contador de "aguardando" no título da janela, pedidos de permissão respondidos pela barra lateral ou pela notificação |
 | Isolamento | Cópia isolada por sessão (git worktree), com comando de preparo e limpeza; aviso quando sessões em cópias diferentes mudam o mesmo arquivo, com "provável conflito" quando as linhas se cruzam |
 | Verificações | Lint, typecheck e testes ao fim de cada turno, com ✓/✗ na sessão e "mandar o erro ao agente" |
@@ -34,7 +34,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 
 **Próximos passos**, já priorizados em [`docs/funcionalidades`](docs/funcionalidades/README.md#segunda-rodada-de-painel-de-agentes-a-orquestrador-e-ide-leve):
 
-- **Leva 1, orquestração:** painel geral em mosaico, "melhor de N", revisor automático, encadear sessões e quadro de tarefas.
+- **Leva 1, orquestração:** "melhor de N", revisor automático, encadear sessões e quadro de tarefas.
 - **Leva 2, IDE:** links `arquivo:linha` no terminal, `Ctrl+P`, abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
 - **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
 
@@ -134,6 +134,21 @@ A bolinha ao lado do nome da sessão mostra o estado:
 "Aguardando você" é o estado que pede uma ação sua, e por isso é o que mais chama atenção: a linha da sessão fica destacada em âmbar, o estado vira uma etiqueta preenchida e a bolinha pulsa. O título da janela mostra quantas sessões estão aguardando, por exemplo `(3 aguardando) Agent Controller`, o que aparece na barra de tarefas mesmo com o app em segundo plano.
 
 Bolinha **cheia** quer dizer que o próprio agente informou o estado. Bolinha **vazada e tracejada**, com o texto "**Possivelmente** aguardando você", quer dizer que o app só está supondo: o agente ficou alguns segundos sem escrever nada, e isso tanto pode ser uma pergunta quanto um build demorado e silencioso. O tempo dessa suposição é ajustável nas preferências, e 0 a desliga.
+
+### Painel geral
+
+Com várias sessões, a barra lateral diz *quem* precisa de você; o **painel geral** mostra *o quê*. Ele abre com `Ctrl+Shift+O`, com o botão **▦** no topo da barra lateral ou pela paleta, e ocupa o lugar do terminal: todas as sessões numa grade, um bloco por grupo. Cada cartão traz:
+
+- o nome, o agente, a bolinha de estado e há quanto tempo a sessão está nele ("Aguardando você há 4 min");
+- as **últimas 6 linhas** do terminal, em texto puro: sem cores, sem linhas vazias e sem as bordas e réguas que os agentes desenham. Se não sobrar nada legível, o cartão diz isso e fica só o estado;
+- a branch **⑂**, o número de arquivos mudados **±** e o resultado das verificações **✓/✗**;
+- o pedido de permissão com **✓** e **✕**, como na barra lateral, a fila **⏵ n** e o aviso de conflito **⚠ n**, quando existem.
+
+No topo, o filtro mostra **Todas**, só as que estão **Aguardando você** ou só as que estão **Trabalhando**, com quantas há em cada um. **Ordenar por atenção** (ligado de início) põe, em cada grupo, primeiro as que aguardam você, depois as com verificações falhando, depois o resto.
+
+Um clique no cartão abre a sessão. Pelo teclado, o painel começa no cartão da sessão que estava à vista: as setas andam pelos cartões, `Enter` abre e `Esc` volta ao terminal. Escolher uma sessão na barra lateral também fecha o painel.
+
+O painel não monta nenhum terminal: as linhas vêm do que o app já guarda de cada sessão, chegam no máximo uma vez por segundo e só das sessões que escreveram algo, e só enquanto o painel está aberto.
 
 ### Avisos
 
@@ -349,6 +364,7 @@ As sessões, as verificações de cada pasta e os temas importados não vão no 
 | `Ctrl+Shift+M` | Enviar um prompt às sessões marcadas, ou à atual |
 | `Alt+Y` / `Alt+N` | Permitir / negar o pedido de permissão da sessão atual (sem pedido aberto, a tecla vai para o terminal) |
 | `Ctrl+Shift+P` | Paleta de comandos |
+| `Ctrl+Shift+O` | Abrir ou fechar o painel geral |
 | `Ctrl+,` | Preferências |
 | sem atalho de fábrica | Próxima sessão aguardando você; fechar a sessão atual; novo grupo de sessões |
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copiar / colar no terminal. No Windows, `Ctrl+C` com texto selecionado e `Ctrl+V` também |
@@ -364,6 +380,7 @@ Tudo o que o app faz tem caminho pelo teclado.
   - Cabeçalho de grupo focado: `Enter` recolhe ou abre, `F2` renomeia, `Alt+↑` / `Alt+↓` muda o grupo de lugar, `Delete` desfaz o grupo (as sessões ficam). `Tab` chega aos botões do cabeçalho (nova sessão no grupo, editar).
 - **Painel de mudanças** (`Ctrl+Shift+G`): na lista, `↑` / `↓` escolhe o arquivo, `Espaço` marca ou desmarca para o commit, `Delete` descarta as mudanças do arquivo (com a pergunta de sempre), `Enter` leva ao editor e `Ctrl+Enter` à mensagem do commit, onde `Ctrl+Enter` faz o commit. `F6` / `Shift+F6` passam entre a lista, o editor e a mensagem do commit. `Esc` fecha o painel.
 - **Terminal auxiliar**: o mesmo `Ctrl+Shift+"` abre, vai para ele e fecha; `Ctrl+Shift+T` volta ao terminal do agente. Na paleta, "Terminal auxiliar: aumentar" e "diminuir" mudam o tamanho; com a divisória focada, as setas também.
+- **Painel geral** (`Ctrl+Shift+O`): as setas andam pelos cartões, `Enter` abre a sessão, `Esc` volta ao terminal. `Tab` chega ao filtro, ao "Ordenar por atenção" e aos botões ✓/✕ de um pedido de permissão.
 - **Paleta** (`Ctrl+Shift+P`): grupos (novo, editar, mover a sessão), prompts, temas do código e tudo o que tem atalho.
 
 Também dá para arrastar sessões e grupos com o mouse.

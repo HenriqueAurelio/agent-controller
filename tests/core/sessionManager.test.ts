@@ -338,6 +338,24 @@ describe('SessionManager', () => {
       await until(s.id, 'aguardando');
     });
 
+    it('gives the last lines of an agent with no terminal attached, and counts its output', async () => {
+      const never = create('nunca');
+      expect(manager.outputSeq(never.id)).toBe(0);
+      expect(await manager.tail(never.id, 6)).toEqual([]);
+
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      const before = manager.outputSeq(s.id);
+      expect(before).toBeGreaterThan(0);
+      manager.input(s.id, 'exit 0\r');
+      await waitFor(() => !manager.isRunning(s.id));
+      expect(manager.outputSeq(s.id)).toBeGreaterThan(before);
+      const tail = await manager.tail(s.id, 6);
+      expect(tail.length).toBeLessThanOrEqual(6);
+      expect(tail.at(-1)).toContain('Pressione Enter para iniciar de novo.');
+    });
+
     it('an agent that cannot be opened ends in "erro", with the reason on screen', async () => {
       launch = () => {
         throw new Error('Codex não foi encontrado no PATH.');

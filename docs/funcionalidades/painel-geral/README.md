@@ -1,7 +1,8 @@
 # Painel geral em mosaico
 
-- **Estado:** proposta, leva 1.
+- **Estado:** concluída (leva 1).
 - **ADR:** nenhuma nova, se ficar dentro da meta de memória ([ADR 0009](../../../adr/0009-meta-de-consumo-de-recursos.md)).
+- **Como ficou, onde mudou do desenho:** dentro da meta, sem ADR nova: com 12 sessões escrevendo uma linha por segundo, abrir o painel somou 1 MB ao app e cerca de 3 pontos de CPU no renderer, e nenhum terminal a mais. Além de `overview:watch` e do evento `sessions:tails`, um canal `overview:git` dá a branch e o número de arquivos mudados de cada sessão. O pedido de permissão, a fila e o aviso de conflito no cartão são os mesmos componentes da barra lateral; o custo entra com [uso e custo](../uso-e-custo/README.md).
 
 ## O problema
 

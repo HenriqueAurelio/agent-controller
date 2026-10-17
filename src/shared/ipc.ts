@@ -83,6 +83,14 @@ export interface WorktreesInfo {
   copies: WorktreeCopy[];
 }
 
+/** What a card of the overview shows of the repository of a session. */
+export interface OverviewGit {
+  /** The branch checked out in the folder; null outside a repository or on a detached HEAD. */
+  branch: string | null;
+  /** Files changed against HEAD; null outside a repository. */
+  changes: number | null;
+}
+
 export interface SessionMetrics {
   /** Percent of one core, summed over the session's process tree. */
   cpu: number;
@@ -246,6 +254,12 @@ export interface IpcCommands {
   'checkpoints:prune': (sessionId: string) => number;
   /** What the checkpoints of each session take, for the preferences. */
   'checkpoints:usage': () => CheckpointUsage[];
+  /**
+   * Turns the feed of the last lines of the sessions on or off; the overview has it on while open.
+   * Turning it on resolves to the lines of every session, which `sessions:tails` then updates.
+   */
+  'overview:watch': (watching: boolean) => Record<string, string[]>;
+  'overview:git': (sessionId: string) => OverviewGit;
   /** One folder of the session, relative to its root (the repository, or the session folder). */
   'files:list': (sessionId: string, dir: string, showHidden: boolean) => FileListing;
 
@@ -268,6 +282,8 @@ export interface IpcEvents {
   /** What the session has in common with the others changed: `git:overlaps` has the new detail. */
   'git:overlapsChanged': (sessionId: string) => void;
   'metrics:update': (metrics: Record<string, SessionMetrics>) => void;
+  /** The last lines of the sessions that changed, once a second at most, while watched. */
+  'sessions:tails': (tails: Record<string, string[]>) => void;
   'prefs:changed': (prefs: Preferences) => void;
   'app:focusSession': (id: string) => void;
   /** The run of the checks of a session changed. */
@@ -356,6 +372,8 @@ export const COMMAND_CHANNELS = [
   'checkpoints:restore',
   'checkpoints:prune',
   'checkpoints:usage',
+  'overview:watch',
+  'overview:git',
   'files:list',
   'checks:get',
   'checks:configure',
@@ -371,6 +389,7 @@ export const EVENT_CHANNELS = [
   'git:changed',
   'git:overlapsChanged',
   'metrics:update',
+  'sessions:tails',
   'prefs:changed',
   'app:focusSession',
   'checks:changed',

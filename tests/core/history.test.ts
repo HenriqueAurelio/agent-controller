@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ScreenHistory } from '@core/history/ScreenHistory';
+import { ScreenHistory, TAIL_LINE_LIMIT } from '@core/history/ScreenHistory';
 
 const make = (cols = 60, rows = 10, scrollback = 100) =>
   new ScreenHistory({ cols, rows, scrollback });
@@ -86,5 +86,66 @@ describe('ScreenHistory', () => {
     await history.flush();
     expect(history.pending).toBe(0);
     expect(parsed).toBe(1);
+  });
+
+  describe('tail', () => {
+    it('gives the last lines as plain text, without colours nor empty lines', async () => {
+      const history = make(60, 10);
+      for (let i = 1; i <= 30; i++) history.write(`\x1b[32mlinha ${i}\x1b[0m\r\n\r\n`);
+      await history.flush();
+      expect(history.tail(3)).toEqual(['linha 28', 'linha 29', 'linha 30']);
+      expect(history.tail(0)).toEqual([]);
+    });
+
+    it('leaves out the frames, rules and spinners of a TUI, and keeps the text inside a box', async () => {
+      const history = make(40, 12);
+      history.write(
+        [
+          '\x1b[2J\x1b[H╭──────────────────────────╮',
+          '│ \x1b[1mEditando src/app.ts\x1b[0m       │',
+          '│                          │',
+          '╰──────────────────────────╯',
+          '────────────────────────────',
+          '  ⠋  ',
+          '> rodando os testes',
+          '+-------+------+',
+          '| ok    |  12  |',
+          '========',
+        ].join('\r\n'),
+      );
+      await history.flush();
+      expect(history.tail(6)).toEqual(['Editando src/app.ts', '> rodando os testes', 'ok  |  12']);
+    });
+
+    it('joins a line the terminal wrapped, and cuts one too long for a glance', async () => {
+      const history = make(20, 5);
+      const long = 'abcdefghij'.repeat(5);
+      history.write(`${long}\r\nfim`);
+      await history.flush();
+      expect(history.tail(2)).toEqual([long, 'fim']);
+
+      const huge = make(80, 5, 100);
+      huge.write('x'.repeat(TAIL_LINE_LIMIT + 50));
+      await huge.flush();
+      const [line] = huge.tail(1);
+      expect([...line!]).toHaveLength(TAIL_LINE_LIMIT);
+      expect(line!.endsWith('…')).toBe(true);
+    });
+
+    it('keeps wide characters whole', async () => {
+      const history = make(20, 5);
+      history.write('日本語のテキスト 🚀 ok\r\n終わり');
+      await history.flush();
+      expect(history.tail(2)).toEqual(['日本語のテキスト 🚀 ok', '終わり']);
+    });
+
+    it('does not walk the whole scrollback when there is little to show', async () => {
+      const history = make(40, 5, 5000);
+      history.write('primeira\r\n');
+      for (let i = 0; i < 3000; i++) history.write('────\r\n');
+      await history.flush();
+      // The only readable line is too far up for a glance.
+      expect(history.tail(6)).toEqual([]);
+    });
   });
 });
