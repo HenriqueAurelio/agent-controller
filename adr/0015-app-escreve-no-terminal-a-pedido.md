@@ -3,6 +3,7 @@
 - **Status:** Aceita
 - **Data:** 2026-10-16
 - **Revisão:** 2026-10-17, a [ADR 0020](0020-responder-permissao-fora-do-terminal.md) acrescenta a resposta a um pedido de permissão, pela tecla do menu do agente.
+- **Revisão:** 2026-10-17, a [fila de prompts](../docs/funcionalidades/fila-de-prompts/README.md) (funcionalidade 13): veja "Fila de prompts" abaixo.
 - **Emenda:** [ADR 0014](0014-verificacoes-ao-fim-do-turno.md), que criou a colagem no prompt do agente só para "Mandar o erro ao agente". A forma da colagem continua a mesma; esta ADR diz quando mais o app pode usá-la.
 
 ## Contexto
@@ -35,6 +36,16 @@ Até aqui o app só escrevia no terminal do agente o que a pessoa digitava, e o 
 
 - Nas preferências (`prompts`, `promptSubmit`), com limite de quantidade e tamanho. Vão no arquivo de exportação: são texto e não executam nada. Ao contrário das verificações (ADR 0014), que são comandos e ficam fora.
 - O atalho de cada prompt fica no próprio prompt; uma combinação que já é de uma ação do app não é aceita.
+
+### Fila de prompts
+
+A fila amplia "espera pelo fim do turno" de um envio pendente para uma lista por sessão (`src/core/prompts/PromptQueue.ts`), e é o único caso em que o app escreve **com Enter sem que a pessoa aperte nada na hora**:
+
+- **A ação explícita é pôr na fila.** O botão **Pôr na fila** do diálogo mostra o texto e a sessão, como o **Enviar**. Dali em diante, cada item vai sozinho, **com Enter** (a fila que espera o Enter da pessoa não anda), e o diálogo diz isso.
+- **Só anda com "terminou" confirmado pelo agente**, nunca com "aguardando": uma permissão ou pergunta é da pessoa, e o item espera o próximo fim de turno. Estado estimado pelo silêncio não move a fila; nesse caso, só **Enviar o próximo**.
+- **Item com "verificações passaram":** ao fim do turno o app roda as verificações da pasta (ADR 0014) e só envia se todas passarem; se falharem, a fila para.
+- **Limite de 20 itens por fila.** Guardada em `queues/<sessionId>.json` (ADR 0006) e **pausada** ao reabrir o app; pausa também quando o agente sai.
+- As variáveis são preenchidas **na hora do envio**, pelo mesmo caminho do `terminal:sendText`. O contrato de IPC ganhou os canais `queue:*` e o evento `queue:changed`; `SessionView` ganhou `queue`.
 
 ## Alternativas consideradas
 

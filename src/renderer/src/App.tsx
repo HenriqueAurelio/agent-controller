@@ -16,6 +16,7 @@ import { codeThemeName, themesOfKind, useCustomThemes } from './lib/codeThemes';
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { PromptDialog, type PromptContext } from './components/PromptDialog';
+import { QueueDialog, sendQueueFailure, skipQueueItem } from './components/QueueDialog';
 import { Sidebar } from './components/Sidebar';
 import { TerminalArea, type TerminalAreaHandle } from './components/TerminalArea';
 import { hint, PROFILE_LABEL } from './lib/format';
@@ -28,7 +29,8 @@ const answerable = (state: ReturnType<typeof store.get>): boolean =>
   state.prefs.permissionButtons &&
   Boolean(state.sessions.find((s) => s.id === state.selectedId)?.permission);
 
-type Overlay = 'new' | 'prefs' | 'palette' | 'folder' | 'checks' | 'prompt' | 'group' | null;
+type Overlay =
+  'new' | 'prefs' | 'palette' | 'folder' | 'checks' | 'prompt' | 'group' | 'queue' | null;
 
 interface PromptRequest {
   promptId?: string;
@@ -433,6 +435,11 @@ export function App() {
           run: () => void window.api.invoke('checks:run', selected.id),
         },
         {
+          id: 'queue',
+          title: t('command.queue', { name: selected.name }),
+          run: () => setOverlay('queue'),
+        },
+        {
           id: 'duplicate',
           title: t('command.duplicate', { name: selected.name }),
           run: () => duplicate(selected),
@@ -629,6 +636,18 @@ export function App() {
               {t('app.aux')}
             </button>
             <button
+              className="queue-button"
+              onClick={() => setOverlay('queue')}
+              title={t('app.queueHint')}
+            >
+              {t('app.queue')}
+              {selected.queue && (
+                <span className={`count ${selected.queue.paused ? 'paused' : ''}`}>
+                  {selected.queue.items}
+                </span>
+              )}
+            </button>
+            <button
               className="checks-button"
               onClick={() => setOverlay('checks')}
               title={t('app.checksHint')}
@@ -643,6 +662,33 @@ export function App() {
             {t('app.worktreeShared', { name: sharing.name })}
           </div>
         )}
+        {selected?.queue &&
+          (selected.queue.blockedBy === 'checksFailed' ||
+            selected.queue.blockedBy === 'noChecks' ||
+            selected.queue.blockedBy === 'sendFailed') && (
+            <div className="banner queue-banner" role="alert" data-testid="queue-banner">
+              <span>{t(`queue.banner.${selected.queue.blockedBy}`)}</span>
+              {selected.queue.blockedBy === 'checksFailed' && (
+                <button
+                  title={t('queue.sendFailureHint')}
+                  onClick={() => void sendQueueFailure(selected.id).catch(() => {})}
+                >
+                  {t('queue.sendFailure')}
+                </button>
+              )}
+              <button onClick={() => void skipQueueItem(selected.id).catch(() => {})}>
+                {t('queue.skip')}
+              </button>
+              <button
+                onClick={() => void window.api.invoke('queue:resume', selected.id).catch(() => {})}
+              >
+                {t('queue.resume')}
+              </button>
+              <button className="link-button" onClick={() => setOverlay('queue')}>
+                {t('queue.banner.open')}
+              </button>
+            </div>
+          )}
         {selected?.running && selected.hooks === 'inactive' && (
           <div className="banner" role="status">
             {rich(t('app.codexHooksBanner'), { screen: <strong>Hooks need review</strong> })}
@@ -703,6 +749,9 @@ export function App() {
             focusTerminal(true);
           }}
         />
+      )}
+      {overlay === 'queue' && selected && (
+        <QueueDialog key={selected.id} session={selected} onClose={closeOverlay} />
       )}
       {overlay === 'palette' && <CommandPalette commands={commands} onClose={closeOverlay} />}
       {overlay === 'prompt' && promptRequest && (

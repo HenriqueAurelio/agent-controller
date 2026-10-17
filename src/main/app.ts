@@ -16,6 +16,7 @@ import { CheckService } from '@core/checks/CheckService';
 import { ChangesService } from '@core/git/ChangesService';
 import { cleanDiscarded } from '@core/git/GitWriteService';
 import { MetricsSampler } from '@core/metrics/MetricsSampler';
+import { PromptQueue } from '@core/prompts/PromptQueue';
 import { PtyManager } from '@core/pty/PtyManager';
 import { NotificationPolicy, type NotificationRequest } from '@core/sessions/NotificationPolicy';
 import { SessionManager } from '@core/sessions/SessionManager';
@@ -32,9 +33,9 @@ import {
 } from '@core/store/gpuGuard';
 import type { AgentAvailability } from '@shared/agents';
 import { summarizeRun } from '@shared/checks';
-import { translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
+import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import type { Session, SessionGroup } from '@shared/session';
-import { registerIpc, snapshotOf, type IpcContext } from './ipc';
+import { expandForSession, registerIpc, snapshotOf, type IpcContext } from './ipc';
 import { showNotification } from './notifications';
 import { createMainWindow, saveWindowState } from './window';
 
@@ -240,6 +241,37 @@ export async function startApp(): Promise<void> {
     if (request) notify(request);
   });
 
+  const queue = new PromptQueue({
+    directory: path.join(userData, 'queues'),
+    sessionIds: data.sessions.map((session) => session.id),
+    stateOf: (sessionId) =>
+      manager.has(sessionId)
+        ? { status: manager.statusOf(sessionId), running: manager.isRunning(sessionId) }
+        : null,
+    // The same way as "Send" of the prompt dialog, with Enter: a queue that waits for the user's
+    // Enter does not move by itself (ADR 0015).
+    deliver: async (sessionId, item) => {
+      try {
+        const text = await expandForSession(manager, sessionId, item.text, item.values);
+        manager.sendText(sessionId, text, { submit: true });
+      } catch (err) {
+        throw new Error(errorText(data.prefs.language, err), { cause: err });
+      }
+    },
+    runChecks: (sessionId) => {
+      const session = manager.get(sessionId);
+      if (!session || !(data.checks[folderKey(session.cwd)] ?? []).length) return false;
+      checks.runNow(sessionId);
+      return true;
+    },
+  });
+  for (const sessionId of queue.sessions()) manager.setQueue(sessionId, queue.summary(sessionId));
+  queue.on('changed', (sessionId, state) => {
+    manager.setQueue(sessionId, queue.summary(sessionId));
+    send('queue:changed', sessionId, state);
+  });
+  checks.on('changed', (sessionId, run) => queue.onChecks(sessionId, run));
+
   manager.on('permission', (session) => {
     const request = notifications.evaluatePermission(session, {
       focused: manager.isFocused(session.id),
@@ -254,6 +286,7 @@ export async function startApp(): Promise<void> {
   manager.on('removed', (id) => {
     notifications.forget(id);
     checks.forget(id);
+    queue.forget(id);
     void changes.sessionClosed(id);
   });
   manager.on('transition', ({ session, previous }) => {
@@ -268,6 +301,8 @@ export async function startApp(): Promise<void> {
       prefs: data.prefs,
     });
     if (request) notify(request);
+    // After the checks heard of the turn: an item that asks for them takes over their run.
+    queue.onTransition(session.id, session.status, previous, session.running);
   });
 
   let agentsCache: Promise<AgentAvailability[]> | null = null;
@@ -296,6 +331,7 @@ export async function startApp(): Promise<void> {
     manager,
     changes,
     checks,
+    queue,
     data,
     discardDir,
     codeThemes: new CodeThemeStore(path.join(userData, 'themes')),

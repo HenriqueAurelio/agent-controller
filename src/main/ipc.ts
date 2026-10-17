@@ -5,6 +5,7 @@ import type { CheckService } from '@core/checks/CheckService';
 import { failureReport } from '@core/checks/report';
 import { suggestChecks } from '@core/checks/suggest';
 import type { ChangesService } from '@core/git/ChangesService';
+import type { PromptQueue } from '@core/prompts/PromptQueue';
 import { currentBranch } from '@core/git/GitService';
 import { expandPrompt, promptVariables } from '@core/prompts/expand';
 import {
@@ -42,10 +43,14 @@ import type {
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
 import {
   PROMPT_TEXT_LIMIT,
+  QUEUE_CONDITIONS,
+  QUEUE_LIMIT,
   SELECTION_LIMIT,
   SEND_TARGETS_LIMIT,
   SEND_TEXT_LIMIT,
   type PromptValues,
+  type QueueCondition,
+  type QueueItemUpdate,
   type SendOutcome,
 } from '@shared/prompts';
 import {
@@ -61,6 +66,7 @@ export interface IpcContext {
   manager: SessionManager;
   changes: ChangesService;
   checks: CheckService;
+  queue: PromptQueue;
   data: AppData;
   /** Where the copies of discarded files go. */
   discardDir: string;
@@ -139,12 +145,55 @@ const groupUpdate = (value: unknown): GroupUpdate => {
   };
 };
 
+const condition = (value: unknown): QueueCondition => {
+  if (!QUEUE_CONDITIONS.includes(value as QueueCondition)) {
+    throw new UserError('error.invalidArgument', { name: { key: 'arg.condition' } });
+  }
+  return value as QueueCondition;
+};
+const queueUpdate = (value: unknown): QueueItemUpdate => {
+  const v = value as Record<string, unknown> | null;
+  if (!v || typeof v !== 'object') {
+    throw new UserError('error.invalidArgument', { name: { key: 'arg.item' } });
+  }
+  return {
+    ...(v.text !== undefined && { text: str(v.text, 'text', PROMPT_TEXT_LIMIT) }),
+    ...(v.condition !== undefined && { condition: condition(v.condition) }),
+  };
+};
+
+/**
+ * A prompt as it reaches one session: its name, folder and branch, and what the user gave. Filled
+ * in at the moment it goes, so a prompt that waited in a queue names the branch of then.
+ */
+export async function expandForSession(
+  manager: SessionManager,
+  sessionId: string,
+  text: string,
+  values: PromptValues,
+): Promise<string> {
+  const s = manager.get(sessionId);
+  if (!s) throw new UserError('error.session.notFound');
+  const branch = promptVariables(text).includes('branch')
+    ? ((await currentBranch(s.cwd).catch(() => null)) ?? '')
+    : '';
+  const expanded = expandPrompt(
+    text,
+    { session: s.name, folder: s.cwd, branch, file: values.file, selection: values.selection },
+    values.answers,
+  );
+  if (expanded.length > SEND_TEXT_LIMIT) {
+    throw new UserError('error.prompt.tooLarge', { limit: SEND_TEXT_LIMIT });
+  }
+  return expanded;
+}
+
 export function snapshotOf(manager: SessionManager): SessionsSnapshot {
   return { sessions: manager.list(), groups: manager.listGroups(), selectedId: manager.selected };
 }
 
 export function registerIpc(context: IpcContext): void {
-  const { manager, changes, checks } = context;
+  const { manager, changes, checks, queue } = context;
 
   // Read at each use: the language may change at any moment.
   const language = () => context.data.prefs.language;
@@ -390,22 +439,8 @@ export function registerIpc(context: IpcContext): void {
   handle('aux:open', (id, terminalSize) => manager.openAux(session(id).id, size(terminalSize)));
   handle('aux:close', (id) => manager.closeAux(session(id).id));
 
-  /** The prompt as it reaches one session: its name, folder and branch, and what the user gave. */
-  const expandFor = async (sessionId: string, text: string, values: PromptValues) => {
-    const s = session(sessionId);
-    const branch = promptVariables(text).includes('branch')
-      ? ((await currentBranch(s.cwd).catch(() => null)) ?? '')
-      : '';
-    const expanded = expandPrompt(
-      text,
-      { session: s.name, folder: s.cwd, branch, file: values.file, selection: values.selection },
-      values.answers,
-    );
-    if (expanded.length > SEND_TEXT_LIMIT) {
-      throw new UserError('error.prompt.tooLarge', { limit: SEND_TEXT_LIMIT });
-    }
-    return expanded;
-  };
+  const expandFor = (sessionId: string, text: string, values: PromptValues) =>
+    expandForSession(manager, session(sessionId).id, text, values);
   handle('prompts:preview', (id, text, values) =>
     expandFor(str(id, 'session', 64), str(text, 'text', PROMPT_TEXT_LIMIT), promptValues(values)),
   );
@@ -428,6 +463,48 @@ export function registerIpc(context: IpcContext): void {
     return outcomes;
   });
   handle('terminal:cancelSend', (id) => manager.cancelPending(session(id).id));
+
+  handle('queue:get', (id) => queue.get(session(id).id));
+  handle('queue:add', async (ids, prompt) => {
+    if (!Array.isArray(ids) || ids.length === 0 || ids.length > SEND_TARGETS_LIMIT) {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.session' } });
+    }
+    const text = str(prompt?.text, 'text', PROMPT_TEXT_LIMIT);
+    if (!text.trim()) throw new UserError('error.queue.empty');
+    const values = promptValues(prompt?.values);
+    const when = condition(prompt?.condition);
+    const targets = [...new Set(ids.map((id) => session(id).id))];
+    // All or nothing: a queue that is full, or a text that would not fit, puts nothing anywhere.
+    const full = targets.find((id) => !queue.fits(id));
+    if (full) {
+      throw new UserError('error.queue.fullFor', {
+        name: manager.get(full)!.name,
+        limit: QUEUE_LIMIT,
+      });
+    }
+    await Promise.all(targets.map((id) => expandFor(id, text, values)));
+    for (const id of targets) queue.add(id, { text, values, condition: when });
+  });
+  const item = (value: unknown) => str(value, 'item', 64);
+  handle('queue:update', (id, itemId, update) =>
+    queue.update(session(id).id, item(itemId), queueUpdate(update)),
+  );
+  handle('queue:remove', (id, itemId) => queue.remove(session(id).id, item(itemId)));
+  handle('queue:reorder', (id, list) => {
+    if (!Array.isArray(list) || list.length > QUEUE_LIMIT) {
+      throw new UserError('error.invalidOrder');
+    }
+    queue.reorder(session(id).id, list.map(item));
+  });
+  handle('queue:pause', (id) => queue.pause(session(id).id));
+  handle('queue:resume', (id, options) =>
+    queue.resume(session(id).id, { afterTurn: options?.afterTurn === true }),
+  );
+  handle('queue:sendNext', (id) => {
+    const s = session(id);
+    if (!manager.isRunning(s.id)) throw new UserError('error.session.notRunning');
+    return queue.sendNext(s.id);
+  });
 
   const worktreesFolder = () => context.data.worktrees.folder || defaultWorktreesFolder();
   const worktreesInfo = async (): Promise<WorktreesInfo> => {

@@ -26,14 +26,14 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 | Estado e avisos | Estado de cada sessão pelos sinais do próprio agente, notificação do sistema, contador de "aguardando" no título da janela, pedidos de permissão respondidos pela barra lateral ou pela notificação |
 | Isolamento | Cópia isolada por sessão (git worktree), com comando de preparo e limpeza |
 | Verificações | Lint, typecheck e testes ao fim de cada turno, com ✓/✗ na sessão e "mandar o erro ao agente" |
-| Prompts | Prompts guardados com variáveis, enviados a uma ou várias sessões, com espera pelo fim do turno |
+| Prompts | Prompts guardados com variáveis, enviados a uma ou várias sessões, com espera pelo fim do turno; fila de prompts por sessão, um a cada fim de turno |
 | Revisão de código | Painel de mudanças com diff editável, árvore de arquivos, stage, commit e descarte com desfazer, vários repositórios na mesma pasta, realce TextMate e temas do VS Code |
 | Terminal | Terminal auxiliar por sessão, layout configurável, atalhos editáveis e uso completo sem mouse |
 | Interface | Português, inglês e espanhol |
 
 **Próximos passos**, já priorizados em [`docs/funcionalidades`](docs/funcionalidades/README.md#segunda-rodada-de-painel-de-agentes-a-orquestrador-e-ide-leve):
 
-- **Leva 1, orquestração:** fila de prompts, checkpoints por turno, aviso de conflito entre sessões, painel geral em mosaico, "melhor de N", revisor automático, encadear sessões e quadro de tarefas.
+- **Leva 1, orquestração:** checkpoints por turno, aviso de conflito entre sessões, painel geral em mosaico, "melhor de N", revisor automático, encadear sessões e quadro de tarefas.
 - **Leva 2, IDE:** links `arquivo:linha` no terminal, `Ctrl+P`, abrir no editor externo, painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
 - **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
 
@@ -250,6 +250,20 @@ Como o texto chega:
 - **Agente ocupado:** se ele está trabalhando, ou pedindo uma permissão, o texto **espera o fim do turno**. A sessão mostra "1 envio(s) esperando o turno", com **Cancelar**. **Enviar agora mesmo assim**, no diálogo, não espera. Com vários textos esperando, sai um turno de cada vez.
 
 Os prompts são só texto e **vão no arquivo de exportação** das preferências.
+
+### Fila de prompts
+
+Para um trabalho em passos ("implemente", depois "escreva os testes", depois "atualize o README"), ponha os passos na **fila** da sessão e saia da frente do computador: o app manda o próximo quando o agente termina o turno anterior.
+
+- **Pôr na fila:** no diálogo de envio de prompt (paleta, atalho do prompt, "Mandar ao agente"), o botão **Pôr na fila** fica ao lado de **Enviar**. Com várias sessões marcadas, o item entra na fila de cada uma. Se o agente está livre, o primeiro item vai na hora.
+- **Condição de cada item:** **Quando o turno terminar** (de fábrica) ou **Quando as verificações passarem**. Neste caso, ao fim do turno o app roda todas as [verificações](#verificações-ao-fim-do-turno) da pasta e só manda o item se todas passarem.
+- **Com Enter.** Os itens da fila vão com Enter, mesmo com **Enviar com Enter** desligado: sem ele, a fila só andaria com o seu Enter. O diálogo avisa isso.
+- **Na sessão:** o botão **Fila (3)** no topo abre a lista: arrastar (ou ↑ ↓) para mudar a ordem, **Editar**, **Apagar**, trocar a condição, **Pausar**, **Retomar** e **Enviar o próximo** (manda o primeiro agora, sem esperar a condição). Na barra lateral, **⏵ 2** diz que dois itens esperam; **⏸ 2**, que a fila está pausada.
+- **A fila só anda com "Terminou".** Quando o agente pede permissão ou faz uma pergunta, a resposta é sua: a fila espera e volta a andar no próximo "Terminou". O "aguardando você" de quando o agente fica parado também não a move.
+- **Verificação que falhou:** a fila para e uma faixa no topo da sessão oferece **Mandar o erro ao agente** (cola o que falhou no prompt dele; a fila volta a andar no fim do turno seguinte, e as verificações rodam de novo), **Pular o item** e **Retomar** (roda as verificações outra vez).
+- **Sessão sem sinal do agente** (estado estimado, bolinha tracejada): a fila não anda sozinha; use **Enviar o próximo**.
+- **Até 20 itens** por fila. As variáveis (`{branch}`, `{sessao}`…) são preenchidas na hora do envio, não na hora de pôr na fila.
+- **Fechar o app guarda a fila.** Ao reabrir, ela volta **pausada**; **Retomar** quando quiser. A fila de uma sessão fechada é apagada com ela. Se o agente sai, a fila pausa.
 ### Terminal auxiliar
 
 Para rodar algo na pasta da sessão sem sair do app e sem atrapalhar o agente (subir o servidor, olhar um log, `git log`), abra o **terminal auxiliar**: `Ctrl+Shift+"` (a tecla `'` com `Shift`), o botão **Terminal** no topo da sessão ou "Terminal auxiliar: abrir um shell…" na paleta.

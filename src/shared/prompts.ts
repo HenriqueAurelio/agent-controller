@@ -113,3 +113,53 @@ export interface SendTextOptions {
 
 /** How a send went for one session. */
 export type SendOutcome = 'sent' | 'queued';
+
+// ---- the queue of a session ------------------------------------------------------------------
+
+/** When an item of the queue goes: at the end of the turn, or once the checks of it passed. */
+export type QueueCondition = 'turnEnd' | 'checksPassed';
+
+export const QUEUE_CONDITIONS: readonly QueueCondition[] = ['turnEnd', 'checksPassed'];
+
+/** A prompt waiting in the queue of a session. Its variables are filled in when it goes. */
+export interface QueueItem {
+  id: string;
+  text: string;
+  values: PromptValues;
+  condition: QueueCondition;
+}
+
+/**
+ * Why the queue does not move by itself. With `paused`, the user has to resume it: `restored`
+ * (the app was reopened), `checksFailed`, `noChecks` (an item asks for checks the folder does not
+ * have), `sendFailed`, `exited` (the agent left). Without it, `agentAsks`: the agent asks
+ * something, and the queue waits for the next end of turn.
+ */
+export type QueueBlock =
+  'restored' | 'checksFailed' | 'noChecks' | 'sendFailed' | 'exited' | 'agentAsks';
+
+export interface QueueState {
+  items: QueueItem[];
+  paused: boolean;
+  blockedBy?: QueueBlock;
+  /** The checks of the first item are running. */
+  checking?: boolean;
+  /** What went wrong with `sendFailed`, as the user reads it. */
+  error?: string;
+}
+
+/** What the list of sessions shows of a queue. */
+export interface QueueSummary {
+  items: number;
+  paused: boolean;
+  blockedBy?: QueueBlock;
+}
+
+/** Items one queue may hold: a queue that runs by itself must not spend credits without end. */
+export const QUEUE_LIMIT = 20;
+
+/** What may change in an item of the queue. */
+export interface QueueItemUpdate {
+  text?: string;
+  condition?: QueueCondition;
+}
