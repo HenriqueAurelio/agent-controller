@@ -237,7 +237,7 @@ test('Preferências → Editor: tema por modo do app, prévia, importar e remove
   await expect(prefs.getByRole('alert')).toHaveText('O arquivo não é um tema de cores do VS Code.');
 
   // Associations: a line that cannot be read is pointed out, the rest is kept.
-  const associations = prefs.getByLabel('Linguagem por arquivo');
+  const associations = prefs.getByLabel('Forçar linguagem para arquivos');
   await associations.fill('*.toml = yaml\nisto não vale');
   await associations.blur();
   await expect(prefs.getByText('Linhas ignoradas: isto não vale')).toBeVisible();

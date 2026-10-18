@@ -378,9 +378,9 @@ export const es: Record<keyof typeof ptBR, string> = {
   'prefs.importTheme': 'Importar tema de VS Code…',
   'prefs.themeImported': 'Tema “{name}” importado.',
   'prefs.removeTheme': 'Quitar el tema “{name}”',
-  'prefs.associations': 'Lenguaje por archivo',
+  'prefs.associations': 'Forzar lenguaje para archivos',
   'prefs.associationsHint':
-    'Uno por línea, patrón = lenguaje. Ej.: *.mdc = markdown. Va antes de la extensión.',
+    'Déjelo vacío si el resaltado ya es correcto. Uno por línea: patrón = lenguaje. Ej.: *.mdc = markdown. Anula la detección por extensión.',
   'prefs.associationsInvalid': 'Líneas ignoradas: {lines}',
   'codeTheme.app-dark': 'Agent Controller oscuro',
   'codeTheme.app-light': 'Agent Controller claro',

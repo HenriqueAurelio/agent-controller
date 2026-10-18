@@ -397,7 +397,7 @@ Em **Preferências → Editor**:
 
 - **Com o app escuro** e **Com o app claro**: o tema de cores do código em cada tema do app, com uma prévia ao lado. Vêm 33 temas do VS Code (Dark+, Light+, Monokai, One Dark Pro, Dracula, GitHub, Solarized, Nord, Tokyo Night, Catppuccin e outros). O padrão, **Agent Controller escuro/claro**, usa as cores do Dark+/Light+ com o fundo do app.
 - **Importar tema do VS Code…**: um arquivo `.json` de tema, como os que vêm nas extensões de tema do VS Code (na pasta `themes` da extensão). O tema importado passa a valer na hora e pode ser removido na mesma tela. Um tema que só estende outro (`include`) não é aceito.
-- **Linguagem por arquivo**: uma associação por linha, `padrão = linguagem` (`*.mdc = markdown`, `conf/nginx/*.conf = nginx`). Vale antes da extensão.
+- **Forçar linguagem para arquivos**: deixe vazio se o realce já estiver correto. Para sobrescrever a detecção, use uma associação por linha, `padrão = linguagem` (`*.mdc = markdown`, `conf/nginx/*.conf = nginx`).
 
 Na paleta de comandos, **Tema do código: …** troca o tema do modo atual do app.
 
