@@ -78,7 +78,10 @@ button:hover:not(:disabled) {
   background: var(--bg-hover);
 }
 button:disabled {
-  opacity: 0.5;
+  background: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--muted);
+  opacity: 1;
   cursor: default;
 }
 button.primary {
