@@ -435,6 +435,8 @@ As sessões, as verificações de cada pasta e os temas importados não vão no 
 | `Ctrl+clique` | Num caminho (`arquivo:linha`) ou endereço, no terminal e na saída das verificações: abre o arquivo na linha, ou o navegador (fixo) |
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copiar / colar no terminal. No Windows, `Ctrl+C` com texto selecionado e `Ctrl+V` também |
 
+Uma colagem direta no terminal é entregue inteira ao Claude Code ou Codex: o Aurelium não aplica um limite próprio de tamanho. Quando o Claude Code mostra “pasted lines”, é só a forma dele de resumir visualmente uma colagem com muitas linhas; não indica que o texto foi cortado. Isso é diferente do diálogo e da fila de prompts, que têm limites próprios porque guardam texto e podem enviá-lo a várias sessões.
+
 Esses são os atalhos de fábrica. Em **Preferências → Atalhos** cada ação pode ter os seus: clique em **+**, pressione as teclas e pronto; o **×** ao lado de um atalho o remove, e **Restaurar padrões** desfaz tudo. Uma ação aceita até quatro atalhos. Se a combinação já era de outra ação, ela muda de dono. Para não atrapalhar o que você digita no terminal, um atalho precisa de `Ctrl`, `Alt` ou de uma tecla de função, e não pode ser um dos que o terminal, o editor e o painel usam (`Ctrl+C`, `Ctrl+V`, `Ctrl+S`, `F2`, `F6`, `F12`, `Ctrl+Espaço`).
 
 #### Sem mouse
