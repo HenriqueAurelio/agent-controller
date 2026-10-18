@@ -3,6 +3,7 @@
 export const ptBR = {
   'common.cancel': 'Cancelar',
   'common.close': 'Fechar',
+  'common.apply': 'Aplicar',
   'common.choose': 'Escolher…',
   'common.add': 'Adicionar',
   'common.remove': 'Remover',

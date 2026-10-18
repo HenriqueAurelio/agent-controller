@@ -202,13 +202,16 @@ test('Preferências → Editor: tema por modo do app, prévia, importar e remove
   const preview = prefs.frameLocator('[data-testid="code-theme-preview"]').locator('body');
   await expect(preview).toHaveAttribute('data-code-theme', 'app-dark');
   await expect(preview).toHaveAttribute('data-engine', 'textmate');
+  const apply = prefs.getByRole('button', { name: 'Aplicar' });
+  await expect(apply).toBeDisabled();
 
-  // The dark list only has dark themes; picking one changes the preview and the open panel.
+  // The dark list only has dark themes; picking one changes the preview, not the open panel.
   const dark = prefs.getByLabel('Com o app escuro');
   await expect(dark.locator('option', { hasText: 'GitHub Light' })).toHaveCount(0);
   await dark.selectOption({ label: 'Dracula' });
   await expect(preview).toHaveAttribute('data-code-theme', 'dracula');
-  await expect(body()).toHaveAttribute('data-code-theme', 'dracula');
+  await expect(body()).toHaveAttribute('data-code-theme', 'app-dark');
+  await expect(apply).toBeEnabled();
 
   const light = prefs.getByLabel('Com o app claro');
   await light.selectOption({ label: 'Solarized Light' });
@@ -241,6 +244,9 @@ test('Preferências → Editor: tema por modo do app, prévia, importar e remove
   await associations.fill('*.toml = yaml\nisto não vale');
   await associations.blur();
   await expect(prefs.getByText('Linhas ignoradas: isto não vale')).toBeVisible();
+  await apply.click();
+  await expect(apply).toBeDisabled();
+  await expect(body()).toHaveAttribute('data-code-theme', 'dracula');
   await prefs.getByRole('button', { name: 'Fechar' }).click();
   await openFile('config.toml');
   await expect(body()).toHaveAttribute('data-language', 'yaml');
