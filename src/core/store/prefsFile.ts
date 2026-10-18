@@ -7,12 +7,7 @@ export const PREFS_FILE_MAX_BYTES = 1024 * 1024;
 
 /** The preferences as a file to keep or to take to another machine. Sessions are not in it. */
 export function serializePreferences(prefs: Preferences): string {
-  // The command of "other" is whatever the person wrote, and may run anything: it stays here.
-  const exported = {
-    ...prefs,
-    externalEditor: { ...prefs.externalEditor, command: '' },
-  };
-  return `${JSON.stringify({ kind: KIND, version: PREFS_FILE_VERSION, prefs: exported }, null, 2)}\n`;
+  return `${JSON.stringify({ kind: KIND, version: PREFS_FILE_VERSION, prefs }, null, 2)}\n`;
 }
 
 /**

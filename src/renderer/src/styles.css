@@ -2888,13 +2888,3 @@ textarea.associations {
 .quick-open-tag {
   flex: none;
 }
-
-.diff-toolbar .open-in-editor-file {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.external-editor-found {
-  margin: 0;
-  padding-left: 18px;
-  font-size: 12px;
-}

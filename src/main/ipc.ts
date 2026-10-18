@@ -15,12 +15,6 @@ import type { OverlapService } from '@core/git/OverlapService';
 import type { PromptQueue } from '@core/prompts/PromptQueue';
 import type { TailFeed } from '@core/sessions/TailFeed';
 import { locateFiles, MAX_CANDIDATES } from '@core/git/FileLocator';
-import {
-  detectEditors,
-  launchFor,
-  startEditor,
-  type EditorTarget,
-} from '@core/tools/externalEditor';
 import { currentBranch } from '@core/git/GitService';
 import { expandPrompt, promptVariables } from '@core/prompts/expand';
 import {
@@ -59,7 +53,6 @@ import {
   TASKS_PER_PASTE_LIMIT,
   type NewTasksInput,
 } from '@shared/tasks';
-import type { EditorOpenInput } from '@shared/editor';
 import type { DiffBase } from '@shared/git';
 import type {
   CommandChannel,
@@ -341,19 +334,8 @@ export function registerIpc(context: IpcContext): void {
     const { size } = await fs.promises.stat(file);
     if (size > PREFS_FILE_MAX_BYTES) throw new UserError('error.prefs.tooLarge');
     const imported = parsePreferencesFile(await fs.promises.readFile(file, 'utf8'));
-    // The export has no command for "other": keep the one already here.
-    const prefs = {
-      ...imported,
-      externalEditor: {
-        ...imported.externalEditor,
-        command:
-          imported.externalEditor.editor === 'other'
-            ? context.data.prefs.externalEditor.command
-            : '',
-      },
-    };
-    context.savePrefs(prefs);
-    return prefs;
+    context.savePrefs(imported);
+    return imported;
   });
 
   handle('themes:list', () => context.codeThemes.list());
@@ -882,36 +864,6 @@ export function registerIpc(context: IpcContext): void {
       session(id).cwd,
       candidates.map((candidate) => str(candidate, 'file', 1024)),
     );
-  });
-
-  handle('editor:detect', () => detectEditors());
-  handle('editor:open', async (id, input) => {
-    const s = session(id);
-    const given = (input && typeof input === 'object' ? input : {}) as Partial<EditorOpenInput>;
-    const position = (value: unknown, name: 'line' | 'column') => {
-      if (value === undefined) return undefined;
-      if (
-        typeof value !== 'number' ||
-        !Number.isInteger(value) ||
-        value < 1 ||
-        value > 10_000_000
-      ) {
-        throw new UserError('error.invalidArgument', { name: { key: `arg.${name}` } });
-      }
-      return value;
-    };
-    const target: EditorTarget = { folder: s.cwd };
-    if (given.file !== undefined) {
-      const file = str(given.file, 'file', 1024);
-      // The panel names files from its own root, which can be above the folder of the session.
-      const base = given.panel === true ? (changes.rootFor(s.id) ?? s.cwd) : s.cwd;
-      const [located] = await locateFiles(base, [file]);
-      if (!located?.isFile) throw new UserError('error.editor.noFile', { file });
-      target.file = path.resolve(base, located.path);
-      target.line = position(given.line, 'line');
-      target.column = target.line ? position(given.column, 'column') : undefined;
-    }
-    await startEditor(launchFor(context.data.prefs.externalEditor, target), s.cwd);
   });
 
   const checkpointId = (value: unknown) => {

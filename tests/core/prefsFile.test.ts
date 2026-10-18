@@ -79,20 +79,6 @@ describe('preferences file', () => {
     });
   });
 
-  it('keeps the editor chosen but not the command of "other"', () => {
-    const file = JSON.parse(
-      serializePreferences({
-        ...chosen,
-        externalEditor: { editor: 'other', command: 'rm {pasta}' },
-      }),
-    );
-    expect(file.prefs.externalEditor).toEqual({ editor: 'other', command: '' });
-    const known = JSON.parse(
-      serializePreferences({ ...chosen, externalEditor: { editor: 'zed', command: '' } }),
-    );
-    expect(parsePreferencesFile(JSON.stringify(known)).externalEditor.editor).toBe('zed');
-  });
-
   it('carries the language, and a file from before it existed gets the default one', () => {
     const file = JSON.parse(serializePreferences(chosen));
     expect(file.prefs.language).toBe('en');

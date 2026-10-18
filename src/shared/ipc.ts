@@ -11,7 +11,6 @@ import type {
   FileListing,
   GitOverview,
 } from './git';
-import type { EditorInfo, EditorOpenInput } from './editor';
 import type { LocatedPath } from './locations';
 import type { OverlapFile } from './overlaps';
 import type {
@@ -333,14 +332,6 @@ export interface IpcCommands {
    * candidate, in order, `null` for what does not exist or is not inside the folder.
    */
   'files:locate': (sessionId: string, candidates: string[]) => (LocatedPath | null)[];
-  /** Which of the known external editors are installed. */
-  'editor:detect': () => EditorInfo[];
-  /**
-   * Opens the session folder, or a file of it at a line, in the editor of the preferences. The file
-   * is checked to be inside the folder; with no editor picked it fails with a UserError.
-   */
-  'editor:open': (sessionId: string, input: EditorOpenInput) => void;
-
   /** The checks of the session's folder, the ones its project suggests, and the latest run. */
   'checks:get': (sessionId: string) => ChecksInfo;
   /** Replaces the checks of the session's folder. */
@@ -480,8 +471,6 @@ export const COMMAND_CHANNELS = [
   'files:list',
   'files:index',
   'files:locate',
-  'editor:detect',
-  'editor:open',
   'checks:get',
   'checks:configure',
   'checks:run',
