@@ -309,9 +309,6 @@ window.addEventListener('message', (event: MessageEvent<ParentMessage>) => {
   else if (message?.type === 'focus') editor.getModifiedEditor().focus();
   else if (message?.type === 'request-selection') {
     post({ type: 'selection', selection: selectedText() });
-  } else if (message?.type === 'request-cursor') {
-    const position = editor.getModifiedEditor().getPosition();
-    post({ type: 'cursor', line: position?.lineNumber ?? 1, column: position?.column ?? 1 });
   } else if (message?.type === 'saved' && message.path === shownPath) {
     loaded = message.content;
     setDirty(editor.getModel()?.modified.getValue() !== loaded);

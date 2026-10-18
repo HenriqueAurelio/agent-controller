@@ -37,8 +37,6 @@ export type ParentMessage =
   | { type: 'saved'; path: string; content: string }
   /** Ask the frame for the text selected in the editor. */
   | { type: 'request-selection' }
-  /** Ask the frame where the cursor is in the file. */
-  | { type: 'request-cursor' }
   /** The keyboard goes to the editor, on the side that can be edited. */
   | { type: 'focus' }
   /** Puts the cursor on a line of the file, once that file is the one shown. */
@@ -57,8 +55,6 @@ export type FrameMessage =
   | { type: 'contextmenu'; x: number; y: number; selection: string }
   /** The answer to `request-selection`. */
   | { type: 'selection'; selection: string }
-  /** The answer to `request-cursor`, 1-based. */
-  | { type: 'cursor'; line: number; column: number }
   /** The language the file name points to (null: none known), and the one in use. */
   | {
       type: 'language';

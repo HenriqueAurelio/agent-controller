@@ -97,13 +97,12 @@ O porquê dessa ordem:
 
 ### Leva 2: o que falta de IDE
 
-Concluídas: 21, 22 e 23 (sem ADR nova em nenhuma delas).
+Concluídas: 21 e 22 (sem ADR nova em nenhuma delas).
 
 | # | Funcionalidade | Em uma frase | Valor | Esforço | ADR nova | Estado |
 |---|---|---|---|---|---|---|
 | 21 | [Links no terminal](links-no-terminal/README.md) | `Ctrl+clique` em `arquivo:linha` abre o editor na linha | Alto | P a M | Não | Concluída |
 | 22 | [Abrir arquivo rápido](abrir-arquivo-rapido/README.md) | `Ctrl+P` com busca aproximada pelo nome | Alto | P | Não | Concluída |
-| 23 | [Abrir no editor externo](abrir-no-editor-externo/README.md) | O arquivo na linha, ou a pasta, no VS Code, Cursor ou Zed | Médio | P | Não | Concluída |
 | 24 | [Painel de problemas](painel-de-problemas/README.md) | Os erros das verificações numa lista clicável, mandados ao agente um a um | Alto | M | Não | Pendente |
 | 25 | [Buscar no projeto](buscar-no-projeto/README.md) | `Ctrl+Shift+F` com ripgrep, e os resultados ao agente | Alto | M | Sim | Pendente |
 | 26 | [Seguir o agente](seguir-o-agente/README.md) | O editor acompanha, ao vivo, o arquivo que o agente edita | Médio | M | Sim | Pendente |
@@ -112,7 +111,7 @@ Concluídas: 21, 22 e 23 (sem ADR nova em nenhuma delas).
 | 29 | [Multibuffer](multibuffer/README.md) | Todos os trechos do turno numa rolagem só, editável | Alto | G | Sim (revê a 0012) | Pendente |
 
 ```
-Primeiro    21 links-no-terminal   22 abrir-arquivo-rapido   23 abrir-no-editor-externo
+Primeiro    21 links-no-terminal   22 abrir-arquivo-rapido
 Depois      21 ──► 24 painel-de-problemas      25 buscar-no-projeto
 Em seguida  26 seguir-o-agente     27 historico-do-arquivo   28 dividir-a-tela
 Por último  29 multibuffer (fica melhor com 14 checkpoints e 3 comentar-no-diff)

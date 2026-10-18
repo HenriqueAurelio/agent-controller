@@ -5,8 +5,7 @@ import type { Translate } from '@shared/i18n';
 import type { ThemeName } from '@shared/prefs';
 import type { FrameMessage, ParentMessage } from '../lib/diffProtocol';
 import { useCodeTheme } from '../lib/codeThemes';
-import { errorMessage, formatBytes, hint } from '../lib/format';
-import { onOpenPanelFile, openInEditor } from '../lib/externalEditor';
+import { errorMessage, formatBytes } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { useAppState } from '../lib/store';
 
@@ -179,14 +178,7 @@ export function DiffView({
           selection: message.selection,
         });
       } else if (message?.type === 'selection') onSendSelection(path, message.selection);
-      else if (message?.type === 'cursor') {
-        void openInEditor(sessionId, {
-          file: path,
-          line: message.line,
-          column: message.column,
-          panel: true,
-        });
-      } else if (message?.type === 'language') setHighlight(message);
+      else if (message?.type === 'language') setHighlight(message);
       else if (message?.type === 'key') {
         // Replayed here so Esc and the global shortcuts behave the same everywhere.
         const { key, ctrlKey, shiftKey, altKey, metaKey } = message;
@@ -216,17 +208,6 @@ export function DiffView({
 
   const blocked = diff ? (unavailable(t, diff.modified) ?? unavailable(t, diff.original)) : null;
   const removed = diff?.modified.kind === 'missing';
-
-  // The shortcut of the app asks the file in sight to go to the external editor, at the cursor.
-  useEffect(
-    () =>
-      onOpenPanelFile((request) => {
-        if (removed || !ready) return;
-        request.handled = true;
-        send({ type: 'request-cursor' });
-      }),
-    [removed, ready, send],
-  );
 
   useEffect(() => {
     if (!ready || !diff || diff.path !== path || blocked || !codeTheme) return;
@@ -280,16 +261,6 @@ export function DiffView({
           {dirty && <span className="diff-note unsaved">{t('diff.unsaved')}</span>}
           {diff.readOnly && <span className="diff-note">{t('diff.readOnly')}</span>}
           <span className="spacer" />
-          {!removed && (
-            <button
-              className="open-in-editor-file"
-              data-testid="open-in-editor-file"
-              onClick={() => send({ type: 'request-cursor' })}
-              title={hint(t('editor.openFileHint'), shortcuts.openInEditor[0])}
-            >
-              {t('editor.open')}
-            </button>
-          )}
           <button
             onClick={() => send({ type: 'request-selection' })}
             title={t('diff.sendToAgentHint')}

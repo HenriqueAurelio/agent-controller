@@ -15,7 +15,6 @@ import { useT } from '../lib/i18n';
 import { CheckpointsSettings } from './CheckpointsSettings';
 import { Dialog } from './Dialog';
 import { EditorPreferences } from './EditorPreferences';
-import { ExternalEditorSettings } from './ExternalEditorSettings';
 import { FavoriteFolders } from './FavoriteFolders';
 import { LayoutEditor } from './LayoutEditor';
 import { PromptsEditor } from './PromptsEditor';
@@ -123,12 +122,7 @@ export function PreferencesDialog({
         role="tabpanel"
         aria-labelledby={`prefs-tab-${tab}`}
       >
-        {tab === 'editor' && (
-          <>
-            <ExternalEditorSettings />
-            <EditorPreferences />
-          </>
-        )}
+        {tab === 'editor' && <EditorPreferences />}
         {tab === 'layout' && (
           <LayoutEditor layout={prefs.layout} onChange={(layout) => set({ layout })} />
         )}
