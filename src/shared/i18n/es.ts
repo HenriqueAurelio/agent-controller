@@ -3,6 +3,7 @@ import type { ptBR } from './pt-BR';
 export const es: Record<keyof typeof ptBR, string> = {
   'common.cancel': 'Cancelar',
   'common.close': 'Cerrar',
+  'common.apply': 'Aplicar',
   'common.choose': 'Elegir…',
   'common.add': 'Agregar',
   'common.remove': 'Quitar',

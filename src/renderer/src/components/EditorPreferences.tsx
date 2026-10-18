@@ -17,8 +17,6 @@ import { useAppState } from '../lib/store';
 
 const set = (patch: Partial<Preferences>) => void window.api.invoke('prefs:set', patch);
 
-const THEME_KEY = { dark: 'codeThemeDark', light: 'codeThemeLight' } as const;
-
 // Code, not prose: the same in every language of the app.
 const SAMPLE_BEFORE = `import { format } from './format';
 
@@ -39,9 +37,9 @@ export function sum(first: number, second = 1): string {
 `;
 
 /** A small diff in the chosen theme, drawn by the same frame as the changes panel. */
-function CodeThemePreview({ kind }: { kind: ThemeName }) {
+function CodeThemePreview({ kind, themeId }: { kind: ThemeName; themeId: string }) {
   const t = useT();
-  const codeTheme = useCodeTheme(kind);
+  const codeTheme = useCodeTheme(kind, themeId);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
   const [src] = useState(() => `diff.html?theme=${kind}`);
@@ -98,10 +96,22 @@ export function EditorPreferences() {
   const imported = useCustomThemes();
   const [previewKind, setPreviewKind] = useState<ThemeName>(prefs.theme);
   const [note, setNote] = useState<Message | { error: string } | null>(null);
+  const [selectedThemes, setSelectedThemes] = useState<Record<ThemeName, string>>(() => ({
+    dark: prefs.codeThemeDark,
+    light: prefs.codeThemeLight,
+  }));
   const [associations, setAssociations] = useState(() =>
     formatAssociations(prefs.fileAssociations),
   );
+  const [applied, setApplied] = useState(() => ({
+    themes: { dark: prefs.codeThemeDark, light: prefs.codeThemeLight },
+    associations: formatAssociations(prefs.fileAssociations),
+  }));
   const [invalid, setInvalid] = useState<string[]>([]);
+  const hasChanges =
+    selectedThemes.dark !== applied.themes.dark ||
+    selectedThemes.light !== applied.themes.light ||
+    associations !== applied.associations;
 
   const themeSelect = (kind: ThemeName) => {
     const label = t(kind === 'dark' ? 'prefs.codeThemeDark' : 'prefs.codeThemeLight');
@@ -110,11 +120,11 @@ export function EditorPreferences() {
         <span>{label}</span>
         <select
           aria-label={label}
-          value={prefs[THEME_KEY[kind]]}
+          value={selectedThemes[kind]}
           onFocus={() => setPreviewKind(kind)}
           onChange={(e) => {
             setPreviewKind(kind);
-            set({ [THEME_KEY[kind]]: e.target.value });
+            setSelectedThemes((current) => ({ ...current, [kind]: e.target.value }));
           }}
         >
           {themesOfKind(kind, imported).map((theme) => (
@@ -132,8 +142,7 @@ export function EditorPreferences() {
       const theme = await window.api.invoke('themes:import');
       if (!theme) return;
       await refreshCustomThemes();
-      // Imported to be used: it becomes the theme of its kind right away.
-      set({ [THEME_KEY[theme.kind]]: theme.id });
+      setSelectedThemes((current) => ({ ...current, [theme.kind]: theme.id }));
       setPreviewKind(theme.kind);
       setNote({ key: 'prefs.themeImported', params: { name: theme.name } });
     } catch (err) {
@@ -144,8 +153,11 @@ export function EditorPreferences() {
   const removeTheme = async (theme: CodeThemeInfo) => {
     try {
       await window.api.invoke('themes:remove', theme.id);
-      if (prefs[THEME_KEY[theme.kind]] === theme.id) {
-        set({ [THEME_KEY[theme.kind]]: DEFAULT_CODE_THEME[theme.kind] });
+      if (selectedThemes[theme.kind] === theme.id) {
+        setSelectedThemes((current) => ({
+          ...current,
+          [theme.kind]: DEFAULT_CODE_THEME[theme.kind],
+        }));
       }
       await refreshCustomThemes();
       setNote(null);
@@ -161,7 +173,11 @@ export function EditorPreferences() {
         <span className="muted">{t('prefs.codeThemeHint')}</span>
         {themeSelect('dark')}
         {themeSelect('light')}
-        <CodeThemePreview key={previewKind} kind={previewKind} />
+        <CodeThemePreview
+          key={`${previewKind}:${selectedThemes[previewKind]}`}
+          kind={previewKind}
+          themeId={selectedThemes[previewKind]}
+        />
       </fieldset>
 
       <fieldset className="field">
@@ -217,7 +233,6 @@ export function EditorPreferences() {
           onBlur={() => {
             const parsed = parseAssociations(associations);
             setInvalid(parsed.invalid);
-            set({ fileAssociations: parsed.associations });
           }}
         />
         {invalid.length > 0 && (
@@ -226,6 +241,25 @@ export function EditorPreferences() {
           </p>
         )}
       </fieldset>
+      <div className="dialog-actions editor-actions">
+        <button
+          type="button"
+          className="primary"
+          disabled={!hasChanges}
+          onClick={() => {
+            const parsed = parseAssociations(associations);
+            setInvalid(parsed.invalid);
+            setApplied({ themes: { ...selectedThemes }, associations });
+            set({
+              codeThemeDark: selectedThemes.dark,
+              codeThemeLight: selectedThemes.light,
+              fileAssociations: parsed.associations,
+            });
+          }}
+        >
+          {t('common.apply')}
+        </button>
+      </div>
     </>
   );
 }
