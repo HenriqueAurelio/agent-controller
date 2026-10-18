@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { parseCheckpointBase } from '@shared/checkpoints';
+import type { Problem } from '@shared/checks';
 import {
   CHANGE_LETTER,
   isCheckpointBase,
@@ -10,17 +11,22 @@ import {
 } from '@shared/git';
 import type { OverlapFile } from '@shared/overlaps';
 import type { SessionView } from '@shared/session';
-import type { ParentMessage } from '../lib/diffProtocol';
+import type { FrameMarker, ParentMessage } from '../lib/diffProtocol';
 import { checkpointLabel, useCheckpoints } from '../lib/checkpoints';
 import { errorMessage } from '../lib/format';
 import { rich, useT } from '../lib/i18n';
 import { sessionNames, useOverlaps } from '../lib/overlaps';
 import { useAppState } from '../lib/store';
+import { useProblems } from '../lib/useProblems';
 import { DiffView } from './DiffView';
 import { FileTree } from './FileTree';
+import { ProblemsList } from './ProblemsList';
 
-/** What the panel lists: what git says changed, or every file of the folder. */
-export type PanelMode = 'changes' | 'files';
+/**
+ * What the panel lists: what git says changed, every file of the folder, or the problems the
+ * checks found.
+ */
+export type PanelMode = 'changes' | 'files' | 'problems';
 
 /** A file and the line to put the cursor on; a new nonce asks again. */
 export interface LocationRequest {
@@ -42,6 +48,8 @@ interface Props {
   onOpenFile(file: string | null): void;
   /** "Send to the agent with a prompt…" on a selection of the editor. */
   onSendSelection(file: string, selection: string): void;
+  /** "Send to the agent" on problems of the list: the prompt dialog opens with them. */
+  onSendProblems(problems: Problem[]): void;
   /** A base asked for from outside (the timeline); a new nonce applies it again. */
   requestedBase?: { base: DiffBase; nonce: number } | null;
   /** A file to open, asked for from another session that also changed it. */
@@ -128,6 +136,7 @@ export function ChangesPanel({
   onUnsavedChange,
   onOpenFile,
   onSendSelection,
+  onSendProblems,
   requestedBase,
   requestedFile,
   requestedLocation,
@@ -281,15 +290,28 @@ export function ChangesPanel({
     [repos],
   );
   const files = mode === 'files';
+  const problemsMode = mode === 'problems';
+  /** The tree and the problems list both open files in the editor next to them. */
+  const browsing = files || problemsMode;
   /** The file in the editor. */
-  const current = files ? browsed : selected;
+  const current = browsing ? browsed : selected;
+  const found = useProblems(session.id);
+  const [openProblem, setOpenProblem] = useState<Problem | null>(null);
+  /** The lines of the open file that the checks complained about. */
+  const markers = useMemo<FrameMarker[]>(
+    () =>
+      found.problems
+        .filter((p) => p.file === browsed)
+        .map(({ line, column, severity, message }) => ({ line, column, severity, message })),
+    [found.problems, browsed],
+  );
 
   // The panel covers the terminal, so it takes the keyboard too: Esc closes it even when there
   // is no list to focus (no git, no changes).
   // The tree of all files takes the keyboard by itself.
   useEffect(() => {
-    if (!files) (listRef.current ?? panelRef.current)?.focus();
-  }, [files, overview?.ok, changes.length]);
+    if (!browsing) (listRef.current ?? panelRef.current)?.focus();
+  }, [browsing, overview?.ok, changes.length]);
 
   useEffect(() => {
     onUnsavedChange(dirty ? current : null);
@@ -314,6 +336,19 @@ export function ChangesPanel({
   };
   const close = () => {
     if (mayLeave()) onClose();
+  };
+
+  /** A problem of the list: its file opens in the editor, on its line. */
+  const openProblemInPanel = (problem: Problem) => {
+    if (problem.file !== browsed && !mayLeave()) return;
+    setOpenProblem(problem);
+    setBrowsed(problem.file);
+    setReveal({
+      path: problem.file,
+      line: problem.line,
+      column: problem.column,
+      nonce: Date.now(),
+    });
   };
 
   // A link clicked in a terminal while the panel is already open.
@@ -481,6 +516,17 @@ export function ChangesPanel({
         >
           {t('changes.allFiles')}
         </button>
+        <button
+          className={problemsMode ? 'active' : ''}
+          aria-pressed={problemsMode}
+          data-testid="problems-tab"
+          onClick={() => switchMode(problemsMode ? 'changes' : 'problems')}
+          title={t('problems.tabHint')}
+        >
+          {found.problems.length > 0
+            ? `${t('problems.tab')} (${found.problems.length}${found.more > 0 ? '+' : ''})`
+            : t('problems.tab')}
+        </button>
         {files && (
           <label className="check">
             <input
@@ -541,12 +587,14 @@ export function ChangesPanel({
         </button>
       </header>
 
-      {!files && error && (
+      {!browsing && error && (
         <div className="panel-message error">{t('changes.loadError', { error })}</div>
       )}
-      {!files && !error && !overview && <div className="panel-message">{t('changes.loading')}</div>}
-      {!files && !error && overview && !overview.ok && <Unavailable overview={overview} />}
-      {!files && !error && overview?.ok && changes.length === 0 && (
+      {!browsing && !error && !overview && (
+        <div className="panel-message">{t('changes.loading')}</div>
+      )}
+      {!browsing && !error && overview && !overview.ok && <Unavailable overview={overview} />}
+      {!browsing && !error && overview?.ok && changes.length === 0 && (
         <div className="panel-message">
           <h3>{t('changes.none.title')}</h3>
           <p>
@@ -566,17 +614,29 @@ export function ChangesPanel({
         </div>
       )}
 
-      {files && (
+      {browsing && (
         <div className="changes-body">
-          <FileTree
-            sessionId={sessionId}
-            showHidden={prefs.showHiddenFiles}
-            selected={browsed}
-            revision={revision}
-            changes={kinds}
-            repos={repoFolders}
-            onSelect={browse}
-          />
+          {files ? (
+            <FileTree
+              sessionId={sessionId}
+              showHidden={prefs.showHiddenFiles}
+              selected={browsed}
+              revision={revision}
+              changes={kinds}
+              repos={repoFolders}
+              onSelect={browse}
+            />
+          ) : (
+            <ProblemsList
+              sessionId={sessionId}
+              state={found}
+              stale={session.status.state === 'trabalhando'}
+              current={openProblem}
+              onOpen={openProblemInPanel}
+              onSend={onSendProblems}
+              onRunChecks={() => void window.api.invoke('checks:run', sessionId).catch(() => {})}
+            />
+          )}
           {browsed ? (
             <DiffView
               sessionId={sessionId}
@@ -590,6 +650,7 @@ export function ChangesPanel({
               onDirtyChange={setDirty}
               onSendSelection={onSendSelection}
               reveal={reveal?.line ? { ...reveal, line: reveal.line } : null}
+              markers={markers}
             />
           ) : (
             <div className="panel-message">{t('changes.pickFile')}</div>
@@ -597,7 +658,7 @@ export function ChangesPanel({
         </div>
       )}
 
-      {!files && !error && overview?.ok && changes.length > 0 && (
+      {!browsing && !error && overview?.ok && changes.length > 0 && (
         <div className="changes-body">
           <ul
             ref={listRef}
@@ -742,7 +803,7 @@ export function ChangesPanel({
         </div>
       )}
 
-      {!files && (discarded || opError || committed) && (
+      {!browsing && (discarded || opError || committed) && (
         <div
           className={`changes-toast ${opError ? 'error' : ''}`}
           role={opError ? 'alert' : 'status'}
@@ -774,7 +835,7 @@ export function ChangesPanel({
         </div>
       )}
 
-      {!files && operable && stagedChanges.length > 0 && (
+      {!browsing && operable && stagedChanges.length > 0 && (
         <footer className="commit-bar" role="group" aria-label={t('changes.commitArea')}>
           <div className="commit-going-in" data-testid="commit-going-in">
             {t('changes.goingIn', {

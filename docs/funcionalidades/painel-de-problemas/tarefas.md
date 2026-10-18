@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 24.1 Leitores
+## [x] 24.1 Leitores
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** [links no terminal](../links-no-terminal/tarefas.md) 21.1
 
@@ -16,7 +16,7 @@
 
 ---
 
-## [ ] 24.2 Ler enquanto roda
+## [x] 24.2 Ler enquanto roda
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** 24.1
 
@@ -28,7 +28,7 @@
 
 ---
 
-## [ ] 24.3 Aba Problemas
+## [x] 24.3 Aba Problemas
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 24.2
 
@@ -41,7 +41,7 @@
 
 ---
 
-## [ ] 24.4 README e evidências
+## [x] 24.4 README e evidências
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 24.3
 

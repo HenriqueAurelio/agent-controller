@@ -12,6 +12,11 @@ export interface RunOptions {
   /** Characters kept of the output; beyond that, only its end. */
   maxOutputChars?: number;
   signal?: AbortSignal;
+  /**
+   * Called with every chunk as it arrives (`channel` 0 is stdout, 1 is stderr), for readers that
+   * must see all of the output when only the end of it is kept.
+   */
+  onData?: (chunk: string, channel: 0 | 1) => void;
 }
 
 export interface RunResult {
@@ -114,10 +119,12 @@ export function runTool(options: RunOptions): Promise<RunResult> {
     child.stdout.on('data', (chunk: string) => {
       stdout.push(chunk);
       output.push(chunk);
+      options.onData?.(chunk, 0);
     });
     child.stderr.on('data', (chunk: string) => {
       stderr.push(chunk);
       output.push(chunk);
+      options.onData?.(chunk, 1);
     });
     child.on('error', (err) => finish(null, err.message));
     child.on('close', (code) => finish(code));

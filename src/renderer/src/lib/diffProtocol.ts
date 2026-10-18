@@ -40,7 +40,17 @@ export type ParentMessage =
   /** The keyboard goes to the editor, on the side that can be edited. */
   | { type: 'focus' }
   /** Puts the cursor on a line of the file, once that file is the one shown. */
-  | { type: 'reveal'; path: string; line: number; column?: number };
+  | { type: 'reveal'; path: string; line: number; column?: number }
+  /** Underlines these lines of the file, the way the editor shows its own errors. */
+  | { type: 'markers'; path: string; items: FrameMarker[] };
+
+/** A problem of the checks, drawn on a line of the open file. */
+export interface FrameMarker {
+  line: number;
+  column?: number;
+  severity: 'error' | 'warning';
+  message: string;
+}
 
 /** How the file is being colored. */
 export type HighlightEngine = 'textmate' | 'monarch' | 'plain';

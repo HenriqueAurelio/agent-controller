@@ -72,6 +72,11 @@ interface ManagerEvents {
   /** The list, or something shown in it, changed. */
   sessions: [];
   data: [id: string, data: string];
+  /** Raw agent output, even while no terminal is mounted. */
+  output: [id: string, data: string];
+  /** Keys typed into an agent terminal. The app may retain task context from them. */
+  input: [id: string, data: string];
+  sentText: [id: string, text: string];
   /** The session restarted: a mounted terminal must be cleared. */
   reset: [id: string];
   transition: [SessionTransition];
@@ -381,6 +386,8 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       cwd,
       profile: input.profile,
       ...(command && { command }),
+      ...(input.model?.trim() && { model: input.model.trim().slice(0, 120) }),
+      ...(input.reasoning?.trim() && { reasoning: input.reasoning.trim().slice(0, 120) }),
       ...(input.readOnly === true && { readOnly: true }),
       ...(groupId && { groupId }),
       order: this.order.length,
@@ -1078,6 +1085,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     }
     const runtime = this.entries.get(id)?.runtime;
     if (!runtime) return;
+    this.emit('output', id, chunk);
     // The signal parser reads everything, with no throttling, whatever the terminal is doing.
     for (const event of runtime.parser.feed(chunk)) {
       if (event.type === 'title') runtime.adapter.onTitle(event.title);
@@ -1225,6 +1233,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       }
       return;
     }
+    this.emit('input', id, data);
     runtime.adapter.onUserInput(data);
     this.options.ptys.write(id, data);
   }
@@ -1264,6 +1273,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     const entry = this.entries.get(id);
     if (!entry) throw new UserError('error.session.notFound');
     if (!entry.runtime?.running) throw new UserError('error.session.notRunning');
+    this.emit('sentText', id, text);
     if (!options.now && (entry.pending.length > 0 || isBusyForText(entry.aggregator.status))) {
       entry.pending.push({ text, submit: options.submit });
       this.changed();

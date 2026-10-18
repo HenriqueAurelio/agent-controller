@@ -121,6 +121,17 @@ kbd {
 .muted {
   color: var(--muted);
 }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .spacer {
   flex: 1;
 }
@@ -550,6 +561,17 @@ kbd {
 .session-header > button {
   flex-shrink: 0;
   white-space: nowrap;
+}
+.session-header > .session-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
+}
+.session-header > .session-action .count {
+  margin-left: 3px;
 }
 .session-header .state-dot {
   margin-top: 0;
@@ -2887,4 +2909,131 @@ textarea.associations {
 }
 .quick-open-tag {
   flex: none;
+}
+
+/* The problems of the checks, by file, beside the editor. */
+.changes-list.problems-list {
+  display: flex;
+  flex-direction: column;
+  width: 340px;
+  padding: 0;
+}
+.problems-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.problems-groups {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  transition: opacity 0.15s;
+}
+.problems-groups.dim {
+  opacity: 0.5;
+}
+.problems-note {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.problems-file h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 10px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+  font-size: 12px;
+  font-weight: 600;
+}
+.problems-file:first-child h3 {
+  border-top: none;
+}
+.problems-file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.problems-file h3 .count {
+  margin-left: auto;
+}
+.problems-file ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.problem-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 2px;
+  padding: 1px 6px 1px 8px;
+}
+.problem-row:hover,
+.problem-row.current {
+  background: var(--bg-hover);
+}
+.problem-row > input[type='checkbox'] {
+  margin: 8px 2px 0 0;
+}
+.problem-open {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 1px 6px;
+  width: 100%;
+  padding: 4px;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.problem-icon {
+  flex: 0 0 14px;
+  font-weight: 700;
+}
+.problem-icon.severity-error {
+  color: var(--error);
+}
+.problem-icon.severity-warning {
+  color: var(--waiting);
+}
+.problem-message {
+  flex: 1 1 0;
+  min-width: 55%;
+  overflow-wrap: anywhere;
+}
+.problem-where,
+.problem-source {
+  flex: 0 0 auto;
+  margin-left: 20px;
+  font-size: 11px;
+}
+.problem-where {
+  color: var(--muted);
+  margin-left: 20px;
+}
+.problem-where + .problem-source {
+  margin-left: 0;
+}
+.problem-actions {
+  display: flex;
+  opacity: 0;
+}
+.problem-row:hover .problem-actions,
+.problem-row:focus-within .problem-actions {
+  opacity: 1;
+}
+.problems-unread {
+  margin: 8px;
+  font-size: 12px;
 }

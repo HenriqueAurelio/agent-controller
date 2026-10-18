@@ -87,14 +87,18 @@ export function codexConfigArgs(
 /** The final command line for a session. What identifies the session is only the environment. */
 export function buildLaunchCommand(
   profile: AgentProfile,
-  session: { id: string; readOnly?: boolean },
+  session: { id: string; readOnly?: boolean; model?: string; reasoning?: string },
   context: LaunchContext,
 ): LaunchCommand {
   const args = [...profile.baseArgs];
   if (session.readOnly && profile.readOnlyArgs) args.push(...profile.readOnlyArgs);
   if (profile.id === 'claude-code') {
+    if (session.model) args.push('--model', session.model);
     args.push('--settings', writeClaudeSettings(profile, context.agentctl, context.dataDirectory));
   } else if (profile.id === 'codex') {
+    if (session.model) args.push('--model', session.model);
+    if (session.reasoning)
+      args.push('--config', `model_reasoning_effort=${tomlString(session.reasoning)}`);
     args.push(...codexConfigArgs(profile, context.agentctl, context.codexHooks !== false));
   }
   return {
@@ -102,6 +106,9 @@ export function buildLaunchCommand(
     args,
     env: {
       ...profile.env,
+      ...(profile.id === 'claude-code' && session.reasoning
+        ? { CLAUDE_CODE_EFFORT_LEVEL: session.reasoning }
+        : {}),
       AGENTCTL_SESSION_ID: session.id,
       AGENTCTL_SOCKET: context.socketPath,
     },

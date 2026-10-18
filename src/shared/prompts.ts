@@ -1,6 +1,7 @@
 // Saved prompts: text the user sends to an agent again and again, with variables filled in at the
 // moment of sending. They are only text, so they travel with the exported preferences.
 import { translate, type Language, type MessageKey } from './i18n';
+import { FIX_PROMPT_ID } from './checks';
 import { REVIEW_PROMPT_ID } from './reviewer';
 import { normalizeBinding } from './shortcuts';
 
@@ -17,6 +18,8 @@ export const PROMPT_NAME_LIMIT = 80;
 export const PROMPT_TEXT_LIMIT = 20_000;
 /** `{selecao}` is cut here: a whole file selected by mistake must not flood the agent. */
 export const SELECTION_LIMIT = 20_000;
+/** The same for `{problemas}`: a few hundred lines of errors. */
+export const PROBLEMS_TEXT_LIMIT = 20_000;
 /** What one send may put in the terminal, after the variables are filled in. */
 export const SEND_TEXT_LIMIT = 60_000;
 /** How many sessions one send may go to. */
@@ -33,6 +36,11 @@ const FACTORY: { id: string; name: MessageKey; text: MessageKey }[] = [
     id: REVIEW_PROMPT_ID,
     name: 'prompts.factory.reviewTurn.name',
     text: 'prompts.factory.reviewTurn.text',
+  },
+  {
+    id: FIX_PROMPT_ID,
+    name: 'prompts.factory.fixProblems.name',
+    text: 'prompts.factory.fixProblems.text',
   },
 ];
 
@@ -106,6 +114,8 @@ export interface PromptValues {
   file?: string;
   /** Text selected in the editor of the panel. */
   selection?: string;
+  /** The problems picked in the problems list, one per line; `{problemas}` in a prompt. */
+  problems?: string;
   /** Answers to the `{?question}` fields, by the question's text. */
   answers?: Record<string, string>;
 }

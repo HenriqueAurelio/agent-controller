@@ -97,13 +97,13 @@ O porquê dessa ordem:
 
 ### Leva 2: o que falta de IDE
 
-Concluídas: 21 e 22 (sem ADR nova em nenhuma delas).
+Concluídas: 21, 22 e 24 (sem ADR nova em nenhuma delas).
 
 | # | Funcionalidade | Em uma frase | Valor | Esforço | ADR nova | Estado |
 |---|---|---|---|---|---|---|
 | 21 | [Links no terminal](links-no-terminal/README.md) | `Ctrl+clique` em `arquivo:linha` abre o editor na linha | Alto | P a M | Não | Concluída |
 | 22 | [Abrir arquivo rápido](abrir-arquivo-rapido/README.md) | `Ctrl+P` com busca aproximada pelo nome | Alto | P | Não | Concluída |
-| 24 | [Painel de problemas](painel-de-problemas/README.md) | Os erros das verificações numa lista clicável, mandados ao agente um a um | Alto | M | Não | Pendente |
+| 24 | [Painel de problemas](painel-de-problemas/README.md) | Os erros das verificações numa lista clicável, mandados ao agente um a um | Alto | M | Não | Concluída |
 | 25 | [Buscar no projeto](buscar-no-projeto/README.md) | `Ctrl+Shift+F` com ripgrep, e os resultados ao agente | Alto | M | Sim | Pendente |
 | 26 | [Seguir o agente](seguir-o-agente/README.md) | O editor acompanha, ao vivo, o arquivo que o agente edita | Médio | M | Sim | Pendente |
 | 27 | [Histórico do arquivo](historico-do-arquivo/README.md) | Log e autoria (blame) do arquivo, e comparar com um commit | Médio | M | Não | Pendente |

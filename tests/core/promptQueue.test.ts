@@ -30,6 +30,8 @@ const run = (state: ChecksRun['state'], outcomes: ('passed' | 'failed')[] = []):
     durationMs: 1,
     output: '',
     truncated: false,
+    problems: [],
+    moreProblems: 0,
   })),
 });
 

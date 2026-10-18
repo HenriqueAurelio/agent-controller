@@ -1,0 +1,9 @@
+
+C:\proj\src\bad.ts
+  1:7  error  'a' is assigned a value but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+  5:5  error  'unused' is never reassigned. Use 'const' instead                                  prefer-const
+  5:5  error  'unused' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+✖ 3 problems (3 errors, 0 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+

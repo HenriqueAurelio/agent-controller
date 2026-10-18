@@ -27,6 +27,8 @@ const result = (id: string, outcome: CheckResult['outcome'], extra = {}): CheckR
   durationMs: 1200,
   output: '',
   truncated: false,
+  problems: [],
+  moreProblems: 0,
   ...extra,
 });
 const run = (state: ChecksRun['state'], results: CheckResult[], total = results.length) => ({

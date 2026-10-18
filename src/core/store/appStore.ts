@@ -163,6 +163,9 @@ function validate(raw: unknown): AppData {
       cwd: s.cwd,
       profile: s.profile,
       ...(command && { command }),
+      ...(typeof s.model === 'string' && s.model.trim() && { model: s.model.trim().slice(0, 120) }),
+      ...(typeof s.reasoning === 'string' &&
+        s.reasoning.trim() && { reasoning: s.reasoning.trim().slice(0, 120) }),
       ...(worktree && { worktree }),
       ...(s.readOnly === true && { readOnly: true }),
       ...(groupId && { groupId }),

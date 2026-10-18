@@ -139,6 +139,8 @@ describe('NotificationPolicy for checks', () => {
       durationMs: 1,
       output: '',
       truncated: false,
+      problems: [],
+      moreProblems: 0,
     })),
     ...extra,
   });

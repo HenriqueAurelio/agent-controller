@@ -272,6 +272,31 @@ function save(overwrite: boolean): void {
 /** A line asked for before its file was on screen: it is revealed once the file arrives. */
 let pendingReveal: Extract<ParentMessage, { type: 'reveal' }> | null = null;
 
+/** The problems of the checks for the file shown: underlined like the editor's own errors. */
+let markerSet: Extract<ParentMessage, { type: 'markers' }> | null = null;
+
+function applyMarkers(): void {
+  const model = editor.getModel()?.modified;
+  if (!model) return;
+  const items = markerSet && markerSet.path === shownPath ? markerSet.items : [];
+  monaco.editor.setModelMarkers(
+    model,
+    'problems',
+    items
+      .filter((item) => item.line >= 1 && item.line <= model.getLineCount())
+      .map((item) => ({
+        startLineNumber: item.line,
+        endLineNumber: item.line,
+        startColumn: item.column ?? Math.max(1, model.getLineFirstNonWhitespaceColumn(item.line)),
+        endColumn: model.getLineMaxColumn(item.line),
+        severity:
+          item.severity === 'error' ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
+        message: item.message,
+      })),
+  );
+  document.body.dataset.markers = String(items.length);
+}
+
 function applyReveal(): void {
   const wanted = pendingReveal;
   const model = editor.getModel()?.modified;
@@ -293,7 +318,11 @@ window.addEventListener('message', (event: MessageEvent<ParentMessage>) => {
   const message = event.data;
   if (message?.type === 'show') {
     show(message);
+    applyMarkers();
     applyReveal();
+  } else if (message?.type === 'markers') {
+    markerSet = message;
+    applyMarkers();
   } else if (message?.type === 'reveal') {
     pendingReveal = message;
     applyReveal();

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { formatProblem, FIX_PROMPT_ID, type Problem } from '@shared/checks';
 import type { DiffBase } from '@shared/git';
+import { factoryPrompts, PROBLEMS_TEXT_LIMIT } from '@shared/prompts';
 import { statusDetail, statusLabel, type SessionGroup, type SessionView } from '@shared/session';
 import {
   bindingFromEvent,
@@ -201,6 +203,35 @@ export function App() {
       setOverlay('prompt');
     },
     [marked],
+  );
+
+  /** The problems picked in the panel go to the agent through the prompt "Fix problems". */
+  const sendProblems = useCallback(
+    (problems: Problem[]) => {
+      if (problems.length === 0) return;
+      const lines: string[] = [];
+      let size = 0;
+      for (const problem of problems) {
+        const line = formatProblem(problem);
+        if (size + line.length + 1 > PROBLEMS_TEXT_LIMIT) break;
+        lines.push(line);
+        size += line.length + 1;
+      }
+      const files = new Set(problems.map((p) => p.file));
+      const { prefs } = store.get();
+      // A user who deleted or never had the factory prompt still gets its text.
+      const saved = prefs.prompts.some((p) => p.id === FIX_PROMPT_ID);
+      const text = saved
+        ? undefined
+        : factoryPrompts(prefs.language).find((p) => p.id === FIX_PROMPT_ID)?.text;
+      openPrompt(
+        FIX_PROMPT_ID,
+        { problems: lines.join('\n'), ...(files.size === 1 && { file: [...files][0] }) },
+        undefined,
+        text,
+      );
+    },
+    [openPrompt],
   );
 
   useEffect(() => {
@@ -535,6 +566,11 @@ export function App() {
       list.unshift(
         action('toggleChanges', t('command.seeChanges'), () => showPanel('changes')),
         action('toggleFiles', t('command.files'), () => showPanel('files')),
+        {
+          id: 'show-problems',
+          title: t('command.problems'),
+          run: () => showPanel('problems'),
+        },
         action('quickOpen', t('command.quickOpen')),
         action('toggleHidden', t('command.toggleHidden')),
         action(
@@ -804,59 +840,76 @@ export function App() {
             </div>
             <span className="spacer" />
             <button
-              className={changesOpen && panelMode === 'changes' ? 'active' : ''}
+              className={`session-action icon-button ${changesOpen && panelMode === 'changes' ? 'active' : ''}`}
               onClick={() => togglePanel('changes')}
               title={hint(t('app.seeChanges'), shortcuts.toggleChanges[0])}
+              aria-label={t('app.seeChanges')}
             >
-              {t('app.seeChanges')}
+              <span aria-hidden="true">&#8781;</span>
+              <span className="sr-only">{t('app.seeChanges')}</span>
               {changeCount !== null && changeCount > 0 && (
                 <span className="count">{changeCount}</span>
               )}
             </button>
             <button
-              className={changesOpen && panelMode === 'files' ? 'active' : ''}
+              className={`session-action icon-button ${changesOpen && panelMode === 'files' ? 'active' : ''}`}
               onClick={() => togglePanel('files')}
               title={hint(t('app.allFilesHint'), shortcuts.toggleFiles[0])}
+              aria-label={t('common.files')}
             >
-              {t('common.files')}
+              <span aria-hidden="true">&#128193;</span>
+              <span className="sr-only">{t('common.files')}</span>
             </button>
             <button
-              className={selected.auxOpen ? 'active' : ''}
+              className={`session-action icon-button ${selected.auxOpen ? 'active' : ''}`}
               aria-pressed={selected.auxOpen === true}
               onClick={() => runAction('toggleAux')}
               title={hint(t('app.auxHint'), shortcuts.toggleAux[0])}
+              aria-label={t('app.aux')}
             >
-              {t('app.aux')}
+              <span aria-hidden="true">&gt;_</span>
+              <span className="sr-only">{t('app.aux')}</span>
             </button>
             {timeline?.available && (
               <button
-                className="timeline-button"
+                className="timeline-button session-action icon-button"
                 onClick={() => setOverlay('timeline')}
                 title={t('app.timelineHint')}
+                aria-label={t('app.timeline')}
               >
-                {t('app.timeline')}
+                <span aria-hidden="true">&#128339;</span>
+                <span className="sr-only">{t('app.timeline')}</span>
                 {timeline.items.length > 0 && (
                   <span className="count">{timeline.items.length}</span>
                 )}
               </button>
             )}
             <button
-              className={`reviewer-button ${selected.reviewer?.state === 'ready' ? 'ready' : ''}`}
+              className={`reviewer-button session-action icon-button ${selected.reviewer?.state === 'ready' ? 'ready' : ''}`}
               data-testid="reviewer-button"
               onClick={() => setOverlay('reviewer')}
               title={t('app.reviewerHint')}
+              aria-label={
+                selected.reviewer?.state === 'ready'
+                  ? t('app.reviewerReady', { count: selected.reviewer.count ?? 0 })
+                  : t('app.reviewer')
+              }
             >
-              {selected.reviewing ? '🔍 ' : ''}
-              {selected.reviewer?.state === 'ready'
-                ? t('app.reviewerReady', { count: selected.reviewer.count ?? 0 })
-                : t('app.reviewer')}
+              <span aria-hidden="true">&#128269;</span>
+              <span className="sr-only">
+                {selected.reviewer?.state === 'ready'
+                  ? t('app.reviewerReady', { count: selected.reviewer.count ?? 0 })
+                  : t('app.reviewer')}
+              </span>
             </button>
             <button
-              className="queue-button"
+              className="queue-button session-action icon-button"
               onClick={() => setOverlay('queue')}
               title={t('app.queueHint')}
+              aria-label={t('app.queue')}
             >
-              {t('app.queue')}
+              <span aria-hidden="true">&#9776;</span>
+              <span className="sr-only">{t('app.queue')}</span>
               {selected.queue && (
                 <span className={`count ${selected.queue.paused ? 'paused' : ''}`}>
                   {selected.queue.items}
@@ -864,11 +917,13 @@ export function App() {
               )}
             </button>
             <button
-              className="checks-button"
+              className="checks-button session-action icon-button"
               onClick={() => setOverlay('checks')}
               title={t('app.checksHint')}
+              aria-label={t('app.checks')}
             >
-              {t('app.checks')}
+              <span aria-hidden="true">&#10003;</span>
+              <span className="sr-only">{t('app.checks')}</span>
               {selected.checks && <ChecksBadge summary={selected.checks} />}
             </button>
           </header>
@@ -928,6 +983,7 @@ export function App() {
               onUnsavedChange={setUnsaved}
               onOpenFile={(file) => (panelFile.current = file)}
               onSendSelection={(file, selection) => openPrompt(undefined, { file, selection })}
+              onSendProblems={sendProblems}
               requestedBase={panelBase}
               requestedFile={panelFileRequest?.sessionId === selected.id ? panelFileRequest : null}
               requestedLocation={panelLocation?.sessionId === selected.id ? panelLocation : null}

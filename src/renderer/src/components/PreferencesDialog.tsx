@@ -9,6 +9,7 @@ import {
 import { AGENT_COMMAND_LIMIT } from '@shared/agents';
 import { SCROLLBACK_LIMITS, type Preferences } from '@shared/prefs';
 import { AGENT_PROFILE_IDS } from '@shared/session';
+import type { FallbackSettings } from '@shared/fallback';
 import { useAppState } from '../lib/store';
 import { errorMessage, PROFILE_LABEL } from '../lib/format';
 import { useT } from '../lib/i18n';
@@ -34,6 +35,11 @@ const TABS = [
   'sessoes',
   'configuracoes',
 ] as const;
+const MODEL_OPTIONS = {
+  'claude-code': ['', 'opus', 'sonnet', 'haiku'],
+  codex: ['', 'gpt-6.1-sol', 'gpt-6-luna', 'gpt-6-sol'],
+} as const;
+const EFFORT_OPTIONS = ['', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
 export type TabId = (typeof TABS)[number];
 
 export function PreferencesDialog({
@@ -50,6 +56,9 @@ export function PreferencesDialog({
   const [tab, setTab] = useState<TabId>(initialTab);
   // Kept as a message, not as its words: an import may bring another language with it.
   const [transfer, setTransfer] = useState<Message | { error: string } | null>(null);
+  const fallback = prefs.fallback;
+  const setFallback = (patch: Partial<FallbackSettings>) =>
+    set({ fallback: { ...fallback, ...patch } });
 
   const moveSettings = async (channel: 'prefs:export' | 'prefs:import') => {
     try {
@@ -289,6 +298,125 @@ export function PreferencesDialog({
             <WorktreesSettings />
             <OverlapsSettings />
             <CheckpointsSettings />
+            <fieldset className="field">
+              <legend>{t('fallback.title')}</legend>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  checked={fallback.enabled}
+                  onChange={(e) => setFallback({ enabled: e.target.checked })}
+                />{' '}
+                {t('fallback.enabled')}
+              </label>
+              <span className="muted">{t('fallback.hint')}</span>
+              <label className="field-inline">
+                <span>{t('fallback.mode')}</span>
+                <select
+                  value={fallback.mode}
+                  onChange={(e) =>
+                    setFallback({ mode: e.target.value === 'automatic' ? 'automatic' : 'confirm' })
+                  }
+                >
+                  <option value="confirm">{t('fallback.mode.confirm')}</option>
+                  <option value="automatic">{t('fallback.mode.automatic')}</option>
+                </select>
+              </label>
+              {(['usage', 'provider', 'unexpected'] as const).map((trigger) => (
+                <label key={trigger} className="check">
+                  <input
+                    type="checkbox"
+                    checked={fallback.triggers[trigger]}
+                    onChange={(e) =>
+                      setFallback({
+                        triggers: { ...fallback.triggers, [trigger]: e.target.checked },
+                      })
+                    }
+                  />
+                  {
+                    {
+                      usage: t('fallback.trigger.usage'),
+                      provider: t('fallback.trigger.provider'),
+                      unexpected: t('fallback.trigger.unexpected'),
+                    }[trigger]
+                  }
+                </label>
+              ))}
+              <span className="muted">{t('fallback.order')}</span>
+              {fallback.chain.map((target, index) => (
+                <div className="field-row" key={index}>
+                  <strong>
+                    {index === 0 ? t('fallback.primary') : t('fallback.entry', { index })}
+                  </strong>
+                  <select
+                    value={target.profile}
+                    onChange={(e) => {
+                      const chain = fallback.chain.map((item, i) =>
+                        i === index
+                          ? { ...item, profile: e.target.value as typeof item.profile }
+                          : item,
+                      );
+                      setFallback({ chain });
+                    }}
+                  >
+                    {AGENT_PROFILE_IDS.map((profile) => (
+                      <option key={profile} value={profile}>
+                        {PROFILE_LABEL[profile]}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label={t('fallback.model', { index })}
+                    value={target.model}
+                    onChange={(e) => {
+                      const chain = fallback.chain.map((item, i) =>
+                        i === index ? { ...item, model: e.target.value } : item,
+                      );
+                      setFallback({ chain });
+                    }}
+                  >
+                    <option value="">{t('fallback.modelPlaceholder')}</option>
+                    {MODEL_OPTIONS[target.profile].map(
+                      (model) =>
+                        model && (
+                          <option key={model} value={model}>
+                            {model}
+                          </option>
+                        ),
+                    )}
+                  </select>
+                  <select
+                    aria-label={t('fallback.reasoning', { index })}
+                    value={target.reasoning}
+                    onChange={(e) => {
+                      const chain = fallback.chain.map((item, i) =>
+                        i === index ? { ...item, reasoning: e.target.value } : item,
+                      );
+                      setFallback({ chain });
+                    }}
+                  >
+                    <option value="">{t('fallback.reasoningPlaceholder')}</option>
+                    {EFFORT_OPTIONS.map(
+                      (effort) =>
+                        effort && (
+                          <option key={effort} value={effort}>
+                            {effort}
+                          </option>
+                        ),
+                    )}
+                  </select>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  setFallback({
+                    chain: [...fallback.chain, { profile: 'codex', model: '', reasoning: '' }],
+                  })
+                }
+              >
+                {t('fallback.add')}
+              </button>
+            </fieldset>
           </>
         )}
         {tab === 'configuracoes' && (

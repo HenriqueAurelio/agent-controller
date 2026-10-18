@@ -17,6 +17,7 @@ const VARIABLES = {
   branch: 'main',
   file: 'src/soma.ts',
   selection: 'return a - b;',
+  problems: 'src/soma.ts:3:5 error [typecheck]: tipo errado',
 };
 
 describe('expandPrompt', () => {
@@ -61,6 +62,24 @@ describe('expandPrompt', () => {
   });
 });
 
+describe('the problems variable', () => {
+  it('is filled in by its Portuguese name or its English one', () => {
+    expect(expandPrompt('Corrija: {problemas}', VARIABLES)).toBe(
+      'Corrija: src/soma.ts:3:5 error [typecheck]: tipo errado',
+    );
+    expect(expandPrompt('{problems}', VARIABLES)).toBe(VARIABLES.problems);
+    expect(promptVariables('{problemas}')).toEqual(['problems']);
+    expect(expandPrompt('x{problemas}y', {})).toBe('xy');
+  });
+
+  it('comes in the factory prompt "fix problems", in every language', () => {
+    for (const language of LANGUAGES) {
+      const prompt = factoryPrompts(language).find((p) => p.id === 'fix-problems')!;
+      expect(promptVariables(prompt.text)).toContain('problems');
+    }
+  });
+});
+
 describe('saved prompts', () => {
   it('come from the factory in each language, with the same ids', () => {
     for (const language of LANGUAGES) {
@@ -70,6 +89,7 @@ describe('saved prompts', () => {
         'write-tests',
         'update-readme',
         'review-turn',
+        'fix-problems',
       ]);
       for (const prompt of prompts) expect(prompt.name && prompt.text).toBeTruthy();
     }

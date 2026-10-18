@@ -25,7 +25,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 | Sessões | Claude Code e Codex em terminais reais, grupos por repositório, comando próprio por sessão (aliases e funções do seu shell), pastas recentes e favoritas, arrastar pasta para abrir; painel geral com todas as sessões numa grade; quadro de tarefas (cartões que viram sessões e andam sozinhos pelas colunas); experimentos "melhor de N" (o mesmo pedido em até 4 cópias, comparadas e escolhidas); revisor automático (uma segunda sessão lê cada turno e devolve observações); fluxos entre sessões (regras "quando A terminar, mandar isto para B", com aprovação e limite de voltas) |
 | Estado e avisos | Estado de cada sessão pelos sinais do próprio agente, notificação do sistema, contador de "aguardando" no título da janela, pedidos de permissão respondidos pela barra lateral ou pela notificação |
 | Isolamento | Cópia isolada por sessão (git worktree), com comando de preparo e limpeza; aviso quando sessões em cópias diferentes mudam o mesmo arquivo, com "provável conflito" quando as linhas se cruzam |
-| Verificações | Lint, typecheck e testes ao fim de cada turno, com ✓/✗ na sessão e "mandar o erro ao agente" |
+| Verificações | Lint, typecheck e testes ao fim de cada turno, com ✓/✗ na sessão e "mandar o erro ao agente"; aba **Problemas** com cada erro numa linha (arquivo, linha, mensagem), que abre o arquivo na linha e manda ao agente só os que você marcar |
 | Prompts | Prompts guardados com variáveis, enviados a uma ou várias sessões, com espera pelo fim do turno; fila de prompts por sessão, um a cada fim de turno |
 | Revisão de código | Painel de mudanças com diff editável, árvore de arquivos, stage, commit e descarte com desfazer, vários repositórios na mesma pasta, realce TextMate e temas do VS Code |
 | Checkpoints | Uma foto da pasta no fim de cada turno, no próprio git e fora das branches: ver só o que o último turno mudou, comparar dois turnos, voltar a um turno e desfazer |
@@ -36,7 +36,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 **Próximos passos**, já priorizados em [`docs/funcionalidades`](docs/funcionalidades/README.md#segunda-rodada-de-painel-de-agentes-a-orquestrador-e-ide-leve):
 
 - **Leva 1, orquestração:** concluída (a última foi o quadro de tarefas).
-- **Leva 2, IDE:** links `arquivo:linha` no terminal e `Ctrl+P` (concluídos), depois painel de problemas, busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
+- **Leva 2, IDE:** links `arquivo:linha` no terminal, `Ctrl+P` e o painel de problemas (concluídos), depois busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
 - **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
 
 A `v0.1.0` existe como release em rascunho, com os três instaladores, e ainda falta testá-la numa máquina limpa antes de publicar. O que falta está em [`docs/pendencias/primeira-release.md`](docs/pendencias/primeira-release.md).
@@ -303,11 +303,22 @@ Daí em diante:
 - **Mandar o erro ao agente:** com uma rodada que falhou, o botão cola no prompt do agente o que falhou (o comando e as últimas linhas da saída), numa linha só, com **⏎** onde havia quebra de linha. Ele **não envia**: confira no terminal e aperte **Enter**. Uma linha só porque, no Windows, uma quebra de linha colada no agente pode enviar o texto antes da hora.
 - No máximo duas sessões rodam verificações ao mesmo tempo; as outras esperam a vez.
 
+#### Aba Problemas
+
+No painel de mudanças, a aba **Problemas (7)** (ao lado de **Todos os arquivos**; ou "Problemas: ver os erros das verificações" na paleta) lista cada erro e aviso da última rodada, em vez do bloco de saída do diálogo:
+
+- **Como o app lê:** enquanto o comando escreve, linha a linha, sem guardar a saída inteira. Entende `tsc` (comum e `--pretty`), `eslint` (formato `stylish`), `vitest` e `jest` (o primeiro arquivo do projeto na pilha de cada teste que falhou) e `cargo`; qualquer outra ferramenta que escreva `arquivo:linha:coluna: mensagem` (ruff, go vet, pytest, `eslint -f unix`, gcc) vale pelo leitor genérico, que só aceita caminhos de arquivos que existem na pasta. O leitor é escolhido pelo comando; com um nome de script (`npm run lint`) todos escutam. Cores são ignoradas.
+- **A lista:** agrupada por arquivo, com ✗ (erro) ou ⚠ (aviso), a linha e a verificação de origem ("typecheck", "lint"). Guarda até **500** problemas por verificação, com a nota "e mais N que não aparecem aqui". Uma verificação que falhou mas cuja saída o app não entendeu aparece inteira, abaixo da lista, como no diálogo.
+- **Clicar** num problema abre o arquivo no editor do painel, na linha, e sublinha as linhas com problema como o editor faz com os próprios erros (passe o mouse para ler a mensagem).
+- **Mandar ao agente:** o botão **➤** de um problema (aparece ao passar o mouse) ou **Mandar N marcados** abrem o diálogo de envio do prompt de fábrica **Corrigir problemas**, só com os problemas escolhidos (uma linha cada: `arquivo:linha:coluna erro [verificação]: mensagem`). Quem apagou esse prompt de Preferências recebe o texto de fábrica do mesmo jeito.
+- **Do agente voltando a trabalhar:** a lista fica esmaecida, com o aviso de que é da última rodada, e muda quando a próxima termina. Enquanto uma rodada está em andamento, a lista anterior continua à vista.
+- **Rodar verificações** na própria aba roda todas na hora. Sem verificações configuradas, a aba diz isso.
+
 As verificações ficam guardadas **por pasta**: toda sessão naquela pasta usa as mesmas, e elas voltam ao reabrir o app. O resultado da última rodada não volta. Elas **não vão** no arquivo de exportação das preferências: são comandos que o app roda sozinho, e importar um arquivo não deve trazê-los.
 
 ### Prompts guardados
 
-Pedidos que você repete ("revise o diff", "escreva os testes de {arquivo}") ficam guardados em **Preferências → Prompts**, com nome, texto e, se quiser, um atalho. O app vem com três de fábrica; **Restaurar os de fábrica** os traz de volta no idioma atual.
+Pedidos que você repete ("revise o diff", "escreva os testes de {arquivo}") ficam guardados em **Preferências → Prompts**, com nome, texto e, se quiser, um atalho. O app vem com cinco de fábrica (revisar o diff, escrever testes, atualizar o README, revisar o turno e corrigir problemas); **Restaurar os de fábrica** os traz de volta no idioma atual.
 
 Para enviar:
 
@@ -325,6 +336,7 @@ No diálogo você escolhe o prompt, responde às perguntas dele, pode mexer no t
 | `{branch}` | A branch atual da pasta (vazio fora de um repositório) |
 | `{arquivo}` | O arquivo aberto no painel de mudanças |
 | `{selecao}` | O trecho selecionado no editor do painel (até 20 mil caracteres; o resto é cortado, com aviso) |
+| `{problemas}` | Os problemas escolhidos na aba Problemas, um por linha (vazio fora dela) |
 | `{?pergunta}` | Um campo que o diálogo pede na hora de enviar |
 
 Uma variável que o app não conhece fica como está escrita. Cada sessão recebe o texto com as variáveis dela.
