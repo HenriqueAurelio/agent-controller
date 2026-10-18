@@ -8,6 +8,7 @@ import {
   PROMPT_TEXT_LIMIT,
   QUEUE_CONDITIONS,
   QUEUE_LIMIT,
+  PROBLEMS_TEXT_LIMIT,
   SELECTION_LIMIT,
   type PromptValues,
   type QueueBlock,
@@ -80,6 +81,7 @@ function cleanValues(value: unknown): PromptValues {
   return {
     ...(typeof v.file === 'string' && { file: v.file.slice(0, 4096) }),
     ...(typeof v.selection === 'string' && { selection: v.selection.slice(0, SELECTION_LIMIT) }),
+    ...(typeof v.problems === 'string' && { problems: v.problems.slice(0, PROBLEMS_TEXT_LIMIT) }),
     answers,
   };
 }

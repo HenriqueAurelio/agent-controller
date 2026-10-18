@@ -68,6 +68,7 @@ import {
   PROMPT_TEXT_LIMIT,
   QUEUE_CONDITIONS,
   QUEUE_LIMIT,
+  PROBLEMS_TEXT_LIMIT,
   SELECTION_LIMIT,
   SEND_TARGETS_LIMIT,
   SEND_TEXT_LIMIT,
@@ -154,6 +155,7 @@ const promptValues = (value: unknown): PromptValues => {
   return {
     file: v.file === undefined ? undefined : str(v.file, 'file'),
     selection: v.selection === undefined ? undefined : str(v.selection, 'text', SELECTION_LIMIT),
+    problems: v.problems === undefined ? undefined : str(v.problems, 'text', PROBLEMS_TEXT_LIMIT),
     answers,
   };
 };
@@ -214,7 +216,14 @@ export async function expandForSession(
     : '';
   const expanded = expandPrompt(
     text,
-    { session: s.name, folder: s.cwd, branch, file: values.file, selection: values.selection },
+    {
+      session: s.name,
+      folder: s.cwd,
+      branch,
+      file: values.file,
+      selection: values.selection,
+      problems: values.problems,
+    },
     values.answers,
   );
   if (expanded.length > SEND_TEXT_LIMIT) {

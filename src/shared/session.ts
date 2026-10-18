@@ -60,6 +60,9 @@ export interface Session {
    * theirs works. Absent: the command of the preferences, or the agent's own.
    */
   command?: string;
+  /** Explicit model and reasoning override, normally set by a fallback rule. */
+  model?: string;
+  reasoning?: string;
   worktree?: SessionWorktree;
   /** Launched in the read-only mode of its agent: a reviewer only reads (ADR 0023). */
   readOnly?: boolean;
@@ -166,6 +169,8 @@ export interface NewSessionInput {
   cwd: string;
   profile: AgentProfileId;
   command?: string;
+  model?: string;
+  reasoning?: string;
   /** Work in a new copy of the repository of `cwd`, on a new branch. */
   worktree?: { branch: string; base: string };
   groupId?: string;

@@ -11,6 +11,26 @@ export interface CheckConfig {
   onTurnEnd: boolean;
 }
 
+/** One error or warning a check printed, with the place it points to. */
+export interface Problem {
+  /** Relative to the folder of the session, with forward slashes, when it is inside it. */
+  file: string;
+  /** 1-based. */
+  line: number;
+  column?: number;
+  severity: 'error' | 'warning';
+  message: string;
+  /** The label of the check it came from. */
+  source: string;
+  checkId: string;
+}
+
+/** Id of the factory prompt that asks the agent to fix the problems of the list. */
+export const FIX_PROMPT_ID = 'fix-problems';
+
+/** The most problems kept for one check; the rest are only counted. */
+export const PROBLEMS_LIMIT = 500;
+
 export type CheckOutcome = 'passed' | 'failed' | 'timedOut' | 'cancelled' | 'error';
 
 export interface CheckResult {
@@ -23,6 +43,10 @@ export interface CheckResult {
   /** The end of what the command printed, with the escape sequences of the terminal removed. */
   output: string;
   truncated: boolean;
+  /** What the output said about files and lines, read while the command wrote it. */
+  problems: Problem[];
+  /** How many more there were beyond `PROBLEMS_LIMIT`. */
+  moreProblems: number;
 }
 
 export type ChecksRunState = 'queued' | 'running' | 'done' | 'cancelled';
@@ -131,3 +155,11 @@ export function stripAnsi(text: string): string {
     .map((line) => line.split('\r').filter(Boolean).at(-1) ?? '')
     .join('\n');
 }
+
+/** The place of a problem, as a path:line:column that terminals and editors know. */
+export const problemPlace = (problem: Pick<Problem, 'file' | 'line' | 'column'>): string =>
+  `${problem.file}:${problem.line}${problem.column ? `:${problem.column}` : ''}`;
+
+/** One problem as a line of text for the agent. */
+export const formatProblem = (problem: Problem): string =>
+  `${problemPlace(problem)} ${problem.severity} [${problem.source}]: ${problem.message}`;

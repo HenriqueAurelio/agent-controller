@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  PROBLEMS_TEXT_LIMIT,
   PROMPT_TEXT_LIMIT,
   promptQuestions,
   QUEUE_CONDITIONS,
@@ -17,6 +18,8 @@ import { Dialog } from './Dialog';
 export interface PromptContext {
   file?: string;
   selection?: string;
+  /** The problems picked in the problems list, a line each. */
+  problems?: string;
 }
 
 interface Props {
@@ -70,9 +73,12 @@ export function PromptDialog({
     () => ({
       file: context.file,
       selection: cut ? selection.slice(0, SELECTION_LIMIT) : selection,
+      ...(context.problems !== undefined && {
+        problems: context.problems.slice(0, PROBLEMS_TEXT_LIMIT),
+      }),
       answers,
     }),
-    [context.file, selection, cut, answers],
+    [context.file, selection, cut, context.problems, answers],
   );
   const questions = useMemo(() => promptQuestions(text), [text]);
   const ordered = sessions.filter((s) => targets.includes(s.id));

@@ -1,6 +1,6 @@
 # Painel de problemas
 
-- **Estado:** proposta, leva 2.
+- **Estado:** concluída (leva 2).
 - **ADR:** nenhuma nova. Lê a saída das [verificações](../verificacoes-pos-turno/README.md), que já existem.
 
 ## O problema

@@ -464,6 +464,137 @@ export async function startApp(): Promise<void> {
     pollMs: TEST_SHELL ? 100 : undefined,
   });
   void handoff.cleanOld();
+  // Fallback is intentionally owned by the app layer: SessionManager stays a small PTY primitive.
+  // An exhausted agent may reject one final request, so the package comes from local evidence.
+  const fallbackSeen = new Set<string>();
+  const lastPrompt = new Map<string, string>();
+  const terminalLine = new Map<string, string>();
+  const failureOutput = new Map<string, string>();
+  const FALLBACK_USAGE =
+    /(?:token|usage|rate limit|quota).{0,80}(?:exhaust|limit|reached)|(?:exhaust|limit).{0,80}(?:token|usage|quota)/i;
+  const FALLBACK_PROVIDER =
+    /(?:authentication|unauthori[sz]ed|provider|network).{0,80}(?:error|failed|unavailable)|(?:error|failed|unavailable).{0,80}(?:authentication|provider|network)/i;
+  const runFallback = async (sourceId: string, reason: 'usage' | 'provider' | 'unexpected') => {
+    if (fallbackSeen.has(sourceId)) return;
+    const policy = data.prefs.fallback;
+    if (!policy.enabled || !policy.triggers[reason]) return;
+    const source = manager.get(sourceId);
+    if (!source) return;
+    const index = policy.chain.findIndex((target) => target.profile === source.profile);
+    const target = policy.chain.slice(index < 0 ? 0 : index + 1)[0];
+    if (!target) return;
+    fallbackSeen.add(sourceId);
+    const [tailLines, overview] = await Promise.all([
+      manager.tail(sourceId, 80),
+      changes.overview(sourceId, source.cwd, 'session').catch(() => null),
+    ]);
+    const tail = tailLines.join('\n');
+    const changedFiles =
+      overview?.ok && overview.changes.length
+        ? overview.changes.map((change) => `- ${change.path}`).join('\n')
+        : 'No changed files could be determined.';
+    const id = `${Date.now()}-${sourceId}`;
+    const folder = path.join(userData, 'fallback-handoffs', id);
+    const handoffText = [
+      '# Agent fallback handoff',
+      '',
+      `Reason: ${reason}`,
+      `Source: ${source.profile}`,
+      `Destination: ${target.profile}`,
+      '',
+      '## Original request',
+      lastPrompt.get(sourceId) || 'Not available: the request was typed directly in the terminal.',
+      '',
+      '## Where work stopped',
+      tail || 'No terminal output was retained.',
+      '',
+      '## Changed files',
+      changedFiles,
+      '',
+      '## Decisions and next step',
+      'Inspect the repository state and git diff, then continue the original task. Verify what is complete before editing.',
+    ].join('\n');
+    await fs.promises.mkdir(folder, { recursive: true });
+    const handoffFile = path.join(folder, 'handoff.md');
+    await fs.promises.writeFile(handoffFile, handoffText, 'utf8');
+    if (policy.mode === 'confirm' && !TEST_SHELL) {
+      const choice = await dialog.showMessageBox(window!, {
+        type: 'warning',
+        buttons: [t('fallback.continue'), t('common.cancel')],
+        defaultId: 0,
+        cancelId: 1,
+        title: t('fallback.title'),
+        message: t('fallback.confirm', {
+          name: source.name,
+          agent: getProfile(target.profile).displayName,
+        }),
+        detail: handoffText.slice(0, 3500),
+      });
+      if (choice.response !== 0) return;
+    }
+    const next = manager.create({
+      name: `${source.name} (fallback)`,
+      cwd: source.cwd,
+      profile: target.profile,
+      ...(source.groupId && { groupId: source.groupId }),
+      model: target.model,
+      reasoning: target.reasoning,
+      keepSelection: false,
+    });
+    manager.start(next.id);
+    manager.sendText(
+      next.id,
+      `Continue the work described below. The original session stopped and may be incomplete. Read ${handoffFile}, inspect the repository and git diff, then continue from the next step.\n\n${handoffText}`,
+      { submit: true },
+    );
+  };
+  const rememberPrompt = (id: string, text: string) => {
+    const prompt = text
+      .replaceAll('\x1b[200~', '')
+      .replaceAll('\x1b[201~', '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (prompt && !lastPrompt.has(id)) lastPrompt.set(id, prompt);
+  };
+  manager.on('sentText', rememberPrompt);
+  manager.on('input', (id, data) => {
+    if (lastPrompt.has(id)) return;
+    const session = manager.list().find((item) => item.id === id);
+    // Only retain the first line submitted at the agent's normal prompt. This excludes answers
+    // to permission menus and later interactive replies while still allowing normal terminal use.
+    if (
+      !session ||
+      session.status.state !== 'aguardando' ||
+      !session.status.confirmed ||
+      (session.status.detail !== STATUS_DETAIL.ready &&
+        session.status.detail !== STATUS_DETAIL.idle)
+    ) {
+      return;
+    }
+    const before = terminalLine.get(id) ?? '';
+    const combined = `${before}${data}`;
+    const breakAt = combined.search(/[\r\n]/);
+    if (breakAt < 0) {
+      terminalLine.set(id, combined.slice(0, 60_000));
+      return;
+    }
+    terminalLine.delete(id);
+    rememberPrompt(id, combined.slice(0, breakAt));
+  });
+  manager.on('output', (id, chunk) => {
+    const recent = `${failureOutput.get(id) ?? ''}${chunk}`.slice(-8_000);
+    failureOutput.set(id, recent);
+    if (FALLBACK_USAGE.test(recent))
+      void runFallback(id, 'usage').catch((err) => console.error('Fallback failed:', err));
+    else if (FALLBACK_PROVIDER.test(recent))
+      void runFallback(id, 'provider').catch((err) => console.error('Fallback failed:', err));
+  });
+  manager.on('transition', ({ session, previous }) => {
+    if (previous.state === 'trabalhando' && session.status.state === 'erro')
+      void runFallback(session.id, 'unexpected').catch((err) =>
+        console.error('Fallback failed:', err),
+      );
+  });
   const reviewer = new ReviewerService({
     manager,
     checkpoints,

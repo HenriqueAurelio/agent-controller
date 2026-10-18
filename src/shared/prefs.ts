@@ -15,6 +15,7 @@ import { DEFAULT_LANGUAGE, sanitizeLanguage, type Language } from './i18n';
 import { DEFAULT_LAYOUT, sanitizeLayout, type Layout } from './layout';
 import { factoryPrompts, sanitizePrompts, type PromptTemplate } from './prompts';
 import { DEFAULT_SHORTCUTS, sanitizeShortcuts, type ShortcutMap } from './shortcuts';
+import { DEFAULT_FALLBACK, sanitizeFallback, type FallbackSettings } from './fallback';
 
 export type ThemeName = 'dark' | 'light';
 
@@ -59,6 +60,7 @@ export interface Preferences {
   checkpoints: CheckpointSettings;
   /** The warning of sessions in other copies of the repository that change the same files. */
   overlaps: OverlapSettings;
+  fallback: FallbackSettings;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -86,6 +88,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   fileAssociations: {},
   checkpoints: DEFAULT_CHECKPOINT_SETTINGS,
   overlaps: DEFAULT_OVERLAP_SETTINGS,
+  fallback: DEFAULT_FALLBACK,
 };
 
 export const SCROLLBACK_LIMITS = { min: 200, max: 20000 } as const;
@@ -163,5 +166,6 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
     fileAssociations: sanitizeAssociations(p.fileAssociations),
     checkpoints: sanitizeCheckpointSettings(p.checkpoints),
     overlaps: sanitizeOverlapSettings(p.overlaps),
+    fallback: sanitizeFallback(p.fallback),
   };
 }

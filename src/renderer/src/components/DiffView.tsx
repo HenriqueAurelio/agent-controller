@@ -3,7 +3,7 @@ import { CODE_LANGUAGES, codeLanguage, PLAIN_TEXT } from '@shared/codeLanguages'
 import type { DiffBase, FileDiff, SideContent } from '@shared/git';
 import type { Translate } from '@shared/i18n';
 import type { ThemeName } from '@shared/prefs';
-import type { FrameMessage, ParentMessage } from '../lib/diffProtocol';
+import type { FrameMarker, FrameMessage, ParentMessage } from '../lib/diffProtocol';
 import { useCodeTheme } from '../lib/codeThemes';
 import { errorMessage, formatBytes } from '../lib/format';
 import { useT } from '../lib/i18n';
@@ -26,6 +26,8 @@ interface Props {
   onSendSelection(file: string, selection: string): void;
   /** A line to put the cursor on, each time it is asked for (a new nonce), once its file shows. */
   reveal?: { path: string; line: number; column?: number; nonce: number } | null;
+  /** The problems of the checks in this file, underlined in the editor. */
+  markers?: FrameMarker[];
 }
 
 function unavailable(t: Translate, side: SideContent): string | null {
@@ -88,6 +90,7 @@ export function DiffView({
   onDirtyChange,
   onSendSelection,
   reveal,
+  markers,
 }: Props) {
   const t = useT();
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
@@ -148,6 +151,12 @@ export function DiffView({
     revealed.current = reveal.nonce;
     send({ type: 'reveal', path: reveal.path, line: reveal.line, column: reveal.column });
   }, [ready, reveal, path, send]);
+
+  // Sent whenever the list changes and again for each file: the frame draws them once that file
+  // is the one shown.
+  useEffect(() => {
+    if (ready) send({ type: 'markers', path, items: markers ?? [] });
+  }, [ready, path, markers, send]);
 
   const save = useCallback(
     async (file: string, content: string, expected: string | null) => {

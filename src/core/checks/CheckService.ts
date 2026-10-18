@@ -8,6 +8,7 @@ import {
 } from '@shared/checks';
 import { runInShell, type RunResult } from '../tools/ToolRunner';
 import { folderFingerprint } from './fingerprint';
+import { ProblemReader } from './problems';
 
 export interface CheckTarget {
   /** The folder the checks run in: the one of the session. */
@@ -19,7 +20,12 @@ export interface CheckServiceOptions {
   /** The folder and checks of a session right now, or null when it has none. */
   targetOf(sessionId: string): CheckTarget | null;
   /** How one check runs. The default is the user's shell; tests swap it. */
-  run?: (check: CheckConfig, cwd: string, signal: AbortSignal) => Promise<RunResult>;
+  run?: (
+    check: CheckConfig,
+    cwd: string,
+    signal: AbortSignal,
+    onData?: (chunk: string, channel: 0 | 1) => void,
+  ) => Promise<RunResult>;
   fingerprint?: (cwd: string) => Promise<string | null>;
   /** What a run waits for before its first check: the checkpoint of the turn (ADR 0021). */
   before?: (sessionId: string) => Promise<void>;
@@ -46,13 +52,19 @@ interface Entry {
 
 export const DEFAULT_MAX_PARALLEL = 2;
 
-function defaultRun(check: CheckConfig, cwd: string, signal: AbortSignal): Promise<RunResult> {
+function defaultRun(
+  check: CheckConfig,
+  cwd: string,
+  signal: AbortSignal,
+  onData?: (chunk: string, channel: 0 | 1) => void,
+): Promise<RunResult> {
   return runInShell(check.command, {
     cwd,
     // Tools print less color and no prompts when they know nobody is at the keyboard.
     env: { ...process.env, CI: '1' },
     timeoutMs: check.timeoutSec * 1000,
     signal,
+    onData,
   });
 }
 
@@ -218,7 +230,19 @@ export class CheckService extends EventEmitter<CheckEvents> {
     for (const check of entry.checks) {
       if (abort.signal.aborted) return;
       publish({ ...state, current: check.id });
-      const result = await this.runCheck(check, cwd, abort.signal);
+      // The output is read as it is written: only its end is kept, the problems all along it.
+      const reader = new ProblemReader({
+        command: check.command,
+        source: check.label,
+        checkId: check.id,
+      });
+      const result = await this.runCheck(check, cwd, abort.signal, (chunk, channel) =>
+        reader.push(chunk, channel),
+      );
+      if (abort.signal.aborted) return;
+      // A runner that did not stream (a test double) still has its output read, once it is over.
+      if (!reader.hasInput) reader.push(result.output);
+      const found = await reader.finish(cwd).catch(() => ({ problems: [], more: 0 }));
       if (abort.signal.aborted) return;
       const checkResult: CheckResult = {
         id: check.id,
@@ -229,6 +253,8 @@ export class CheckService extends EventEmitter<CheckEvents> {
         durationMs: result.durationMs,
         output: stripAnsi(result.error ? `${result.output}${result.error}` : result.output),
         truncated: result.truncated,
+        problems: found.problems,
+        moreProblems: found.more,
       };
       publish({ ...state, results: [...state.results, checkResult] });
     }

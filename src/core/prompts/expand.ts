@@ -10,6 +10,7 @@ export interface PromptVariables {
   branch: string;
   file: string;
   selection: string;
+  problems: string;
 }
 
 /** Each variable under its Portuguese name, as the prompts are written, and in English. */
@@ -25,6 +26,8 @@ const NAMES: Record<string, keyof PromptVariables> = {
   selecao: 'selection',
   seleção: 'selection',
   selection: 'selection',
+  problemas: 'problems',
+  problems: 'problems',
 };
 
 /** Which of the known variables a prompt uses. */

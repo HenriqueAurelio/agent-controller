@@ -25,7 +25,7 @@ test('a saved prompt reaches three sessions, each with its own variables', async
     await page.keyboard.press('Control+,');
     const prefs = page.getByRole('dialog', { name: 'Preferências' });
     await prefs.getByRole('tab', { name: 'Prompts' }).click();
-    await expect(prefs.getByRole('option')).toHaveCount(4); // The factory ones.
+    await expect(prefs.getByRole('option')).toHaveCount(5); // The factory ones.
     await prefs.getByRole('button', { name: '+ Novo prompt' }).click();
     await prefs.getByLabel('Nome').fill('Saudar');
     await prefs.getByLabel('Texto').fill('ola {sessao} prioridade {?Prioridade} fim');
