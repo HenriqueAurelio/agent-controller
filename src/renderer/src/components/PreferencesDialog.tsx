@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   LANGUAGE_NAME,
   LANGUAGES,
@@ -54,6 +54,14 @@ export function PreferencesDialog({
   const testMode = useAppState((s) => s.info.testMode);
   const agents = useAppState((s) => s.agents);
   const [tab, setTab] = useState<TabId>(initialTab);
+  const [editorApply, setEditorApply] = useState<{
+    apply: (() => void) | null;
+    hasChanges: boolean;
+  } | null>(null);
+  const onEditorApplyChange = useCallback(
+    (apply: (() => void) | null, hasChanges: boolean) => setEditorApply({ apply, hasChanges }),
+    [],
+  );
   // Kept as a message, not as its words: an import may bring another language with it.
   const [transfer, setTransfer] = useState<Message | { error: string } | null>(null);
   const fallback = prefs.fallback;
@@ -131,7 +139,7 @@ export function PreferencesDialog({
         role="tabpanel"
         aria-labelledby={`prefs-tab-${tab}`}
       >
-        {tab === 'editor' && <EditorPreferences />}
+        {tab === 'editor' && <EditorPreferences onApplyChange={onEditorApplyChange} />}
         {tab === 'layout' && (
           <LayoutEditor layout={prefs.layout} onChange={(layout) => set({ layout })} />
         )}
@@ -445,6 +453,16 @@ export function PreferencesDialog({
         )}
       </div>
       <div className="dialog-actions">
+        {tab === 'editor' && (
+          <button
+            type="button"
+            className="primary"
+            disabled={!editorApply?.hasChanges}
+            onClick={() => editorApply?.apply?.()}
+          >
+            {t('common.apply')}
+          </button>
+        )}
         <button className="primary" onClick={onClose}>
           {t('common.close')}
         </button>

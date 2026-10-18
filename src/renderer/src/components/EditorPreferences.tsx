@@ -90,7 +90,11 @@ function CodeThemePreview({ kind, themeId }: { kind: ThemeName; themeId: string 
 }
 
 /** Preferences → Editor: the colors of the code, imported themes, language by file. */
-export function EditorPreferences() {
+export function EditorPreferences({
+  onApplyChange,
+}: {
+  onApplyChange?: (apply: (() => void) | null, hasChanges: boolean) => void;
+}) {
   const t = useT();
   const prefs = useAppState((s) => s.prefs);
   const imported = useCustomThemes();
@@ -112,6 +116,21 @@ export function EditorPreferences() {
     selectedThemes.dark !== applied.themes.dark ||
     selectedThemes.light !== applied.themes.light ||
     associations !== applied.associations;
+  const apply = useCallback(() => {
+    const parsed = parseAssociations(associations);
+    setInvalid(parsed.invalid);
+    setApplied({ themes: { ...selectedThemes }, associations });
+    set({
+      codeThemeDark: selectedThemes.dark,
+      codeThemeLight: selectedThemes.light,
+      fileAssociations: parsed.associations,
+    });
+  }, [associations, selectedThemes]);
+
+  useEffect(() => {
+    onApplyChange?.(apply, hasChanges);
+  }, [apply, hasChanges, onApplyChange]);
+  useEffect(() => () => onApplyChange?.(null, false), [onApplyChange]);
 
   const themeSelect = (kind: ThemeName) => {
     const label = t(kind === 'dark' ? 'prefs.codeThemeDark' : 'prefs.codeThemeLight');
@@ -241,25 +260,6 @@ export function EditorPreferences() {
           </p>
         )}
       </fieldset>
-      <div className="dialog-actions editor-actions">
-        <button
-          type="button"
-          className="primary"
-          disabled={!hasChanges}
-          onClick={() => {
-            const parsed = parseAssociations(associations);
-            setInvalid(parsed.invalid);
-            setApplied({ themes: { ...selectedThemes }, associations });
-            set({
-              codeThemeDark: selectedThemes.dark,
-              codeThemeLight: selectedThemes.light,
-              fileAssociations: parsed.associations,
-            });
-          }}
-        >
-          {t('common.apply')}
-        </button>
-      </div>
     </>
   );
 }
