@@ -89,10 +89,21 @@ button.primary {
   border-color: var(--accent);
   color: #fff;
 }
+button.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 82%, #fff);
+  border-color: color-mix(in srgb, var(--accent) 82%, #fff);
+}
 button.danger {
   background: var(--danger);
   border-color: var(--danger);
   color: #fff;
+}
+button:disabled,
+button.primary:disabled,
+button.danger:disabled {
+  background: var(--bg-hover);
+  border-color: var(--border);
+  color: var(--muted);
 }
 button.active {
   background: var(--bg-selected);
