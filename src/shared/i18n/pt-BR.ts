@@ -233,6 +233,7 @@ export const ptBR = {
 
   'terminal.empty.title': 'Nenhuma sessão',
   'terminal.empty.body': 'Crie uma sessão para abrir o Claude Code ou o Codex em uma pasta.',
+  'terminal.largePaste': 'Colando {lines} linhas ({characters} caracteres)',
   'aux.title': 'Terminal auxiliar',
   'aux.close': 'Fechar o terminal auxiliar',
   'aux.closeHint': 'Fecha o shell e tudo o que ele estiver rodando',

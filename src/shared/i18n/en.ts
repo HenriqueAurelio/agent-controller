@@ -232,6 +232,7 @@ export const en: Record<keyof typeof ptBR, string> = {
 
   'terminal.empty.title': 'No sessions',
   'terminal.empty.body': 'Create a session to open Claude Code or Codex in a folder.',
+  'terminal.largePaste': 'Pasting {lines} lines ({characters} characters)',
   'aux.title': 'Side terminal',
   'aux.close': 'Close the side terminal',
   'aux.closeHint': 'Closes the shell and everything it is running',

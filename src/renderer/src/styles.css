@@ -771,6 +771,21 @@ button.path:hover:not(:disabled) {
   position: absolute;
   inset: 0;
 }
+.terminal-paste-notice {
+  position: absolute;
+  z-index: 3;
+  top: 12px;
+  right: 14px;
+  max-width: calc(100% - 28px);
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-raised) 92%, var(--accent));
+  box-shadow: 0 4px 16px #0005;
+  color: var(--text);
+  font-size: 12px;
+  pointer-events: none;
+}
 .terminal-host {
   position: absolute;
   inset: 6px 0 0 8px;
