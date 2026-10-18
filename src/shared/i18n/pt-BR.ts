@@ -378,9 +378,9 @@ export const ptBR = {
   'prefs.importTheme': 'Importar tema do VS Code…',
   'prefs.themeImported': 'Tema “{name}” importado.',
   'prefs.removeTheme': 'Remover o tema “{name}”',
-  'prefs.associations': 'Linguagem por arquivo',
+  'prefs.associations': 'Forçar linguagem para arquivos',
   'prefs.associationsHint':
-    'Uma por linha, padrão = linguagem. Ex.: *.mdc = markdown. Vale antes da extensão.',
+    'Deixe vazio se o realce já estiver correto. Uma por linha: padrão = linguagem. Ex.: *.mdc = markdown. Vale antes da extensão.',
   'prefs.associationsInvalid': 'Linhas ignoradas: {lines}',
   'codeTheme.app-dark': 'Agent Controller escuro',
   'codeTheme.app-light': 'Agent Controller claro',

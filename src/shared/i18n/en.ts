@@ -377,9 +377,9 @@ export const en: Record<keyof typeof ptBR, string> = {
   'prefs.importTheme': 'Import VS Code theme…',
   'prefs.themeImported': 'Theme “{name}” imported.',
   'prefs.removeTheme': 'Remove the theme “{name}”',
-  'prefs.associations': 'Language by file',
+  'prefs.associations': 'Override language for files',
   'prefs.associationsHint':
-    'One per line, pattern = language. E.g.: *.mdc = markdown. Comes before the extension.',
+    'Leave blank if highlighting is correct. One per line: pattern = language. E.g.: *.mdc = markdown. Overrides extension detection.',
   'prefs.associationsInvalid': 'Lines ignored: {lines}',
   'codeTheme.app-dark': 'Agent Controller dark',
   'codeTheme.app-light': 'Agent Controller light',
