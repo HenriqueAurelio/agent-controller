@@ -51,7 +51,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font:
-    13px/1.4 system-ui,
+    clamp(12px, 0.3vw + 10px, 15px) / 1.4 system-ui,
     'Segoe UI',
     Ubuntu,
     sans-serif;
@@ -1027,6 +1027,19 @@ button.path:hover:not(:disabled) {
 /* The same height in every tab, so the dialog does not jump when switching. */
 .dialog.prefs .tab-panel {
   min-height: 400px;
+}
+.dialog.prefs {
+  width: min(1000px, calc(100vw - 32px));
+}
+.dialog.prefs .field-row {
+  align-items: center;
+}
+.dialog.prefs .field-row > strong {
+  flex: 1 1 150px;
+}
+.dialog.prefs .field-row select {
+  flex: 1 1 150px;
+  min-width: 0;
 }
 
 /* Layout in the preferences: the choices and a miniature of the window they give. */
@@ -3036,4 +3049,91 @@ textarea.associations {
 .problems-unread {
   margin: 8px;
   font-size: 12px;
+}
+
+/* Keep the shell useful as the window narrows: content reflows instead of being clipped. */
+@media (max-width: 900px) {
+  .sidebar {
+    width: clamp(190px, 25vw, 250px);
+  }
+  .session-header {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-inline: 8px;
+  }
+  .session-header-text {
+    flex: 1 1 260px;
+  }
+  .session-header > .spacer {
+    display: none;
+  }
+  .overview-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+  .dialog-backdrop {
+    padding-top: 6vh;
+  }
+  .dialog {
+    width: min(680px, calc(100vw - 24px));
+    padding: 14px;
+  }
+  .dialog.prefs {
+    width: min(920px, calc(100vw - 24px));
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar {
+    width: 180px;
+  }
+  .sidebar-header {
+    padding-inline: 6px;
+  }
+  .session-item {
+    padding-inline: 6px;
+  }
+  .dialog-backdrop {
+    align-items: center;
+    padding: 10px;
+  }
+  .dialog,
+  .dialog.prefs {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    padding: 12px;
+  }
+  .dialog.prefs .tab-panel {
+    min-height: 0;
+  }
+  .field-inline,
+  .field-row,
+  .dialog-actions {
+    flex-wrap: wrap;
+  }
+  .field-inline > span:first-child,
+  .dialog.prefs .field-row > strong {
+    flex-basis: 100%;
+  }
+  .field-inline input.wide {
+    min-width: 0;
+  }
+  .dialog.prefs .field-row select {
+    flex-basis: 120px;
+  }
+  .tabs {
+    margin-inline: -4px;
+  }
+  .tab {
+    padding-inline: 9px;
+  }
+  .changes-list.problems-list,
+  .changes-list {
+    width: min(42vw, 280px);
+  }
+  .overview-body {
+    padding: 8px;
+  }
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
 }
