@@ -4,6 +4,8 @@ Um app desktop que reúne sessões de **Claude Code** e **Codex** em uma janela 
 
 Para uma visão consolidada das funcionalidades e dos fluxos de uso, veja o [Guia de funcionalidades](docs/guia-de-funcionalidades.md) (também disponível em [HTML](docs/guia-de-funcionalidades.html)).
 
+Para gerar, instalar e testar uma versão local empacotada no Windows ou Linux, siga o [guia de instalação e teste local](docs/instalacao-e-teste-local.md).
+
 - Windows e Linux.
 - Cada sessão é um terminal de verdade: o agente roda nele como rodaria no seu terminal.
 - O app não altera a configuração de nenhum agente: os avisos são ligados por parâmetro, na hora de abrir.
