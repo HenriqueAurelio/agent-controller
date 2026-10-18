@@ -208,6 +208,8 @@ export const es: Record<keyof typeof ptBR, string> = {
   'sidebar.close': 'Cerrar {name}',
   'sidebar.new': '+ Nueva sesión',
   'sidebar.newGroup': 'Nuevo grupo: reúne las sesiones de un repositorio',
+  'sidebar.sessionMenu': 'Acciones para {name}',
+  'sidebar.newGroupWithSession': 'Nuevo grupo con {name}',
   'sidebar.ungroupedDrop': 'Suelta aquí para sacarla del grupo',
   'group.expand': 'Mostrar las sesiones de {name}',
   'group.collapse': 'Contraer {name}',

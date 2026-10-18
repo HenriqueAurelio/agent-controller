@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react';
 import { isHorizontal } from '@shared/layout';
 import { statusLabel, type SessionGroup, type SessionView } from '@shared/session';
 import { formatCpu, formatMemory, hint, PROFILE_LABEL } from '../lib/format';
@@ -13,7 +20,7 @@ interface Props {
   onClose(session: SessionView): void;
   onDuplicate(session: SessionView): void;
   /** Without a group, asks for a new one. */
-  onEditGroup(group?: SessionGroup): void;
+  onEditGroup(group?: SessionGroup, initialSessionId?: string): void;
   /** Asks for a new experiment: the same request in several copies. */
   onNewExperiment(): void;
   /** Opens the comparison of the attempts of an experiment. */
@@ -34,6 +41,7 @@ interface Props {
 }
 
 type Dragging = { kind: 'session'; id: string } | { kind: 'group'; id: string };
+type SessionContextMenu = { session: SessionView; x: number; y: number };
 
 function RenameInput({
   value: initial,
@@ -102,6 +110,17 @@ export function Sidebar({
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dragging, setDragging] = useState<Dragging | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<SessionContextMenu | null>(null);
+
+  useEffect(() => {
+    const close = () => setContextMenu(null);
+    window.addEventListener('click', close);
+    window.addEventListener('blur', close);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('blur', close);
+    };
+  }, []);
 
   // The heaviest running session stands out, so it is clear who is weighing on the machine.
   const heaviest = sessions
@@ -317,6 +336,12 @@ export function Sidebar({
           onDone();
         }}
         onDoubleClick={() => setRenaming(session.id)}
+        onContextMenu={(event: MouseEvent) => {
+          event.preventDefault();
+          onMarkedChange([]);
+          store.select(session.id);
+          setContextMenu({ session, x: event.clientX, y: event.clientY });
+        }}
         onKeyDown={(e) => onKeyDown(e, session)}
       >
         <span
@@ -603,9 +628,10 @@ export function Sidebar({
           ☷
         </button>
         <button
-          className="icon-button"
+          className="icon-button group-add-button"
           title={t('sidebar.newGroup')}
           aria-label={t('sidebar.newGroup')}
+          data-testid="new-group-button"
           onClick={() => onEditGroup()}
         >
           ⊞
@@ -656,6 +682,27 @@ export function Sidebar({
           </button>
           <button onClick={() => onMarkedChange([])}>{t('sidebar.unmark')}</button>
         </div>
+      )}
+      {contextMenu && (
+        <ul
+          className="context-menu"
+          role="menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          aria-label={t('sidebar.sessionMenu', { name: contextMenu.session.name })}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <li role="none">
+            <button
+              role="menuitem"
+              onClick={() => {
+                onEditGroup(undefined, contextMenu.session.id);
+                setContextMenu(null);
+              }}
+            >
+              {t('sidebar.newGroupWithSession', { name: contextMenu.session.name })}
+            </button>
+          </li>
+        </ul>
       )}
       <button
         className="new-session-button"

@@ -317,6 +317,10 @@ kbd {
   line-height: 1;
   color: var(--muted);
 }
+.group-add-button {
+  font-size: 19px;
+  font-weight: 600;
+}
 .session-list {
   flex: 1;
   margin: 0;
