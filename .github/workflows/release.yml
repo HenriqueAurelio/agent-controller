@@ -43,13 +43,13 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run test:e2e
         env:
-          AGENT_CONTROLLER_EXE: ${{ github.workspace }}\dist\win-unpacked\Agent Controller.exe
+          AGENT_CONTROLLER_EXE: ${{ github.workspace }}\dist\win-unpacked\Aurelium.exe
 
       - name: E2E on the packaged app (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:e2e
         env:
-          AGENT_CONTROLLER_EXE: ${{ github.workspace }}/dist/linux-unpacked/agent-controller
+          AGENT_CONTROLLER_EXE: ${{ github.workspace }}/dist/linux-unpacked/aurelium
 
       - uses: softprops/action-gh-release@v2
         with:

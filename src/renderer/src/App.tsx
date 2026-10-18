@@ -244,7 +244,7 @@ export function App() {
   // The taskbar says how many agents are waiting, even with the window out of sight.
   const waiting = sessions.filter((s) => s.status.state === 'aguardando' && s.running).length;
   useEffect(() => {
-    document.title = waiting > 0 ? t('app.titleWaiting', { count: waiting }) : 'Agent Controller';
+    document.title = waiting > 0 ? t('app.titleWaiting', { count: waiting }) : t('app.title');
   }, [waiting, t]);
 
   // What is on top of the terminal right now, readable from a callback that runs later.

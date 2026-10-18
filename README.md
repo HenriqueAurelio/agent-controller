@@ -1,6 +1,8 @@
-# Agent Controller
+# Aurelium
 
 Um app desktop que reúne sessões de **Claude Code** e **Codex** em uma janela só, avisa quando um agente termina ou precisa de você, e mostra o que ele alterou no código.
+
+Para uma visão consolidada das funcionalidades e dos fluxos de uso, veja o [Guia de funcionalidades](docs/guia-de-funcionalidades.md) (também disponível em [HTML](docs/guia-de-funcionalidades.html)).
 
 - Windows e Linux.
 - Cada sessão é um terminal de verdade: o agente roda nele como rodaria no seu terminal.
@@ -8,7 +10,7 @@ Um app desktop que reúne sessões de **Claude Code** e **Codex** em uma janela 
 
 ## A ideia do projeto
 
-Quem trabalha com agentes de código hoje vive entre muitas janelas: um terminal por agente, o editor para revisar, o git para desfazer, e o próprio caderno para lembrar quem está fazendo o quê. O Agent Controller quer ser **o lugar único do dev que trabalha com agentes**:
+Quem trabalha com agentes de código hoje vive entre muitas janelas: um terminal por agente, o editor para revisar, o git para desfazer, e o próprio caderno para lembrar quem está fazendo o quê. O Aurelium quer ser **o lugar único do dev que trabalha com agentes**:
 
 - **Centralizador.** Todos os agentes, de todos os projetos, numa janela, com o estado de cada um à vista e um aviso quando algum precisa de você.
 - **Orquestrador.** O app não só mostra os agentes: ele coordena o trabalho entre eles. Ele isola cada um numa cópia do repositório, roda as verificações quando um turno termina, manda prompts a várias sessões, e cada vez mais passa o trabalho de uma sessão para outra (implementar → revisar → corrigir).
@@ -54,17 +56,17 @@ Versões de agente testadas: **Claude Code 2.1.296** e **Codex CLI 0.158.0**, as
 
 Os instaladores saem do CI a cada tag e ficam na página de releases do repositório.
 
-**Windows.** Rode `agent-controller-<versão>-setup.exe`. O instalador não é assinado: o Windows mostra o aviso "O Windows protegeu o computador". Clique em **Mais informações** e depois em **Executar assim mesmo**.
+**Windows.** Rode `Aurelium-<versão>-setup.exe`. O instalador não é assinado: o Windows mostra o aviso "O Windows protegeu o computador". Clique em **Mais informações** e depois em **Executar assim mesmo**.
 
 **Linux.** Escolha um dos dois:
 
 ```bash
 # .deb (Debian, Ubuntu)
-sudo apt install ./agent-controller-<versão>.deb
+sudo apt install ./Aurelium-<versão>.deb
 
 # AppImage (qualquer distribuição)
-chmod +x agent-controller-<versão>.AppImage
-./agent-controller-<versão>.AppImage
+chmod +x Aurelium-<versão>.AppImage
+./Aurelium-<versão>.AppImage
 ```
 
 Não há atualização automática no v1: para atualizar, instale a versão nova por cima.
@@ -132,7 +134,7 @@ A bolinha ao lado do nome da sessão mostra o estado:
 | **Terminou** | O turno acabou |
 | **Erro** | O agente saiu com erro, ou não pôde ser aberto. O motivo aparece no terminal |
 
-"Aguardando você" é o estado que pede uma ação sua, e por isso é o que mais chama atenção: a linha da sessão fica destacada em âmbar, o estado vira uma etiqueta preenchida e a bolinha pulsa. O título da janela mostra quantas sessões estão aguardando, por exemplo `(3 aguardando) Agent Controller`, o que aparece na barra de tarefas mesmo com o app em segundo plano.
+"Aguardando você" é o estado que pede uma ação sua, e por isso é o que mais chama atenção: a linha da sessão fica destacada em âmbar, o estado vira uma etiqueta preenchida e a bolinha pulsa. O título da janela mostra quantas sessões estão aguardando, por exemplo `(3 aguardando) Aurelium`, o que aparece na barra de tarefas mesmo com o app em segundo plano.
 
 Bolinha **cheia** quer dizer que o próprio agente informou o estado. Bolinha **vazada e tracejada**, com o texto "**Possivelmente** aguardando você", quer dizer que o app só está supondo: o agente ficou alguns segundos sem escrever nada, e isso tanto pode ser uma pergunta quanto um build demorado e silencioso. O tempo dessa suposição é ajustável nas preferências, e 0 a desliga.
 
@@ -395,7 +397,7 @@ Este README descreve o app em português; em inglês, os nomes dos botões e men
 
 Em **Preferências → Editor**:
 
-- **Com o app escuro** e **Com o app claro**: o tema de cores do código em cada tema do app, com uma prévia ao lado. Vêm 33 temas do VS Code (Dark+, Light+, Monokai, One Dark Pro, Dracula, GitHub, Solarized, Nord, Tokyo Night, Catppuccin e outros). O padrão, **Agent Controller escuro/claro**, usa as cores do Dark+/Light+ com o fundo do app.
+- **Com o app escuro** e **Com o app claro**: o tema de cores do código em cada tema do app, com uma prévia ao lado. Vêm 33 temas do VS Code (Dark+, Light+, Monokai, One Dark Pro, Dracula, GitHub, Solarized, Nord, Tokyo Night, Catppuccin e outros). O padrão, **Aurelium escuro/claro**, usa as cores do Dark+/Light+ com o fundo do app.
 - **Importar tema do VS Code…**: um arquivo `.json` de tema, como os que vêm nas extensões de tema do VS Code (na pasta `themes` da extensão). O tema importado passa a valer na hora e pode ser removido na mesma tela. Um tema que só estende outro (`include`) não é aceito.
 - **Forçar linguagem para arquivos**: deixe vazio se o realce já estiver correto. Para sobrescrever a detecção, use uma associação por linha, `padrão = linguagem` (`*.mdc = markdown`, `conf/nginx/*.conf = nginx`).
 

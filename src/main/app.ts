@@ -83,13 +83,19 @@ function testAuxShell(): LaunchCommand {
 export async function startApp(): Promise<void> {
   // Tests and measurements run against a throwaway profile.
   const userDataOverride = process.env.AGENT_CONTROLLER_USER_DATA;
+  // Keep the old data location after the visual rebrand, so existing sessions and preferences
+  // continue to load instead of silently starting from an empty profile.
+  const existingUserData = app.getPath('userData');
+  app.setName('Aurelium');
+  process.title = 'Aurelium';
   if (userDataOverride) app.setPath('userData', userDataOverride);
+  else app.setPath('userData', existingUserData);
 
   if (!app.requestSingleInstanceLock()) {
     app.quit();
     return;
   }
-  app.setAppUserModelId('dev.agentcontroller.app');
+  app.setAppUserModelId('app.aurelium.desktop');
   // The GPU work runs inside the main process instead of a process of its own: about 40 MB
   // less, which is what keeps the app under its memory ceiling (ADR 0009). The price is that a
   // crash of the video driver takes the whole app down, so a start that did not end well is

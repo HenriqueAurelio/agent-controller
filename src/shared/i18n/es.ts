@@ -32,7 +32,8 @@ export const es: Record<keyof typeof ptBR, string> = {
   'fallback.confirm': '¿Continuar {name} con {agent}?',
   'common.unsavedConfirm': 'Hay ediciones sin guardar en {file}. ¿Descartarlas?',
 
-  'app.titleWaiting': '({count} esperando) Agent Controller',
+  'app.title': 'Aurelium',
+  'app.titleWaiting': '({count} esperando) Aurelium',
   'app.changeFolder': 'Cambiar la carpeta de la sesión',
   'app.changeFolderHint': 'Haz clic para cambiar la carpeta de la sesión',
   'app.seeChanges': 'Ver cambios',
@@ -383,8 +384,8 @@ export const es: Record<keyof typeof ptBR, string> = {
   'prefs.associationsHint':
     'Déjelo vacío si el resaltado ya es correcto. Uno por línea: patrón = lenguaje. Ej.: *.mdc = markdown. Anula la detección por extensión.',
   'prefs.associationsInvalid': 'Líneas ignoradas: {lines}',
-  'codeTheme.app-dark': 'Agent Controller oscuro',
-  'codeTheme.app-light': 'Agent Controller claro',
+  'codeTheme.app-dark': 'Aurelium oscuro',
+  'codeTheme.app-light': 'Aurelium claro',
 
   'changes.title': 'Cambios',
   'changes.allFiles': 'Todos los archivos',
@@ -473,7 +474,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'tree.emptyWithoutHidden': 'Nada que mostrar sin los archivos ocultos.',
   'tree.truncated': 'Hay carpetas con demasiados archivos: solo aparece el comienzo.',
 
-  'main.close.title': 'Cerrar Agent Controller',
+  'main.close.title': 'Cerrar Aurelium',
   'main.close.unsaved': 'Hay ediciones sin guardar en el panel de cambios.',
   'main.close.unsavedDetail': '{file}\n\nCerrar la app las descartará.',
   'main.close.discard': 'Descartar y cerrar',
@@ -482,7 +483,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'main.export.title': 'Exportar configuración',
   'main.export.fileName': 'agent-controller-configuracion.json',
   'main.import.title': 'Importar configuración',
-  'main.settingsFilter': 'Configuración de Agent Controller',
+  'main.settingsFilter': 'Configuración de Aurelium',
   'main.pickFolder': 'Carpeta de la sesión',
   'main.importTheme.title': 'Importar tema de VS Code',
   'main.importTheme.filter': 'Tema de VS Code',
@@ -499,7 +500,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'session.fallbackName': 'Sesión',
 
   'error.prefs.notJson': 'El archivo no es un JSON válido.',
-  'error.prefs.notExport': 'El archivo no es una exportación de configuración de Agent Controller.',
+  'error.prefs.notExport': 'El archivo no es una exportación de configuración de Aurelium.',
   'error.prefs.newer':
     'El archivo viene de una versión más nueva de la app. Actualiza la app para importarlo.',
   'error.prefs.empty': 'El archivo no tiene configuración.',
@@ -747,7 +748,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'timeline.tellAgent': 'Avisar al agente',
   'timeline.tellAgentHint': 'Escribe en la terminal del agente que los archivos volvieron',
   'timeline.tellAgentText':
-    'Volví los archivos de esta carpeta a “{label}” con Agent Controller. Lo que cambió después ya no está en los archivos: vuelve a leer lo que uses antes de seguir.',
+    'Volví los archivos de esta carpeta a “{label}” con Aurelium. Lo que cambió después ya no está en los archivos: vuelve a leer lo que uses antes de seguir.',
   'timeline.told': 'El aviso se escribió en la terminal del agente.',
   'timeline.pair': 'Comparar dos puntos',
   'timeline.from': 'Desde',

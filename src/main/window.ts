@@ -27,6 +27,12 @@ function isAppUrl(url: string): boolean {
   return url.startsWith('file://');
 }
 
+function applicationIcon(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'assets', 'aurelium_logo.png')
+    : path.join(app.getAppPath(), 'assets', 'aurelium_logo.png');
+}
+
 export function createMainWindow(state: WindowState): BrowserWindow {
   const window = new BrowserWindow({
     width: state.width,
@@ -36,7 +42,8 @@ export function createMainWindow(state: WindowState): BrowserWindow {
     minHeight: 400,
     show: false,
     backgroundColor: '#16181d',
-    title: 'Agent Controller',
+    title: app.getName(),
+    icon: applicationIcon(),
     webPreferences: {
       preload: path.join(app.getAppPath(), 'out', 'preload', 'index.cjs'),
       contextIsolation: true,

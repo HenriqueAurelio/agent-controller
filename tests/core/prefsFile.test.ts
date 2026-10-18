@@ -96,7 +96,7 @@ describe('preferences file', () => {
       }
     })();
     expect(errorText('pt-BR', refusal)).toMatch(/não é uma exportação/);
-    expect(errorText('en', refusal)).toMatch(/not an Agent Controller settings export/);
+    expect(errorText('en', refusal)).toMatch(/not an Aurelium settings export/);
   });
 
   it('refuses what is not a file of preferences', () => {

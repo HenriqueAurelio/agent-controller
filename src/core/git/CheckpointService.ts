@@ -24,12 +24,12 @@ export const CHECKPOINT_MAX_FILE_BYTES = MAX_TEXT_BYTES;
 const LOCK_WAIT_MS = 2000;
 
 const IDENTITY = {
-  GIT_AUTHOR_NAME: 'Agent Controller',
-  GIT_AUTHOR_EMAIL: 'agent-controller@localhost',
-  GIT_COMMITTER_NAME: 'Agent Controller',
-  GIT_COMMITTER_EMAIL: 'agent-controller@localhost',
+  GIT_AUTHOR_NAME: 'Aurelium',
+  GIT_AUTHOR_EMAIL: 'aurelium@localhost',
+  GIT_COMMITTER_NAME: 'Aurelium',
+  GIT_COMMITTER_EMAIL: 'aurelium@localhost',
 };
-const SUBJECT = 'agent-controller checkpoint';
+const SUBJECT = 'aurelium checkpoint';
 /** Session ids are UUIDs; anything else never becomes part of a ref name. */
 const SESSION_ID = /^[A-Za-z0-9-]{1,64}$/;
 

@@ -31,7 +31,8 @@ export const en: Record<keyof typeof ptBR, string> = {
   'fallback.confirm': 'Continue {name} with {agent}?',
   'common.unsavedConfirm': 'There are unsaved edits in {file}. Discard them?',
 
-  'app.titleWaiting': '({count} waiting) Agent Controller',
+  'app.title': 'Aurelium',
+  'app.titleWaiting': '({count} waiting) Aurelium',
   'app.changeFolder': 'Change the session folder',
   'app.changeFolderHint': 'Click to change the session folder',
   'app.seeChanges': 'See changes',
@@ -382,8 +383,8 @@ export const en: Record<keyof typeof ptBR, string> = {
   'prefs.associationsHint':
     'Leave blank if highlighting is correct. One per line: pattern = language. E.g.: *.mdc = markdown. Overrides extension detection.',
   'prefs.associationsInvalid': 'Lines ignored: {lines}',
-  'codeTheme.app-dark': 'Agent Controller dark',
-  'codeTheme.app-light': 'Agent Controller light',
+  'codeTheme.app-dark': 'Aurelium dark',
+  'codeTheme.app-light': 'Aurelium light',
 
   'changes.title': 'Changes',
   'changes.allFiles': 'All files',
@@ -471,7 +472,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'tree.emptyWithoutHidden': 'Nothing to show without the hidden files.',
   'tree.truncated': 'Some folders have too many files: only the beginning is shown.',
 
-  'main.close.title': 'Close Agent Controller',
+  'main.close.title': 'Close Aurelium',
   'main.close.unsaved': 'There are unsaved edits in the changes panel.',
   'main.close.unsavedDetail': '{file}\n\nClosing the app will discard them.',
   'main.close.discard': 'Discard and close',
@@ -480,7 +481,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'main.export.title': 'Export settings',
   'main.export.fileName': 'agent-controller-settings.json',
   'main.import.title': 'Import settings',
-  'main.settingsFilter': 'Agent Controller settings',
+  'main.settingsFilter': 'Aurelium settings',
   'main.pickFolder': 'Session folder',
   'main.importTheme.title': 'Import VS Code theme',
   'main.importTheme.filter': 'VS Code theme',
@@ -497,7 +498,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'session.fallbackName': 'Session',
 
   'error.prefs.notJson': 'The file is not valid JSON.',
-  'error.prefs.notExport': 'The file is not an Agent Controller settings export.',
+  'error.prefs.notExport': 'The file is not an Aurelium settings export.',
   'error.prefs.newer':
     'The file came from a newer version of the app. Update the app to import it.',
   'error.prefs.empty': 'The file has no settings.',
@@ -740,7 +741,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'timeline.tellAgent': 'Tell the agent',
   'timeline.tellAgentHint': 'Writes in the agent’s terminal that the files went back',
   'timeline.tellAgentText':
-    'I put the files of this folder back to “{label}” with Agent Controller. What changed after that is no longer in the files: read again what you use before going on.',
+    'I put the files of this folder back to “{label}” with Aurelium. What changed after that is no longer in the files: read again what you use before going on.',
   'timeline.told': 'The note was written in the agent’s terminal.',
   'timeline.pair': 'Compare two points',
   'timeline.from': 'From',
