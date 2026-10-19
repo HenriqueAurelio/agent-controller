@@ -56,7 +56,11 @@ Versões de agente testadas: **Claude Code 2.1.296** e **Codex CLI 0.158.0**, as
 
 ## Instalação
 
-Os instaladores saem do CI a cada tag e ficam na página de releases do repositório.
+Os instaladores para distribuição temporária são gerados manualmente pelo workflow
+`Distribuição temporária`, a partir de uma tag. Ele publica somente os três
+instaladores em uma página GitHub Pages pública; após o download, execute o mesmo
+workflow com a ação `despublicar` para removê-la. Veja a
+[ADR 0011](adr/0011-distribuicao-temporaria-de-builds.md).
 
 **Windows.** Rode `Aurelium-<versão>-setup.exe`. O instalador não é assinado: o Windows mostra o aviso "O Windows protegeu o computador". Clique em **Mais informações** e depois em **Executar assim mesmo**.
 

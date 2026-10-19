@@ -1,15 +1,40 @@
-name: Release
+name: Distribuição temporária
 
-# Builds the installers for every tag `v*` and attaches them to a draft release.
+# A página é pública enquanto existir. Por isso este workflow nunca roda por push ou tag:
+# alguém precisa escolher explicitamente publicar ou despublicar.
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      ação:
+        description: Publicar os instaladores ou despublicar a página temporária
+        required: true
+        type: choice
+        options: [publicar, despublicar]
+      tag:
+        description: Tag distribuída ao publicar (por exemplo v0.1.1)
+        required: false
+        type: string
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
-  installers:
+  validar-publicação:
+    if: inputs.ação == 'publicar'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exigir uma tag de versão
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          test -n "$TAG"
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+
+  instaladores:
+    needs: validar-publicação
+    if: inputs.ação == 'publicar'
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -18,6 +43,8 @@ jobs:
         os: [windows-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
 
       - uses: actions/setup-node@v4
         with:
@@ -33,6 +60,12 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+
+      - name: Confirmar versão da tag
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+        run: test "v$(node -p \"require('./package.json').version\")" = "$TAG"
 
       - name: Package
         run: npx electron-builder --publish never
@@ -51,10 +84,75 @@ jobs:
         env:
           AGENT_CONTROLLER_EXE: ${{ github.workspace }}/dist/linux-unpacked/aurelium
 
-      - uses: softprops/action-gh-release@v2
+      - name: Guardar somente os instaladores
+        uses: actions/upload-artifact@v4
         with:
-          draft: true
-          files: |
+          name: instaladores-${{ runner.os }}
+          if-no-files-found: error
+          path: |
             dist/*.exe
             dist/*.AppImage
             dist/*.deb
+
+  publicar:
+    needs: instaladores
+    if: inputs.ação == 'publicar'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Configurar publicação por GitHub Actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --silent --method PUT "repos/${GITHUB_REPOSITORY}/pages" -f build_type=workflow || \
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/pages" -f build_type=workflow
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: instaladores-*
+          merge-multiple: true
+          path: site/downloads
+
+      - name: Verificar conteúdo público
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(site/downloads/*)
+          test "${#files[@]}" -eq 3
+          for file in "${files[@]}"; do
+            [[ "$(basename "$file")" =~ ^Aurelium-[0-9]+\.[0-9]+\.[0-9]+(-setup)?\.(exe|AppImage|deb)$ ]] || exit 1
+          done
+
+      - name: Criar página de download mínima
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          node <<'NODE'
+          const { readdirSync, writeFileSync } = require('node:fs')
+          const files = readdirSync('site/downloads').sort()
+          const links = files.map((file) => `      <li><a href="downloads/${file}">${file}</a></li>`).join('\n')
+          writeFileSync('site/index.html', `<!doctype html>
+          <html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+          <title>Aurelium ${process.env.TAG}</title>
+          <main><h1>Aurelium ${process.env.TAG}</h1><p>Downloads temporários.</p><ul>
+          ${links}
+          </ul></main></html>`)
+          NODE
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+  despublicar:
+    if: inputs.ação == 'despublicar'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remover a página pública temporária
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method DELETE "repos/${GITHUB_REPOSITORY}/pages"
