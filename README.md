@@ -101,7 +101,7 @@ Com várias sessões no mesmo repositório, dá para juntá-las num **grupo** (p
 - **Criar:** o botão **⊞** no topo da barra lateral, ou "Novo grupo de sessões" na paleta. Também dá para clicar com o botão direito numa sessão e escolher **Novo grupo com…**; ela já entra marcada, inclusive se estiver em outro grupo. O nome já vem com a pasta da sessão aberta, e as sessões abertas nessa pasta já vêm marcadas; ajuste e clique em **Criar grupo**.
 - **Pôr e tirar sessões:** arraste a sessão para o cabeçalho do grupo, ou para entre as sessões dele. Para tirá-la, arraste para a faixa **Solte aqui para tirar do grupo**, que aparece no topo da lista durante o arraste. Pela paleta, "Mover … para o grupo …" e "Tirar … do grupo …". Com o teclado, `Alt+↑` / `Alt+↓` além da borda do grupo leva a sessão para o grupo vizinho, ou para fora.
 - **Nova sessão já no grupo:** o **+** no cabeçalho do grupo. Em **Nova sessão**, o campo **Grupo** também escolhe; **Duplicar** mantém a cópia no mesmo grupo.
-- **Recolher:** clique no cabeçalho. Recolhido, o grupo mostra quantas sessões tem e, em laranja, quantas estão aguardando você; a sessão aberta continua à vista mesmo dentro de um grupo recolhido.
+- **Recolher:** clique no cabeçalho. Recolhido, o grupo mostra quantas sessões tem e, em laranja, quantas estão aguardando você; nenhuma sessão do grupo fica visível na lista. O terminal da sessão aberta continua disponível até você trocar de sessão ou abrir o grupo.
 - **Renomear:** clique duas vezes no nome do grupo (ou `F2` com o cabeçalho focado). **✎** edita o nome e as sessões de uma vez.
 - **Desfazer:** o **×** no cabeçalho desfaz o grupo. **As sessões continuam abertas**, só deixam de estar agrupadas.
 

@@ -52,10 +52,10 @@ test('sessions are gathered in groups that fold, move, and come back after a res
     await page.keyboard.press('Control+2');
     await expect(item(page, 'Back')).toHaveAttribute('aria-selected', 'true');
 
-    // Folded, only the session in sight stays.
+    // Folded, every member is hidden, including the session in sight.
     await repoGroup.locator('.group-header').click();
     await expect(repoGroup.locator('.group-header')).toHaveAttribute('aria-expanded', 'false');
-    await expect(repoGroup.locator('.session-name')).toHaveText(['Back']);
+    await expect(repoGroup.locator('.session-name')).toHaveCount(0);
     await item(page, 'Docs').click();
     await expect(repoGroup.locator('.session-item')).toHaveCount(0);
     await repoGroup.locator('.group-header').click();

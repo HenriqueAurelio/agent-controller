@@ -128,9 +128,9 @@ export function Sidebar({
     .sort((a, b) => metrics[b.id]!.memory - metrics[a.id]!.memory)[0]?.id;
   const showHeaviest = sessions.filter((s) => s.running).length > 1;
 
-  // A collapsed group still shows the session in sight, so the selection is never hidden.
+  // A collapsed group hides every member; its header keeps the counts and attention marks.
   const collapsed = new Set(groups.filter((g) => g.collapsed).map((g) => g.id));
-  const shown = (s: SessionView) => !s.groupId || !collapsed.has(s.groupId) || s.id === selectedId;
+  const shown = (s: SessionView) => !s.groupId || !collapsed.has(s.groupId);
   const visible = sessions.filter(shown);
   const ungrouped = visible.filter((s) => !s.groupId || !groups.some((g) => g.id === s.groupId));
 
