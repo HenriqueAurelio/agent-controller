@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Guia de funcionalidades e uso do Aurelium." />
+    <title>Guia de funcionalidades — Aurelium</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --page: #f7f8fa;
+        --surface: #ffffff;
+        --ink: #1e293b;
+        --muted: #526072;
+        --accent: #2563eb;
+        --line: #d7dce3;
+        --code: #eef2f7;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --page: #10141c;
+          --surface: #171d28;
+          --ink: #e5e7eb;
+          --muted: #b1bac8;
+          --accent: #93c5fd;
+          --line: #303949;
+          --code: #202938;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 2rem;
+        background: var(--page);
+        color: var(--ink);
+        font:
+          16px/1.6 system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+      }
+      header,
+      main,
+      footer {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: clamp(1.25rem, 3vw, 2.5rem);
+      }
+      main {
+        margin-top: 1rem;
+      }
+      footer {
+        margin: 1rem 0 2rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+        scroll-margin-top: 1rem;
+      }
+      h1 {
+        margin-top: 0;
+        font-size: clamp(2rem, 5vw, 3rem);
+      }
+      h2 {
+        border-bottom: 1px solid var(--line);
+        margin-top: 3rem;
+        padding-bottom: 0.5rem;
+      }
+      h3 {
+        margin-top: 2rem;
+      }
+      a {
+        color: var(--accent);
+      }
+      .lead {
+        color: var(--muted);
+        font-size: 1.15rem;
+      }
+      nav {
+        columns: 2;
+        margin: 1.5rem 0 0;
+      }
+      nav ol {
+        margin: 0;
+        padding-left: 1.25rem;
+      }
+      code {
+        background: var(--code);
+        border-radius: 4px;
+        padding: 0.1em 0.3em;
+      }
+      table {
+        border-collapse: collapse;
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+        margin: 1rem 0;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 0.55rem 0.7rem;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: var(--code);
+      }
+      .notice {
+        border-left: 4px solid var(--accent);
+        background: var(--code);
+        padding: 1rem;
+      }
+      @media (max-width: 640px) {
+        body {
+          padding: 0.75rem;
+        }
+        header,
+        main,
+        footer {
+          border-radius: 8px;
+          padding: 1.25rem;
+        }
+        nav {
+          columns: 1;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Guia de funcionalidades</h1>
+      <p class="lead">
+        Aurelium reúne sessões de Claude Code e Codex, revisão de código e coordenação de trabalho
+        em uma única janela.
+      </p>
+      <p>
+        Referência da versão atual — 18 de outubro de 2026.
+        <a href="guia-de-funcionalidades.md">Ver a versão Markdown</a>.
+      </p>
+      <nav aria-label="Sumário">
+        <ol>
+          <li><a href="#inicio">Antes de começar e fluxo rápido</a></li>
+          <li><a href="#sessoes">Sessões, agentes e grupos</a></li>
+          <li><a href="#acompanhar">Acompanhar e responder</a></li>
+          <li><a href="#coordenacao">Isolamento e coordenação</a></li>
+          <li><a href="#revisao">Revisar e editar código</a></li>
+          <li><a href="#qualidade">Qualidade e recuperação</a></li>
+          <li><a href="#prompts">Prompts e automação assistida</a></li>
+          <li><a href="#preferencias">Produtividade e preferências</a></li>
+          <li><a href="#limites">Limites atuais</a></li>
+        </ol>
+      </nav>
+    </header>
+    <main>
+      <section id="inicio">
+        <h2>Antes de começar e fluxo rápido</h2>
+        <p>
+          O aplicativo funciona em Windows e Linux. Instale e autentique Claude Code e/ou Codex CLI
+          no <code>PATH</code>. O Git 2.15 ou superior é necessário para diff, worktrees,
+          checkpoints e operações de git.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Dependência</th>
+              <th>Como conferir</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Claude Code</td>
+              <td><code>claude --version</code></td>
+            </tr>
+            <tr>
+              <td>Codex CLI</td>
+              <td><code>codex --version</code></td>
+            </tr>
+            <tr>
+              <td>Git</td>
+              <td><code>git --version</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <ol>
+          <li>
+            Abra <strong>+ Nova sessão</strong> (<code>Ctrl+Shift+N</code>), escolha pasta, nome e
+            agente.
+          </li>
+          <li>Clique em <strong>Criar e iniciar</strong> e use o terminal normalmente.</li>
+          <li>
+            Acompanhe os estados; responda a permissões ou perguntas quando a sessão aguardar você.
+          </li>
+          <li>
+            Abra <strong>Ver mudanças</strong> (<code>Ctrl+Shift+G</code>) para revisar o resultado.
+          </li>
+          <li>Configure verificações para executar lint, testes e typecheck após os turnos.</li>
+        </ol>
+      </section>
+      <section id="sessoes">
+        <h2>Sessões, agentes e grupos</h2>
+        <h3>Criar e administrar sessões</h3>
+        <ul>
+          <li>
+            Escolha pasta, nome, Claude Code ou Codex e, opcionalmente, grupo, comando e worktree.
+          </li>
+          <li>
+            Pastas recentes aparecem no formulário; a estrela torna uma pasta favorita. Arraste uma
+            pasta ou arquivo para a janela para abrir o formulário preenchido.
+          </li>
+          <li>
+            <strong>Duplicar</strong> cria uma sessão com a mesma configuração. Clique no caminho
+            para trocar a pasta; isso reinicia o agente e não preserva a conversa.
+          </li>
+          <li>
+            Para parar o agente sem fechar a sessão, use a paleta ou <code>/exit</code>. Abrir uma
+            sessão parada, ou pressionar <code>Enter</code> após a saída do agente, inicia-o
+            novamente.
+          </li>
+        </ul>
+        <h3>Comando personalizado</h3>
+        <p>
+          O campo <strong>Comando</strong> aceita aliases, funções e argumentos como
+          <code>claude-work --model opus</code>. Há também um padrão por agente em
+          <strong>Preferências → Agentes</strong>. Ele roda no shell interativo (PowerShell no
+          Windows e <code>$SHELL</code> no Linux). Mantenha o perfil do agente coerente com o
+          comando; uma função deve encaminhar argumentos (<code>@args</code> no PowerShell e
+          <code>"$@"</code> no bash) para preservar os sinais de estado.
+        </p>
+        <h3>Grupos</h3>
+        <p>
+          Crie grupos pelo botão <strong>⊞</strong> ou pela paleta. Arraste sessões para organizar
+          repositórios, use o <strong>+</strong> do cabeçalho para criar uma sessão já no grupo,
+          clique no cabeçalho para recolher, use <code>F2</code> para renomear e
+          <strong>×</strong> para dissolver sem fechar sessões. <code>Alt+↑</code>/<code
+            >Alt+↓</code
+          >
+          reordena sessões e grupos.
+        </p>
+      </section>
+      <section id="acompanhar">
+        <h2>Acompanhar e responder</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Estado</th>
+              <th>Significado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Parada</td>
+              <td>Agente não executando; abra a sessão ou pressione <code>Enter</code>.</td>
+            </tr>
+            <tr>
+              <td>Iniciando</td>
+              <td>O processo abriu e ainda não mostrou o prompt.</td>
+            </tr>
+            <tr>
+              <td>Trabalhando</td>
+              <td>O agente está em um turno.</td>
+            </tr>
+            <tr>
+              <td>Aguardando você</td>
+              <td>Há uma pergunta, permissão ou prompt esperando.</td>
+            </tr>
+            <tr>
+              <td>Terminou</td>
+              <td>O turno acabou.</td>
+            </tr>
+            <tr>
+              <td>Erro</td>
+              <td>O agente não abriu ou saiu com erro; consulte o terminal.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Bolinha cheia representa um estado informado pelo agente. Bolinha tracejada significa
+          estado estimado, configurável nas preferências. O aplicativo envia notificações para
+          sessões em segundo plano e exibe a quantidade aguardando no título.
+        </p>
+        <h3>Painel geral</h3>
+        <p>
+          <code>Ctrl+Shift+O</code> abre cartões por grupo com estado, últimas linhas do terminal,
+          branch, arquivos alterados, verificações, fila e conflitos. Filtre por estado, ordene por
+          atenção, use as setas para navegar e <code>Enter</code> para abrir uma sessão.
+        </p>
+        <h3>Permissões sem abrir a sessão</h3>
+        <p>
+          Pedidos de permissão mostram a ferramenta/arquivo e os botões <strong>✓</strong>,
+          <strong>✕</strong> e, quando disponível, <strong>sempre</strong>. Na sessão ativa,
+          <code>Alt+Y</code> permite e <code>Alt+N</code> nega. O app só responde ao menu que
+          continua na tela; perguntas abertas devem ser respondidas no terminal. No Codex, confie
+          nos hooks quando solicitado para habilitar o recurso.
+        </p>
+      </section>
+      <section id="coordenacao">
+        <h2>Isolamento e coordenação</h2>
+        <h3>Cópias isoladas e conflitos</h3>
+        <p>
+          Marque <strong>Cópia isolada (git worktree)</strong> em uma pasta git para criar uma
+          branch e uma pasta próprias, sugeridas como <code>ac/&lt;nome&gt;</code>. Ao fechar,
+          mantenha ou remova a cópia; ela só é removida sem alterações não commitadas e sem outra
+          sessão usando-a. A branch permanece. Preferências permite alterar a pasta, comando de
+          preparo e cópias inativas.
+        </p>
+        <p>
+          <strong>⚠ n</strong> marca arquivos alterados em outra cópia; vermelho indica provável
+          conflito de linhas. Ajuste as regras de detecção em
+          <strong>Preferências → Sessões</strong>.
+        </p>
+        <h3>Quadro de tarefas</h3>
+        <p>
+          <code>Ctrl+Shift+B</code> abre um quadro por repositório: <strong>A fazer</strong>,
+          <strong>Em andamento</strong>, <strong>Precisa de você</strong>,
+          <strong>Revisar</strong> e <strong>Feito</strong>. Crie cartões, inclusive em lote colando
+          títulos, e use <strong>Iniciar</strong> para criar sessão, worktree opcional e enviar a
+          descrição. As colunas centrais acompanham o estado; é possível iniciar até quatro cartões
+          selecionados.
+        </p>
+        <h3>Experimentos, revisor e fluxos</h3>
+        <p>
+          <strong>Melhor de N</strong> executa um pedido em uma a quatro worktrees, compara estado,
+          verificações e diffs lado a lado, e permite manter uma tentativa.
+          <strong>Revisor</strong> cria ou seleciona uma sessão de leitura para avaliar o diff de
+          cada turno; você escolhe as observações a devolver. Em <strong>Fluxos</strong> (⇢ no
+          grupo), regras passam uma mensagem da origem ao destino após um evento. Há modelos de
+          autor/revisor e plano/implementação/revisão; por padrão, cada envio aguarda sua aprovação
+          e respeita um limite de voltas.
+        </p>
+      </section>
+      <section id="revisao">
+        <h2>Revisar e editar código</h2>
+        <h3>Painel de mudanças e git</h3>
+        <p>
+          <code>Ctrl+Shift+G</code> abre diffs de arquivos adicionados, modificados, removidos,
+          renomeados e não rastreados. Compare com o último commit, o início da sessão ou o turno
+          anterior. O lado atual do arquivo pode ser editado e salvo com <code>Ctrl+S</code>, com
+          proteção se o agente alterá-lo ao mesmo tempo.
+        </p>
+        <p>
+          O painel usa realce de sintaxe do VS Code/TextMate. Ao comparar com o último commit, faça
+          stage de arquivos ou partes, crie commit com mensagem (<code>Ctrl+Enter</code>) e descarte
+          arquivos com recuperação por 30 dias. O app não faz push nem <code>--amend</code>.
+        </p>
+        <h3>Arquivos, links e busca</h3>
+        <p>
+          <strong>Todos os arquivos</strong> (<code>Ctrl+Shift+E</code>) abre uma árvore editável da
+          pasta; <code>Ctrl+Shift+H</code> revela itens ocultos e ignorados.
+          <code>Ctrl+clique</code> em caminhos no terminal ou nas verificações abre o arquivo/linha
+          no editor; links HTTP abrem no navegador. <code>Ctrl+P</code> faz busca aproximada em
+          todos os arquivos e aceita <code>nome:42</code> ou <code>nome:42:7</code> para linha e
+          coluna.
+        </p>
+      </section>
+      <section id="qualidade">
+        <h2>Qualidade e recuperação</h2>
+        <h3>Verificações e Problemas</h3>
+        <p>
+          Em <strong>Verificações</strong>, salve comandos como lint, typecheck e test, com prazo e
+          execução no fim do turno. Eles rodam no shell da sessão;
+          <strong>Rodar agora</strong> executa manualmente e há no máximo duas sessões verificando
+          ao mesmo tempo. Uma falha pode preencher um prompt para o agente.
+        </p>
+        <p>
+          A aba <strong>Problemas</strong> interpreta saídas de TypeScript, ESLint, Vitest/Jest,
+          Cargo e o formato <code>arquivo:linha:coluna</code>. Clique para abrir o local ou
+          selecione erros e use <strong>Mandar N marcados</strong>.
+        </p>
+        <h3>Linha do tempo e checkpoints</h3>
+        <p>
+          Após um turno que altera uma pasta git, o app pode salvar uma foto interna em uma ref do
+          git. A <strong>Linha do tempo</strong> permite comparar pontos, ver o diff de cada turno e
+          voltar os arquivos a um checkpoint, criando uma foto de segurança e oferecendo desfazer.
+          Isso não restaura a conversa do agente. Em Preferências, ajuste retenção, poda e ativação;
+          arquivos acima de 2 MB não entram na foto.
+        </p>
+      </section>
+      <section id="prompts">
+        <h2>Prompts e automação assistida</h2>
+        <p>
+          Em <strong>Preferências → Prompts</strong>, salve textos e atalhos. Use a paleta, o editor
+          ou sessões selecionadas para enviar prompts. Variáveis incluem <code>{sessao}</code>,
+          <code>{pasta}</code>, <code>{branch}</code>, <code>{arquivo}</code>,
+          <code>{selecao}</code>, <code>{problemas}</code> e perguntas <code>{?texto}</code>. A
+          prévia permite revisar o envio; por padrão ele é colado sem Enter.
+        </p>
+        <p>
+          <strong>Pôr na fila</strong> encadeia até 20 itens por sessão. Cada item pode esperar o
+          fim do turno ou as verificações passarem. A fila sempre envia com Enter; no diálogo,
+          reordene, edite, pause, retome, apague ou mande o próximo. Filas restauradas voltam
+          pausadas e não avançam diante de estados estimados, perguntas ou permissões.
+        </p>
+      </section>
+      <section id="preferencias">
+        <h2>Produtividade e preferências</h2>
+        <p>
+          O <strong>Terminal auxiliar</strong> (<code>Ctrl+Shift+"</code>) abre um shell separado na
+          pasta da sessão; ele não interfere no agente e pode ficar abaixo ou à direita.
+          <code>Ctrl+Shift+T</code> devolve o foco ao terminal do agente.
+        </p>
+        <p>
+          Em <strong>Preferências → Layout</strong>, mova sessões, painel, árvore e terminal
+          auxiliar. Em <strong>Geral</strong>, selecione Português, English ou Español. Em
+          <strong>Editor</strong>, escolha entre 33 temas de código, importe temas JSON do VS Code e
+          defina associações de linguagem.
+        </p>
+        <p>
+          <strong>Importar e exportar</strong> salva idioma, avisos, favoritos, comandos, prompts,
+          temas, layout e atalhos em JSON; sessões e verificações por pasta não entram. Importe
+          somente arquivos confiáveis, pois comandos de agentes importados podem executar no futuro.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Atalho</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Ctrl+Shift+N</code></td>
+              <td>Nova sessão</td>
+            </tr>
+            <tr>
+              <td><code>Ctrl+Tab</code> / <code>Ctrl+Shift+Tab</code></td>
+              <td>Próxima/anterior sessão</td>
+            </tr>
+            <tr>
+              <td><code>Ctrl+Shift+P</code></td>
+              <td>Paleta de comandos</td>
+            </tr>
+            <tr>
+              <td><code>Ctrl+Shift+M</code></td>
+              <td>Enviar prompt</td>
+            </tr>
+            <tr>
+              <td><code>Ctrl+Shift+G</code> / <code>Ctrl+Shift+E</code></td>
+              <td>Mudanças / todos os arquivos</td>
+            </tr>
+            <tr>
+              <td><code>Ctrl+P</code></td>
+              <td>Abrir arquivo rápido</td>
+            </tr>
+            <tr>
+              <td><code>Ctrl+Shift+O</code> / <code>Ctrl+Shift+B</code></td>
+              <td>Painel geral / quadro</td>
+            </tr>
+            <tr>
+              <td><code>Ctrl+,</code></td>
+              <td>Preferências</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+      <section id="limites">
+        <h2>Limites atuais</h2>
+        <div class="notice">
+          <ul>
+            <li>
+              Os perfis disponíveis são Claude Code e Codex; não há SSH, macOS ou outros agentes.
+            </li>
+            <li>O app não faz push, merge/rebase para a base nem abre pull requests.</li>
+            <li>
+              Conversas não são retomadas automaticamente; o histórico do terminal não é preservado.
+            </li>
+            <li>
+              Busca no projeto, seguir o agente, histórico/blame, tela dividida, multibuffer,
+              formatar ao salvar, extensões, comentários no diff e uso/custo são propostas, não
+              recursos atuais.
+            </li>
+          </ul>
+        </div>
+      </section>
+    </main>
+    <footer>
+      Consulte também o <a href="../README.md">README</a>, as
+      <a href="../DECISOES-E-RISCOS.md">decisões e riscos</a> e as
+      <a href="../adr/README.md">ADRs</a>.
+    </footer>
+  </body>
+</html>

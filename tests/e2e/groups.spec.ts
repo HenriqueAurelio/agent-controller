@@ -52,10 +52,10 @@ test('sessions are gathered in groups that fold, move, and come back after a res
     await page.keyboard.press('Control+2');
     await expect(item(page, 'Back')).toHaveAttribute('aria-selected', 'true');
 
-    // Folded, only the session in sight stays.
+    // Folded, every member is hidden, including the session in sight.
     await repoGroup.locator('.group-header').click();
     await expect(repoGroup.locator('.group-header')).toHaveAttribute('aria-expanded', 'false');
-    await expect(repoGroup.locator('.session-name')).toHaveText(['Back']);
+    await expect(repoGroup.locator('.session-name')).toHaveCount(0);
     await item(page, 'Docs').click();
     await expect(repoGroup.locator('.session-item')).toHaveCount(0);
     await repoGroup.locator('.group-header').click();
@@ -133,6 +133,35 @@ test('sessions are gathered in groups that fold, move, and come back after a res
     }
   } finally {
     if (!closed) await running.close();
+    removeDir(userData);
+    removeDir(base);
+  }
+});
+
+test('a session can start a new group from its context menu', async () => {
+  const userData = tempDir('ac-e2e-group-context-');
+  const base = tempDir('ac-e2e-group-context-dir-');
+  const folder = path.join(base, 'context-repo');
+  fs.mkdirSync(folder);
+  const running = await launch(userData);
+  try {
+    const { page } = running;
+    await createSession(page, 'Implementação', folder);
+
+    await expect(page.getByTestId('new-group-button')).toBeVisible();
+    await item(page, 'Implementação').click({ button: 'right' });
+    const menu = page.getByRole('menu', { name: 'Ações para Implementação' });
+    await menu.getByRole('menuitem', { name: 'Novo grupo com Implementação' }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Novo grupo' });
+    await expect(dialog.getByLabel('Nome do grupo')).toHaveValue('context-repo');
+    await expect(dialog.getByRole('checkbox', { name: /Implementação/ })).toBeChecked();
+    await dialog.getByLabel('Nome do grupo').fill('Entrega');
+    await dialog.getByRole('button', { name: 'Criar grupo' }).click();
+
+    await expect(group(page, 'Entrega').locator('.session-name')).toHaveText(['Implementação']);
+  } finally {
+    await running.close();
     removeDir(userData);
     removeDir(base);
   }

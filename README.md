@@ -1,6 +1,10 @@
-# Agent Controller
+# Aurelium
 
 Um app desktop que reúne sessões de **Claude Code** e **Codex** em uma janela só, avisa quando um agente termina ou precisa de você, e mostra o que ele alterou no código.
+
+Para uma visão consolidada das funcionalidades e dos fluxos de uso, veja o [Guia de funcionalidades](docs/guia-de-funcionalidades.md) (também disponível em [HTML](docs/guia-de-funcionalidades.html)).
+
+Para gerar, instalar e testar uma versão local empacotada no Windows ou Linux, siga o [guia de instalação e teste local](docs/instalacao-e-teste-local.md).
 
 - Windows e Linux.
 - Cada sessão é um terminal de verdade: o agente roda nele como rodaria no seu terminal.
@@ -8,7 +12,7 @@ Um app desktop que reúne sessões de **Claude Code** e **Codex** em uma janela 
 
 ## A ideia do projeto
 
-Quem trabalha com agentes de código hoje vive entre muitas janelas: um terminal por agente, o editor para revisar, o git para desfazer, e o próprio caderno para lembrar quem está fazendo o quê. O Agent Controller quer ser **o lugar único do dev que trabalha com agentes**:
+Quem trabalha com agentes de código hoje vive entre muitas janelas: um terminal por agente, o editor para revisar, o git para desfazer, e o próprio caderno para lembrar quem está fazendo o quê. O Aurelium quer ser **o lugar único do dev que trabalha com agentes**:
 
 - **Centralizador.** Todos os agentes, de todos os projetos, numa janela, com o estado de cada um à vista e um aviso quando algum precisa de você.
 - **Orquestrador.** O app não só mostra os agentes: ele coordena o trabalho entre eles. Ele isola cada um numa cópia do repositório, roda as verificações quando um turno termina, manda prompts a várias sessões, e cada vez mais passa o trabalho de uma sessão para outra (implementar → revisar → corrigir).
@@ -52,19 +56,23 @@ Versões de agente testadas: **Claude Code 2.1.296** e **Codex CLI 0.158.0**, as
 
 ## Instalação
 
-Os instaladores saem do CI a cada tag e ficam na página de releases do repositório.
+Os instaladores para distribuição temporária são gerados manualmente pelo workflow
+`Distribuição temporária`, a partir de uma tag. Ele publica somente os três
+instaladores em uma página GitHub Pages pública; após o download, execute o mesmo
+workflow com a ação `despublicar` para removê-la. Veja a
+[ADR 0011](adr/0011-distribuicao-temporaria-de-builds.md).
 
-**Windows.** Rode `agent-controller-<versão>-setup.exe`. O instalador não é assinado: o Windows mostra o aviso "O Windows protegeu o computador". Clique em **Mais informações** e depois em **Executar assim mesmo**.
+**Windows.** Rode `Aurelium-<versão>-setup.exe`. O instalador não é assinado: o Windows mostra o aviso "O Windows protegeu o computador". Clique em **Mais informações** e depois em **Executar assim mesmo**.
 
 **Linux.** Escolha um dos dois:
 
 ```bash
 # .deb (Debian, Ubuntu)
-sudo apt install ./agent-controller-<versão>.deb
+sudo apt install ./Aurelium-<versão>.deb
 
 # AppImage (qualquer distribuição)
-chmod +x agent-controller-<versão>.AppImage
-./agent-controller-<versão>.AppImage
+chmod +x Aurelium-<versão>.AppImage
+./Aurelium-<versão>.AppImage
 ```
 
 Não há atualização automática no v1: para atualizar, instale a versão nova por cima.
@@ -94,10 +102,10 @@ Outros caminhos para o mesmo lugar:
 
 Com várias sessões no mesmo repositório, dá para juntá-las num **grupo** (por exemplo, `XXX-REPO`) e ver cada repositório como um bloco na barra lateral.
 
-- **Criar:** o botão **⊞** no topo da barra lateral, ou "Novo grupo de sessões" na paleta. O nome já vem com a pasta da sessão aberta, e as sessões abertas nessa pasta já vêm marcadas; ajuste e clique em **Criar grupo**.
+- **Criar:** o botão **⊞** no topo da barra lateral, ou "Novo grupo de sessões" na paleta. Também dá para clicar com o botão direito numa sessão e escolher **Novo grupo com…**; ela já entra marcada, inclusive se estiver em outro grupo. O nome já vem com a pasta da sessão aberta, e as sessões abertas nessa pasta já vêm marcadas; ajuste e clique em **Criar grupo**.
 - **Pôr e tirar sessões:** arraste a sessão para o cabeçalho do grupo, ou para entre as sessões dele. Para tirá-la, arraste para a faixa **Solte aqui para tirar do grupo**, que aparece no topo da lista durante o arraste. Pela paleta, "Mover … para o grupo …" e "Tirar … do grupo …". Com o teclado, `Alt+↑` / `Alt+↓` além da borda do grupo leva a sessão para o grupo vizinho, ou para fora.
 - **Nova sessão já no grupo:** o **+** no cabeçalho do grupo. Em **Nova sessão**, o campo **Grupo** também escolhe; **Duplicar** mantém a cópia no mesmo grupo.
-- **Recolher:** clique no cabeçalho. Recolhido, o grupo mostra quantas sessões tem e, em laranja, quantas estão aguardando você; a sessão aberta continua à vista mesmo dentro de um grupo recolhido.
+- **Recolher:** clique no cabeçalho. Recolhido, o grupo mostra quantas sessões tem e, em laranja, quantas estão aguardando você; nenhuma sessão do grupo fica visível na lista. O terminal da sessão aberta continua disponível até você trocar de sessão ou abrir o grupo.
 - **Renomear:** clique duas vezes no nome do grupo (ou `F2` com o cabeçalho focado). **✎** edita o nome e as sessões de uma vez.
 - **Desfazer:** o **×** no cabeçalho desfaz o grupo. **As sessões continuam abertas**, só deixam de estar agrupadas.
 
@@ -132,7 +140,7 @@ A bolinha ao lado do nome da sessão mostra o estado:
 | **Terminou** | O turno acabou |
 | **Erro** | O agente saiu com erro, ou não pôde ser aberto. O motivo aparece no terminal |
 
-"Aguardando você" é o estado que pede uma ação sua, e por isso é o que mais chama atenção: a linha da sessão fica destacada em âmbar, o estado vira uma etiqueta preenchida e a bolinha pulsa. O título da janela mostra quantas sessões estão aguardando, por exemplo `(3 aguardando) Agent Controller`, o que aparece na barra de tarefas mesmo com o app em segundo plano.
+"Aguardando você" é o estado que pede uma ação sua, e por isso é o que mais chama atenção: a linha da sessão fica destacada em âmbar, o estado vira uma etiqueta preenchida e a bolinha pulsa. O título da janela mostra quantas sessões estão aguardando, por exemplo `(3 aguardando) Aurelium`, o que aparece na barra de tarefas mesmo com o app em segundo plano.
 
 Bolinha **cheia** quer dizer que o próprio agente informou o estado. Bolinha **vazada e tracejada**, com o texto "**Possivelmente** aguardando você", quer dizer que o app só está supondo: o agente ficou alguns segundos sem escrever nada, e isso tanto pode ser uma pergunta quanto um build demorado e silencioso. O tempo dessa suposição é ajustável nas preferências, e 0 a desliga.
 
@@ -395,7 +403,7 @@ Este README descreve o app em português; em inglês, os nomes dos botões e men
 
 Em **Preferências → Editor**:
 
-- **Com o app escuro** e **Com o app claro**: o tema de cores do código em cada tema do app, com uma prévia ao lado. Vêm 33 temas do VS Code (Dark+, Light+, Monokai, One Dark Pro, Dracula, GitHub, Solarized, Nord, Tokyo Night, Catppuccin e outros). O padrão, **Agent Controller escuro/claro**, usa as cores do Dark+/Light+ com o fundo do app.
+- **Com o app escuro** e **Com o app claro**: o tema de cores do código em cada tema do app, com uma prévia ao lado. Vêm 33 temas do VS Code (Dark+, Light+, Monokai, One Dark Pro, Dracula, GitHub, Solarized, Nord, Tokyo Night, Catppuccin e outros). O padrão, **Aurelium escuro/claro**, usa as cores do Dark+/Light+ com o fundo do app.
 - **Importar tema do VS Code…**: um arquivo `.json` de tema, como os que vêm nas extensões de tema do VS Code (na pasta `themes` da extensão). O tema importado passa a valer na hora e pode ser removido na mesma tela. Um tema que só estende outro (`include`) não é aceito.
 - **Forçar linguagem para arquivos**: deixe vazio se o realce já estiver correto. Para sobrescrever a detecção, use uma associação por linha, `padrão = linguagem` (`*.mdc = markdown`, `conf/nginx/*.conf = nginx`).
 
@@ -430,6 +438,8 @@ As sessões, as verificações de cada pasta e os temas importados não vão no 
 | sem atalho de fábrica | Próxima sessão aguardando você; fechar a sessão atual; novo grupo de sessões |
 | `Ctrl+clique` | Num caminho (`arquivo:linha`) ou endereço, no terminal e na saída das verificações: abre o arquivo na linha, ou o navegador (fixo) |
 | `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copiar / colar no terminal. No Windows, `Ctrl+C` com texto selecionado e `Ctrl+V` também |
+
+Uma colagem direta no terminal é entregue inteira ao Claude Code ou Codex: o Aurelium não aplica um limite próprio de tamanho. Em colagens grandes, mostra por alguns segundos uma indicação compacta com a quantidade de linhas e caracteres. Quando o Claude Code mostra “pasted lines”, é só a forma dele de resumir visualmente uma colagem com muitas linhas; não indica que o texto foi cortado. Isso é diferente do diálogo e da fila de prompts, que têm limites próprios porque guardam texto e podem enviá-lo a várias sessões.
 
 Esses são os atalhos de fábrica. Em **Preferências → Atalhos** cada ação pode ter os seus: clique em **+**, pressione as teclas e pronto; o **×** ao lado de um atalho o remove, e **Restaurar padrões** desfaz tudo. Uma ação aceita até quatro atalhos. Se a combinação já era de outra ação, ela muda de dono. Para não atrapalhar o que você digita no terminal, um atalho precisa de `Ctrl`, `Alt` ou de uma tecla de função, e não pode ser um dos que o terminal, o editor e o painel usam (`Ctrl+C`, `Ctrl+V`, `Ctrl+S`, `F2`, `F6`, `F12`, `Ctrl+Espaço`).
 

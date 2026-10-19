@@ -1,7 +1,7 @@
 {
   "name": "agent-controller",
-  "productName": "Agent Controller",
-  "version": "0.1.0",
+  "productName": "Aurelium",
+  "version": "0.1.1",
   "description": "Sessões de Claude Code e Codex em uma janela só, com avisos de estado e visão das mudanças.",
   "author": {
     "name": "Henrique",

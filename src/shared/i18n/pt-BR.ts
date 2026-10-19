@@ -32,7 +32,8 @@ export const ptBR = {
   'fallback.confirm': 'Continuar {name} com {agent}?',
   'common.unsavedConfirm': 'Há edições não salvas em {file}. Descartar?',
 
-  'app.titleWaiting': '({count} aguardando) Agent Controller',
+  'app.title': 'Aurelium',
+  'app.titleWaiting': '({count} aguardando) Aurelium',
   'app.changeFolder': 'Trocar a pasta da sessão',
   'app.changeFolderHint': 'Clique para trocar a pasta da sessão',
   'app.seeChanges': 'Ver mudanças',
@@ -207,6 +208,8 @@ export const ptBR = {
   'sidebar.close': 'Fechar {name}',
   'sidebar.new': '+ Nova sessão',
   'sidebar.newGroup': 'Novo grupo: junte as sessões de um repositório',
+  'sidebar.sessionMenu': 'Ações para {name}',
+  'sidebar.newGroupWithSession': 'Novo grupo com {name}',
   'sidebar.ungroupedDrop': 'Solte aqui para tirar do grupo',
   'group.expand': 'Mostrar as sessões de {name}',
   'group.collapse': 'Recolher {name}',
@@ -230,6 +233,7 @@ export const ptBR = {
 
   'terminal.empty.title': 'Nenhuma sessão',
   'terminal.empty.body': 'Crie uma sessão para abrir o Claude Code ou o Codex em uma pasta.',
+  'terminal.largePaste': 'Colando {lines} linhas ({characters} caracteres)',
   'aux.title': 'Terminal auxiliar',
   'aux.close': 'Fechar o terminal auxiliar',
   'aux.closeHint': 'Fecha o shell e tudo o que ele estiver rodando',
@@ -383,8 +387,8 @@ export const ptBR = {
   'prefs.associationsHint':
     'Deixe vazio se o realce já estiver correto. Uma por linha: padrão = linguagem. Ex.: *.mdc = markdown. Vale antes da extensão.',
   'prefs.associationsInvalid': 'Linhas ignoradas: {lines}',
-  'codeTheme.app-dark': 'Agent Controller escuro',
-  'codeTheme.app-light': 'Agent Controller claro',
+  'codeTheme.app-dark': 'Aurelium escuro',
+  'codeTheme.app-light': 'Aurelium claro',
 
   'changes.title': 'Mudanças',
   'changes.allFiles': 'Todos os arquivos',
@@ -470,7 +474,7 @@ export const ptBR = {
   'tree.emptyWithoutHidden': 'Nada para mostrar sem os arquivos ocultos.',
   'tree.truncated': 'Há pastas com arquivos demais: só o começo aparece.',
 
-  'main.close.title': 'Fechar o Agent Controller',
+  'main.close.title': 'Fechar o Aurelium',
   'main.close.unsaved': 'Há edições não salvas no painel de mudanças.',
   'main.close.unsavedDetail': '{file}\n\nFechar o app vai descartá-las.',
   'main.close.discard': 'Descartar e fechar',
@@ -479,7 +483,7 @@ export const ptBR = {
   'main.export.title': 'Exportar configurações',
   'main.export.fileName': 'agent-controller-configuracoes.json',
   'main.import.title': 'Importar configurações',
-  'main.settingsFilter': 'Configurações do Agent Controller',
+  'main.settingsFilter': 'Configurações do Aurelium',
   'main.pickFolder': 'Pasta da sessão',
   'main.importTheme.title': 'Importar tema do VS Code',
   'main.importTheme.filter': 'Tema do VS Code',
@@ -496,7 +500,7 @@ export const ptBR = {
   'session.fallbackName': 'Sessão',
 
   'error.prefs.notJson': 'O arquivo não é um JSON válido.',
-  'error.prefs.notExport': 'O arquivo não é uma exportação de configurações do Agent Controller.',
+  'error.prefs.notExport': 'O arquivo não é uma exportação de configurações do Aurelium.',
   'error.prefs.newer':
     'O arquivo veio de uma versão mais nova do app. Atualize o app para importar.',
   'error.prefs.empty': 'O arquivo não tem configurações.',
@@ -741,7 +745,7 @@ export const ptBR = {
   'timeline.tellAgent': 'Avisar o agente',
   'timeline.tellAgentHint': 'Escreve no terminal do agente que os arquivos voltaram',
   'timeline.tellAgentText':
-    'Voltei os arquivos desta pasta a “{label}” pelo Agent Controller. O que mudou depois disso não está mais nos arquivos: leia de novo o que for usar antes de continuar.',
+    'Voltei os arquivos desta pasta a “{label}” pelo Aurelium. O que mudou depois disso não está mais nos arquivos: leia de novo o que for usar antes de continuar.',
   'timeline.told': 'O aviso foi escrito no terminal do agente.',
   'timeline.pair': 'Comparar dois pontos',
   'timeline.from': 'De',

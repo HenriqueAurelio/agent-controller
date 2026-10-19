@@ -88,6 +88,8 @@ export function App() {
   const [newGroup, setNewGroup] = useState<string | undefined>(undefined);
   /** The group being edited in the group dialog; none, a new one. */
   const [editedGroup, setEditedGroup] = useState<SessionGroup | undefined>(undefined);
+  /** Session explicitly chosen while creating a group from its context menu. */
+  const [groupInitialSessionId, setGroupInitialSessionId] = useState<string | undefined>(undefined);
   const [dropping, setDropping] = useState(false);
   const [closing, setClosing] = useState<SessionView | null>(null);
   const [changesOpen, setChangesOpen] = useState(false);
@@ -244,7 +246,7 @@ export function App() {
   // The taskbar says how many agents are waiting, even with the window out of sight.
   const waiting = sessions.filter((s) => s.status.state === 'aguardando' && s.running).length;
   useEffect(() => {
-    document.title = waiting > 0 ? t('app.titleWaiting', { count: waiting }) : 'Agent Controller';
+    document.title = waiting > 0 ? t('app.titleWaiting', { count: waiting }) : t('app.title');
   }, [waiting, t]);
 
   // What is on top of the terminal right now, readable from a callback that runs later.
@@ -354,8 +356,9 @@ export function App() {
     setNewGroup(groupId);
     setOverlay('new');
   }, []);
-  const editGroup = useCallback((group?: SessionGroup) => {
+  const editGroup = useCallback((group?: SessionGroup, initialSessionId?: string) => {
     setEditedGroup(group);
+    setGroupInitialSessionId(initialSessionId);
     setOverlay('group');
   }, []);
 
@@ -759,7 +762,10 @@ export function App() {
     if (!overlay && !closing && !changesOpen) focusTerminal();
   }, [overlay, closing, changesOpen, selectedId, focusTerminal]);
 
-  const closeOverlay = () => setOverlay(null);
+  const closeOverlay = () => {
+    setOverlay(null);
+    setGroupInitialSessionId(undefined);
+  };
   const detail = selected && statusDetail(t, selected.status.detail);
 
   return (
@@ -1064,7 +1070,13 @@ export function App() {
       {overlay === 'flow' && flowGroup && (
         <FlowDialog key={flowGroup.id} group={flowGroup} onClose={closeOverlay} />
       )}
-      {overlay === 'group' && <GroupDialog group={editedGroup} onClose={closeOverlay} />}
+      {overlay === 'group' && (
+        <GroupDialog
+          group={editedGroup}
+          initialSessionId={groupInitialSessionId}
+          onClose={closeOverlay}
+        />
+      )}
       {overlay === 'checks' && selected && (
         <ChecksDialog
           key={selected.id}

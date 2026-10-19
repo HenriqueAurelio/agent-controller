@@ -9,7 +9,7 @@ import {
 import { AUX_SCROLLBACK, auxTerminalId, type SessionView } from '@shared/session';
 import { useT } from '../lib/i18n';
 import { useAppState } from '../lib/store';
-import { TerminalHost } from '../lib/terminalHost';
+import { LARGE_PASTE_EVENT, TerminalHost, type LargePasteDetail } from '../lib/terminalHost';
 import { TerminalPool } from '../lib/terminalPool';
 
 export interface TerminalAreaHandle {
@@ -51,6 +51,8 @@ export function TerminalArea({ session, sessionIds, ref }: Props) {
   const auxOpen = session?.auxOpen === true;
   const auxPlace = prefs.layout.aux;
   const [split, setSplit] = useState(DEFAULT_SPLIT);
+  const [largePaste, setLargePaste] = useState<LargePasteDetail | null>(null);
+  const pasteNoticeTimer = useRef<number | undefined>(undefined);
   /** The shell was opened from here: it takes the keyboard once it is mounted. */
   const focusAuxRef = useRef(false);
 
@@ -74,6 +76,23 @@ export function TerminalArea({ session, sessionIds, ref }: Props) {
   }, [sessionId]);
 
   useEffect(() => poolRef.current?.retain(new Set(sessionIds)), [sessionIds]);
+
+  useEffect(() => {
+    const area = areaRef.current;
+    if (!area) return;
+    const showPaste = (event: Event) => {
+      const detail = (event as CustomEvent<LargePasteDetail>).detail;
+      if (!detail) return;
+      setLargePaste(detail);
+      window.clearTimeout(pasteNoticeTimer.current);
+      pasteNoticeTimer.current = window.setTimeout(() => setLargePaste(null), 2_500);
+    };
+    area.addEventListener(LARGE_PASTE_EVENT, showPaste);
+    return () => {
+      area.removeEventListener(LARGE_PASTE_EVENT, showPaste);
+      window.clearTimeout(pasteNoticeTimer.current);
+    };
+  }, []);
 
   useImperativeHandle(ref, () => ({
     focus: () => (sessionId ? poolRef.current?.get(sessionId)?.focus() : undefined),
@@ -185,6 +204,14 @@ export function TerminalArea({ session, sessionIds, ref }: Props) {
         data-testid="terminals"
         style={auxShown ? agentStyle : undefined}
       />
+      {largePaste && (
+        <div className="terminal-paste-notice" role="status" data-testid="terminal-paste-notice">
+          {t('terminal.largePaste', {
+            lines: largePaste.lines,
+            characters: largePaste.characters,
+          })}
+        </div>
+      )}
       {session && auxShown && (
         <>
           <div

@@ -125,6 +125,17 @@ const str = (value: unknown, name: ArgumentName, max = 4096): string => {
   }
   return value;
 };
+/**
+ * Terminal input is a byte stream, not a saved prompt. The terminal and the agent decide how
+ * much of a paste they accept; imposing a second, arbitrary cap here makes Ctrl+V differ from
+ * using Claude Code in a regular terminal.
+ */
+const terminalData = (value: unknown): string => {
+  if (typeof value !== 'string') {
+    throw new UserError('error.invalidArgument', { name: { key: 'arg.data' } });
+  }
+  return value;
+};
 /** A command to run in place of the agent's own: one line, or it is refused. */
 const command = (value: unknown): string => {
   const text = str(value, 'command', AGENT_COMMAND_LIMIT);
@@ -483,9 +494,7 @@ export function registerIpc(context: IpcContext): void {
   handle('terminal:setVisible', (id, visible) =>
     manager.setVisible(str(id, 'session', 64), visible === true),
   );
-  handle('terminal:input', (id, data) =>
-    manager.input(terminal(id), str(data, 'data', 16 * 1024 * 1024)),
-  );
+  handle('terminal:input', (id, data) => manager.input(terminal(id), terminalData(data)));
   handle('terminal:resize', (id, terminalSize) =>
     manager.resize(str(id, 'session', 64), size(terminalSize)),
   );

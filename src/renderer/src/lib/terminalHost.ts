@@ -36,6 +36,14 @@ const THEMES: Record<ThemeName, ITheme> = {
 };
 
 const RESIZE_DEBOUNCE_MS = 80;
+const LARGE_PASTE_LINES = 8;
+const LARGE_PASTE_CHARS = 2_000;
+
+export const LARGE_PASTE_EVENT = 'aurelium:large-paste';
+export interface LargePasteDetail {
+  lines: number;
+  characters: number;
+}
 
 /**
  * One xterm.js instance and its element, living outside React. It is created when a session's
@@ -222,7 +230,18 @@ export class TerminalHost {
   private async paste(): Promise<void> {
     const text = await window.api.invoke('clipboard:read');
     // term.paste handles bracketed paste and line endings of multi-line text.
-    if (text) this.term.paste(text);
+    if (!text) return;
+    const lines = text.split(/\r\n?|\n/).length;
+    const characters = [...text].length;
+    if (lines > LARGE_PASTE_LINES || characters > LARGE_PASTE_CHARS) {
+      this.element.dispatchEvent(
+        new CustomEvent<LargePasteDetail>(LARGE_PASTE_EVENT, {
+          bubbles: true,
+          detail: { lines, characters },
+        }),
+      );
+    }
+    this.term.paste(text);
   }
 
   /** Returns false for keys xterm must not send to the program. */

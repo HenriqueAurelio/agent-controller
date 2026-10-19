@@ -8,6 +8,8 @@ import { Dialog } from './Dialog';
 interface Props {
   /** The group being edited; absent, a new one is created. */
   group?: SessionGroup;
+  /** A context-menu session enters its new group even when it was in another group. */
+  initialSessionId?: string;
   onClose(): void;
 }
 
@@ -15,7 +17,7 @@ interface Props {
  * Names a group and picks its sessions. A new one starts from the folder of the session in sight:
  * its name, and every session open in that folder, which is what a group of a repository holds.
  */
-export function GroupDialog({ group, onClose }: Props) {
+export function GroupDialog({ group, initialSessionId, onClose }: Props) {
   const t = useT();
   const sessions = useAppState((s) => s.sessions);
   const groups = useAppState((s) => s.groups);
@@ -31,7 +33,9 @@ export function GroupDialog({ group, onClose }: Props) {
     const folder = key(selected.cwd);
     return {
       name: baseName(selected.cwd),
-      ids: sessions.filter((s) => key(s.cwd) === folder && !s.groupId),
+      ids: sessions.filter(
+        (s) => key(s.cwd) === folder && (!s.groupId || s.id === initialSessionId),
+      ),
     };
   });
   const [name, setName] = useState(initial.name);

@@ -1,5 +1,5 @@
-appId: dev.agentcontroller.app
-productName: Agent Controller
+appId: app.aurelium.desktop
+productName: Aurelium
 copyright: Copyright © 2026 Henrique
 
 directories:
@@ -8,6 +8,7 @@ directories:
 
 files:
   - out/**
+  - assets/aurelium_logo.png
   - package.json
   - '!node_modules/node-pty/{src,deps,third_party,scripts,typings,binding.gyp}'
   - '!node_modules/node-pty/build/{deps,Release/obj,Release/.deps}'
@@ -30,15 +31,16 @@ extraResources:
 npmRebuild: false
 
 win:
+  executableName: Aurelium
   target:
     - target: nsis
       arch: [x64]
-  icon: build/icon.png
+  icon: assets/aurelium_logo.png
 
 nsis:
   oneClick: true
   perMachine: false
-  artifactName: agent-controller-${version}-setup.${ext}
+  artifactName: Aurelium-${version}-setup.${ext}
 
 linux:
   target:
@@ -46,12 +48,12 @@ linux:
       arch: [x64]
     - target: deb
       arch: [x64]
-  icon: build/icon.png
+  icon: assets/aurelium_logo.png
   category: Development
-  executableName: agent-controller
+  executableName: aurelium
   maintainer: Henrique <HenriqueAurelio@users.noreply.github.com>
   synopsis: Sessões de Claude Code e Codex em uma janela só
-  artifactName: agent-controller-${version}.${ext}
+  artifactName: Aurelium-${version}.${ext}
 
 # Out of the v1: auto-update and code signing.
 publish: null
