@@ -268,6 +268,9 @@ export function App() {
     requestAnimationFrame(() => {
       if (coveredRef.current) return;
       const active = document.activeElement;
+      // A name being typed keeps the keyboard even when forced: the clicks of a double click
+      // that opened it each asked for the terminal.
+      if (active?.closest('[data-keeps-focus]')) return;
       const elsewhere = active && active !== document.body && !active.closest('.terminal-area');
       if (elsewhere && !force) return;
       terminals.current?.focus();

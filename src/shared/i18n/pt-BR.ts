@@ -210,6 +210,7 @@ export const ptBR = {
   'sidebar.newGroup': 'Novo grupo: junte as sessões de um repositório',
   'sidebar.sessionMenu': 'Ações para {name}',
   'sidebar.newGroupWithSession': 'Novo grupo com {name}',
+  'sidebar.renameSession': 'Renomear',
   'sidebar.ungroupedDrop': 'Solte aqui para tirar do grupo',
   'group.expand': 'Mostrar as sessões de {name}',
   'group.collapse': 'Recolher {name}',
