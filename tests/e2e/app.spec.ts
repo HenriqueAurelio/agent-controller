@@ -148,6 +148,39 @@ test('create a session, run a command, rename, close the app and find it again',
   await expect(page.getByRole('button', { name: 'Parar' })).toHaveCount(0);
 });
 
+test('rename a session by double click and by the context menu', async () => {
+  const { page } = await open();
+  await createSession(page, 'Primeira', work);
+  const item = (name: string) => page.locator('.session-item', { hasText: name });
+  const input = page.getByLabel('Nome da sessão');
+
+  // Both clicks of the double click also select the session; the field must stay open.
+  await item('Primeira').locator('.session-name').dblclick();
+  await expect(input).toBeFocused();
+  await page.waitForTimeout(300);
+  await expect(input).toBeFocused();
+  await input.fill('Nome escolhido');
+  await page.keyboard.press('Enter');
+  await expect(item('Nome escolhido').locator('.session-name')).toHaveText('Nome escolhido');
+
+  await item('Nome escolhido').click({ button: 'right' });
+  await page.getByRole('menuitem', { name: 'Renomear' }).click();
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await expect(input).toBeFocused();
+  await page.waitForTimeout(300);
+  await expect(input).toBeFocused();
+  await input.fill('Pelo menu');
+  await page.keyboard.press('Enter');
+  await expect(item('Pelo menu').locator('.session-name')).toHaveText('Pelo menu');
+  await expect(page.locator('.terminal-host.visible .xterm-helper-textarea')).toBeFocused();
+
+  // Esc leaves the name as it was.
+  await item('Pelo menu').locator('.session-name').dblclick();
+  await input.fill('Descartado');
+  await page.keyboard.press('Escape');
+  await expect(item('Pelo menu').locator('.session-name')).toHaveText('Pelo menu');
+});
+
 test('five sessions of both agents, switched by shortcut, survive a restart', async () => {
   let { page } = await open();
   const names = ['Um', 'Dois', 'Três', 'Quatro', 'Cinco'];

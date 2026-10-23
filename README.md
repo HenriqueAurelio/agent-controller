@@ -94,6 +94,7 @@ Daí em diante é o agente de sempre: digite o prompt no terminal.
 Outros caminhos para o mesmo lugar:
 
 - **Arrastar uma pasta** do gerenciador de arquivos para a janela abre **Nova sessão** já com ela preenchida. Um arquivo solto vale pela pasta em que está.
+- **Renomear:** clique duas vezes no nome da sessão, ou clique com o botão direito nela e escolha **Renomear** (ou `F2` com a sessão focada). `Enter` salva e `Esc` desiste.
 - **Duplicar** (o botão **⧉** na sessão, ou a paleta de comandos) abre outra sessão na mesma pasta, com o mesmo agente.
 - **Trocar a pasta** de uma sessão que já existe: clique no caminho no topo da sessão, ou use a paleta de comandos. O agente trabalha na pasta em que foi aberto; se estiver rodando, o app avisa, encerra e abre de novo na nova pasta, e a conversa em andamento não continua.
 - **Parar e iniciar o agente** não tem botão: abrir uma sessão parada inicia o agente dela, e um agente que saiu com a sessão aberta inicia de novo com **Enter** no terminal. Para parar sem fechar a sessão, use "parar o agente" na paleta de comandos, ou peça ao próprio agente que saia (`/exit`).

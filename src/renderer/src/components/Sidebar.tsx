@@ -65,6 +65,7 @@ function RenameInput({
     <input
       ref={ref}
       className="rename-input"
+      data-keeps-focus
       aria-label={label}
       value={value}
       onChange={(e) => setValue(e.target.value)}
@@ -691,6 +692,17 @@ export function Sidebar({
           aria-label={t('sidebar.sessionMenu', { name: contextMenu.session.name })}
           onClick={(event) => event.stopPropagation()}
         >
+          <li role="none">
+            <button
+              role="menuitem"
+              onClick={() => {
+                setRenaming(contextMenu.session.id);
+                setContextMenu(null);
+              }}
+            >
+              {t('sidebar.renameSession')}
+            </button>
+          </li>
           <li role="none">
             <button
               role="menuitem"

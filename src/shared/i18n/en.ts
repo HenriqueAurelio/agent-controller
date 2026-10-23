@@ -209,6 +209,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'sidebar.newGroup': 'New group: gather the sessions of a repository',
   'sidebar.sessionMenu': 'Actions for {name}',
   'sidebar.newGroupWithSession': 'New group with {name}',
+  'sidebar.renameSession': 'Rename',
   'sidebar.ungroupedDrop': 'Drop here to take it out of the group',
   'group.expand': 'Show the sessions of {name}',
   'group.collapse': 'Collapse {name}',
