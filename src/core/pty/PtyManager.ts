@@ -43,6 +43,12 @@ interface Entry {
 
 const CTRL_C = '\x03';
 
+/** The socket node-pty writes a Windows PTY's input to. Not public API, hence the guards. */
+export function windowsInputSocket(pty: IPty): EventEmitter | undefined {
+  const agent = (pty as unknown as { _agent?: { inSocket?: unknown } })._agent;
+  return agent?.inSocket instanceof EventEmitter ? agent.inSocket : undefined;
+}
+
 export class PtyManager extends EventEmitter<PtyEvents> {
   private readonly ptys = new Map<string, Entry>();
 
@@ -65,7 +71,16 @@ export class PtyManager extends EventEmitter<PtyEvents> {
       rows: options.rows ?? 24,
       cwd,
       env,
+      // The ConPTY shipped with node-pty, not the one built into Windows: Windows 10's drops the
+      // markers of a bracketed paste and repaints the screen on its own, so programs behaved
+      // differently here than in Windows Terminal or VS Code.
+      useConptyDll: process.platform === 'win32',
     });
+
+    // With that ConPTY, node-pty writes the input through a socket that has no error listener:
+    // a failed write (EAGAIN was seen in CI while keys were sent) would throw in the main process
+    // and take the app down. The keys of that one write are lost; the session goes on.
+    windowsInputSocket(pty)?.on('error', () => {});
 
     let resolveExit!: (exit: PtyExit) => void;
     const entry: Entry = {

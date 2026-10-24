@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildChildEnv } from '@core/pty/env';
 import { isAlive } from '@core/pty/killTree';
 import { toLongPath } from '@core/pty/longPath';
-import { PtyManager, type PtyExit } from '@core/pty/PtyManager';
+import type { IPty } from 'node-pty';
+import { PtyManager, windowsInputSocket, type PtyExit } from '@core/pty/PtyManager';
 import { quoteWindowsArg, resolveWindowsSpawn } from '@core/pty/windowsArgs';
 import { FIXTURES, removeDir, tempDir, waitFor } from './helpers';
 
@@ -55,6 +56,23 @@ describe('PtyManager', () => {
     ptys.write('a', 'abc\r');
     await waitFor(() => exits.a);
     expect(output.a).toContain('eco:ABC');
+  });
+
+  it.runIf(isWindows)('a failed write to the input does not take the process down', async () => {
+    node(
+      'a',
+      "console.log('pronto'); process.stdin.on('data', d => { console.log('eco:' + String(d).trim()); process.exit(0) })",
+    );
+    await waitFor(() => output.a?.includes('pronto'));
+    const pty = (ptys as unknown as { ptys: Map<string, { pty: IPty }> }).ptys.get('a')!.pty;
+    const input = windowsInputSocket(pty);
+    expect(input).toBeDefined();
+    // What libuv reports when a write to the pipe fails, as seen in CI.
+    const error = Object.assign(new Error('write EAGAIN'), { code: 'EAGAIN', syscall: 'write' });
+    expect(() => input!.emit('error', error)).not.toThrow();
+    ptys.write('a', 'depois\r');
+    await waitFor(() => exits.a);
+    expect(output.a).toContain('eco:depois');
   });
 
   it('resizes, and the process sees the new size', async () => {

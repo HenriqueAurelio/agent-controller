@@ -8,6 +8,7 @@ import {
   parseWindowsRows,
   type ProcessInfo,
   type ProcessTable,
+  type WindowsProcessSource,
 } from '@core/metrics/processTree';
 import { killProcessTree } from '@core/pty/killTree';
 import type { SessionMetrics } from '@shared/ipc';
@@ -130,24 +131,53 @@ describe('MetricsSampler', () => {
     expect(disposed).toBe(1);
   });
 
-  it('measures a real process tree', async () => {
-    const child = spawn(process.execPath, [path.join(FIXTURES, 'spawn-tree.cjs')], {
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-    let out = '';
-    child.stdout.on('data', (d) => (out += d));
-    const reader = createProcessReader();
-    try {
-      await waitFor(() => (out.match(/PID\d=/g) ?? []).length === 3);
-      const snapshot = await reader.snapshot();
-      const metrics = computeMetrics(new Map([['s', child.pid!]]), snapshot, null, Date.now());
-      expect(metrics.s!.processes).toBe(3);
-      // Three idle Node processes: tens of megabytes each, not kilobytes and not gigabytes.
-      expect(metrics.s!.memory).toBeGreaterThan(30 * MB);
-      expect(metrics.s!.memory).toBeLessThan(1024 * MB);
-    } finally {
-      reader.dispose();
-      await killProcessTree(child.pid!);
-    }
-  }, 30000);
+  const sources: (WindowsProcessSource | undefined)[] =
+    process.platform === 'win32' ? ['native', 'wmi'] : [undefined];
+
+  it.runIf(process.platform === 'win32')(
+    'on Windows, the native table and WMI see the same processes',
+    async () => {
+      const native = createProcessReader({ windowsSource: 'native' });
+      const wmi = createProcessReader({ windowsSource: 'wmi' });
+      try {
+        const [a, b] = await Promise.all([native.snapshot(), wmi.snapshot()]);
+        const me = a.get(process.pid);
+        expect(me?.ppid).toBe(b.get(process.pid)?.ppid);
+        expect(me!.memory).toBeGreaterThan(10 * MB);
+        expect(me!.cpuTimeMs).toBeGreaterThan(0);
+        // Taken a moment apart, the tables differ only by what started or ended in between.
+        const common = [...a.keys()].filter((pid) => b.has(pid)).length;
+        expect(common / Math.max(a.size, b.size)).toBeGreaterThan(0.9);
+      } finally {
+        native.dispose();
+        wmi.dispose();
+      }
+    },
+    60000,
+  );
+
+  it.each(sources)(
+    'measures a real process tree (%s)',
+    async (windowsSource) => {
+      const child = spawn(process.execPath, [path.join(FIXTURES, 'spawn-tree.cjs')], {
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+      let out = '';
+      child.stdout.on('data', (d) => (out += d));
+      const reader = createProcessReader({ windowsSource });
+      try {
+        await waitFor(() => (out.match(/PID\d=/g) ?? []).length === 3);
+        const snapshot = await reader.snapshot();
+        const metrics = computeMetrics(new Map([['s', child.pid!]]), snapshot, null, Date.now());
+        expect(metrics.s!.processes).toBe(3);
+        // Three idle Node processes: tens of megabytes each, not kilobytes and not gigabytes.
+        expect(metrics.s!.memory).toBeGreaterThan(30 * MB);
+        expect(metrics.s!.memory).toBeLessThan(1024 * MB);
+      } finally {
+        reader.dispose();
+        await killProcessTree(child.pid!);
+      }
+    },
+    30000,
+  );
 });
