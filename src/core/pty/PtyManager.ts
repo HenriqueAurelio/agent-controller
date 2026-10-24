@@ -65,6 +65,10 @@ export class PtyManager extends EventEmitter<PtyEvents> {
       rows: options.rows ?? 24,
       cwd,
       env,
+      // The ConPTY shipped with node-pty, not the one built into Windows: Windows 10's drops the
+      // markers of a bracketed paste and repaints the screen on its own, so programs behaved
+      // differently here than in Windows Terminal or VS Code.
+      useConptyDll: process.platform === 'win32',
     });
 
     let resolveExit!: (exit: PtyExit) => void;
