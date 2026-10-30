@@ -141,7 +141,7 @@ A bolinha ao lado do nome da sessão mostra o estado:
 | **Terminou** | O turno acabou |
 | **Erro** | O agente saiu com erro, ou não pôde ser aberto. O motivo aparece no terminal |
 
-"Aguardando você" é o estado que pede uma ação sua, e por isso é o que mais chama atenção: a linha da sessão fica destacada em âmbar, o estado vira uma etiqueta preenchida e a bolinha pulsa. O título da janela mostra quantas sessões estão aguardando, por exemplo `(3 aguardando) Aurelium`, o que aparece na barra de tarefas mesmo com o app em segundo plano.
+"Aguardando você" é o estado que pede uma ação sua, e por isso é o que mais chama atenção: a linha da sessão fica destacada em âmbar, o estado vira uma etiqueta preenchida e a bolinha pulsa algumas vezes quando a sessão passa a aguardar. O título da janela mostra quantas sessões estão aguardando, por exemplo `(3 aguardando) Aurelium`, o que aparece na barra de tarefas mesmo com o app em segundo plano.
 
 Bolinha **cheia** quer dizer que o próprio agente informou o estado. Bolinha **vazada e tracejada**, com o texto "**Possivelmente** aguardando você", quer dizer que o app só está supondo: o agente ficou alguns segundos sem escrever nada, e isso tanto pode ser uma pergunta quanto um build demorado e silencioso. O tempo dessa suposição é ajustável nas preferências, e 0 a desliga.
 

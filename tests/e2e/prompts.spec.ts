@@ -4,10 +4,15 @@ import {
   launch,
   removeDir,
   runInTerminal,
-  screenText,
+  screenText as wrappedScreenText,
   setTitle,
   tempDir,
 } from './harness';
+
+// A prompt is longer than the terminal: where it wraps depends on the width of the cells, so
+// the line breaks are not compared.
+const screenText = async (...args: Parameters<typeof wrappedScreenText>) =>
+  (await wrappedScreenText(...args)).replace(/\r?\n/g, '');
 
 test('a saved prompt reaches three sessions, each with its own variables', async () => {
   test.setTimeout(180_000);
