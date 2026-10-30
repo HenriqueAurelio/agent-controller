@@ -48,7 +48,10 @@ linux:
       arch: [x64]
     - target: deb
       arch: [x64]
-  icon: assets/aurelium_logo.png
+  # One file per standard size, made from assets/aurelium_logo.png. Given the logo alone, the
+  # package installed it as hicolor/1254x1254, a size the icon theme does not have: the menu
+  # and the dock found no icon.
+  icon: build/icons
   category: Development
   executableName: aurelium
   maintainer: Henrique <HenriqueAurelio@users.noreply.github.com>
