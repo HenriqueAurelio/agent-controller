@@ -543,7 +543,10 @@ kbd {
 .state-dot.state-trabalhando {
   border-color: var(--working);
   background: var(--working);
-  animation: pulse 1.2s ease-in-out infinite;
+  /* In steps: Chromium only draws a frame when the value changes. A smooth pulse redraws the
+     window at the refresh rate for as long as an agent works (16% of a core against 6%, measured
+     with `npm run measure:load`). */
+  animation: pulse 1.2s steps(6, jump-end) infinite;
 }
 .state-dot.state-aguardando {
   border-color: var(--waiting);
@@ -1679,8 +1682,11 @@ button.path:hover:not(:disabled) {
 .session-item[data-state='aguardando'] .session-meta > * {
   white-space: nowrap;
 }
+/* A few rings when the session starts waiting, then still: an animated shadow repaints every
+   frame, and with sessions waiting for hours it kept the app at 38% of a core doing nothing. The
+   row, the label and the window title go on saying it. */
 .state-dot.state-aguardando {
-  animation: attention 1.6s ease-out infinite;
+  animation: attention 1.6s ease-out 3;
 }
 @keyframes attention {
   0% {

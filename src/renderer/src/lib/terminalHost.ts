@@ -1,5 +1,4 @@
 import { FitAddon } from '@xterm/addon-fit';
-import { WebglAddon } from '@xterm/addon-webgl';
 import { Terminal, type ITheme } from '@xterm/xterm';
 import type { Preferences, ThemeName } from '@shared/prefs';
 import type { TerminalSize } from '@shared/session';
@@ -124,8 +123,10 @@ export class TerminalHost {
   async mount(parent: HTMLElement): Promise<void> {
     const started = performance.now();
     parent.appendChild(this.element);
+    // xterm's DOM renderer, not its WebGL addon: measured with `npm run measure:load`, WebGL
+    // took more CPU in all (mostly in the GPU process: 43% of a core against 4% with one session
+    // drawing in sight, 120% against 9% in a burst), about 100 MB more and slower IPC.
     this.term.open(this.element);
-    this.loadWebgl();
     this.safeFit();
     this.markSize();
     this.observer.observe(this.element);
@@ -139,17 +140,6 @@ export class TerminalHost {
     await new Promise<void>((resolve) => this.term.write(snapshot.data, resolve));
     for (const data of queued) this.write(data);
     this.mountMs = performance.now() - started;
-  }
-
-  private loadWebgl(): void {
-    try {
-      const webgl = new WebglAddon();
-      // If the GPU context is lost, xterm falls back to its DOM renderer.
-      webgl.onContextLoss(() => webgl.dispose());
-      this.term.loadAddon(webgl);
-    } catch {
-      // No WebGL (remote desktop, some VMs): the DOM renderer is used.
-    }
   }
 
   private write(data: string): void {
