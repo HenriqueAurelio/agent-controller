@@ -69,7 +69,7 @@ test('evidences: a lighter interface', async () => {
         app
           .getAppMetrics()
           .filter((m) => m.type === 'Tab')
-          .reduce((sum, m) => sum + m.cpu.cumulativeCPUUsage, 0),
+          .reduce((sum, m) => sum + (m.cpu.cumulativeCPUUsage ?? 0), 0),
       );
     const before = await cpu();
     await page.waitForTimeout(5000);
