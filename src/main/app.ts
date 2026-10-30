@@ -19,6 +19,7 @@ import { OverlapService } from '@core/git/OverlapService';
 import { repositoryRoot } from '@core/git/GitService';
 import { cleanDiscarded } from '@core/git/GitWriteService';
 import { MetricsSampler } from '@core/metrics/MetricsSampler';
+import { FailureScanner } from '@core/sessions/FailureScanner';
 import { TailFeed } from '@core/sessions/TailFeed';
 import { ExperimentService } from '@core/experiments/ExperimentService';
 import { TaskBoard } from '@core/tasks/TaskBoard';
@@ -475,11 +476,7 @@ export async function startApp(): Promise<void> {
   const fallbackSeen = new Set<string>();
   const lastPrompt = new Map<string, string>();
   const terminalLine = new Map<string, string>();
-  const failureOutput = new Map<string, string>();
-  const FALLBACK_USAGE =
-    /(?:token|usage|rate limit|quota).{0,80}(?:exhaust|limit|reached)|(?:exhaust|limit).{0,80}(?:token|usage|quota)/i;
-  const FALLBACK_PROVIDER =
-    /(?:authentication|unauthori[sz]ed|provider|network).{0,80}(?:error|failed|unavailable)|(?:error|failed|unavailable).{0,80}(?:authentication|provider|network)/i;
+  const failures = new FailureScanner();
   const runFallback = async (sourceId: string, reason: 'usage' | 'provider' | 'unexpected') => {
     if (fallbackSeen.has(sourceId)) return;
     const policy = data.prefs.fallback;
@@ -588,12 +585,16 @@ export async function startApp(): Promise<void> {
     rememberPrompt(id, combined.slice(0, breakAt));
   });
   manager.on('output', (id, chunk) => {
-    const recent = `${failureOutput.get(id) ?? ''}${chunk}`.slice(-8_000);
-    failureOutput.set(id, recent);
-    if (FALLBACK_USAGE.test(recent))
-      void runFallback(id, 'usage').catch((err) => console.error('Fallback failed:', err));
-    else if (FALLBACK_PROVIDER.test(recent))
-      void runFallback(id, 'provider').catch((err) => console.error('Fallback failed:', err));
+    // The fallback is off by default: then, and once a session already fell back, nothing is
+    // read. Output arrives in thousands of chunks a second while agents draw.
+    const { enabled, triggers } = data.prefs.fallback;
+    if (!enabled || (!triggers.usage && !triggers.provider) || fallbackSeen.has(id)) {
+      failures.forget(id);
+      return;
+    }
+    const reason = failures.feed(id, chunk);
+    if (reason && triggers[reason])
+      void runFallback(id, reason).catch((err) => console.error('Fallback failed:', err));
   });
   manager.on('transition', ({ session, previous }) => {
     if (previous.state === 'trabalhando' && session.status.state === 'erro')
