@@ -120,12 +120,22 @@ export function registerTerminalLinks(
     const target = document.elementFromPoint(mouse.x, mouse.y);
     if (!target || !element.contains(target)) return;
     const { x: clientX, y: clientY } = mouse;
-    for (const el of [term.element, term.element?.querySelector('.xterm-screen')]) {
+    const screen = term.element?.querySelector('.xterm-screen');
+    for (const el of [term.element, screen]) {
       el?.dispatchEvent(new MouseEvent('mouseleave'));
     }
-    target.dispatchEvent(
-      new MouseEvent('mousemove', { clientX, clientY, ctrlKey: ctrl, bubbles: true }),
-    );
+    const move = (y: number) =>
+      target.dispatchEvent(
+        new MouseEvent('mousemove', { clientX, clientY: y, ctrlKey: ctrl, bubbles: true }),
+      );
+    // The terminal only looks again for the link under the mouse when it moves to another cell:
+    // it passes through the row beside it first, and comes back.
+    const box = screen?.getBoundingClientRect();
+    if (box && term.rows > 1) {
+      const rowHeight = box.height / term.rows;
+      move(clientY + rowHeight < box.bottom ? clientY + rowHeight : clientY - rowHeight);
+    }
+    move(clientY);
   };
   const track = (event: KeyboardEvent | MouseEvent) => {
     const before = ctrl;
