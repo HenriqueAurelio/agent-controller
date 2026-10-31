@@ -1,5 +1,5 @@
 // A stand-in for an agent: sets window titles like Claude Code does and calls agentctl the way
-// its hooks would. Driven by lines on stdin: work | perm | cancel | spam <n> | exit <code>.
+// its hooks would. Driven by lines on stdin: work | perm | cancel | spam <n> | query | exit <code>.
 'use strict';
 const { spawnSync } = require('child_process');
 const readline = require('readline');
@@ -43,6 +43,9 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
     const row = 'x'.repeat(200) + '\r\n';
     for (let i = 0; i < Number(arg || 1000); i++) process.stdout.write(row);
     process.stdout.write('fim-do-spam\r\n');
+  } else if (command === 'query') {
+    // Asks the terminal where the cursor is, as full-screen programs do.
+    process.stdout.write('\x1b[6nconsultou\r\n');
   } else if (command === 'exit') {
     process.exit(Number(arg || 0));
   }

@@ -116,6 +116,17 @@ export class TerminalHost {
         this.lastSent = null;
         this.scheduleResize();
       }),
+      // Back on screen after missing output while out of sight: the history's screen replaces
+      // this one. Output that follows arrives after it, in order.
+      window.api.on('terminal:resync', (id, data) => {
+        if (id !== sessionId) return;
+        const started = performance.now();
+        this.term.reset();
+        this.term.write(data, () => {
+          this.element.dataset.resyncMs = (performance.now() - started).toFixed(0);
+          this.element.dataset.resyncs = String(Number(this.element.dataset.resyncs ?? 0) + 1);
+        });
+      }),
     );
   }
 

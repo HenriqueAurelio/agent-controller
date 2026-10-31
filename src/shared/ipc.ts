@@ -347,6 +347,8 @@ export interface IpcEvents {
   'sessions:changed': (snapshot: SessionsSnapshot) => void;
   'terminal:data': (id: string, data: string) => void;
   'terminal:reset': (id: string) => void;
+  /** A terminal back on screen missed output while away: its whole content, to replace it. */
+  'terminal:resync': (id: string, data: string) => void;
   'git:changed': (sessionId: string) => void;
   /** What the session has in common with the others changed: `git:overlaps` has the new detail. */
   'git:overlapsChanged': (sessionId: string) => void;
@@ -482,6 +484,7 @@ export const EVENT_CHANNELS = [
   'sessions:changed',
   'terminal:data',
   'terminal:reset',
+  'terminal:resync',
   'git:changed',
   'git:overlapsChanged',
   'reviewer:changed',
