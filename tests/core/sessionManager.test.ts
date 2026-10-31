@@ -846,6 +846,10 @@ describe('SessionManager', () => {
       await until(s.id, 'aguardando');
       manager.setVisible(s.id, true);
       await manager.attach(s.id, SIZE);
+      // The agent may still be drawing its prompt; only silence counts as nothing to miss.
+      let last = performance.now();
+      manager.on('data', () => (last = performance.now()));
+      await waitFor(() => performance.now() - last > 300);
       await manager.setVisible(s.id, false);
       const resyncs: string[] = [];
       manager.on('resync', (_id, screen) => resyncs.push(screen));
@@ -877,8 +881,8 @@ describe('SessionManager', () => {
       const s = create();
       manager.start(s.id, SIZE);
       await until(s.id, 'aguardando');
-      await manager.attach(s.id, SIZE);
       manager.setVisible(s.id, true);
+      await manager.attach(s.id, SIZE);
       const times: number[] = [];
       manager.on('data', () => times.push(performance.now()));
       manager.input(s.id, 'spam 300\r');
@@ -892,8 +896,8 @@ describe('SessionManager', () => {
       const s = create();
       manager.start(s.id, SIZE);
       await until(s.id, 'aguardando');
-      await manager.attach(s.id, SIZE);
       manager.setVisible(s.id, true);
+      await manager.attach(s.id, SIZE);
       let sent = 0;
       let peak = 0;
       let acked = 0;
