@@ -8,6 +8,8 @@ import { turnEdge } from '@core/sessions/turns';
 import { PtyManager } from '@core/pty/PtyManager';
 import {
   BACKGROUND_FLUSH_MS,
+  ECHO_MAX_CHARS,
+  ECHO_WINDOW_MS,
   FOREGROUND_FLUSH_MS,
   flushDelay,
   SessionManager,
@@ -909,16 +911,24 @@ describe('SessionManager', () => {
 });
 
 describe('flushDelay', () => {
-  it('sends the first output after a quiet spell at once', () => {
-    expect(flushDelay(true, 1000, 1000 + FOREGROUND_FLUSH_MS)).toBe(0);
-    expect(flushDelay(true, 0, 5000)).toBe(0);
+  // A small piece of output, 5 ms after a key, with nothing sent for a while.
+  const echo = { visible: true, now: 5000, lastFlushAt: 0, lastInputAt: 4995, pendingChars: 3 };
+
+  it('sends the echo of a key at once', () => {
+    expect(flushDelay(echo)).toBe(0);
+    expect(flushDelay({ ...echo, pendingChars: ECHO_MAX_CHARS })).toBe(0);
+    expect(flushDelay({ ...echo, lastInputAt: echo.now - ECHO_WINDOW_MS })).toBe(0);
   });
 
-  it('holds what comes right after a batch until the next frame', () => {
-    expect(flushDelay(true, 1000, 1003)).toBe(FOREGROUND_FLUSH_MS - 3);
+  it('batches output nobody typed for, a redraw, and what follows a batch', () => {
+    expect(flushDelay({ ...echo, lastInputAt: echo.now - ECHO_WINDOW_MS - 1 })).toBe(
+      FOREGROUND_FLUSH_MS,
+    );
+    expect(flushDelay({ ...echo, pendingChars: ECHO_MAX_CHARS + 1 })).toBe(FOREGROUND_FLUSH_MS);
+    expect(flushDelay({ ...echo, lastFlushAt: echo.now - 3 })).toBe(FOREGROUND_FLUSH_MS);
   });
 
   it('keeps the slow rate for a terminal in the background', () => {
-    expect(flushDelay(false, 0, 5000)).toBe(BACKGROUND_FLUSH_MS);
+    expect(flushDelay({ ...echo, visible: false })).toBe(BACKGROUND_FLUSH_MS);
   });
 });

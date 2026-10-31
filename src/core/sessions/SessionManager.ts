@@ -133,6 +133,8 @@ interface Stream {
   flushTimer: ReturnType<typeof setTimeout> | null;
   /** `performance.now()` of the last batch sent to the renderer. */
   lastFlushAt: number;
+  /** `performance.now()` of the last key typed into it. */
+  lastInputAt: number;
   /** Characters sent to the renderer and not yet acknowledged. */
   unacked: number;
   paused: boolean;
@@ -190,15 +192,33 @@ const DEFAULT_SIZE: TerminalSize = { cols: 100, rows: 30 };
 export const FOREGROUND_FLUSH_MS = 8;
 export const BACKGROUND_FLUSH_MS = 250;
 const FLUSH_NOW_CHARS = 128 * 1024;
+/** Output up to this size, soon after a key, is taken for its echo. */
+export const ECHO_MAX_CHARS = 1024;
+/** How soon after a key its echo is expected. */
+export const ECHO_WINDOW_MS = 100;
+
+/** When output arrives on a stream, and how much is waiting. */
+export interface FlushTiming {
+  visible: boolean;
+  now: number;
+  lastFlushAt: number;
+  lastInputAt: number;
+  pendingChars: number;
+}
 
 /**
- * How long new output waits before it is sent to the renderer. On a visible terminal, the first
- * output after a quiet spell (the echo of a key, most of the time) goes at once; what keeps
- * coming right after it waits for the next batch, so the rate stays at one a frame.
+ * How long new output waits before it is sent to the renderer. On a visible terminal, a small
+ * piece right after a key (its echo, most of the time) goes at once. Anything else waits for the
+ * batch: an agent's spinner sent piece by piece would cost a draw each, measured at 4% of a core
+ * more with 6 busy sessions.
  */
-export function flushDelay(visible: boolean, lastFlushAt: number, now: number): number {
-  if (!visible) return BACKGROUND_FLUSH_MS;
-  return Math.max(0, lastFlushAt + FOREGROUND_FLUSH_MS - now);
+export function flushDelay(t: FlushTiming): number {
+  if (!t.visible) return BACKGROUND_FLUSH_MS;
+  const echo =
+    t.now - t.lastInputAt <= ECHO_WINDOW_MS &&
+    t.now - t.lastFlushAt >= FOREGROUND_FLUSH_MS &&
+    t.pendingChars <= ECHO_MAX_CHARS;
+  return echo ? 0 : FOREGROUND_FLUSH_MS;
 }
 
 /**
@@ -757,6 +777,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       bufferedChars: 0,
       flushTimer: null,
       lastFlushAt: 0,
+      lastInputAt: Number.NEGATIVE_INFINITY,
       unacked: 0,
       paused: false,
     };
@@ -838,6 +859,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       bufferedChars: 0,
       flushTimer: null,
       lastFlushAt: 0,
+      lastInputAt: Number.NEGATIVE_INFINITY,
       unacked: 0,
       paused: false,
     };
@@ -1129,7 +1151,13 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       return;
     }
     if (runtime.flushTimer) return;
-    const wait = flushDelay(runtime.visible, runtime.lastFlushAt, performance.now());
+    const wait = flushDelay({
+      visible: runtime.visible,
+      now: performance.now(),
+      lastFlushAt: runtime.lastFlushAt,
+      lastInputAt: runtime.lastInputAt,
+      pendingChars: runtime.bufferedChars,
+    });
     if (wait === 0) {
       this.flush(id, runtime);
       return;
@@ -1237,6 +1265,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
 
   input(id: string, data: string): void {
     const found = this.streamOf(id);
+    if (found?.stream) found.stream.lastInputAt = performance.now();
     if (found?.aux) {
       // Straight to the shell: the agent and its state never see it.
       if (found.stream?.running) this.options.ptys.write(id, data);
