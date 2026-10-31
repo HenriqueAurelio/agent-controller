@@ -145,6 +145,15 @@ A bolinha ao lado do nome da sessão mostra o estado:
 
 Bolinha **cheia** quer dizer que o próprio agente informou o estado. Bolinha **vazada e tracejada**, com o texto "**Possivelmente** aguardando você", quer dizer que o app só está supondo: o agente ficou alguns segundos sem escrever nada, e isso tanto pode ser uma pergunta quanto um build demorado e silencioso. O tempo dessa suposição é ajustável nas preferências, e 0 a desliga.
 
+### Contexto e tokens de cada sessão
+
+Ao lado do agente, na lista, aparece quanto do contexto a conversa já ocupa (`38%`). A partir de 80% o número fica âmbar: o agente logo vai compactar a conversa e perder detalhes. Passando o mouse, o detalhe: contexto ocupado e tamanho da janela, tokens de saída, tokens novos de entrada, tokens lidos do cache, o modelo e, no Codex, quanto do limite do plano já foi usado.
+
+- **De onde vem:** do arquivo em que o próprio agente grava a conversa (`~/.claude/projects/…` no Claude Code, `~/.codex/sessions/…` no Codex). O app lê só o que foi acrescentado, depois de cada aviso do agente e a cada 5 s enquanto ele trabalha.
+- **Quando não aparece:** antes da primeira resposta, quando o app não conhece a janela de contexto do modelo, e no Codex sem os hooks confiados e antes do primeiro turno terminar.
+- **Custo em dinheiro não aparece.** O Claude Code não grava o custo no arquivo, e a conta da maioria é por assinatura.
+- Iniciar o agente de novo começa uma conversa nova, e os números recomeçam.
+
 ### Painel geral
 
 Com várias sessões, a barra lateral diz *quem* precisa de você; o **painel geral** mostra *o quê*. Ele abre com `Ctrl+Shift+O`, com o botão **▦** no topo da barra lateral ou pela paleta, e ocupa o lugar do terminal: todas as sessões numa grade, um bloco por grupo. Cada cartão traz:

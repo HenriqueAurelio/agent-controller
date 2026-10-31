@@ -2,6 +2,7 @@ import { STATUS_DETAIL } from '@shared/session';
 import type { HookMessage } from '../signals/HookServer';
 import { asRecord, BaseAdapter } from './adapter';
 import { CLAUDE_HOOK_SOURCE } from './commandLine';
+import { claudeUsageReader, type UsageReader } from './usage';
 
 /** Tools that ask something open, not for permission. */
 const OPEN_QUESTIONS = new Set(['AskUserQuestion', 'ExitPlanMode']);
@@ -28,6 +29,8 @@ export class ClaudeAdapter extends BaseAdapter {
     if (message.source !== CLAUDE_HOOK_SOURCE) return;
     const payload = asRecord(message.payload);
     this.markHooks('active');
+    // Every hook names the conversation file.
+    this.reportTranscript(payload.transcript_path);
 
     switch (payload.hook_event_name) {
       case 'PermissionRequest':
@@ -51,5 +54,9 @@ export class ClaudeAdapter extends BaseAdapter {
         // SessionStart and anything else only prove that the hooks are alive.
         break;
     }
+  }
+
+  usageReader(): UsageReader {
+    return claudeUsageReader();
   }
 }
