@@ -8,6 +8,10 @@ import { turnEdge } from '@core/sessions/turns';
 import { PtyManager } from '@core/pty/PtyManager';
 import {
   BACKGROUND_FLUSH_MS,
+  ECHO_MAX_CHARS,
+  ECHO_WINDOW_MS,
+  FOREGROUND_FLUSH_MS,
+  flushDelay,
   SessionManager,
   type SessionTransition,
 } from '@core/sessions/SessionManager';
@@ -827,6 +831,21 @@ describe('SessionManager', () => {
       expect(events).toBeLessThan(20);
     });
 
+    it('a visible terminal still gets at most one batch a frame under a flood', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      await manager.attach(s.id, SIZE);
+      manager.setVisible(s.id, true);
+      const times: number[] = [];
+      manager.on('data', () => times.push(performance.now()));
+      manager.input(s.id, 'spam 300\r');
+      await waitFor(() => data[s.id]?.includes('fim-do-spam'), { timeout: 15000 });
+      const gaps = times.slice(1).map((t, i) => t - (times[i] ?? t));
+      // Timers may fire a little early; what matters is that no two batches go back to back.
+      expect(gaps.filter((gap) => gap < FOREGROUND_FLUSH_MS - 2)).toEqual([]);
+    });
+
     it('a flood of output is held back when the renderer does not keep up, and nothing is lost', async () => {
       const s = create();
       manager.start(s.id, SIZE);
@@ -888,5 +907,28 @@ describe('SessionManager', () => {
       await until(s.id, 'aguardando');
       expect(await manager.screenText(s.id)).not.toContain('O agente saiu');
     });
+  });
+});
+
+describe('flushDelay', () => {
+  // A small piece of output, 5 ms after a key, with nothing sent for a while.
+  const echo = { visible: true, now: 5000, lastFlushAt: 0, lastInputAt: 4995, pendingChars: 3 };
+
+  it('sends the echo of a key at once', () => {
+    expect(flushDelay(echo)).toBe(0);
+    expect(flushDelay({ ...echo, pendingChars: ECHO_MAX_CHARS })).toBe(0);
+    expect(flushDelay({ ...echo, lastInputAt: echo.now - ECHO_WINDOW_MS })).toBe(0);
+  });
+
+  it('batches output nobody typed for, a redraw, and what follows a batch', () => {
+    expect(flushDelay({ ...echo, lastInputAt: echo.now - ECHO_WINDOW_MS - 1 })).toBe(
+      FOREGROUND_FLUSH_MS,
+    );
+    expect(flushDelay({ ...echo, pendingChars: ECHO_MAX_CHARS + 1 })).toBe(FOREGROUND_FLUSH_MS);
+    expect(flushDelay({ ...echo, lastFlushAt: echo.now - 3 })).toBe(FOREGROUND_FLUSH_MS);
+  });
+
+  it('keeps the slow rate for a terminal in the background', () => {
+    expect(flushDelay({ ...echo, visible: false })).toBe(BACKGROUND_FLUSH_MS);
   });
 });
