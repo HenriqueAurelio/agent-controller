@@ -841,7 +841,7 @@ describe('SessionManager', () => {
       manager.on('data', () => times.push(performance.now()));
       manager.input(s.id, 'spam 300\r');
       await waitFor(() => data[s.id]?.includes('fim-do-spam'), { timeout: 15000 });
-      const gaps = times.slice(1).map((t, i) => t - times[i]);
+      const gaps = times.slice(1).map((t, i) => t - (times[i] ?? t));
       // Timers may fire a little early; what matters is that no two batches go back to back.
       expect(gaps.filter((gap) => gap < FOREGROUND_FLUSH_MS - 2)).toEqual([]);
     });
