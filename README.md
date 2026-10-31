@@ -508,6 +508,8 @@ Medido com `npm run measure`, somando todos os processos do app (não os agentes
 
 Para caber na meta de 450 MB, o app faz o trabalho de vídeo dentro do processo principal. Se uma abertura não terminar bem (um driver de vídeo com defeito, por exemplo), a seguinte entra sozinha em **modo seguro**, sem aceleração: tudo continua funcionando, com cerca de 55 MB a mais. Para forçar o modo seguro, abra o app com a variável `AGENT_CONTROLLER_GPU=safe`.
 
+Só o terminal da sessão à vista recebe o que o agente escreve. As outras sessões continuam trabalhando, e ao voltar para uma delas a tela já aparece em dia, rolada até o fim: a posição de rolagem e a seleção de texto de quando você saiu não voltam.
+
 Os números, o que pesa e a comparação com a meta estão na [ADR 0009](adr/0009-meta-de-consumo-de-recursos.md).
 
 ## Desenvolvimento
