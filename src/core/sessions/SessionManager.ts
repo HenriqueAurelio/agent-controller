@@ -131,6 +131,10 @@ interface Stream {
   buffer: string[];
   bufferedChars: number;
   flushTimer: ReturnType<typeof setTimeout> | null;
+  /** `performance.now()` of the last batch sent to the renderer. */
+  lastFlushAt: number;
+  /** `performance.now()` of the last key typed into it. */
+  lastInputAt: number;
   /** Characters sent to the renderer and not yet acknowledged. */
   unacked: number;
   paused: boolean;
@@ -188,6 +192,35 @@ const DEFAULT_SIZE: TerminalSize = { cols: 100, rows: 30 };
 export const FOREGROUND_FLUSH_MS = 8;
 export const BACKGROUND_FLUSH_MS = 250;
 const FLUSH_NOW_CHARS = 128 * 1024;
+/** Output up to this size, soon after a key, is taken for its echo. */
+export const ECHO_MAX_CHARS = 1024;
+/** How soon after a key its echo is expected. */
+export const ECHO_WINDOW_MS = 100;
+
+/** When output arrives on a stream, and how much is waiting. */
+export interface FlushTiming {
+  visible: boolean;
+  now: number;
+  lastFlushAt: number;
+  lastInputAt: number;
+  pendingChars: number;
+}
+
+/**
+ * How long new output waits before it is sent to the renderer. On a visible terminal, a small
+ * piece right after a key (its echo, most of the time) goes at once. Anything else waits for the
+ * batch: an agent's spinner sent piece by piece would cost a draw each, measured at 4% of a core
+ * more with 6 busy sessions.
+ */
+export function flushDelay(t: FlushTiming): number {
+  if (!t.visible) return BACKGROUND_FLUSH_MS;
+  const echo =
+    t.now - t.lastInputAt <= ECHO_WINDOW_MS &&
+    t.now - t.lastFlushAt >= FOREGROUND_FLUSH_MS &&
+    t.pendingChars <= ECHO_MAX_CHARS;
+  return echo ? 0 : FOREGROUND_FLUSH_MS;
+}
+
 /**
  * Between a paste and the Enter that sends it. Where ConPTY drops the paste markers, an Enter in
  * the same burst of keys reads as a line break inside the paste.
@@ -743,6 +776,8 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       buffer: [],
       bufferedChars: 0,
       flushTimer: null,
+      lastFlushAt: 0,
+      lastInputAt: Number.NEGATIVE_INFINITY,
       unacked: 0,
       paused: false,
     };
@@ -823,6 +858,8 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       buffer: [],
       bufferedChars: 0,
       flushTimer: null,
+      lastFlushAt: 0,
+      lastInputAt: Number.NEGATIVE_INFINITY,
       unacked: 0,
       paused: false,
     };
@@ -1114,10 +1151,18 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       return;
     }
     if (runtime.flushTimer) return;
-    runtime.flushTimer = setTimeout(
-      () => this.flush(id, runtime),
-      runtime.visible ? FOREGROUND_FLUSH_MS : BACKGROUND_FLUSH_MS,
-    );
+    const wait = flushDelay({
+      visible: runtime.visible,
+      now: performance.now(),
+      lastFlushAt: runtime.lastFlushAt,
+      lastInputAt: runtime.lastInputAt,
+      pendingChars: runtime.bufferedChars,
+    });
+    if (wait === 0) {
+      this.flush(id, runtime);
+      return;
+    }
+    runtime.flushTimer = setTimeout(() => this.flush(id, runtime), wait);
   }
 
   private flush(id: string, runtime: Stream): void {
@@ -1127,6 +1172,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     const data = runtime.buffer.join('');
     runtime.buffer = [];
     runtime.bufferedChars = 0;
+    runtime.lastFlushAt = performance.now();
     runtime.unacked += data.length;
     this.emit('data', id, data);
     this.applyPressure(id, runtime);
@@ -1219,6 +1265,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
 
   input(id: string, data: string): void {
     const found = this.streamOf(id);
+    if (found?.stream) found.stream.lastInputAt = performance.now();
     if (found?.aux) {
       // Straight to the shell: the agent and its state never see it.
       if (found.stream?.running) this.options.ptys.write(id, data);

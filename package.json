@@ -31,7 +31,8 @@
     "pack": "electron-vite build && electron-builder --dir",
     "dist": "electron-vite build && electron-builder",
     "measure": "node tools/memory/measure.mjs",
-    "measure:load": "node tools/perf/load.mjs"
+    "measure:load": "node tools/perf/load.mjs",
+    "measure:echo": "node tools/perf/echo.mjs"
   },
   "dependencies": {
     "@xterm/addon-serialize": "0.14.0",
