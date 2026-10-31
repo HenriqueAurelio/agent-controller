@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { ChecksRun } from '@shared/checks';
 import { UserError } from '@shared/i18n';
+import { PIPELINE_TEXT_LIMIT } from '@shared/pulls';
 import {
   PROMPT_TEXT_LIMIT,
   QUEUE_CONDITIONS,
@@ -82,6 +83,8 @@ function cleanValues(value: unknown): PromptValues {
     ...(typeof v.file === 'string' && { file: v.file.slice(0, 4096) }),
     ...(typeof v.selection === 'string' && { selection: v.selection.slice(0, SELECTION_LIMIT) }),
     ...(typeof v.problems === 'string' && { problems: v.problems.slice(0, PROBLEMS_TEXT_LIMIT) }),
+    ...(typeof v.pr === 'string' && { pr: v.pr.slice(0, 2000) }),
+    ...(typeof v.pipeline === 'string' && { pipeline: v.pipeline.slice(0, PIPELINE_TEXT_LIMIT) }),
     answers,
   };
 }

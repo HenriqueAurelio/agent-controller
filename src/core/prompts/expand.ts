@@ -11,6 +11,10 @@ export interface PromptVariables {
   file: string;
   selection: string;
   problems: string;
+  /** The pull request a failed pipeline belongs to: number, title, branch and link. */
+  pr: string;
+  /** The failed jobs of that pipeline and the end of their logs. */
+  pipeline: string;
 }
 
 /** Each variable under its Portuguese name, as the prompts are written, and in English. */
@@ -28,6 +32,8 @@ const NAMES: Record<string, keyof PromptVariables> = {
   selection: 'selection',
   problemas: 'problems',
   problems: 'problems',
+  pr: 'pr',
+  pipeline: 'pipeline',
 };
 
 /** Which of the known variables a prompt uses. */

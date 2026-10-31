@@ -20,6 +20,9 @@ export interface PromptContext {
   selection?: string;
   /** The problems picked in the problems list, a line each. */
   problems?: string;
+  /** A pull request whose pipeline failed, and what failed in it. */
+  pr?: string;
+  pipeline?: string;
 }
 
 interface Props {
@@ -76,9 +79,11 @@ export function PromptDialog({
       ...(context.problems !== undefined && {
         problems: context.problems.slice(0, PROBLEMS_TEXT_LIMIT),
       }),
+      ...(context.pr !== undefined && { pr: context.pr }),
+      ...(context.pipeline !== undefined && { pipeline: context.pipeline }),
       answers,
     }),
-    [context.file, selection, cut, context.problems, answers],
+    [context.file, selection, cut, context.problems, context.pr, context.pipeline, answers],
   );
   const questions = useMemo(() => promptQuestions(text), [text]);
   const ordered = sessions.filter((s) => targets.includes(s.id));

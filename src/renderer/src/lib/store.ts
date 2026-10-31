@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import type { AgentAvailability } from '@shared/agents';
 import type { AppInfo, SessionMetrics } from '@shared/ipc';
 import { DEFAULT_PREFERENCES, type Preferences } from '@shared/prefs';
+import { EMPTY_PULLS_STATE, type PullsState } from '@shared/pulls';
 import type { PermissionChoice, SessionGroup, SessionView } from '@shared/session';
 
 export interface AppState {
@@ -17,6 +18,8 @@ export interface AppState {
   recentFolders: string[];
   /** The session whose permission request changed before the answer reached it. */
   permissionStale: string | null;
+  /** The pull requests of the watched repositories. */
+  pulls: PullsState;
 }
 
 let state: AppState = {
@@ -29,6 +32,7 @@ let state: AppState = {
   agents: [],
   recentFolders: [],
   permissionStale: null,
+  pulls: EMPTY_PULLS_STATE,
 };
 let staleTimer: ReturnType<typeof setTimeout> | null = null;
 /** How long "the request changed" stays in the list. */
@@ -61,12 +65,14 @@ export const store = {
     });
     api.on('metrics:update', (metrics) => set({ metrics }));
     api.on('prefs:changed', (prefs) => set({ prefs }));
-    const [info, snapshot, prefs] = await Promise.all([
+    api.on('pulls:changed', (pulls) => set({ pulls }));
+    const [info, snapshot, prefs, pulls] = await Promise.all([
       api.invoke('app:info'),
       api.invoke('sessions:list'),
       api.invoke('prefs:get'),
+      api.invoke('pulls:get'),
     ]);
-    set({ info, ...snapshot, prefs });
+    set({ info, ...snapshot, prefs, pulls });
     void store.refreshRecentFolders();
     void store.detectAgents(false);
   },

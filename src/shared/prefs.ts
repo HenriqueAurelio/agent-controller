@@ -16,6 +16,7 @@ import { DEFAULT_LAYOUT, sanitizeLayout, type Layout } from './layout';
 import { factoryPrompts, sanitizePrompts, type PromptTemplate } from './prompts';
 import { DEFAULT_SHORTCUTS, sanitizeShortcuts, type ShortcutMap } from './shortcuts';
 import { DEFAULT_FALLBACK, sanitizeFallback, type FallbackSettings } from './fallback';
+import { DEFAULT_PULLS_SETTINGS, sanitizePullsSettings, type PullsSettings } from './pulls';
 
 export type ThemeName = 'dark' | 'light';
 
@@ -61,6 +62,8 @@ export interface Preferences {
   /** The warning of sessions in other copies of the repository that change the same files. */
   overlaps: OverlapSettings;
   fallback: FallbackSettings;
+  /** The repositories whose pull requests the app watches, and which of their news it tells. */
+  pulls: PullsSettings;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -89,6 +92,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   checkpoints: DEFAULT_CHECKPOINT_SETTINGS,
   overlaps: DEFAULT_OVERLAP_SETTINGS,
   fallback: DEFAULT_FALLBACK,
+  pulls: DEFAULT_PULLS_SETTINGS,
 };
 
 export const SCROLLBACK_LIMITS = { min: 200, max: 20000 } as const;
@@ -167,5 +171,6 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
     checkpoints: sanitizeCheckpointSettings(p.checkpoints),
     overlaps: sanitizeOverlapSettings(p.overlaps),
     fallback: sanitizeFallback(p.fallback),
+    pulls: sanitizePullsSettings(p.pulls),
   };
 }

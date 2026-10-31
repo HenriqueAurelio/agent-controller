@@ -15,7 +15,8 @@ import type { OverlapService } from '@core/git/OverlapService';
 import type { PromptQueue } from '@core/prompts/PromptQueue';
 import type { TailFeed } from '@core/sessions/TailFeed';
 import { locateFiles, MAX_CANDIDATES } from '@core/git/FileLocator';
-import { currentBranch } from '@core/git/GitService';
+import { currentBranch, runGit } from '@core/git/GitService';
+import type { PullWatcher } from '@core/forges/PullWatcher';
 import { expandPrompt, promptVariables } from '@core/prompts/expand';
 import {
   defaultWorktreesFolder,
@@ -64,6 +65,7 @@ import type {
   WorktreesInfo,
 } from '@shared/ipc';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
+import { PIPELINE_TEXT_LIMIT } from '@shared/pulls';
 import {
   PROMPT_TEXT_LIMIT,
   QUEUE_CONDITIONS,
@@ -99,6 +101,7 @@ export interface IpcContext {
   reviewer: ReviewerService;
   flows: FlowEngine;
   tails: TailFeed;
+  pulls: PullWatcher;
   data: AppData;
   /** Where the copies of discarded files go. */
   discardDir: string;
@@ -167,6 +170,8 @@ const promptValues = (value: unknown): PromptValues => {
     file: v.file === undefined ? undefined : str(v.file, 'file'),
     selection: v.selection === undefined ? undefined : str(v.selection, 'text', SELECTION_LIMIT),
     problems: v.problems === undefined ? undefined : str(v.problems, 'text', PROBLEMS_TEXT_LIMIT),
+    pr: v.pr === undefined ? undefined : str(v.pr, 'text', 2000),
+    pipeline: v.pipeline === undefined ? undefined : str(v.pipeline, 'text', PIPELINE_TEXT_LIMIT),
     answers,
   };
 };
@@ -234,6 +239,8 @@ export async function expandForSession(
       file: values.file,
       selection: values.selection,
       problems: values.problems,
+      pr: values.pr,
+      pipeline: values.pipeline,
     },
     values.answers,
   );
@@ -954,5 +961,36 @@ export function registerIpc(context: IpcContext): void {
     const report = run && failureReport(run, language());
     if (!report) throw new UserError('error.checks.nothingFailed');
     manager.paste(s.id, report);
+  });
+
+  handle('pulls:get', () => context.pulls.get());
+  handle('pulls:refresh', async () => {
+    await context.pulls.refresh();
+    return context.pulls.get();
+  });
+  handle('pulls:available', () => context.pulls.available());
+  handle('pulls:fixPipeline', async (key) => {
+    const value = str(key, 'pull', 300);
+    const pull = context.pulls.find(value);
+    if (!pull) throw new UserError('error.pulls.notFound');
+    const pipeline = await context.pulls.failureText(pull.key);
+    if (!pipeline) throw new UserError('error.pulls.nothingFailed');
+    // The sessions with the branch checked out; among them, the ones of this repository first.
+    const looks = await Promise.all(
+      manager.list().map(async (s) => {
+        const branch = await currentBranch(s.cwd).catch(() => null);
+        if (branch !== pull.branch) return null;
+        const remotes = await runGit(s.cwd, ['remote', '-v']).catch(() => null);
+        const text = remotes?.stdout.toString('utf8').toLowerCase() ?? '';
+        return { id: s.id, same: text.includes(pull.repo.toLowerCase()) };
+      }),
+    );
+    const found = looks.filter((l) => l !== null);
+    const same = found.filter((l) => l.same);
+    return {
+      pr: `${pull.repo}#${pull.number}: ${pull.title}\n${pull.branch} → ${pull.base}\n${pull.url}`,
+      pipeline,
+      sessions: (same.length > 0 ? same : found).map((l) => l.id),
+    };
   });
 }

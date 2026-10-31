@@ -1,0 +1,431 @@
+// Reads pull requests from GitHub with the login of the `gh` command line tool: the app keeps no
+// token of its own, and the one `gh` gives stays in this process, never in the renderer.
+import { spawn } from 'node:child_process';
+import type { JobState, PipelineJob, PipelineState, PullRequestView } from '@shared/pulls';
+
+/** Why the service could not be read; the watcher turns it into the state the panel shows. */
+export class ForgeError extends Error {
+  /** GitHub gave up on a query that was too heavy: a smaller one may go. */
+  timedOut = false;
+
+  constructor(
+    readonly kind: 'noCli' | 'loggedOut' | 'error',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ForgeError';
+  }
+}
+
+/** A failed job and where its log is, for the prompt that sends it to an agent. */
+export interface FailedJob {
+  name: string;
+  url: string | null;
+  /** The id of the job of GitHub Actions; null for checks of other services. */
+  logId: number | null;
+}
+
+export interface ForgePulls {
+  login: string;
+  pulls: PullRequestView[];
+  /** Job ids of each pull request's failed jobs, by key. */
+  failed: Record<string, FailedJob[]>;
+  repoErrors: Record<string, string>;
+}
+
+/** What the watcher needs of a service. */
+export interface ForgeClient {
+  pulls(repos: readonly string[]): Promise<ForgePulls>;
+  /** Repositories the account can see, the latest pushed first. */
+  available(): Promise<string[]>;
+  /** The last lines of the log of a job. */
+  jobLog(repo: string, job: FailedJob): Promise<string>;
+  /** The account to read with; empty for the active one. */
+  setAccount(account: string): void;
+}
+
+type Fetch = typeof fetch;
+
+export interface GitHubClientOptions {
+  /** Defaults to `https://api.github.com`; the e2e tests point it at a fake server. */
+  apiUrl?: string;
+  /** Skips `gh`: the tests give one. */
+  token?: string;
+  fetch?: Fetch;
+  /** Runs `gh auth token`; the tests replace it. */
+  runToken?: (account: string) => Promise<string>;
+}
+
+/** How much of a repository one query asks for; a busy one gets a smaller second try. */
+const PAGE = { pulls: 20, jobs: 30 };
+const SMALL_PAGE = { pulls: 8, jobs: 15 };
+/** Repositories asked at the same time. */
+const PARALLEL = 4;
+const LOG_LINES = 120;
+
+/** `gh auth token`, for one account or the active one. */
+export function ghToken(account: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const args = ['auth', 'token', ...(account ? ['--user', account] : [])];
+    let out = '';
+    let err = '';
+    let child;
+    try {
+      child = spawn('gh', args, {
+        windowsHide: true,
+        env: { ...process.env, GH_PROMPT_DISABLED: '1' },
+      });
+    } catch (error) {
+      reject(new ForgeError('noCli', String(error)));
+      return;
+    }
+    child.stdout.on('data', (chunk: Buffer) => (out += chunk.toString('utf8')));
+    child.stderr.on('data', (chunk: Buffer) => {
+      if (err.length < 4000) err += chunk.toString('utf8');
+    });
+    child.on('error', (error: NodeJS.ErrnoException) =>
+      reject(new ForgeError(error.code === 'ENOENT' ? 'noCli' : 'error', error.message)),
+    );
+    child.on('close', (code) => {
+      const token = out.trim();
+      if (code === 0 && token) resolve(token);
+      else reject(new ForgeError('loggedOut', err.trim() || `gh exited with ${code}`));
+    });
+  });
+}
+
+const quote = (value: string) => JSON.stringify(value);
+
+/**
+ * The open pull requests of repositories, each under an alias. The app asks one repository per
+ * query: a busy one that times out (GitHub answers 504) does not take the others with it.
+ */
+export function pullsQuery(repos: readonly string[], page = PAGE): string {
+  const parts = repos.map((repo, index) => {
+    const [owner, name] = repo.split('/');
+    return `r${index}: repository(owner: ${quote(owner!)}, name: ${quote(name!)}) {
+    nameWithOwner
+    pullRequests(states: OPEN, first: ${page.pulls}, orderBy: {field: UPDATED_AT, direction: DESC}) {
+      nodes {
+        number title url isDraft createdAt updatedAt headRefName baseRefName reviewDecision
+        author { login }
+        reviewRequests(first: 10) { nodes { requestedReviewer { ... on User { login } ... on Team { name } } } }
+        comments(last: 1) { totalCount nodes { author { login } } }
+        reviews(last: 1) { totalCount nodes { author { login } } }
+        commits(last: 1) { nodes { commit { oid statusCheckRollup { state contexts(first: ${page.jobs}) { nodes {
+          __typename
+          ... on CheckRun { name status conclusion detailsUrl databaseId }
+          ... on StatusContext { context state targetUrl }
+        } } } } } }
+      }
+    }
+  }`;
+  });
+  return `query { viewer { login }\n${parts.join('\n')}\n}`;
+}
+
+type Json = Record<string, unknown>;
+const obj = (value: unknown): Json => (value && typeof value === 'object' ? (value as Json) : {});
+const text = (value: unknown): string => (typeof value === 'string' ? value : '');
+const nodes = (value: unknown): Json[] =>
+  Array.isArray(obj(value).nodes) ? (obj(value).nodes as unknown[]).map(obj) : [];
+
+function checkRunState(status: string, conclusion: string): JobState {
+  if (status !== 'COMPLETED') return 'pending';
+  if (conclusion === 'SUCCESS' || conclusion === 'NEUTRAL') return 'success';
+  if (conclusion === 'SKIPPED' || conclusion === 'STALE') return 'skipped';
+  return 'failure';
+}
+
+function statusState(state: string): JobState {
+  if (state === 'SUCCESS') return 'success';
+  if (state === 'PENDING' || state === 'EXPECTED') return 'pending';
+  return 'failure';
+}
+
+function pipelineState(rollup: string, jobs: readonly PipelineJob[]): PipelineState {
+  if (!rollup && jobs.length === 0) return 'none';
+  if (rollup === 'SUCCESS') return 'success';
+  if (rollup === 'FAILURE' || rollup === 'ERROR') return 'failure';
+  if (rollup === 'PENDING' || rollup === 'EXPECTED') return 'pending';
+  if (jobs.some((j) => j.state === 'failure')) return 'failure';
+  if (jobs.some((j) => j.state === 'pending')) return 'pending';
+  return 'success';
+}
+
+/** The answer of `pullsQuery`, read: pure, so the tests can feed it what GitHub sends. */
+export function parsePulls(repos: readonly string[], body: unknown): ForgePulls {
+  const root = obj(body);
+  const data = obj(root.data);
+  const login = text(obj(data.viewer).login);
+  const me = login.toLowerCase();
+  const pulls: PullRequestView[] = [];
+  const failed: Record<string, FailedJob[]> = {};
+  const repoErrors: Record<string, string> = {};
+
+  for (const error of Array.isArray(root.errors) ? root.errors.map(obj) : []) {
+    const alias = Array.isArray(error.path) ? String(error.path[0]) : '';
+    const repo = /^r(\d+)$/.test(alias) ? repos[Number(alias.slice(1))] : undefined;
+    if (repo) repoErrors[repo] = text(error.message) || 'error';
+  }
+
+  repos.forEach((wanted, index) => {
+    const node = data[`r${index}`];
+    if (!node) {
+      repoErrors[wanted] ??= 'not found';
+      return;
+    }
+    const repo = text(obj(node).nameWithOwner) || wanted;
+    for (const pr of nodes(obj(node).pullRequests)) {
+      const number = Number(pr.number);
+      const key = `${repo}#${number}`;
+      const author = text(obj(pr.author).login);
+      const reviewers = nodes(pr.reviewRequests)
+        .map((r) => obj(r.requestedReviewer))
+        .map((r) => text(r.login) || text(r.name))
+        .filter(Boolean);
+      const comments = obj(pr.comments);
+      const reviews = obj(pr.reviews);
+      const lastComment = text(obj(nodes(comments)[0]?.author).login);
+      const lastReview = text(obj(nodes(reviews)[0]?.author).login);
+      const commit = obj(nodes(pr.commits)[0]?.commit);
+      const rollup = obj(commit.statusCheckRollup);
+      const jobs: PipelineJob[] = [];
+      const failedJobs: FailedJob[] = [];
+      for (const context of nodes(rollup.contexts)) {
+        if (context.__typename === 'CheckRun') {
+          const state = checkRunState(text(context.status), text(context.conclusion));
+          const url = text(context.detailsUrl) || null;
+          jobs.push({ name: text(context.name), state, url });
+          if (state === 'failure') {
+            const id = Number(context.databaseId);
+            // A workflow of another repository (an organization's shared checks) keeps its log
+            // where this account may not read it.
+            const own = url?.toLowerCase().includes(`/${repo.toLowerCase()}/actions/`) ?? false;
+            failedJobs.push({
+              name: text(context.name),
+              url,
+              logId: own && Number.isSafeInteger(id) ? id : null,
+            });
+          }
+        } else if (context.__typename === 'StatusContext') {
+          const state = statusState(text(context.state));
+          const url = text(context.targetUrl) || null;
+          jobs.push({ name: text(context.context), state, url });
+          if (state === 'failure')
+            failedJobs.push({ name: text(context.context), url, logId: null });
+        }
+      }
+      const decision = text(pr.reviewDecision);
+      pulls.push({
+        key,
+        repo,
+        number,
+        title: text(pr.title),
+        url: text(pr.url),
+        author,
+        mine: !!me && author.toLowerCase() === me,
+        draft: pr.isDraft === true,
+        branch: text(pr.headRefName),
+        base: text(pr.baseRefName),
+        createdAt: text(pr.createdAt),
+        updatedAt: text(pr.updatedAt),
+        review:
+          decision === 'APPROVED'
+            ? 'approved'
+            : decision === 'CHANGES_REQUESTED'
+              ? 'changes'
+              : decision === 'REVIEW_REQUIRED'
+                ? 'required'
+                : null,
+        reviewers,
+        reviewRequested: !!me && reviewers.some((r) => r.toLowerCase() === me),
+        comments: (Number(comments.totalCount) || 0) + (Number(reviews.totalCount) || 0),
+        // Which of the two came last is not in the answer; a review is the likelier news.
+        lastCommentBy: lastReview || lastComment || null,
+        pipeline: { state: pipelineState(text(rollup.state), jobs), sha: text(commit.oid), jobs },
+      });
+      if (failedJobs.length > 0) failed[key] = failedJobs;
+    }
+  });
+
+  pulls.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return { login, pulls, failed, repoErrors };
+}
+
+// ESC sequences of colors, and the time GitHub writes at the start of every line.
+const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*[A-Za-z]`, 'g');
+const STAMP = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z ?/;
+
+/**
+ * The end of a job's log, which is where it says why it failed. It stops at the last error
+ * GitHub marked: what comes after is the cleanup of the job. Lines of progress dots and lines
+ * repeated one after the other would only take the place of the ones that matter.
+ */
+export function logTail(log: string, lines = LOG_LINES): string {
+  let all = log
+    .replace(ANSI, '')
+    .split(/\r?\n/)
+    .map((line) => line.replace(STAMP, '').trimEnd());
+  let lastError = -1;
+  all.forEach((line, index) => {
+    if (line.startsWith('##[error]')) lastError = index;
+  });
+  if (lastError >= 0) all = all.slice(0, lastError + 1);
+  const kept: string[] = [];
+  for (const line of all) {
+    if (/^\.{3,}$/.test(line) || /^##\[(end)?group\]/.test(line)) continue;
+    if (kept.length > 0 && kept[kept.length - 1] === line) continue;
+    kept.push(line);
+  }
+  while (kept.length > 0 && !kept[kept.length - 1]) kept.pop();
+  return kept.slice(-lines).join('\n');
+}
+
+export class GitHubClient implements ForgeClient {
+  private readonly apiUrl: string;
+  private readonly fetch: Fetch;
+  private readonly runToken: (account: string) => Promise<string>;
+  private token: string | null;
+  private account = '';
+
+  constructor(options: GitHubClientOptions = {}) {
+    this.apiUrl = (options.apiUrl ?? 'https://api.github.com').replace(/\/+$/, '');
+    this.fetch = options.fetch ?? fetch;
+    this.runToken = options.runToken ?? ghToken;
+    this.token = options.token ?? null;
+    if (options.token) this.runToken = async () => options.token!;
+  }
+
+  setAccount(account: string): void {
+    if (account === this.account) return;
+    this.account = account;
+    this.token = null;
+  }
+
+  async pulls(repos: readonly string[]): Promise<ForgePulls> {
+    if (repos.length === 0) return parsePulls([], await this.graphql('query { viewer { login } }'));
+    const results: (ForgePulls | ForgeError)[] = new Array(repos.length);
+    let next = 0;
+    const worker = async () => {
+      while (next < repos.length) {
+        const index = next++;
+        results[index] = await this.repoPulls(repos[index]!).catch((err: unknown) =>
+          err instanceof ForgeError ? err : new ForgeError('error', String(err)),
+        );
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(PARALLEL, repos.length) }, worker));
+    const done = results.filter((r): r is ForgePulls => !(r instanceof ForgeError));
+    const failed = results.filter((r): r is ForgeError => r instanceof ForgeError);
+    // Without a login or with no answer at all, there is nothing to show of any repository.
+    const fatal = failed.find((e) => e.kind !== 'error');
+    if (fatal) throw fatal;
+    if (done.length === 0) throw failed[0]!;
+    const merged: ForgePulls = { login: done[0]!.login, pulls: [], failed: {}, repoErrors: {} };
+    results.forEach((result, index) => {
+      if (result instanceof ForgeError) {
+        merged.repoErrors[repos[index]!] = result.message;
+        return;
+      }
+      merged.pulls.push(...result.pulls);
+      Object.assign(merged.failed, result.failed);
+      Object.assign(merged.repoErrors, result.repoErrors);
+    });
+    merged.pulls.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return merged;
+  }
+
+  private async repoPulls(repo: string): Promise<ForgePulls> {
+    try {
+      return parsePulls([repo], await this.graphql(pullsQuery([repo])));
+    } catch (err) {
+      if (!(err instanceof ForgeError) || !err.timedOut) throw err;
+      return parsePulls([repo], await this.graphql(pullsQuery([repo], SMALL_PAGE)));
+    }
+  }
+
+  async available(): Promise<string[]> {
+    const names: string[] = [];
+    let after: string | null = null;
+    // Three pages of a hundred: enough to pick from, without a minute of waiting.
+    for (let page = 0; page < 3; page++) {
+      const body = obj(
+        await this.graphql(
+          `query($after: String) { viewer { repositories(first: 100, after: $after,
+            affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER],
+            orderBy: {field: PUSHED_AT, direction: DESC}) {
+              nodes { nameWithOwner } pageInfo { hasNextPage endCursor } } } }`,
+          { after },
+        ),
+      );
+      const list = obj(obj(obj(body.data).viewer).repositories);
+      for (const node of nodes(list))
+        if (text(node.nameWithOwner)) names.push(text(node.nameWithOwner));
+      const info = obj(list.pageInfo);
+      if (info.hasNextPage !== true) break;
+      after = text(info.endCursor);
+    }
+    return names;
+  }
+
+  async jobLog(repo: string, job: FailedJob): Promise<string> {
+    if (job.logId === null) return '';
+    const response = await this.request(`/repos/${repo}/actions/jobs/${job.logId}/logs`);
+    // GitHub answers with a redirect to the file; fetch follows it, without the token.
+    if (!response.ok) return '';
+    return logTail(await response.text());
+  }
+
+  private async graphql(query: string, variables: Json = {}): Promise<unknown> {
+    const response = await this.request('/graphql', {
+      method: 'POST',
+      body: JSON.stringify({ query, variables }),
+    });
+    if (!response.ok) {
+      // An error page of HTML says nothing the status does not.
+      const json = response.headers.get('content-type')?.includes('json');
+      const detail = json ? `: ${(await response.text()).slice(0, 300)}` : '';
+      const error = new ForgeError('error', `GitHub ${response.status}${detail}`);
+      error.timedOut = response.status === 502 || response.status === 504;
+      throw error;
+    }
+    const body = obj(await response.json());
+    // Errors of single repositories come with data; without any data the whole query failed.
+    if (!body.data && Array.isArray(body.errors)) {
+      throw new ForgeError('error', text(obj(body.errors[0]).message) || 'GitHub error');
+    }
+    return body;
+  }
+
+  private async request(path: string, init: RequestInit = {}, retried = false): Promise<Response> {
+    this.token ??= await this.runToken(this.account);
+    let response: Response;
+    try {
+      response = await this.fetch(`${this.apiUrl}${path}`, {
+        ...init,
+        headers: {
+          authorization: `Bearer ${this.token}`,
+          accept: 'application/vnd.github+json',
+          'content-type': 'application/json',
+          'user-agent': 'aurelium',
+        },
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch (error) {
+      const failure = new ForgeError(
+        'error',
+        error instanceof Error ? error.message : String(error),
+      );
+      failure.timedOut = error instanceof Error && error.name === 'TimeoutError';
+      throw failure;
+    }
+    if (response.status === 401) {
+      // The token of `gh` may have changed (a new login): one more try with the current one.
+      this.token = null;
+      if (!retried) return this.request(path, init, true);
+      throw new ForgeError('loggedOut', 'GitHub 401');
+    }
+    return response;
+  }
+}

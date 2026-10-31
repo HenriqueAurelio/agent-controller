@@ -11,5 +11,6 @@ Cada funcionalidade tem a sua pasta, com o problema, o que muda, como foi medido
 | [Só a sessão visível recebe saída](so-a-sessao-visivel/README.md) | Terminais montados e escondidos param de interpretar a saída; ao voltar, recebem o que perderam ou são reconstruídos | Maestro (um terminal emulado) e CompozyOS (desmonta e guarda o histórico) |
 | [Uso e contexto por sessão](uso-e-contexto/README.md) | Tokens e contexto ocupado de cada sessão, lidos do arquivo da conversa que o agente grava | Maestro (`src/session.rs`) e a proposta [uso e custo](../funcionalidades/uso-e-custo/README.md) |
 | [Core em processo próprio](core-em-processo-proprio/README.md) | PTY, histórico, sinais e git saem do processo da janela | CompozyOS (daemon) e Maestro (herdr) |
+| [Acompanhar PRs e pipelines](acompanhar-prs/README.md) | Os PRs dos repositórios observados, com o pipeline, avisos e o botão que manda o erro ao agente | Maestro (inbox e vigia dos MRs do GitLab) |
 
 As medições usam os scripts de `tools/perf` (`npm run measure:load`, `npm run measure:echo` e `tools/perf/compare.mjs` para o antes × depois).
