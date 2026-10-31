@@ -366,6 +366,7 @@ export async function startApp(): Promise<void> {
   });
   manager.on('data', (id, chunk) => send('terminal:data', id, chunk));
   manager.on('reset', (id) => send('terminal:reset', id));
+  manager.on('resync', (id, data) => send('terminal:resync', id, data));
   manager.on('started', (session) => {
     void changes.sessionStarted(session.id, session.cwd);
     void checkpoints.sessionStarted(session.id);

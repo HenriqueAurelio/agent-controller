@@ -7,7 +7,6 @@ import { isAlive } from '@core/pty/killTree';
 import { turnEdge } from '@core/sessions/turns';
 import { PtyManager } from '@core/pty/PtyManager';
 import {
-  BACKGROUND_FLUSH_MS,
   ECHO_MAX_CHARS,
   ECHO_WINDOW_MS,
   FOREGROUND_FLUSH_MS,
@@ -817,26 +816,72 @@ describe('SessionManager', () => {
       expect(await manager.screenText(s.id)).toBe(before);
     });
 
-    it('a mounted terminal in the background is fed in slow batches', async () => {
+    it('a mounted terminal out of sight gets nothing, and catches up when shown', async () => {
       const s = create();
       manager.start(s.id, SIZE);
       await until(s.id, 'aguardando');
+      manager.setVisible(s.id, true);
       await manager.attach(s.id, SIZE);
+      await manager.setVisible(s.id, false);
       let events = 0;
+      const resyncs: string[] = [];
       manager.on('data', () => events++);
+      manager.on('resync', (_id, screen) => resyncs.push(screen));
       manager.input(s.id, 'spam 300\r');
       await waitFor(async () => (await manager.screenText(s.id)).includes('fim-do-spam'));
-      await sleep(BACKGROUND_FLUSH_MS + 100);
-      expect(data[s.id]).toContain('fim-do-spam');
-      expect(events).toBeLessThan(20);
+      await sleep(100);
+      expect(events).toBe(0);
+
+      await manager.setVisible(s.id, true);
+      expect(resyncs).toHaveLength(1);
+      expect(resyncs[0]).toContain('fim-do-spam');
+      // From there on, the terminal is fed as usual.
+      manager.input(s.id, 'work\r');
+      await waitFor(() => data[s.id]?.includes('feito'));
     });
 
+    it('a terminal that missed nothing comes back without being redrawn', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      manager.setVisible(s.id, true);
+      await manager.attach(s.id, SIZE);
+      // The agent may still be drawing its prompt; only silence counts as nothing to miss.
+      let last = performance.now();
+      manager.on('data', () => (last = performance.now()));
+      await waitFor(() => performance.now() - last > 300);
+      await manager.setVisible(s.id, false);
+      const resyncs: string[] = [];
+      manager.on('resync', (_id, screen) => resyncs.push(screen));
+      await manager.setVisible(s.id, true);
+      expect(resyncs).toHaveLength(0);
+      manager.input(s.id, 'work\r');
+      await waitFor(() => data[s.id]?.includes('feito'));
+    });
+
+    it('while a terminal is out of sight, the history answers what the program asks it', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      manager.setVisible(s.id, true);
+      await manager.attach(s.id, SIZE);
+      await manager.setVisible(s.id, false);
+      const written: string[] = [];
+      const write = ptys.write.bind(ptys);
+      vi.spyOn(ptys, 'write').mockImplementation((id, text) => {
+        written.push(text);
+        write(id, text);
+      });
+      manager.input(s.id, 'query\r');
+      await waitFor(async () => (await manager.screenText(s.id)).includes('consultou'));
+      await waitFor(() => written.some((text) => /\x1b\[\d+;\d+R/.test(text)));
+    });
     it('a visible terminal still gets at most one batch a frame under a flood', async () => {
       const s = create();
       manager.start(s.id, SIZE);
       await until(s.id, 'aguardando');
-      await manager.attach(s.id, SIZE);
       manager.setVisible(s.id, true);
+      await manager.attach(s.id, SIZE);
       const times: number[] = [];
       manager.on('data', () => times.push(performance.now()));
       manager.input(s.id, 'spam 300\r');
@@ -850,8 +895,8 @@ describe('SessionManager', () => {
       const s = create();
       manager.start(s.id, SIZE);
       await until(s.id, 'aguardando');
-      await manager.attach(s.id, SIZE);
       manager.setVisible(s.id, true);
+      await manager.attach(s.id, SIZE);
       let sent = 0;
       let peak = 0;
       let acked = 0;
@@ -908,11 +953,45 @@ describe('SessionManager', () => {
       expect(await manager.screenText(s.id)).not.toContain('O agente saiu');
     });
   });
+
+  describe('usage', () => {
+    it('a hook that names the conversation file brings its tokens and context to the list', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      const file = path.join(dir, 'conversa.jsonl');
+      fs.writeFileSync(
+        file,
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            id: 'msg_1',
+            model: 'claude-opus-5-5',
+            usage: { input_tokens: 10, cache_read_input_tokens: 99_990, output_tokens: 200 },
+          },
+        }) + '\n',
+      );
+      manager.handleHook({
+        sessionId: s.id,
+        source: 'claude-hook',
+        payload: { hook_event_name: 'Stop', transcript_path: file },
+      });
+      await waitFor(() => manager.list().find((v) => v.id === s.id)?.usage);
+      const usage = manager.list().find((v) => v.id === s.id)!.usage!;
+      expect(usage.contextTokens).toBe(100_200);
+      expect(usage.contextWindow).toBe(1_000_000);
+
+      // A new run is a new conversation.
+      await manager.stop(s.id);
+      manager.start(s.id, SIZE);
+      expect(manager.list().find((v) => v.id === s.id)?.usage).toBeUndefined();
+    });
+  });
 });
 
 describe('flushDelay', () => {
   // A small piece of output, 5 ms after a key, with nothing sent for a while.
-  const echo = { visible: true, now: 5000, lastFlushAt: 0, lastInputAt: 4995, pendingChars: 3 };
+  const echo = { now: 5000, lastFlushAt: 0, lastInputAt: 4995, pendingChars: 3 };
 
   it('sends the echo of a key at once', () => {
     expect(flushDelay(echo)).toBe(0);
@@ -926,9 +1005,5 @@ describe('flushDelay', () => {
     );
     expect(flushDelay({ ...echo, pendingChars: ECHO_MAX_CHARS + 1 })).toBe(FOREGROUND_FLUSH_MS);
     expect(flushDelay({ ...echo, lastFlushAt: echo.now - 3 })).toBe(FOREGROUND_FLUSH_MS);
-  });
-
-  it('keeps the slow rate for a terminal in the background', () => {
-    expect(flushDelay({ ...echo, visible: false })).toBe(BACKGROUND_FLUSH_MS);
   });
 });

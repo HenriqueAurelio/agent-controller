@@ -162,6 +162,24 @@ export interface SessionView extends Session {
   reviewing?: string;
   /** The rules of its group that start or end at this session. */
   flow?: FlowMark;
+  /** Tokens and context of the conversation, read from the file the agent writes. */
+  usage?: SessionUsage;
+}
+
+/** What the agent's own conversation file says about tokens and context. */
+export interface SessionUsage {
+  /** Tokens sent to the model that it had not read before (no cache). */
+  inputTokens: number;
+  /** Tokens the model read again from its cache. */
+  cacheReadTokens: number;
+  outputTokens: number;
+  /** How much of the context the conversation takes up now. */
+  contextTokens: number;
+  /** The model's context window; null when the model is not known. */
+  contextWindow: number | null;
+  model: string | null;
+  /** Share of the plan's usage limit already spent, when the agent records it (Codex). */
+  planUsedPct: number | null;
 }
 
 export interface NewSessionInput {

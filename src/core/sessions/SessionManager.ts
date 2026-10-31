@@ -48,6 +48,7 @@ import {
   suggestWorktreeFolder,
 } from '../git/WorktreeService';
 import { ScreenHistory } from '../history/ScreenHistory';
+import { UsageTracker } from './UsageTracker';
 import type { PtyManager } from '../pty/PtyManager';
 import { toLongPath } from '../pty/longPath';
 import type { HookMessage } from '../signals/HookServer';
@@ -79,6 +80,8 @@ interface ManagerEvents {
   sentText: [id: string, text: string];
   /** The session restarted: a mounted terminal must be cleared. */
   reset: [id: string];
+  /** A parked terminal is back on screen and behind: its whole content, to replace it. */
+  resync: [id: string, data: string];
   transition: [SessionTransition];
   started: [session: Session];
   removed: [id: string];
@@ -125,9 +128,14 @@ interface Stream {
   history: ScreenHistory;
   running: boolean;
   stopRequested: boolean;
-  /** `pending`: an attach is waiting for the history to catch up. */
-  attached: 'no' | 'pending' | 'yes';
+  /**
+   * `pending`: an attach is waiting for the history to catch up. `parked`: the terminal is
+   * mounted but out of sight, and gets nothing until it is shown again.
+   */
+  attached: 'no' | 'pending' | 'yes' | 'parked';
   visible: boolean;
+  /** Output arrived while parked: the terminal's screen is behind the history's. */
+  missed: boolean;
   buffer: string[];
   bufferedChars: number;
   flushTimer: ReturnType<typeof setTimeout> | null;
@@ -188,9 +196,9 @@ interface Entry {
 }
 
 const DEFAULT_SIZE: TerminalSize = { cols: 100, rows: 30 };
-// Visible terminals are fed once per frame; the ones kept mounted in the background, rarely.
+// The terminal in sight is fed once per frame at most. Mounted terminals out of sight are not
+// fed at all: they catch up from the history when shown again.
 export const FOREGROUND_FLUSH_MS = 8;
-export const BACKGROUND_FLUSH_MS = 250;
 const FLUSH_NOW_CHARS = 128 * 1024;
 /** Output up to this size, soon after a key, is taken for its echo. */
 export const ECHO_MAX_CHARS = 1024;
@@ -199,7 +207,6 @@ export const ECHO_WINDOW_MS = 100;
 
 /** When output arrives on a stream, and how much is waiting. */
 export interface FlushTiming {
-  visible: boolean;
   now: number;
   lastFlushAt: number;
   lastInputAt: number;
@@ -207,18 +214,22 @@ export interface FlushTiming {
 }
 
 /**
- * How long new output waits before it is sent to the renderer. On a visible terminal, a small
- * piece right after a key (its echo, most of the time) goes at once. Anything else waits for the
- * batch: an agent's spinner sent piece by piece would cost a draw each, measured at 4% of a core
- * more with 6 busy sessions.
+ * How long new output waits before it is sent to the terminal on screen. A small piece right
+ * after a key (its echo, most of the time) goes at once. Anything else waits for the batch: an
+ * agent's spinner sent piece by piece would cost a draw each, measured at 4% of a core more with
+ * 6 busy sessions.
  */
 export function flushDelay(t: FlushTiming): number {
-  if (!t.visible) return BACKGROUND_FLUSH_MS;
   const echo =
     t.now - t.lastInputAt <= ECHO_WINDOW_MS &&
     t.now - t.lastFlushAt >= FOREGROUND_FLUSH_MS &&
     t.pendingChars <= ECHO_MAX_CHARS;
   return echo ? 0 : FOREGROUND_FLUSH_MS;
+}
+
+/** Whether the history, rather than a terminal on screen, answers the program's queries. */
+function answersQueries(stream: Stream): boolean {
+  return stream.attached === 'no' || stream.attached === 'parked';
 }
 
 /**
@@ -238,6 +249,8 @@ export const LOW_WATER = 32 * 1024;
  */
 export class SessionManager extends EventEmitter<ManagerEvents> {
   private readonly entries = new Map<string, Entry>();
+  /** Tokens and context of each conversation, from the file the agent writes. */
+  private readonly usage = new UsageTracker();
   private outputCounter = 0;
   /** Shells beside an agent that were closed and are still ending, by session. */
   private readonly auxClosing = new Map<string, Promise<void>>();
@@ -251,6 +264,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
 
   constructor(private readonly options: SessionManagerOptions) {
     super();
+    this.usage.on('usage', () => this.changed());
     this.now = options.now ?? Date.now;
     this.prefs = options.prefs;
     this.groups = (options.groups ?? []).map((group) => ({ ...group }));
@@ -305,6 +319,9 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       ...(entry.aux && { auxOpen: true }),
       ...(entry.permission?.shown && {
         permission: { ...entry.permission.ask, choices: entry.permission.shown },
+      }),
+      ...(this.usage.usageOf(entry.session.id) && {
+        usage: this.usage.usageOf(entry.session.id),
       }),
     };
   }
@@ -726,6 +743,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       await removeWorktree(entry.session.cwd);
     }
     this.disposeRuntime(entry);
+    this.usage.stop(id);
     this.entries.delete(id);
     const index = this.order.indexOf(id);
     this.order = this.order.filter((other) => other !== id);
@@ -750,6 +768,8 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   start(id: string, size: TerminalSize = DEFAULT_SIZE): void {
     const entry = this.entries.get(id);
     if (!entry || entry.runtime?.running) return;
+    // A new run is a new conversation; the numbers of the old one would mislead.
+    this.usage.stop(id);
     const { session } = entry;
     const profile = getProfile(session.profile);
 
@@ -762,6 +782,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
         setHooks: (mode) => this.setHooks(id, mode),
         ask: (ask) => this.openPermission(id, ask),
         now: this.now,
+        transcript: (file) => this.usage.track(id, file, runtime.adapter.usageReader()),
       }),
       silence: new SilenceDetector(
         this.prefs.silenceSeconds * 1000,
@@ -770,9 +791,11 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       ),
       running: false,
       stopRequested: false,
-      // A terminal that is already mounted receives this run from its first byte.
-      attached: entry.mounted ? 'yes' : 'no',
+      // A terminal that is already mounted receives this run from its first byte, or, out of
+      // sight, catches up when shown.
+      attached: entry.mounted ? (entry.visible ? 'yes' : 'parked') : 'no',
       visible: entry.visible,
+      missed: false,
       buffer: [],
       bufferedChars: 0,
       flushTimer: null,
@@ -781,10 +804,10 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       unacked: 0,
       paused: false,
     };
-    // A mounted terminal answers the program's queries itself; otherwise the history does, so
-    // an agent started in the background does not stall.
+    // A terminal that is fed answers the program's queries itself; otherwise the history does,
+    // so an agent in the background does not stall.
     runtime.history.onReply((reply) => {
-      if (runtime.attached === 'no' && runtime.running) this.options.ptys.write(id, reply);
+      if (answersQueries(runtime) && runtime.running) this.options.ptys.write(id, reply);
     });
     this.disposeRuntime(entry);
     entry.runtime = runtime;
@@ -855,6 +878,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       stopRequested: false,
       attached: 'no',
       visible: false,
+      missed: false,
       buffer: [],
       bufferedChars: 0,
       flushTimer: null,
@@ -865,7 +889,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     };
     const auxId = auxTerminalId(id);
     stream.history.onReply((reply) => {
-      if (stream.attached === 'no' && stream.running) this.options.ptys.write(auxId, reply);
+      if (answersQueries(stream) && stream.running) this.options.ptys.write(auxId, reply);
     });
     try {
       const launch = this.options.resolveAuxShell?.(entry.session) ?? interactiveShell();
@@ -977,7 +1001,10 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   /** Entry point of the hook server. */
   handleHook(message: HookMessage): void {
     const runtime = this.entries.get(message.sessionId)?.runtime;
-    if (runtime?.running) runtime.adapter.onHook(message);
+    if (!runtime?.running) return;
+    runtime.adapter.onHook(message);
+    // A hook is a moment the conversation file just grew.
+    void this.usage.poke(message.sessionId);
   }
 
   private setHooks(id: string, mode: HooksMode): void {
@@ -998,6 +1025,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       entry.unread = true;
     }
     if (next.state === 'trabalhando' || next.state === 'parada') entry.unread = false;
+    this.usage.setWorking(signal.sessionId, next.state === 'trabalhando');
     // The agent moved on: whatever it asked was answered, in the terminal or otherwise.
     if (next.state !== 'aguardando') this.clearPermission(entry);
     this.releasePending(entry);
@@ -1137,7 +1165,9 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     const entry = this.entries.get(id);
     if (entry && entry.runtime === runtime) entry.outputSeq = ++this.outputCounter;
     runtime.history.write(chunk, () => this.relieve(id, runtime));
-    if (runtime.attached !== 'no') {
+    if (runtime.attached === 'parked') {
+      runtime.missed = true;
+    } else if (runtime.attached !== 'no') {
       runtime.buffer.push(chunk);
       runtime.bufferedChars += chunk.length;
       if (runtime.attached === 'yes') this.scheduleFlush(id, runtime);
@@ -1152,7 +1182,6 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     }
     if (runtime.flushTimer) return;
     const wait = flushDelay({
-      visible: runtime.visible,
       now: performance.now(),
       lastFlushAt: runtime.lastFlushAt,
       lastInputAt: runtime.lastInputAt,
@@ -1228,9 +1257,50 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       cols: runtime.history.cols,
       rows: runtime.history.rows,
     };
+    runtime.missed = false;
     runtime.attached = 'yes';
-    if (runtime.buffer.length) this.scheduleFlush(id, runtime);
+    if (!runtime.visible) this.park(id, runtime);
+    else if (runtime.buffer.length) this.scheduleFlush(id, runtime);
     return snapshot;
+  }
+
+  /** Stops feeding a terminal that left the screen; what it misses is noted, not kept. */
+  private park(id: string, runtime: Stream): void {
+    if (runtime.flushTimer) clearTimeout(runtime.flushTimer);
+    runtime.flushTimer = null;
+    if (runtime.buffer.length) runtime.missed = true;
+    runtime.buffer = [];
+    runtime.bufferedChars = 0;
+    // What was sent is still drawn and acknowledged; nothing new will add to it.
+    runtime.attached = 'parked';
+    this.relieve(id, runtime);
+  }
+
+  /**
+   * A parked terminal is back on screen. If the program wrote while it was away, its screen is
+   * replaced by the history's (`resync`), which has no queries left in it to be answered twice.
+   */
+  private async unpark(id: string, runtime: Stream): Promise<void> {
+    if (!runtime.missed) {
+      runtime.attached = 'yes';
+      return;
+    }
+    runtime.attached = 'pending';
+    runtime.buffer = [];
+    runtime.bufferedChars = 0;
+    runtime.unacked = 0;
+    await runtime.history.flush();
+    // Hidden again, detached or replaced while the history caught up.
+    if (this.streamOf(id)?.stream !== runtime || runtime.attached !== 'pending') return;
+    if (!runtime.visible) {
+      this.park(id, runtime);
+      return;
+    }
+    const data = runtime.history.serialize();
+    runtime.missed = false;
+    runtime.attached = 'yes';
+    this.emit('resync', id, data);
+    if (runtime.buffer.length) this.scheduleFlush(id, runtime);
   }
 
   detach(id: string): void {
@@ -1252,15 +1322,24 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.relieve(id, runtime);
   }
 
-  /** Terminals mounted but not on screen are fed at a lower rate. */
-  setVisible(id: string, visible: boolean): void {
+  /**
+   * Only the terminal on screen is fed. One that leaves it is parked: the program keeps running
+   * and the history keeps up, but the renderer reads nothing until the terminal comes back.
+   */
+  setVisible(id: string, visible: boolean): Promise<void> {
     const found = this.streamOf(id);
-    if (!found) return;
+    if (!found) return Promise.resolve();
     if (!found.aux) found.entry.visible = visible;
     const runtime = found.stream;
-    if (!runtime || runtime.visible === visible) return;
+    if (!runtime || runtime.visible === visible) return Promise.resolve();
     runtime.visible = visible;
-    if (visible) this.flush(id, runtime);
+    if (!visible) {
+      // A pending attach parks itself once the snapshot is out.
+      if (runtime.attached === 'yes') this.park(id, runtime);
+      return Promise.resolve();
+    }
+    if (runtime.attached === 'parked') return this.unpark(id, runtime);
+    return Promise.resolve();
   }
 
   input(id: string, data: string): void {
@@ -1412,5 +1491,6 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.options.ptys.off('data', this.onPtyData);
     this.options.ptys.off('exit', this.onPtyExit);
     for (const entry of this.entries.values()) this.disposeRuntime(entry);
+    this.usage.dispose();
   }
 }

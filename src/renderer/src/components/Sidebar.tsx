@@ -11,6 +11,7 @@ import { statusLabel, type SessionGroup, type SessionView } from '@shared/sessio
 import { formatCpu, formatMemory, hint, PROFILE_LABEL } from '../lib/format';
 import { ChecksBadge } from './ChecksDialog';
 import { FlowBadge, OverlapBadge, PermissionAsk, QueueBadge, ReviewBadge } from './SessionMarks';
+import { UsageBadge } from './UsageBadge';
 import { useT } from '../lib/i18n';
 import { store, useAppState } from '../lib/store';
 
@@ -373,6 +374,7 @@ export function Sidebar({
             <span className={`profile-tag profile-${session.profile}`}>
               {PROFILE_LABEL[session.profile]}
             </span>
+            <UsageBadge session={session} />
             <span
               className={`session-state state-label state-label-${session.status.state} ${session.status.confirmed ? '' : 'inferred'}`}
             >

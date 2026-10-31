@@ -2,6 +2,7 @@ import type { HookMessage } from '../signals/HookServer';
 import type { TitleActivity } from '../signals/title';
 import { asRecord, BaseAdapter } from './adapter';
 import { CODEX_HOOK_SOURCE, CODEX_NOTIFY_SOURCE } from './commandLine';
+import { codexUsageReader, findCodexRollout, type UsageReader } from './usage';
 
 /** After the first prompt, how long to wait for `SessionStart` before calling the hooks off. */
 export const HOOKS_PROBE_MS = 4000;
@@ -66,10 +67,14 @@ export class CodexAdapter extends BaseAdapter {
     this.markHooks('active');
     if (this.hooksProbe) clearTimeout(this.hooksProbe);
     this.hooksProbe = null;
+    this.reportTranscript(payload.transcript_path);
 
     switch (payload.hook_event_name) {
       case 'SessionStart':
-        if (typeof payload.session_id === 'string') this.threadId = payload.session_id;
+        if (typeof payload.session_id === 'string') {
+          this.threadId = payload.session_id;
+          this.locate(payload.session_id);
+        }
         break;
       case 'PermissionRequest':
         this.permissionRequest(payload);
@@ -93,6 +98,8 @@ export class CodexAdapter extends BaseAdapter {
     // lock onto the wrong one.
     if (this.threadId && threadId && threadId !== this.threadId) return;
     if (inputMessages(payload).some((m) => INTERNAL_PROMPT.test(m))) return;
+    // Without trusted hooks, a real turn's notify is the only place the thread shows up.
+    if (threadId) this.locate(threadId);
 
     if (this.activity === 'waiting') return; // A turn asking for permission is not complete.
     if (this.activity === 'working') {
@@ -103,6 +110,18 @@ export class CodexAdapter extends BaseAdapter {
       return;
     }
     this.acceptNotify();
+  }
+
+  usageReader(): UsageReader {
+    return codexUsageReader();
+  }
+
+  /** Finds the rollout file of a thread, unless a hook already named the conversation file. */
+  private locate(threadId: string): void {
+    if (this.knowsTranscript) return;
+    void findCodexRollout(threadId).then((file) => {
+      if (file) this.reportTranscript(file);
+    });
   }
 
   override dispose(): void {
