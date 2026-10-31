@@ -8,6 +8,8 @@ import { turnEdge } from '@core/sessions/turns';
 import { PtyManager } from '@core/pty/PtyManager';
 import {
   BACKGROUND_FLUSH_MS,
+  FOREGROUND_FLUSH_MS,
+  flushDelay,
   SessionManager,
   type SessionTransition,
 } from '@core/sessions/SessionManager';
@@ -827,6 +829,21 @@ describe('SessionManager', () => {
       expect(events).toBeLessThan(20);
     });
 
+    it('a visible terminal still gets at most one batch a frame under a flood', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      await manager.attach(s.id, SIZE);
+      manager.setVisible(s.id, true);
+      const times: number[] = [];
+      manager.on('data', () => times.push(performance.now()));
+      manager.input(s.id, 'spam 300\r');
+      await waitFor(() => data[s.id]?.includes('fim-do-spam'), { timeout: 15000 });
+      const gaps = times.slice(1).map((t, i) => t - times[i]);
+      // Timers may fire a little early; what matters is that no two batches go back to back.
+      expect(gaps.filter((gap) => gap < FOREGROUND_FLUSH_MS - 2)).toEqual([]);
+    });
+
     it('a flood of output is held back when the renderer does not keep up, and nothing is lost', async () => {
       const s = create();
       manager.start(s.id, SIZE);
@@ -888,5 +905,20 @@ describe('SessionManager', () => {
       await until(s.id, 'aguardando');
       expect(await manager.screenText(s.id)).not.toContain('O agente saiu');
     });
+  });
+});
+
+describe('flushDelay', () => {
+  it('sends the first output after a quiet spell at once', () => {
+    expect(flushDelay(true, 1000, 1000 + FOREGROUND_FLUSH_MS)).toBe(0);
+    expect(flushDelay(true, 0, 5000)).toBe(0);
+  });
+
+  it('holds what comes right after a batch until the next frame', () => {
+    expect(flushDelay(true, 1000, 1003)).toBe(FOREGROUND_FLUSH_MS - 3);
+  });
+
+  it('keeps the slow rate for a terminal in the background', () => {
+    expect(flushDelay(false, 0, 5000)).toBe(BACKGROUND_FLUSH_MS);
   });
 });

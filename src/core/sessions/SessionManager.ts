@@ -131,6 +131,8 @@ interface Stream {
   buffer: string[];
   bufferedChars: number;
   flushTimer: ReturnType<typeof setTimeout> | null;
+  /** `performance.now()` of the last batch sent to the renderer. */
+  lastFlushAt: number;
   /** Characters sent to the renderer and not yet acknowledged. */
   unacked: number;
   paused: boolean;
@@ -188,6 +190,17 @@ const DEFAULT_SIZE: TerminalSize = { cols: 100, rows: 30 };
 export const FOREGROUND_FLUSH_MS = 8;
 export const BACKGROUND_FLUSH_MS = 250;
 const FLUSH_NOW_CHARS = 128 * 1024;
+
+/**
+ * How long new output waits before it is sent to the renderer. On a visible terminal, the first
+ * output after a quiet spell (the echo of a key, most of the time) goes at once; what keeps
+ * coming right after it waits for the next batch, so the rate stays at one a frame.
+ */
+export function flushDelay(visible: boolean, lastFlushAt: number, now: number): number {
+  if (!visible) return BACKGROUND_FLUSH_MS;
+  return Math.max(0, lastFlushAt + FOREGROUND_FLUSH_MS - now);
+}
+
 /**
  * Between a paste and the Enter that sends it. Where ConPTY drops the paste markers, an Enter in
  * the same burst of keys reads as a line break inside the paste.
@@ -743,6 +756,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       buffer: [],
       bufferedChars: 0,
       flushTimer: null,
+      lastFlushAt: 0,
       unacked: 0,
       paused: false,
     };
@@ -823,6 +837,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       buffer: [],
       bufferedChars: 0,
       flushTimer: null,
+      lastFlushAt: 0,
       unacked: 0,
       paused: false,
     };
@@ -1114,10 +1129,12 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       return;
     }
     if (runtime.flushTimer) return;
-    runtime.flushTimer = setTimeout(
-      () => this.flush(id, runtime),
-      runtime.visible ? FOREGROUND_FLUSH_MS : BACKGROUND_FLUSH_MS,
-    );
+    const wait = flushDelay(runtime.visible, runtime.lastFlushAt, performance.now());
+    if (wait === 0) {
+      this.flush(id, runtime);
+      return;
+    }
+    runtime.flushTimer = setTimeout(() => this.flush(id, runtime), wait);
   }
 
   private flush(id: string, runtime: Stream): void {
@@ -1127,6 +1144,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     const data = runtime.buffer.join('');
     runtime.buffer = [];
     runtime.bufferedChars = 0;
+    runtime.lastFlushAt = performance.now();
     runtime.unacked += data.length;
     this.emit('data', id, data);
     this.applyPressure(id, runtime);
