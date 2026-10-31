@@ -876,7 +876,6 @@ describe('SessionManager', () => {
       await waitFor(async () => (await manager.screenText(s.id)).includes('consultou'));
       await waitFor(() => written.some((text) => /\x1b\[\d+;\d+R/.test(text)));
     });
-
     it('a visible terminal still gets at most one batch a frame under a flood', async () => {
       const s = create();
       manager.start(s.id, SIZE);
@@ -952,6 +951,40 @@ describe('SessionManager', () => {
       expect(resets).toEqual([s.id, s.id]);
       await until(s.id, 'aguardando');
       expect(await manager.screenText(s.id)).not.toContain('O agente saiu');
+    });
+  });
+
+  describe('usage', () => {
+    it('a hook that names the conversation file brings its tokens and context to the list', async () => {
+      const s = create();
+      manager.start(s.id, SIZE);
+      await until(s.id, 'aguardando');
+      const file = path.join(dir, 'conversa.jsonl');
+      fs.writeFileSync(
+        file,
+        JSON.stringify({
+          type: 'assistant',
+          message: {
+            id: 'msg_1',
+            model: 'claude-opus-5-5',
+            usage: { input_tokens: 10, cache_read_input_tokens: 99_990, output_tokens: 200 },
+          },
+        }) + '\n',
+      );
+      manager.handleHook({
+        sessionId: s.id,
+        source: 'claude-hook',
+        payload: { hook_event_name: 'Stop', transcript_path: file },
+      });
+      await waitFor(() => manager.list().find((v) => v.id === s.id)?.usage);
+      const usage = manager.list().find((v) => v.id === s.id)!.usage!;
+      expect(usage.contextTokens).toBe(100_200);
+      expect(usage.contextWindow).toBe(1_000_000);
+
+      // A new run is a new conversation.
+      await manager.stop(s.id);
+      manager.start(s.id, SIZE);
+      expect(manager.list().find((v) => v.id === s.id)?.usage).toBeUndefined();
     });
   });
 });

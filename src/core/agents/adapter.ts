@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
 import {
   STATUS_DETAIL,
   type HooksMode,
@@ -11,6 +12,7 @@ import type { HookMessage } from '../signals/HookServer';
 import { classifyTitle, type TitleActivity } from '../signals/title';
 import { describeRequest, profileChoices } from './permission';
 import type { AgentProfile } from './profiles';
+import type { UsageReader } from './usage';
 
 export interface AdapterHost {
   sessionId: string;
@@ -19,6 +21,8 @@ export interface AdapterHost {
   /** The agent asks permission for something; it replaces whatever request was open. */
   ask(ask: PermissionAsk): void;
   now(): number;
+  /** Where the agent writes this conversation, once it says so. */
+  transcript?(file: string): void;
 }
 
 /** Translates what one agent emits (title, hooks, notify) into session signals. */
@@ -27,6 +31,8 @@ export interface AgentAdapter {
   onHook(message: HookMessage): void;
   /** What the user typed into the terminal. */
   onUserInput(data: string): void;
+  /** Reads tokens and context from the conversation file this agent writes. */
+  usageReader(): UsageReader;
   dispose(): void;
 }
 
@@ -56,6 +62,7 @@ export abstract class BaseAdapter implements AgentAdapter {
   private startupCycles = 0;
   private resolvedAt = Number.NEGATIVE_INFINITY;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private transcriptFile: string | null = null;
 
   constructor(
     protected readonly profile: AgentProfile,
@@ -64,6 +71,20 @@ export abstract class BaseAdapter implements AgentAdapter {
 
   protected emit(kind: SignalKind, origin: SignalOrigin, detail?: string): void {
     this.host.emit({ sessionId: this.host.sessionId, kind, origin, at: this.host.now(), detail });
+  }
+
+  abstract usageReader(): UsageReader;
+
+  /** The conversation file named by the agent. Only an absolute `.jsonl` path is taken. */
+  protected reportTranscript(file: unknown): void {
+    if (typeof file !== 'string' || file === this.transcriptFile) return;
+    if (!path.isAbsolute(file) || !file.endsWith('.jsonl')) return;
+    this.transcriptFile = file;
+    this.host.transcript?.(file);
+  }
+
+  protected get knowsTranscript(): boolean {
+    return this.transcriptFile !== null;
   }
 
   protected markHooks(mode: HooksMode): void {

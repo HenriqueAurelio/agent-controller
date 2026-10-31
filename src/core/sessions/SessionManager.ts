@@ -48,6 +48,7 @@ import {
   suggestWorktreeFolder,
 } from '../git/WorktreeService';
 import { ScreenHistory } from '../history/ScreenHistory';
+import { UsageTracker } from './UsageTracker';
 import type { PtyManager } from '../pty/PtyManager';
 import { toLongPath } from '../pty/longPath';
 import type { HookMessage } from '../signals/HookServer';
@@ -248,6 +249,8 @@ export const LOW_WATER = 32 * 1024;
  */
 export class SessionManager extends EventEmitter<ManagerEvents> {
   private readonly entries = new Map<string, Entry>();
+  /** Tokens and context of each conversation, from the file the agent writes. */
+  private readonly usage = new UsageTracker();
   private outputCounter = 0;
   /** Shells beside an agent that were closed and are still ending, by session. */
   private readonly auxClosing = new Map<string, Promise<void>>();
@@ -261,6 +264,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
 
   constructor(private readonly options: SessionManagerOptions) {
     super();
+    this.usage.on('usage', () => this.changed());
     this.now = options.now ?? Date.now;
     this.prefs = options.prefs;
     this.groups = (options.groups ?? []).map((group) => ({ ...group }));
@@ -315,6 +319,9 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       ...(entry.aux && { auxOpen: true }),
       ...(entry.permission?.shown && {
         permission: { ...entry.permission.ask, choices: entry.permission.shown },
+      }),
+      ...(this.usage.usageOf(entry.session.id) && {
+        usage: this.usage.usageOf(entry.session.id),
       }),
     };
   }
@@ -736,6 +743,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       await removeWorktree(entry.session.cwd);
     }
     this.disposeRuntime(entry);
+    this.usage.stop(id);
     this.entries.delete(id);
     const index = this.order.indexOf(id);
     this.order = this.order.filter((other) => other !== id);
@@ -760,6 +768,8 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   start(id: string, size: TerminalSize = DEFAULT_SIZE): void {
     const entry = this.entries.get(id);
     if (!entry || entry.runtime?.running) return;
+    // A new run is a new conversation; the numbers of the old one would mislead.
+    this.usage.stop(id);
     const { session } = entry;
     const profile = getProfile(session.profile);
 
@@ -772,6 +782,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
         setHooks: (mode) => this.setHooks(id, mode),
         ask: (ask) => this.openPermission(id, ask),
         now: this.now,
+        transcript: (file) => this.usage.track(id, file, runtime.adapter.usageReader()),
       }),
       silence: new SilenceDetector(
         this.prefs.silenceSeconds * 1000,
@@ -990,7 +1001,10 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   /** Entry point of the hook server. */
   handleHook(message: HookMessage): void {
     const runtime = this.entries.get(message.sessionId)?.runtime;
-    if (runtime?.running) runtime.adapter.onHook(message);
+    if (!runtime?.running) return;
+    runtime.adapter.onHook(message);
+    // A hook is a moment the conversation file just grew.
+    void this.usage.poke(message.sessionId);
   }
 
   private setHooks(id: string, mode: HooksMode): void {
@@ -1011,6 +1025,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       entry.unread = true;
     }
     if (next.state === 'trabalhando' || next.state === 'parada') entry.unread = false;
+    this.usage.setWorking(signal.sessionId, next.state === 'trabalhando');
     // The agent moved on: whatever it asked was answered, in the terminal or otherwise.
     if (next.state !== 'aguardando') this.clearPermission(entry);
     this.releasePending(entry);
@@ -1476,5 +1491,6 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.options.ptys.off('data', this.onPtyData);
     this.options.ptys.off('exit', this.onPtyExit);
     for (const entry of this.entries.values()) this.disposeRuntime(entry);
+    this.usage.dispose();
   }
 }
