@@ -1122,7 +1122,8 @@ export const en: Record<keyof typeof ptBR, string> = {
   'prompts.factory.fixPipeline.text':
     'The pipeline of this pull request failed:\n{pr}\n\nThe jobs that failed and the end of the log of each one:\n\n{pipeline}\n\nFind the cause, fix it on the branch {branch} and run what failed locally to confirm. Then commit and push.',
   'pulls.title': 'Pull requests',
-  'pulls.open': 'Pull requests: the PRs and pipelines of the watched repositories',
+  'pulls.open':
+    'Pull requests: the PRs, the GitLab MRs and the pipelines of the watched repositories',
   'pulls.close': 'Close the pull requests',
   'pulls.refresh': 'Refresh',
   'pulls.checking': 'Checking…',
@@ -1140,11 +1141,17 @@ export const en: Record<keyof typeof ptBR, string> = {
   'pulls.status.loggedOut':
     'gh has no login{account}. Run "gh auth login" in a terminal and refresh.',
   'pulls.status.loggedOutAccount': ' for the account {account}',
-  'pulls.status.error': 'Could not reach GitHub: {error}',
+  'pulls.status.noCliGitlab':
+    'The GitLab CLI (glab) is not installed. Install it (https://gitlab.com/gitlab-org/cli) and run "glab auth login" in a terminal.',
+  'pulls.status.loggedOutGitlab':
+    'glab has no login on {host}. Run "glab auth login --hostname {host}" in a terminal and refresh.',
+  'pulls.forge.github': 'GitHub',
+  'pulls.forge.gitlab': 'GitLab',
+  'pulls.status.error': 'Could not reach {service}: {error}',
   'pulls.repoError': '{repo}: {error}',
   'pulls.repos': 'Repositories',
   'pulls.repos.title': 'Watched repositories',
-  'pulls.repos.paste': 'owner/repo, owner/other, …',
+  'pulls.repos.paste': 'owner/repo, https://gitlab.com/group/project, …',
   'pulls.repos.pasteLabel': 'Paste names or addresses, separated by commas',
   'pulls.repos.add': 'Add',
   'pulls.repos.invalid': 'Not recognized: {items}',
@@ -1185,5 +1192,5 @@ export const en: Record<keyof typeof ptBR, string> = {
   'pulls.fixHint':
     'Opens the prompt "Fix the pipeline" (editable in the prompt library) with the failed jobs and the end of their logs, for the session on that branch.',
   'pulls.fixing': 'Reading the logs…',
-  'pulls.openSite': 'Open on GitHub',
+  'pulls.openSite': 'Open on {service}',
 };

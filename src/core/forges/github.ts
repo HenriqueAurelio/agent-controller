@@ -2,47 +2,10 @@
 // token of its own, and the one `gh` gives stays in this process, never in the renderer.
 import { spawn } from 'node:child_process';
 import type { JobState, PipelineJob, PipelineState, PullRequestView } from '@shared/pulls';
+import { eachRepo, ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
+import { ANSI, tailLines } from './log';
 
-/** Why the service could not be read; the watcher turns it into the state the panel shows. */
-export class ForgeError extends Error {
-  /** GitHub gave up on a query that was too heavy: a smaller one may go. */
-  timedOut = false;
-
-  constructor(
-    readonly kind: 'noCli' | 'loggedOut' | 'error',
-    message: string,
-  ) {
-    super(message);
-    this.name = 'ForgeError';
-  }
-}
-
-/** A failed job and where its log is, for the prompt that sends it to an agent. */
-export interface FailedJob {
-  name: string;
-  url: string | null;
-  /** The id of the job of GitHub Actions; null for checks of other services. */
-  logId: number | null;
-}
-
-export interface ForgePulls {
-  login: string;
-  pulls: PullRequestView[];
-  /** Job ids of each pull request's failed jobs, by key. */
-  failed: Record<string, FailedJob[]>;
-  repoErrors: Record<string, string>;
-}
-
-/** What the watcher needs of a service. */
-export interface ForgeClient {
-  pulls(repos: readonly string[]): Promise<ForgePulls>;
-  /** Repositories the account can see, the latest pushed first. */
-  available(): Promise<string[]>;
-  /** The last lines of the log of a job. */
-  jobLog(repo: string, job: FailedJob): Promise<string>;
-  /** The account to read with; empty for the active one. */
-  setAccount(account: string): void;
-}
+export { ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
 
 type Fetch = typeof fetch;
 
@@ -59,9 +22,6 @@ export interface GitHubClientOptions {
 /** How much of a repository one query asks for; a busy one gets a smaller second try. */
 const PAGE = { pulls: 20, jobs: 30 };
 const SMALL_PAGE = { pulls: 8, jobs: 15 };
-/** Repositories asked at the same time. */
-const PARALLEL = 4;
-const LOG_LINES = 120;
 
 /** `gh auth token`, for one account or the active one. */
 export function ghToken(account: string): Promise<string> {
@@ -219,6 +179,7 @@ export function parsePulls(repos: readonly string[], body: unknown): ForgePulls 
       const decision = text(pr.reviewDecision);
       pulls.push({
         key,
+        forge: 'github',
         repo,
         number,
         title: text(pr.title),
@@ -253,8 +214,7 @@ export function parsePulls(repos: readonly string[], body: unknown): ForgePulls 
   return { login, pulls, failed, repoErrors };
 }
 
-// ESC sequences of colors, and the time GitHub writes at the start of every line.
-const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*[A-Za-z]`, 'g');
+// The time GitHub writes at the start of every line.
 const STAMP = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z ?/;
 
 /**
@@ -262,7 +222,7 @@ const STAMP = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z ?/;
  * GitHub marked: what comes after is the cleanup of the job. Lines of progress dots and lines
  * repeated one after the other would only take the place of the ones that matter.
  */
-export function logTail(log: string, lines = LOG_LINES): string {
+export function logTail(log: string, lines?: number): string {
   let all = log
     .replace(ANSI, '')
     .split(/\r?\n/)
@@ -272,14 +232,10 @@ export function logTail(log: string, lines = LOG_LINES): string {
     if (line.startsWith('##[error]')) lastError = index;
   });
   if (lastError >= 0) all = all.slice(0, lastError + 1);
-  const kept: string[] = [];
-  for (const line of all) {
-    if (/^\.{3,}$/.test(line) || /^##\[(end)?group\]/.test(line)) continue;
-    if (kept.length > 0 && kept[kept.length - 1] === line) continue;
-    kept.push(line);
-  }
-  while (kept.length > 0 && !kept[kept.length - 1]) kept.pop();
-  return kept.slice(-lines).join('\n');
+  return tailLines(
+    all.filter((line) => !/^##\[(end)?group\]/.test(line)),
+    lines,
+  );
 }
 
 export class GitHubClient implements ForgeClient {
@@ -305,35 +261,7 @@ export class GitHubClient implements ForgeClient {
 
   async pulls(repos: readonly string[]): Promise<ForgePulls> {
     if (repos.length === 0) return parsePulls([], await this.graphql('query { viewer { login } }'));
-    const results: (ForgePulls | ForgeError)[] = new Array(repos.length);
-    let next = 0;
-    const worker = async () => {
-      while (next < repos.length) {
-        const index = next++;
-        results[index] = await this.repoPulls(repos[index]!).catch((err: unknown) =>
-          err instanceof ForgeError ? err : new ForgeError('error', String(err)),
-        );
-      }
-    };
-    await Promise.all(Array.from({ length: Math.min(PARALLEL, repos.length) }, worker));
-    const done = results.filter((r): r is ForgePulls => !(r instanceof ForgeError));
-    const failed = results.filter((r): r is ForgeError => r instanceof ForgeError);
-    // Without a login or with no answer at all, there is nothing to show of any repository.
-    const fatal = failed.find((e) => e.kind !== 'error');
-    if (fatal) throw fatal;
-    if (done.length === 0) throw failed[0]!;
-    const merged: ForgePulls = { login: done[0]!.login, pulls: [], failed: {}, repoErrors: {} };
-    results.forEach((result, index) => {
-      if (result instanceof ForgeError) {
-        merged.repoErrors[repos[index]!] = result.message;
-        return;
-      }
-      merged.pulls.push(...result.pulls);
-      Object.assign(merged.failed, result.failed);
-      Object.assign(merged.repoErrors, result.repoErrors);
-    });
-    merged.pulls.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    return merged;
+    return eachRepo(repos, (repo) => this.repoPulls(repo));
   }
 
   private async repoPulls(repo: string): Promise<ForgePulls> {

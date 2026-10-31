@@ -1,14 +1,17 @@
-// Asks the service for the pull requests of the watched repositories once a minute, keeps the
+// Asks each service for the pull requests of the watched repositories once a minute, keeps the
 // latest answer and tells what changed that deserves a notice.
 import { EventEmitter } from 'node:events';
 import {
   EMPTY_PULLS_STATE,
+  forgeOf,
   PIPELINE_TEXT_LIMIT,
   PULLS_INTERVAL_MS,
+  type Forge,
+  type ForgeProblem,
   type PullRequestView,
   type PullsState,
 } from '@shared/pulls';
-import { ForgeError, type FailedJob, type ForgeClient } from './github';
+import { ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
 
 /** The share of the interval each watched repository takes, at most. */
 const REPO_GAP_MS = 4000;
@@ -28,13 +31,13 @@ export function pullNotices(
   previous: readonly PullRequestView[],
   previousRepos: ReadonlySet<string>,
   next: readonly PullRequestView[],
-  login: string,
+  logins: Partial<Record<Forge, string>>,
 ): PullNotice[] {
   const before = new Map(previous.map((p) => [p.key, p]));
-  const me = login.toLowerCase();
   const notices: PullNotice[] = [];
   for (const pull of next) {
     if (!previousRepos.has(pull.repo.toLowerCase())) continue;
+    const me = (logins[pull.forge] ?? '').toLowerCase();
     const old = before.get(pull.key);
     if (pull.mine && pull.pipeline.state === 'failure') {
       // Once per commit: the same failure is not told again a minute later.
@@ -56,7 +59,7 @@ export function pullNotices(
 }
 
 export interface PullWatcherOptions {
-  client: ForgeClient;
+  clients: Partial<Record<Forge, ForgeClient>>;
   intervalMs?: number;
   now?: () => number;
   describeError?: (err: unknown) => string;
@@ -67,8 +70,14 @@ interface Events {
   notice: [PullNotice];
 }
 
+type Answer =
+  | { forge: Forge; repos: string[]; result: ForgePulls }
+  | { forge: Forge; repos: string[]; error: unknown };
+
+const byUpdate = (a: PullRequestView, b: PullRequestView) => b.updatedAt.localeCompare(a.updatedAt);
+
 export class PullWatcher extends EventEmitter<Events> {
-  private readonly client: ForgeClient;
+  private readonly clients: Partial<Record<Forge, ForgeClient>>;
   private readonly intervalMs: number;
   private readonly now: () => number;
   private readonly describeError: (err: unknown) => string;
@@ -86,7 +95,7 @@ export class PullWatcher extends EventEmitter<Events> {
 
   constructor(options: PullWatcherOptions) {
     super();
-    this.client = options.client;
+    this.clients = options.clients;
     this.intervalMs = options.intervalMs ?? PULLS_INTERVAL_MS;
     this.now = options.now ?? Date.now;
     this.describeError =
@@ -101,7 +110,7 @@ export class PullWatcher extends EventEmitter<Events> {
     return this.state.pulls.find((p) => p.key === key);
   }
 
-  /** Which repositories, and with which account. A change looks again at once. */
+  /** Which repositories, and with which account of `gh`. A change looks again at once. */
   configure(settings: { repos: readonly string[]; account: string }): void {
     const repos = [...settings.repos];
     const same =
@@ -111,12 +120,20 @@ export class PullWatcher extends EventEmitter<Events> {
     if (same) return;
     if (settings.account !== this.account) {
       // Another account sees other things: nothing of the previous one is news for it.
-      this.seenRepos.clear();
-      this.state = { ...this.state, pulls: [], login: null };
+      for (const repo of [...this.seenRepos]) {
+        if (forgeOf(repo) === 'github') this.seenRepos.delete(repo);
+      }
+      const logins = { ...this.state.logins };
+      delete logins.github;
+      this.state = {
+        ...this.state,
+        pulls: this.state.pulls.filter((p) => p.forge !== 'github'),
+        logins,
+      };
     }
     this.account = settings.account;
     this.repos = repos;
-    this.client.setAccount(settings.account);
+    for (const client of Object.values(this.clients)) client.setAccount(settings.account);
     this.state = { ...this.state, repos };
     if (this.timer || this.state.status !== 'idle') void this.refresh();
   }
@@ -144,21 +161,29 @@ export class PullWatcher extends EventEmitter<Events> {
     return this.running;
   }
 
-  /** The repositories the account can see, to pick from. */
-  available(): Promise<string[]> {
-    return this.client.available();
+  /** The repositories the account can see on each service, to pick from. */
+  async available(): Promise<string[]> {
+    const lists = await Promise.allSettled(
+      Object.values(this.clients).map((client) => client.available(this.repos)),
+    );
+    const names = lists.flatMap((l) => (l.status === 'fulfilled' ? l.value : []));
+    // Nothing to pick from and a service that failed: why is worth more than an empty list.
+    const failed = lists.find((l) => l.status === 'rejected');
+    if (names.length === 0 && failed) throw failed.reason;
+    return names;
   }
 
   /** The text of `{pipeline}`: each failed job, its link and the end of its log. */
   async failureText(key: string): Promise<string> {
     const pull = this.find(key);
     const jobs = this.failed[key] ?? [];
-    if (!pull || jobs.length === 0) return '';
+    const client = pull && this.clients[pull.forge];
+    if (!pull || !client || jobs.length === 0) return '';
     const parts: string[] = [];
     let size = 0;
     // The first three: past that, the rest is usually the same failure seen by other jobs.
     for (const job of jobs.slice(0, 3)) {
-      const log = await this.client.jobLog(pull.repo, job).catch(() => '');
+      const log = await client.jobLog(pull.repo, job).catch(() => '');
       const part = [`### ${job.name}`, job.url ?? '', log && '```\n' + log + '\n```']
         .filter(Boolean)
         .join('\n');
@@ -184,11 +209,18 @@ export class PullWatcher extends EventEmitter<Events> {
 
   /**
    * The timer's look. Each repository costs a query, and the hourly allowance of the API is shared
-   * with the user's own `gh`: past fifteen repositories the looks space out.
+   * with the user's own `gh` and `glab`: past fifteen repositories the looks space out.
    */
   private tick(): void {
     const gap = Math.max(this.intervalMs, this.repos.length * REPO_GAP_MS);
     if (this.now() - this.lastLookAt >= gap - 1000) void this.refresh();
+  }
+
+  private problem(forge: Forge, err: unknown): ForgeProblem {
+    if (err instanceof ForgeError && err.kind !== 'error') {
+      return { forge, status: err.kind, ...(err.host ? { host: err.host } : {}) };
+    }
+    return { forge, status: 'error', error: this.describeError(err) };
   }
 
   private async look(): Promise<void> {
@@ -201,6 +233,7 @@ export class PullWatcher extends EventEmitter<Events> {
       this.set({
         status: 'idle',
         error: undefined,
+        problems: [],
         repos,
         repoErrors: {},
         pulls: [],
@@ -209,33 +242,68 @@ export class PullWatcher extends EventEmitter<Events> {
       return;
     }
     this.set({ loading: true });
-    try {
-      const result = await this.client.pulls(repos);
-      if (this.disposed || repos !== this.repos) return;
-      const notices = pullNotices(this.state.pulls, this.seenRepos, result.pulls, result.login);
-      this.failed = result.failed;
-      this.seenRepos = new Set(
-        repos.filter((r) => !result.repoErrors[r]).map((r) => r.toLowerCase()),
-      );
-      this.set({
-        status: 'ok',
-        error: undefined,
-        login: result.login,
-        repos,
-        repoErrors: result.repoErrors,
-        pulls: result.pulls,
-        checkedAt: this.now(),
-        loading: false,
-      });
-      for (const notice of notices) this.emit('notice', notice);
-    } catch (err) {
-      if (this.disposed) return;
+    const groups = new Map<Forge, string[]>();
+    for (const repo of repos)
+      groups.set(forgeOf(repo), [...(groups.get(forgeOf(repo)) ?? []), repo]);
+    const answers = await Promise.all(
+      [...groups].map(async ([forge, list]): Promise<Answer> => {
+        const client = this.clients[forge];
+        if (!client) return { forge, repos: list, error: new Error(`no client for ${forge}`) };
+        try {
+          return { forge, repos: list, result: await client.pulls(list) };
+        } catch (error) {
+          return { forge, repos: list, error };
+        }
+      }),
+    );
+    if (this.disposed || repos !== this.repos) return;
+
+    const problems = answers.flatMap((a) => ('error' in a ? [this.problem(a.forge, a.error)] : []));
+    const answered = answers.filter((a) => 'result' in a);
+    if (answered.length === 0) {
       // The previous answer stays on screen: a network that drops for a minute is not a void.
       this.set({
-        status: err instanceof ForgeError ? err.kind : 'error',
-        error: this.describeError(err),
+        status: problems[0]!.status,
+        error: problems[0]!.error,
+        problems,
         loading: false,
       });
+      return;
     }
+
+    // A service that failed this time keeps what it showed the last time.
+    const down = new Set(problems.map((p) => p.forge));
+    const kept = this.state.pulls.filter((p) => down.has(p.forge));
+    const fresh = answered.flatMap((a) => a.result.pulls);
+    const logins: Partial<Record<Forge, string>> = {};
+    for (const forge of down)
+      if (this.state.logins[forge]) logins[forge] = this.state.logins[forge];
+    for (const a of answered) if (a.result.login) logins[a.forge] = a.result.login;
+
+    const notices = pullNotices(this.state.pulls, this.seenRepos, fresh, logins);
+    const failed: Record<string, FailedJob[]> = {};
+    for (const pull of kept) if (this.failed[pull.key]) failed[pull.key] = this.failed[pull.key]!;
+    for (const a of answered) Object.assign(failed, a.result.failed);
+    this.failed = failed;
+    const repoErrors = Object.assign({}, ...answered.map((a) => a.result.repoErrors)) as Record<
+      string,
+      string
+    >;
+    this.seenRepos = new Set([
+      ...[...this.seenRepos].filter((r) => down.has(forgeOf(r))),
+      ...answered.flatMap((a) => a.repos.filter((r) => !repoErrors[r]).map((r) => r.toLowerCase())),
+    ]);
+    this.set({
+      status: 'ok',
+      error: undefined,
+      problems,
+      logins,
+      repos,
+      repoErrors,
+      pulls: [...fresh, ...kept].sort(byUpdate),
+      checkedAt: this.now(),
+      loading: false,
+    });
+    for (const notice of notices) this.emit('notice', notice);
   }
 }

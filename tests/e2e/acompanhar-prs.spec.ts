@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { fakeGitHubEnv, startFakeGitHub, type FakePull } from './fake-github';
+import { fakeGitLabEnv, startFakeGitLab } from './fake-gitlab';
 import { createSession, git, launch, makeRepo, removeDir, tempDir } from './harness';
 
 const LOG =
@@ -145,5 +146,112 @@ test('the tabs split my pull requests from the ones that ask for my review', asy
     await running.close();
     await fake.close();
     removeDir(userData);
+  }
+});
+
+const GITLAB_LOG = [
+  '2026-10-31T09:00:00.000000Z 00O section_start:1:step_script\r\u001b[0KExecuting "step_script"',
+  '2026-10-31T09:00:01.000000Z 01O $ npm test',
+  '2026-10-31T09:00:02.000000Z 01O FAIL estoque.test.ts: esperado 5, veio 3',
+  '2026-10-31T09:00:03.000000Z 00O section_end:1:step_script\r\u001b[0K',
+  '2026-10-31T09:00:03.000000Z 00O+section_start:2:cleanup_file_variables\r\u001b[0K',
+  '2026-10-31T09:00:03.000000Z 00O+Cleaning up project directory and file based variables',
+  '2026-10-31T09:00:04.000000Z 00O section_end:2:cleanup_file_variables\r\u001b[0K',
+  '2026-10-31T09:00:04.000000Z 00O ERROR: Job failed: exit code 1',
+].join('\n');
+
+test('GitLab merge requests next to GitHub pull requests, each service on its own', async () => {
+  test.setTimeout(120_000);
+  const github = await startFakeGitHub({
+    'acme/api': [{ number: 7, title: 'Do GitHub', author: 'ana', branch: 'a', jobs: [] }],
+  });
+  const gitlab = await startFakeGitLab(
+    {
+      'time/estoque': [
+        {
+          iid: 12,
+          title: 'Reserva de estoque',
+          author: 'henriquesd',
+          branch: 'reserva',
+          reviewers: ['bruno'],
+          jobs: [
+            { name: 'test', status: 'FAILED', log: GITLAB_LOG },
+            { name: 'lint', status: 'SUCCESS' },
+          ],
+        },
+        {
+          iid: 9,
+          title: 'Do Bruno',
+          author: 'bruno',
+          branch: 'b',
+          reviewers: ['henriquesd'],
+          jobs: [],
+        },
+      ],
+    },
+    'henriquesd',
+  );
+  const userData = tempDir('ac-e2e-prs-gitlab-');
+  const repo = makeRepo();
+  git(repo, 'checkout', '-q', '-b', 'reserva');
+  git(repo, 'remote', 'add', 'origin', 'git@gitlab.com:time/estoque.git');
+  const running = await launch(userData, { ...fakeGitHubEnv(github), ...fakeGitLabEnv(gitlab) });
+  const { page } = running;
+  try {
+    await createSession(page, 'Estoque', repo);
+    await page.getByTestId('pulls-button').click();
+    const view = page.getByTestId('pulls-view');
+    // The address of a merge request, pasted, names its project.
+    await page
+      .getByTestId('pulls-repos-input')
+      .fill('acme/api, https://gitlab.com/time/estoque/-/merge_requests/12');
+    await page.getByTestId('pulls-repos-add').click();
+    await expect(page.getByTestId('pulls-repos')).toContainText('gitlab.com/time/estoque');
+
+    const mr = view.locator('[data-testid="pull-row"][data-key="gitlab.com/time/estoque!12"]');
+    await expect(mr).toHaveAttribute('data-pipeline', 'failure');
+    await expect(mr).toContainText('!12');
+    await expect(mr).toContainText('1 de 2 jobs passaram');
+    await expect(view.locator('[data-key="acme/api#7"]')).toBeVisible();
+    await expect(page.getByTestId('pulls-checked')).toContainText(
+      'como ana (GitHub), henriquesd (GitLab)',
+    );
+    await expect(page.getByTestId('pulls-tab-mine')).toHaveText('Meus (2)');
+    await expect(page.getByTestId('pulls-tab-review')).toHaveText('Para eu revisar (1)');
+
+    // The projects of GitLab are in the list to pick from, next to the repositories of GitHub.
+    await page.getByTestId('pulls-pick').click();
+    await expect(
+      page
+        .getByTestId('pulls-available')
+        .getByRole('checkbox', { name: 'gitlab.com/time/estoque' }),
+    ).toBeChecked();
+
+    // The fix finds the session by its remote over ssh, and the log comes without the runner.
+    await mr.getByTestId('pull-fix').click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('checkbox', { name: /Estoque/ })).toBeChecked();
+    const preview = dialog.getByTestId('prompt-preview');
+    await expect(preview).toContainText('gitlab.com/time/estoque!12: Reserva de estoque');
+    await expect(preview).toContainText('FAIL estoque.test.ts: esperado 5, veio 3');
+    await expect(preview).toContainText('ERROR: Job failed: exit code 1');
+    await expect(preview).not.toContainText('Cleaning up');
+    await expect(preview).not.toContainText('section_');
+    await dialog.press('Escape');
+
+    // GitLab goes away: GitHub still answers, and the merge requests stay as they were.
+    await gitlab.close();
+    await expect(page.locator('[data-testid="pulls-status"][data-forge="gitlab"]')).toContainText(
+      'Não foi possível consultar o GitLab',
+      { timeout: 15_000 },
+    );
+    await expect(mr).toBeVisible();
+    await expect(view.locator('[data-key="acme/api#7"]')).toBeVisible();
+  } finally {
+    await running.close();
+    await github.close();
+    await gitlab.close();
+    removeDir(userData);
+    removeDir(repo);
   }
 });

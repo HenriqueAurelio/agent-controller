@@ -1132,7 +1132,8 @@ export const es: Record<keyof typeof ptBR, string> = {
   'prompts.factory.fixPipeline.text':
     'El pipeline de este pull request falló:\n{pr}\n\nLos jobs que fallaron y el final del log de cada uno:\n\n{pipeline}\n\nEncuentra la causa, corrígela en la rama {branch} y ejecuta localmente lo que falló para confirmar. Después haz commit y push.',
   'pulls.title': 'Pull requests',
-  'pulls.open': 'Pull requests: los PR y pipelines de los repositorios observados',
+  'pulls.open':
+    'Pull requests: los PR, los MR de GitLab y los pipelines de los repositorios observados',
   'pulls.close': 'Cerrar los pull requests',
   'pulls.refresh': 'Actualizar',
   'pulls.checking': 'Consultando…',
@@ -1150,11 +1151,17 @@ export const es: Record<keyof typeof ptBR, string> = {
   'pulls.status.loggedOut':
     'gh no tiene sesión{account}. Ejecuta "gh auth login" en una terminal y actualiza.',
   'pulls.status.loggedOutAccount': ' de la cuenta {account}',
-  'pulls.status.error': 'No se pudo consultar GitHub: {error}',
+  'pulls.status.noCliGitlab':
+    'GitLab CLI (glab) no está instalado. Instálalo (https://gitlab.com/gitlab-org/cli) y ejecuta "glab auth login" en una terminal.',
+  'pulls.status.loggedOutGitlab':
+    'glab no tiene sesión en {host}. Ejecuta "glab auth login --hostname {host}" en una terminal y actualiza.',
+  'pulls.forge.github': 'GitHub',
+  'pulls.forge.gitlab': 'GitLab',
+  'pulls.status.error': 'No se pudo consultar {service}: {error}',
   'pulls.repoError': '{repo}: {error}',
   'pulls.repos': 'Repositorios',
   'pulls.repos.title': 'Repositorios observados',
-  'pulls.repos.paste': 'dueño/repositorio, dueño/otro, …',
+  'pulls.repos.paste': 'dueño/repositorio, https://gitlab.com/grupo/proyecto, …',
   'pulls.repos.pasteLabel': 'Pegar nombres o direcciones, separados por comas',
   'pulls.repos.add': 'Añadir',
   'pulls.repos.invalid': 'No reconocidos: {items}',
@@ -1195,5 +1202,5 @@ export const es: Record<keyof typeof ptBR, string> = {
   'pulls.fixHint':
     'Abre el prompt "Corregir el pipeline" (editable en la biblioteca de prompts) con los jobs que fallaron y el final de sus logs, para la sesión en esa rama.',
   'pulls.fixing': 'Leyendo los logs…',
-  'pulls.openSite': 'Abrir en GitHub',
+  'pulls.openSite': 'Abrir en {service}',
 };

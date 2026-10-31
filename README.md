@@ -229,15 +229,17 @@ A decisão está na [ADR 0025](adr/0025-tarefas-como-origem-das-sessoes.md).
 
 ### Pull requests e pipelines
 
-Os PRs abertos dos repositórios que você escolhe, com o pipeline de cada um. Abra com `Ctrl+Shift+U` ou com o botão **⇄** no topo da barra lateral; ele ocupa o lugar do terminal, como o quadro de tarefas. Por enquanto, só GitHub.
+Os PRs do GitHub e os MRs do GitLab (gitlab.com ou o da empresa) dos repositórios que você escolhe, com o pipeline de cada um. Abra com `Ctrl+Shift+U` ou com o botão **⇄** no topo da barra lateral; ele ocupa o lugar do terminal, como o quadro de tarefas.
 
-- **Login:** o do GitHub CLI. Instale o [`gh`](https://cli.github.com) e rode `gh auth login` uma vez; o app usa esse login e não guarda token. Com mais de uma conta no `gh`, escreva em **Conta do gh** a que enxerga os repositórios (a conta ativa não muda).
-- **Repositórios:** cole os nomes (`dono/repo`) ou os endereços, separados por vírgula, ou use **Escolher dos que tenho acesso**. **Copiar a lista** leva os nomes para outra máquina. No máximo 40.
-- **Abas:** **Meus**, **Para eu revisar** e **Todos abertos**. Cada PR mostra o pipeline (verde, vermelho ou âmbar), quantos jobs passaram, autor, branch, revisão, revisores e comentários. Clique no título para abrir no navegador.
+- **Login:** o do CLI de cada serviço; o app não guarda token.
+  - **GitHub:** instale o [`gh`](https://cli.github.com) e rode `gh auth login` uma vez. Com mais de uma conta no `gh`, escreva em **Conta do gh** a que enxerga os repositórios (a conta ativa não muda).
+  - **GitLab:** instale o [`glab`](https://gitlab.com/gitlab-org/cli) e rode `glab auth login` (para o GitLab da empresa, `glab auth login --hostname gitlab.empresa.com`).
+- **Repositórios:** cole os nomes (`dono/repo`) ou os endereços, separados por vírgula, ou use **Escolher dos que tenho acesso**. Do GitLab, cole o endereço do projeto, de um MR dele ou de clone; o app guarda `servidor/grupo/projeto`. **Copiar a lista** leva os nomes para outra máquina. No máximo 40.
+- **Abas:** **Meus**, **Para eu revisar** e **Todos abertos**. Os MRs do GitLab têm o número com `!`. Cada PR mostra o pipeline (verde, vermelho ou âmbar), quantos jobs passaram, autor, branch, revisão, revisores e comentários. Clique no título para abrir no navegador.
 - **Pipeline quebrado:** os jobs que falharam aparecem com link, e **Mandar ao agente corrigir** abre o prompt "Corrigir pipeline" com o fim do log de cada job, já apontado para a sessão que está na branch do PR. O texto do prompt se edita em **Preferências → Prompts** (variáveis `{pr}` e `{pipeline}`).
 - **Avisos:** pipeline de um PR seu falhou, comentário novo num PR seu e pedido de revisão para você. Cada um se liga ou desliga no painel, em **Repositórios**. O botão **⇄** mostra quantos PRs seus estão com o pipeline quebrado.
 
-O app consulta a cada minuto (mais espaçado acima de 15 repositórios) e só lê: não comenta, não aprova e não faz merge. Sem repositório na lista, não consulta nada. A decisão está na [ADR 0027](adr/0027-servicos-de-repositorio.md); os detalhes, em [`docs/v2/acompanhar-prs`](docs/v2/acompanhar-prs/README.md).
+O app consulta a cada minuto (mais espaçado acima de 15 repositórios) e só lê: não comenta, não aprova e não faz merge. Sem repositório na lista, não consulta nada. Se um serviço não responde, o outro continua aparecendo. O Bitbucket não entra. A decisão está na [ADR 0027](adr/0027-servicos-de-repositorio.md); os detalhes, em [`docs/v2/acompanhar-prs`](docs/v2/acompanhar-prs/README.md).
 
 ### Experimentos (melhor de N)
 

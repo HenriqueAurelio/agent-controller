@@ -3,6 +3,8 @@ import type { PipelineFix } from '@shared/ipc';
 import {
   parseRepoList,
   PULLS_REPOS_LIMIT,
+  type Forge,
+  type ForgeProblem,
   type PullRequestView,
   type PullsSettings,
 } from '@shared/pulls';
@@ -104,19 +106,34 @@ export function PullRequests({ onClose, focusKey, onFix }: Props) {
     }
   };
 
-  const statusNote = () => {
-    if (state.status === 'noCli') return t('pulls.status.noCli');
-    if (state.status === 'loggedOut') {
-      return t('pulls.status.loggedOut', {
-        account: settings.account
-          ? t('pulls.status.loggedOutAccount', { account: settings.account })
-          : '',
-      });
+  // One note for each service that could not be read; the others still show.
+  const problemNote = (problem: ForgeProblem) => {
+    const service = t(`pulls.forge.${problem.forge}`);
+    if (problem.status === 'error') {
+      return t('pulls.status.error', { service, error: problem.error ?? '' });
     }
-    if (state.status === 'error') return t('pulls.status.error', { error: state.error ?? '' });
-    return null;
+    if (problem.forge === 'gitlab') {
+      return problem.status === 'noCli'
+        ? t('pulls.status.noCliGitlab')
+        : t('pulls.status.loggedOutGitlab', { host: problem.host ?? 'gitlab.com' });
+    }
+    if (problem.status === 'noCli') return t('pulls.status.noCli');
+    return t('pulls.status.loggedOut', {
+      account: settings.account
+        ? t('pulls.status.loggedOutAccount', { account: settings.account })
+        : '',
+    });
   };
-  const note = statusNote();
+  const notes = state.problems.map((p) => ({ key: p.forge, text: problemNote(p) }));
+  if (notes.length === 0 && state.status === 'error') {
+    notes.push({ key: 'github', text: state.error ?? '' });
+  }
+  // With both services, each login says which one it is: the accounts often differ.
+  const logins = (Object.entries(state.logins) as [Forge, string][]).filter(([, login]) => login);
+  const loginText =
+    logins.length > 1
+      ? logins.map(([forge, login]) => `${login} (${t(`pulls.forge.${forge}`)})`).join(', ')
+      : (logins[0]?.[1] ?? '');
 
   return (
     <section
@@ -145,13 +162,17 @@ export function PullRequests({ onClose, focusKey, onFix }: Props) {
           ))}
         </div>
         <span className="pulls-spacer" />
-        <span className="muted pulls-checked" data-testid="pulls-checked">
+        <span
+          className="muted pulls-checked"
+          data-testid="pulls-checked"
+          title={loginText ? t('pulls.as', { login: loginText }) : undefined}
+        >
           {state.loading
             ? t('pulls.checking')
             : state.checkedAt
               ? t('pulls.checkedAt', { age: duration(t, state.checkedAt, now) })
               : ''}
-          {state.login && ` · ${t('pulls.as', { login: state.login })}`}
+          {loginText && ` · ${t('pulls.as', { login: loginText })}`}
         </span>
         <button onClick={refresh} disabled={state.loading} data-testid="pulls-refresh">
           {t('pulls.refresh')}
@@ -173,11 +194,17 @@ export function PullRequests({ onClose, focusKey, onFix }: Props) {
           ×
         </button>
       </header>
-      {note && (
-        <p className="board-note error" role="alert" data-testid="pulls-status">
-          {note}
+      {notes.map((note) => (
+        <p
+          key={note.key}
+          className="board-note error"
+          role="alert"
+          data-testid="pulls-status"
+          data-forge={note.key}
+        >
+          {note.text}
         </p>
-      )}
+      ))}
       {problem && (
         <p className="board-note error" role="alert">
           {problem}
@@ -254,13 +281,17 @@ function PullRow({
         <a
           href={pull.url}
           className="pull-title"
-          title={t('pulls.openSite')}
+          title={t('pulls.openSite', { service: t(`pulls.forge.${pull.forge}`) })}
           onClick={(e) => {
             e.preventDefault();
             openSite(pull.url);
           }}
         >
-          <span className="muted">#{pull.number}</span> {pull.title}
+          <span className="muted">
+            {pull.forge === 'gitlab' ? '!' : '#'}
+            {pull.number}
+          </span>{' '}
+          {pull.title}
         </a>
         {pull.draft && <span className="pull-tag">{t('pulls.draft')}</span>}
         {pull.review && (

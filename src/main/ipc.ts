@@ -65,7 +65,7 @@ import type {
   WorktreesInfo,
 } from '@shared/ipc';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
-import { PIPELINE_TEXT_LIMIT } from '@shared/pulls';
+import { normalizeRepo, PIPELINE_TEXT_LIMIT, pullRef } from '@shared/pulls';
 import {
   PROMPT_TEXT_LIMIT,
   QUEUE_CONDITIONS,
@@ -981,14 +981,17 @@ export function registerIpc(context: IpcContext): void {
         const branch = await currentBranch(s.cwd).catch(() => null);
         if (branch !== pull.branch) return null;
         const remotes = await runGit(s.cwd, ['remote', '-v']).catch(() => null);
-        const text = remotes?.stdout.toString('utf8').toLowerCase() ?? '';
-        return { id: s.id, same: text.includes(pull.repo.toLowerCase()) };
+        // Each address read the way the watched list is (`git@host:group/project.git` too).
+        const names = (remotes?.stdout.toString('utf8') ?? '')
+          .split(/\s+/)
+          .map((word) => normalizeRepo(word)?.toLowerCase());
+        return { id: s.id, same: names.includes(pull.repo.toLowerCase()) };
       }),
     );
     const found = looks.filter((l) => l !== null);
     const same = found.filter((l) => l.same);
     return {
-      pr: `${pull.repo}#${pull.number}: ${pull.title}\n${pull.branch} → ${pull.base}\n${pull.url}`,
+      pr: `${pullRef(pull)}: ${pull.title}\n${pull.branch} → ${pull.base}\n${pull.url}`,
       pipeline,
       sessions: (same.length > 0 ? same : found).map((l) => l.id),
     };

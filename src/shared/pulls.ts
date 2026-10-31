@@ -1,5 +1,8 @@
-// Pull requests of the repositories the user watches, as the panel and the notices see them.
-// GitHub for now; GitLab and Bitbucket come in through other adapters of the same shape.
+// Pull requests (merge requests, on GitLab) of the repositories the user watches, as the panel
+// and the notices see them. Each service has an adapter of the same shape in src/core/forges.
+
+/** The service a repository lives on. */
+export type Forge = 'github' | 'gitlab';
 
 export type PipelineState = 'success' | 'failure' | 'pending' | 'none';
 export type JobState = 'success' | 'failure' | 'pending' | 'skipped';
@@ -12,8 +15,9 @@ export interface PipelineJob {
 }
 
 export interface PullRequestView {
-  /** `owner/repo#12`: unique across every watched repository. */
+  /** `owner/repo#12`, or `host/group/project!12`: unique across every watched repository. */
   key: string;
+  forge: Forge;
   repo: string;
   number: number;
   title: string;
@@ -46,12 +50,24 @@ export interface PullRequestView {
  */
 export type PullsStatus = 'idle' | 'ok' | 'noCli' | 'loggedOut' | 'error';
 
+/** A service that could not be read in the latest look, while the others may have been. */
+export interface ForgeProblem {
+  forge: Forge;
+  status: 'noCli' | 'loggedOut' | 'error';
+  /** For `error`, as the user reads it. */
+  error?: string;
+  /** The GitLab server without a login. */
+  host?: string;
+}
+
 export interface PullsState {
+  /** `ok` when at least one service answered; otherwise what went wrong with the first. */
   status: PullsStatus;
   /** For `error`, as the user reads it. */
   error?: string;
-  /** The account the app reads with. */
-  login: string | null;
+  /** The account the app reads with, on each service. */
+  logins: Partial<Record<Forge, string>>;
+  problems: ForgeProblem[];
   repos: string[];
   /** Repositories that could not be read (not found, no access), with the reason. */
   repoErrors: Record<string, string>;
@@ -63,7 +79,7 @@ export interface PullsState {
 }
 
 export interface PullsSettings {
-  /** `owner/name` of each repository watched. */
+  /** Each repository watched: `owner/name` on GitHub, `host/group/project` on GitLab. */
   repos: string[];
   /** The account of `gh` to read with; empty for the one that is active. */
   account: string;
@@ -90,25 +106,52 @@ export const DEFAULT_PULLS_SETTINGS: PullsSettings = {
 
 const PART = /^[A-Za-z0-9_.-]{1,100}$/;
 const ACCOUNT = /^[A-Za-z0-9-]{1,39}$/;
+const HOST = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i;
+/** Groups inside groups: GitLab allows twenty levels. */
+const GITLAB_DEPTH = 21;
+
+const validPart = (part: string) => PART.test(part) && part !== '.' && part !== '..';
 
 /**
- * `owner/name` out of what someone may paste: the name itself, the address of the page, or the
- * address used to clone it. Null for anything else.
+ * The service of a watched repository. Names of GitHub accounts have no dots, so a first part
+ * with one is the server of a GitLab: `gitlab.com/group/project` or the company's own.
+ */
+export function forgeOf(repo: string): Forge {
+  return repo.split('/')[0]!.includes('.') ? 'gitlab' : 'github';
+}
+
+/** `owner/repo#12` or `group/project!12`, as each service writes it. */
+export function pullRef(pull: Pick<PullRequestView, 'forge' | 'repo' | 'number'>): string {
+  return `${pull.repo}${pull.forge === 'gitlab' ? '!' : '#'}${pull.number}`;
+}
+
+/**
+ * The repository out of what someone may paste: the name itself, the address of the page, or the
+ * address used to clone it. `owner/name` for GitHub; `host/group/project` for GitLab, whose
+ * groups nest. Null for anything else.
  */
 export function normalizeRepo(value: string): string | null {
-  const text = value
-    .trim()
-    .replace(/^git@github\.com:/i, '')
-    .replace(/^(?:https?:\/\/)?(?:www\.)?github\.com\//i, '')
+  const raw = value.trim();
+  // git@host:path and ssh://git@host/path, the addresses of a clone by ssh.
+  const ssh = /^(?:ssh:\/\/)?git@([^:/]+)[:/](.+)$/i.exec(raw);
+  const web = ssh ? null : /^(?:https?:\/\/)?(?:www\.)?([^/]+)\/(.+)$/i.exec(raw);
+  const host = ssh?.[1] ?? (web && web[1]!.includes('.') ? web[1]! : null);
+  const path = (ssh ? ssh[2]! : host ? web![2]! : raw)
     .replace(/[?#].*$/, '')
     .replace(/\/+$/, '')
     .replace(/\.git$/i, '');
-  const [owner, name, ...rest] = text.split('/');
-  // A link to a page inside the repository (`/pull/3`, `/tree/main`) still names it.
-  if (!owner || !name || (rest.length > 0 && !/github\.com/i.test(value))) return null;
-  return PART.test(owner) && PART.test(name) && name !== '.' && name !== '..'
-    ? `${owner}/${name}`
-    : null;
+  if (host && !HOST.test(host)) return null;
+
+  if (!host || host.toLowerCase() === 'github.com') {
+    const [owner, name, ...rest] = path.split('/');
+    // A link to a page inside the repository (`/pull/3`, `/tree/main`) still names it.
+    if (!owner || !name || (rest.length > 0 && !host)) return null;
+    return validPart(owner) && validPart(name) ? `${owner}/${name}` : null;
+  }
+  // GitLab puts the pages of a project after `/-/` (`/-/merge_requests/3`).
+  const parts = path.split('/-/')[0]!.split('/');
+  if (parts.length < 2 || parts.length > GITLAB_DEPTH || !parts.every(validPart)) return null;
+  return `${host.toLowerCase()}/${parts.join('/')}`;
 }
 
 /** Repositories separated by commas, spaces or lines, as pasted; what could not be read apart. */
@@ -148,7 +191,8 @@ export function sanitizePullsSettings(value: unknown): PullsSettings {
 
 export const EMPTY_PULLS_STATE: PullsState = {
   status: 'idle',
-  login: null,
+  logins: {},
+  problems: [],
   repos: [],
   repoErrors: {},
   pulls: [],

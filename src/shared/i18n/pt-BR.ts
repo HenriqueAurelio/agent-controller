@@ -1123,7 +1123,8 @@ export const ptBR = {
   'prompts.factory.fixPipeline.text':
     'O pipeline deste pull request falhou:\n{pr}\n\nOs jobs que falharam e o fim do log de cada um:\n\n{pipeline}\n\nDescubra a causa, corrija na branch {branch} e rode localmente o que falhou para confirmar. Depois faça commit e push.',
   'pulls.title': 'Pull requests',
-  'pulls.open': 'Pull requests: os PRs e pipelines dos repositórios observados',
+  'pulls.open':
+    'Pull requests: os PRs, os MRs do GitLab e os pipelines dos repositórios observados',
   'pulls.close': 'Fechar os pull requests',
   'pulls.refresh': 'Atualizar',
   'pulls.checking': 'Consultando…',
@@ -1141,11 +1142,17 @@ export const ptBR = {
   'pulls.status.loggedOut':
     'O gh não tem login{account}. Rode "gh auth login" num terminal e atualize.',
   'pulls.status.loggedOutAccount': ' da conta {account}',
-  'pulls.status.error': 'Não foi possível consultar o GitHub: {error}',
+  'pulls.status.noCliGitlab':
+    'O GitLab CLI (glab) não está instalado. Instale-o (https://gitlab.com/gitlab-org/cli) e rode "glab auth login" num terminal.',
+  'pulls.status.loggedOutGitlab':
+    'O glab não tem login em {host}. Rode "glab auth login --hostname {host}" num terminal e atualize.',
+  'pulls.forge.github': 'GitHub',
+  'pulls.forge.gitlab': 'GitLab',
+  'pulls.status.error': 'Não foi possível consultar o {service}: {error}',
   'pulls.repoError': '{repo}: {error}',
   'pulls.repos': 'Repositórios',
   'pulls.repos.title': 'Repositórios observados',
-  'pulls.repos.paste': 'dono/repositorio, dono/outro, …',
+  'pulls.repos.paste': 'dono/repositorio, https://gitlab.com/grupo/projeto, …',
   'pulls.repos.pasteLabel': 'Colar nomes ou endereços, separados por vírgula',
   'pulls.repos.add': 'Adicionar',
   'pulls.repos.invalid': 'Não reconhecidos: {items}',
@@ -1186,5 +1193,5 @@ export const ptBR = {
   'pulls.fixHint':
     'Abre o prompt "Corrigir pipeline" (editável na biblioteca de prompts) com os jobs que falharam e o fim dos logs, para a sessão que está nessa branch.',
   'pulls.fixing': 'Lendo os logs…',
-  'pulls.openSite': 'Abrir no GitHub',
+  'pulls.openSite': 'Abrir no {service}',
 } as const;

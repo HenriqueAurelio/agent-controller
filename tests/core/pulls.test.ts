@@ -98,6 +98,7 @@ const answer = (pulls: unknown[], login = 'ana') => ({
 
 const view = (over: Partial<PullRequestView> = {}): PullRequestView => ({
   key: 'acme/api#7',
+  forge: 'github',
   repo: 'acme/api',
   number: 7,
   title: 't',
@@ -293,32 +294,36 @@ describe('the news of a look', () => {
 
   it('tells a failed pipeline of mine once per commit', () => {
     const failed = view({ pipeline: { state: 'failure', sha: 's1', jobs: [] } });
-    expect(pullNotices([view()], seen, [failed], 'ana').map((n) => n.kind)).toEqual(['failed']);
-    expect(pullNotices([failed], seen, [failed], 'ana')).toEqual([]);
+    expect(pullNotices([view()], seen, [failed], { github: 'ana' }).map((n) => n.kind)).toEqual([
+      'failed',
+    ]);
+    expect(pullNotices([failed], seen, [failed], { github: 'ana' })).toEqual([]);
     const again = view({ pipeline: { state: 'failure', sha: 's2', jobs: [] } });
-    expect(pullNotices([failed], seen, [again], 'ana').map((n) => n.kind)).toEqual(['failed']);
+    expect(pullNotices([failed], seen, [again], { github: 'ana' }).map((n) => n.kind)).toEqual([
+      'failed',
+    ]);
     // Someone else's pipeline is theirs to watch.
-    expect(pullNotices([view({ mine: false })], seen, [{ ...failed, mine: false }], 'ana')).toEqual(
-      [],
-    );
+    expect(
+      pullNotices([view({ mine: false })], seen, [{ ...failed, mine: false }], { github: 'ana' }),
+    ).toEqual([]);
   });
 
   it('tells a comment of someone else on a pull request of mine, not one of my own', () => {
     const before = view({ comments: 1 });
     expect(
-      pullNotices([before], seen, [view({ comments: 2, lastCommentBy: 'bruno' })], 'ana').map(
-        (n) => n.kind,
-      ),
+      pullNotices([before], seen, [view({ comments: 2, lastCommentBy: 'bruno' })], {
+        github: 'ana',
+      }).map((n) => n.kind),
     ).toEqual(['comment']);
     expect(
-      pullNotices([before], seen, [view({ comments: 2, lastCommentBy: 'Ana' })], 'ana'),
+      pullNotices([before], seen, [view({ comments: 2, lastCommentBy: 'Ana' })], { github: 'ana' }),
     ).toEqual([]);
   });
 
   it('tells a new request for my review, also on a pull request that just opened', () => {
     const asks = view({ mine: false, reviewRequested: true });
-    expect(pullNotices([], seen, [asks], 'ana').map((n) => n.kind)).toEqual(['review']);
-    expect(pullNotices([asks], seen, [asks], 'ana')).toEqual([]);
+    expect(pullNotices([], seen, [asks], { github: 'ana' }).map((n) => n.kind)).toEqual(['review']);
+    expect(pullNotices([asks], seen, [asks], { github: 'ana' })).toEqual([]);
   });
 
   it('says nothing about a repository that was not in the previous look', () => {
@@ -326,7 +331,7 @@ describe('the news of a look', () => {
       pipeline: { state: 'failure', sha: 's1', jobs: [] },
       reviewRequested: true,
     });
-    expect(pullNotices([], new Set(), [failed], 'ana')).toEqual([]);
+    expect(pullNotices([], new Set(), [failed], { github: 'ana' })).toEqual([]);
   });
 });
 
@@ -362,7 +367,7 @@ const result = (pulls: PullRequestView[], failed: ForgePulls['failed'] = {}): Fo
 describe('the watcher', () => {
   it('asks nothing while no repository is watched', async () => {
     const client = new FakeClient();
-    const watcher = new PullWatcher({ client, intervalMs: 60_000 });
+    const watcher = new PullWatcher({ clients: { github: client }, intervalMs: 60_000 });
     watcher.start();
     await watcher.refresh();
     expect(client.calls).toEqual([]);
@@ -372,7 +377,11 @@ describe('the watcher', () => {
 
   it('keeps the latest answer, and tells only what changed after the first look', async () => {
     const client = new FakeClient();
-    const watcher = new PullWatcher({ client, intervalMs: 60_000, now: () => 1000 });
+    const watcher = new PullWatcher({
+      clients: { github: client },
+      intervalMs: 60_000,
+      now: () => 1000,
+    });
     const notices: PullNotice[] = [];
     watcher.on('notice', (n) => notices.push(n));
     watcher.configure({ repos: ['acme/api'], account: 'ana' });
@@ -381,7 +390,11 @@ describe('the watcher', () => {
     client.answers.push(result([failed]), result([failed]), new Error('offline'));
 
     await watcher.refresh();
-    expect(watcher.get()).toMatchObject({ status: 'ok', login: 'ana', checkedAt: 1000 });
+    expect(watcher.get()).toMatchObject({
+      status: 'ok',
+      logins: { github: 'ana' },
+      checkedAt: 1000,
+    });
     expect(watcher.get().pulls).toHaveLength(1);
     // The failure was already there when the list was first read: not news.
     expect(notices).toEqual([]);
@@ -398,7 +411,7 @@ describe('the watcher', () => {
 
   it('tells a pipeline that fails between two looks', async () => {
     const client = new FakeClient();
-    const watcher = new PullWatcher({ client });
+    const watcher = new PullWatcher({ clients: { github: client } });
     const notices: string[] = [];
     watcher.on('notice', (n) => notices.push(`${n.kind}:${n.pull.key}`));
     watcher.configure({ repos: ['acme/api'], account: '' });
@@ -414,7 +427,7 @@ describe('the watcher', () => {
 
   it('writes the failed jobs, their links and the end of their logs for the prompt', async () => {
     const client = new FakeClient();
-    const watcher = new PullWatcher({ client });
+    const watcher = new PullWatcher({ clients: { github: client } });
     watcher.configure({ repos: ['acme/api'], account: '' });
     client.answers.push(
       result([view({ pipeline: { state: 'failure', sha: 's1', jobs: [] } })], {
@@ -529,7 +542,11 @@ describe('the pace of the looks', () => {
     try {
       const client = new FakeClient();
       let now = 0;
-      const watcher = new PullWatcher({ client, intervalMs: 60_000, now: () => now });
+      const watcher = new PullWatcher({
+        clients: { github: client },
+        intervalMs: 60_000,
+        now: () => now,
+      });
       const repos = Array.from({ length: 30 }, (_, i) => `acme/r${i}`);
       watcher.configure({ repos, account: '' });
       for (let i = 0; i < 10; i++) client.answers.push(result([]));

@@ -7,6 +7,7 @@
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { fakeGitHubEnv, startFakeGitHub, type FakePull } from './fake-github';
+import { fakeGitLabEnv, startFakeGitLab, type FakeMergeRequest } from './fake-gitlab';
 import { createSession, git, launch, makeRepo, removeDir, ROOT, tempDir } from './harness';
 
 const PHASE = process.env.EVIDENCES_PHASE === 'antes' ? 'antes' : 'depois';
@@ -164,6 +165,121 @@ test('evidences: pull requests and pipelines', async () => {
   } finally {
     await running.close();
     await fake.close();
+    removeDir(userData);
+    removeDir(repo);
+  }
+});
+
+const GITLAB_LOG = [
+  '2026-10-31T09:00:00.000000Z 00O section_start:1:prepare_executor\r\u001b[0KPreparing the "docker" executor',
+  '2026-10-31T09:00:01.000000Z 00O section_end:1:prepare_executor\r\u001b[0K',
+  '2026-10-31T09:00:02.000000Z 00O section_start:2:step_script\r\u001b[0KExecuting "step_script" stage of the job script',
+  '2026-10-31T09:00:03.000000Z 01O $ npm test',
+  '2026-10-31T09:00:09.000000Z 01O  FAIL  tests/reserva.test.ts > reserva o estoque do pedido',
+  '2026-10-31T09:00:09.000000Z 01O AssertionError: expected 3 to be 5',
+  '2026-10-31T09:00:09.000000Z 01O  ❯ tests/reserva.test.ts:58:22',
+  '2026-10-31T09:00:09.000000Z 01O Test Files  1 failed | 21 passed (22)',
+  '2026-10-31T09:00:10.000000Z 00O section_end:2:step_script\r\u001b[0K',
+  '2026-10-31T09:00:10.000000Z 00O+section_start:3:cleanup_file_variables\r\u001b[0K',
+  '2026-10-31T09:00:10.000000Z 00O+Cleaning up project directory and file based variables',
+  '2026-10-31T09:00:11.000000Z 00O section_end:3:cleanup_file_variables\r\u001b[0K',
+  '2026-10-31T09:00:11.000000Z 00O ERROR: Job failed: exit code 1',
+].join('\n');
+
+const projects: Record<string, FakeMergeRequest[]> = {
+  'time/estoque': [
+    {
+      iid: 42,
+      title: 'Reserva de estoque por pedido',
+      author: 'ana',
+      branch: 'reserva-estoque',
+      reviewers: ['bruno'],
+      comments: 2,
+      updatedMinutes: 6,
+      jobs: [
+        { name: 'build', status: 'SUCCESS' },
+        { name: 'test', status: 'FAILED', log: GITLAB_LOG },
+        { name: 'lint', status: 'SUCCESS' },
+      ],
+    },
+    {
+      iid: 39,
+      title: 'Relatório de giro de estoque',
+      author: 'bruno',
+      branch: 'giro-estoque',
+      reviewers: ['ana'],
+      updatedMinutes: 20,
+      jobs: [
+        { name: 'build', status: 'SUCCESS' },
+        { name: 'test', status: 'RUNNING' },
+      ],
+    },
+  ],
+  'time/plataforma/pagamentos': [
+    {
+      iid: 15,
+      title: 'Estorno parcial',
+      author: 'carla',
+      branch: 'estorno-parcial',
+      approved: true,
+      updatedMinutes: 70,
+      jobs: [
+        { name: 'build', status: 'SUCCESS' },
+        { name: 'test', status: 'SUCCESS' },
+      ],
+    },
+  ],
+};
+
+test('evidences: GitLab next to GitHub', async () => {
+  test.skip(PHASE === 'antes', 'o GitLab é novo: não há "antes"');
+  test.setTimeout(180_000);
+  const github = await startFakeGitHub({ 'acme/api': repos['acme/api']!.slice(0, 2) });
+  const gitlab = await startFakeGitLab(projects);
+  const userData = tempDir('ac-evid-prs-gitlab-');
+  const repo = makeRepo();
+  git(repo, 'checkout', '-q', '-b', 'reserva-estoque');
+  git(repo, 'remote', 'add', 'origin', 'git@gitlab.com:time/estoque.git');
+  const running = await launch(userData, { ...fakeGitHubEnv(github), ...fakeGitLabEnv(gitlab) });
+  const { page } = running;
+  try {
+    await page.setViewportSize({ width: 1280, height: 760 });
+    await createSession(page, 'Estoque · reserva', repo);
+    await page.getByTestId('pulls-button').click();
+    await page
+      .getByTestId('pulls-repos-input')
+      .fill(
+        'acme/api, https://gitlab.com/time/estoque/-/merge_requests/42, git@gitlab.com:time/plataforma/pagamentos.git',
+      );
+    await page.getByTestId('pulls-repos-add').click();
+    const view = page.getByTestId('pulls-view');
+    await expect(view.getByTestId('pull-row')).toHaveCount(5);
+    await page.getByTestId('pulls-pick').click();
+    await expect(page.getByTestId('pulls-available')).toContainText('gitlab.com/time/estoque');
+    await shot(page, '07-gitlab-repositorios');
+
+    await page.getByTestId('pulls-repos-button').click();
+    await page.getByTestId('pulls-tab-all').click();
+    await shot(page, '08-gitlab-todos-abertos');
+
+    await view.locator('[data-key="gitlab.com/time/estoque!42"]').getByTestId('pull-fix').click();
+    const dialog = page.getByRole('dialog');
+    const preview = dialog.getByTestId('prompt-preview');
+    await expect(preview).toContainText('expected 3 to be 5');
+    // The end of the log is what to see: the preview scrolls to it.
+    await preview.evaluate((el) => (el.scrollTop = el.scrollHeight));
+    await shot(page, '09-gitlab-corrigir-pipeline');
+    await dialog.press('Escape');
+
+    await gitlab.close();
+    await expect(page.locator('[data-testid="pulls-status"][data-forge="gitlab"]')).toBeVisible({
+      timeout: 15_000,
+    });
+    await shot(page, '10-gitlab-fora-do-ar');
+  } finally {
+    await running.close();
+    await github.close();
+    await gitlab.close();
     removeDir(userData);
     removeDir(repo);
   }

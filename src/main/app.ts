@@ -27,6 +27,7 @@ import { HandoffService } from '@core/handoff/HandoffService';
 import { FlowEngine } from '@core/handoff/FlowEngine';
 import { ReviewerService } from '@core/handoff/ReviewerService';
 import { GitHubClient } from '@core/forges/github';
+import { fetchTransport, GitLabClient } from '@core/forges/gitlab';
 import { PullWatcher, type PullNotice } from '@core/forges/PullWatcher';
 import { defaultWorktreesFolder } from '@core/git/WorktreeService';
 import { PromptQueue } from '@core/prompts/PromptQueue';
@@ -48,6 +49,7 @@ import {
 import type { AgentAvailability } from '@shared/agents';
 import { summarizeRun } from '@shared/checks';
 import { factoryPrompts } from '@shared/prompts';
+import { pullRef } from '@shared/pulls';
 import { REVIEW_PROMPT_ID } from '@shared/reviewer';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import { STATUS_DETAIL, type Session, type SessionGroup } from '@shared/session';
@@ -651,17 +653,28 @@ export async function startApp(): Promise<void> {
   });
 
   // The pull requests of the watched repositories (docs/v2/acompanhar-prs). The tests point the
-  // client at a fake GitHub of their own; only in test mode, or the token of `gh` could be sent to
-  // whatever address the environment names.
+  // clients at a fake GitHub and a fake GitLab of their own; only in test mode, or the token of
+  // `gh` could be sent to whatever address the environment names.
+  // A test without a fake GitLab gets an address that refuses, never the user's own glab.
+  const fakeGitLab = TEST_SHELL
+    ? process.env.AGENT_CONTROLLER_GITLAB_API || 'http://127.0.0.1:1'
+    : undefined;
   const pulls = new PullWatcher({
-    client: new GitHubClient(
-      TEST_SHELL
-        ? {
-            apiUrl: process.env.AGENT_CONTROLLER_GITHUB_API || undefined,
-            token: process.env.AGENT_CONTROLLER_GITHUB_TOKEN || undefined,
-          }
-        : {},
-    ),
+    clients: {
+      github: new GitHubClient(
+        TEST_SHELL
+          ? {
+              apiUrl: process.env.AGENT_CONTROLLER_GITHUB_API || undefined,
+              token: process.env.AGENT_CONTROLLER_GITHUB_TOKEN || undefined,
+            }
+          : {},
+      ),
+      gitlab: new GitLabClient(
+        fakeGitLab
+          ? fetchTransport(fakeGitLab, process.env.AGENT_CONTROLLER_GITLAB_TOKEN ?? '')
+          : undefined,
+      ),
+    },
     intervalMs:
       TEST_SHELL && process.env.AGENT_CONTROLLER_PULLS_MS
         ? Number(process.env.AGENT_CONTROLLER_PULLS_MS)
@@ -679,7 +692,7 @@ export async function startApp(): Promise<void> {
           ? settings.notifyComments
           : settings.notifyReview;
     if (!wanted) return;
-    const where = `${pull.repo}#${pull.number}`;
+    const where = pullRef(pull);
     const failed = pull.pipeline.jobs.filter((j) => j.state === 'failure').map((j) => j.name);
     showNotice(
       `pull:${pull.key}`,

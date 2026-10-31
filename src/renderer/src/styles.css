@@ -3202,11 +3202,23 @@ textarea.associations {
   border-color: var(--accent);
   color: var(--text);
 }
+.pulls .board-header {
+  flex-wrap: nowrap;
+}
+.pulls .board-header > :not(.pulls-checked) {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .pulls-spacer {
   flex: 1;
 }
+/* The text that grows (two accounts, two services) gives way; the buttons keep their line. */
 .pulls-checked {
   font-size: 12px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .pulls-list {
   flex: 1;

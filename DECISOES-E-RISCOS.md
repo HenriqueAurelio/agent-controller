@@ -151,7 +151,7 @@ Um agente costuma abrir outros programas (servidores, builds, testes). Se o app 
 
 **Gravidade: média.**
 
-Por natureza, o app roda qualquer comando na sua máquina. Em Electron, um descuido na separação entre a interface e a parte que executa comandos pode dar esse poder a conteúdo que não deveria tê-lo. As proteções padrão do Electron ficam ligadas desde o início e a interface não carrega nada da internet. A única chamada de rede do app é a consulta aos PRs dos repositórios que a pessoa escolhe, feita pelo processo principal com o login do `gh` ([ADR 0027](adr/0027-servicos-de-repositorio.md)). Detalhes: [ADR 0010](adr/0010-shell-do-app-electron.md).
+Por natureza, o app roda qualquer comando na sua máquina. Em Electron, um descuido na separação entre a interface e a parte que executa comandos pode dar esse poder a conteúdo que não deveria tê-lo. As proteções padrão do Electron ficam ligadas desde o início e a interface não carrega nada da internet. A única chamada de rede do app é a consulta aos PRs dos repositórios que a pessoa escolhe, feita pelo processo principal com o login do `gh` ou do `glab` ([ADR 0027](adr/0027-servicos-de-repositorio.md)). Detalhes: [ADR 0010](adr/0010-shell-do-app-electron.md).
 
 Com as **verificações ao fim do turno**, o app também roda, sozinho, os comandos de verificação que você salvou para uma pasta (`npm test`, por exemplo), sempre que o agente termina um turno que mudou arquivos. Esses comandos rodam código do projeto. Por isso só rodam os que você salvou, nunca os que o app apenas sugere, e eles ficam fora do arquivo de exportação das preferências: importar configurações não traz comandos. Detalhes: [ADR 0014](adr/0014-verificacoes-ao-fim-do-turno.md).
 
