@@ -6,6 +6,7 @@ import {
   parseRepoList,
   PULLS_REPOS_LIMIT,
   type AvailableRepos,
+  type GhAccounts,
   type Forge,
   type ForgeProblem,
   type PullRequestView,
@@ -369,7 +370,6 @@ interface SettingsProps {
 function RepoSettings({ settings, problemNote }: SettingsProps) {
   const t = useT();
   const [note, setNote] = useState<string | null>(null);
-  const [account, setAccount] = useState(settings.account);
 
   /** Saves the list, unless it goes past the limit; false then. */
   const save = (repos: string[]) => {
@@ -406,26 +406,18 @@ function RepoSettings({ settings, problemNote }: SettingsProps) {
           <fieldset key={forge} className="pulls-forge" data-testid={`pulls-forge-${forge}`}>
             <legend>{t(`pulls.forge.${forge}`)}</legend>
             <RepoPicker
+              // Another account sees other repositories: the list is asked again.
+              key={forge === 'github' ? `github:${settings.account}` : forge}
               forge={forge}
               repos={settings.repos}
               onChange={save}
               problemNote={problemNote}
             />
             {forge === 'github' && (
-              <label className="pulls-account" title={t('pulls.accountHint')}>
-                {t('pulls.account')}
-                <input
-                  value={account}
-                  placeholder="—"
-                  data-testid="pulls-account"
-                  onChange={(e) => setAccount(e.target.value)}
-                  onBlur={() => {
-                    if (account.trim() !== settings.account) {
-                      void saveSettings({ ...settings, account: account.trim() });
-                    }
-                  }}
-                />
-              </label>
+              <GhAccountSelect
+                value={settings.account}
+                onChange={(account) => void saveSettings({ ...settings, account })}
+              />
             )}
           </fieldset>
         ))}
@@ -462,6 +454,53 @@ interface PickerProps {
 }
 
 /**
+ * Which account of `gh` reads GitHub. Only with more than one logged in: with one, there is
+ * nothing to pick. The active one of `gh` is the default and is not changed.
+ */
+function GhAccountSelect({ value, onChange }: { value: string; onChange(account: string): void }) {
+  const t = useT();
+  const [list, setList] = useState<GhAccounts | null>(null);
+  useEffect(() => {
+    let alive = true;
+    window.api
+      .invoke('pulls:accounts')
+      .then((answer) => alive && setList(answer))
+      .catch(() => alive && setList({ accounts: [], active: '' }));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  if (!list) return null;
+  // One saved that is no longer logged in still shows, to be changed.
+  const missing = value && !list.accounts.includes(value);
+  if (list.accounts.length < 2 && !missing) return null;
+  return (
+    <label className="pulls-account" title={t('pulls.accountHint')}>
+      {t('pulls.account')}
+      <select
+        value={value === list.active ? '' : value}
+        data-testid="pulls-account"
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">
+          {list.active
+            ? t('pulls.accountActive', { login: list.active })
+            : t('pulls.accountDefault')}
+        </option>
+        {list.accounts
+          .filter((login) => login !== list.active)
+          .map((login) => (
+            <option key={login} value={login}>
+              {login}
+            </option>
+          ))}
+        {missing && <option value={value}>{t('pulls.accountMissing', { login: value })}</option>}
+      </select>
+    </label>
+  );
+}
+
+/**
  * One box per service: the watched repositories as chips, and a field that filters the ones the
  * account can see (a list that opens under it, several picked in a row) and takes pasted names
  * and addresses too, separated by commas.
@@ -483,8 +522,10 @@ function RepoPicker({ forge, repos, onChange, problemNote }: PickerProps) {
 
   // The list is asked the first time the box is used, not when the panel opens: it costs a
   // query to the service, and most visits only look at the pull requests.
+  // Asked again each time the list opens: a login done meanwhile, or a failure that passed,
+  // shows without closing the panel. What was there stays on screen until the answer comes.
   const load = () => {
-    if (available || loading) return;
+    if (loading) return;
     setLoading(true);
     window.api
       .invoke('pulls:available', forge)
@@ -541,8 +582,8 @@ function RepoPicker({ forge, repos, onChange, problemNote }: PickerProps) {
   const onKey = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
+      if (!open) load();
       setOpen(true);
-      load();
       const step = event.key === 'ArrowDown' ? 1 : -1;
       setActive((current + step + options.length) % Math.max(1, options.length));
     } else if (event.key === 'Enter') {

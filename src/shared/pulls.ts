@@ -51,6 +51,13 @@ export interface PullRequestView {
 export type PullsStatus = 'idle' | 'ok' | 'noCli' | 'loggedOut' | 'error';
 
 /** A service that could not be read in the latest look, while the others may have been. */
+/** The accounts logged in to `gh` on github.com, to pick the one that reads the repositories. */
+export interface GhAccounts {
+  accounts: string[];
+  /** The one `gh` uses when none is named; empty when unknown. */
+  active: string;
+}
+
 /** The repositories of one service the accounts can see, or why they could not be listed. */
 export interface AvailableRepos {
   repos: string[];

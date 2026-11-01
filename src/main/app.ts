@@ -666,6 +666,16 @@ export async function startApp(): Promise<void> {
           ? {
               apiUrl: process.env.AGENT_CONTROLLER_GITHUB_API || undefined,
               token: process.env.AGENT_CONTROLLER_GITHUB_TOKEN || undefined,
+              runAccounts: async () => {
+                // "ana*,bruno": the starred one is the active.
+                const names = (process.env.AGENT_CONTROLLER_GH_ACCOUNTS ?? '')
+                  .split(',')
+                  .filter(Boolean);
+                return {
+                  accounts: names.map((n) => n.replace(/\*$/, '')),
+                  active: names.find((n) => n.endsWith('*'))?.replace(/\*$/, '') ?? '',
+                };
+              },
             }
           : {},
       ),

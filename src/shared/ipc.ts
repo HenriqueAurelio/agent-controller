@@ -25,7 +25,7 @@ import type { NewTasksInput, TaskBoardState, TaskStartResult } from './tasks';
 import type { ReviewResult, ReviewerSetInput, ReviewerSummary } from './reviewer';
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
-import type { AvailableRepos, Forge, PullsState } from './pulls';
+import type { AvailableRepos, Forge, GhAccounts, PullsState } from './pulls';
 import type {
   PromptValues,
   QueueCondition,
@@ -358,6 +358,8 @@ export interface IpcCommands {
   'pulls:refresh': () => PullsState;
   /** The repositories one service shows the account, to pick the ones to watch from. */
   'pulls:available': (forge: Forge) => AvailableRepos;
+  /** The accounts logged in to `gh`, to pick the one that reads GitHub. */
+  'pulls:accounts': () => GhAccounts;
   /** The failed pipeline of a pull request, ready for the prompt that sends it to an agent. */
   'pulls:fixPipeline': (key: string) => PipelineFix;
 }
@@ -504,6 +506,7 @@ export const COMMAND_CHANNELS = [
   'pulls:get',
   'pulls:refresh',
   'pulls:available',
+  'pulls:accounts',
   'pulls:fixPipeline',
 ] as const satisfies readonly CommandChannel[];
 

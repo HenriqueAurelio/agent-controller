@@ -4,6 +4,7 @@ import { EventEmitter } from 'node:events';
 import {
   EMPTY_PULLS_STATE,
   type AvailableRepos,
+  type GhAccounts,
   forgeOf,
   PIPELINE_TEXT_LIMIT,
   PULLS_INTERVAL_MS,
@@ -174,6 +175,12 @@ export class PullWatcher extends EventEmitter<Events> {
     } catch (err) {
       return { repos: [], problem: this.problem(forge, err) };
     }
+  }
+
+  /** The accounts of `gh`, when the GitHub client can list them. */
+  async ghAccounts(): Promise<GhAccounts> {
+    const github = this.clients.github as { accounts?: () => Promise<GhAccounts> } | undefined;
+    return (await github?.accounts?.()) ?? { accounts: [], active: '' };
   }
 
   /** The text of `{pipeline}`: each failed job, its link and the end of its log. */

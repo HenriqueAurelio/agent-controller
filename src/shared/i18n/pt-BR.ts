@@ -1169,7 +1169,10 @@ export const ptBR = {
   'pulls.repos.copied': 'Copiada.',
   'pulls.account': 'Conta do gh',
   'pulls.accountHint':
-    'Vazio usa a conta ativa do gh. Com mais de uma conta logada, escreva o usuário que enxerga esses repositórios.',
+    'A conta do gh que lê os repositórios do GitHub. A conta ativa do gh não muda.',
+  'pulls.accountActive': '{login} (a ativa no gh)',
+  'pulls.accountDefault': 'A ativa no gh',
+  'pulls.accountMissing': '{login} (sem login no gh)',
   'pulls.notify.title': 'Avisos',
   'pulls.notify.failed': 'Pipeline de um PR meu falhou',
   'pulls.notify.comments': 'Comentário ou revisão nova num PR meu',

@@ -2,7 +2,13 @@
 // token of its own, and the one `gh` gives stays in this process, never in the renderer.
 import { spawn } from 'node:child_process';
 import { resolveCli } from './cli';
-import type { JobState, PipelineJob, PipelineState, PullRequestView } from '@shared/pulls';
+import type {
+  GhAccounts,
+  JobState,
+  PipelineJob,
+  PipelineState,
+  PullRequestView,
+} from '@shared/pulls';
 import { eachRepo, ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
 import { ANSI, tailLines } from './log';
 
@@ -18,6 +24,90 @@ export interface GitHubClientOptions {
   fetch?: Fetch;
   /** Runs `gh auth token`; the tests replace it. */
   runToken?: (account: string) => Promise<string>;
+  /** Runs `gh auth status`; the tests replace it. */
+  runAccounts?: () => Promise<GhAccounts>;
+}
+
+const NO_ACCOUNTS: GhAccounts = { accounts: [], active: '' };
+
+/** The accounts of github.com in what `gh auth status --json hosts` printed. */
+export function parseGhStatusJson(output: string): GhAccounts {
+  const body = JSON.parse(output) as { hosts?: Record<string, unknown> };
+  const list = body.hosts?.['github.com'];
+  if (!Array.isArray(list)) return NO_ACCOUNTS;
+  const accounts: string[] = [];
+  let active = '';
+  for (const item of list as { login?: unknown; active?: unknown; state?: unknown }[]) {
+    if (typeof item.login !== 'string' || !item.login) continue;
+    accounts.push(item.login);
+    if (item.active === true) active = item.login;
+  }
+  return { accounts, active };
+}
+
+/** The same, out of the text an older `gh` (without `--json`) prints. */
+export function parseGhStatusText(output: string): GhAccounts {
+  const accounts: string[] = [];
+  let active = '';
+  let last = '';
+  for (const line of output.split(/\r?\n/)) {
+    const login = /Logged in to github\.com (?:account|as) ([\w-]+)/.exec(line);
+    if (login) {
+      last = login[1]!;
+      accounts.push(last);
+    } else if (/Active account: true/.test(line) && last) {
+      active = last;
+    }
+  }
+  // An older gh still had a single account: that one is the active.
+  if (!active && accounts.length === 1) active = accounts[0]!;
+  return { accounts, active };
+}
+
+function runGh(args: string[]): Promise<{ code: number | null; out: string; err: string } | null> {
+  return resolveCli('gh').then(
+    (command) =>
+      new Promise((resolve) => {
+        let out = '';
+        let err = '';
+        let child;
+        try {
+          child = spawn(command, args, {
+            windowsHide: true,
+            env: { ...process.env, GH_PROMPT_DISABLED: '1', NO_COLOR: '1' },
+          });
+        } catch {
+          resolve(null);
+          return;
+        }
+        const timer = setTimeout(() => child.kill(), 15_000);
+        child.stdout.on('data', (chunk: Buffer) => (out += chunk.toString('utf8')));
+        child.stderr.on('data', (chunk: Buffer) => (err += chunk.toString('utf8')));
+        child.on('error', () => {
+          clearTimeout(timer);
+          resolve(null);
+        });
+        child.on('close', (code) => {
+          clearTimeout(timer);
+          resolve({ code, out, err });
+        });
+      }),
+  );
+}
+
+/** The accounts `gh` has on github.com; none when `gh` is missing or has no login. */
+export async function ghAccounts(): Promise<GhAccounts> {
+  const json = await runGh(['auth', 'status', '--json', 'hosts', '--hostname', 'github.com']);
+  if (json?.code === 0) {
+    try {
+      return parseGhStatusJson(json.out);
+    } catch {
+      // Not JSON: an older gh; the text below.
+    }
+  }
+  const text = await runGh(['auth', 'status', '--hostname', 'github.com']);
+  // gh writes the status on stderr in older versions, on stdout in newer ones.
+  return text ? parseGhStatusText(`${text.out}\n${text.err}`) : NO_ACCOUNTS;
 }
 
 /** How much of a repository one query asks for; a busy one gets a smaller second try. */
@@ -244,6 +334,7 @@ export class GitHubClient implements ForgeClient {
   private readonly apiUrl: string;
   private readonly fetch: Fetch;
   private readonly runToken: (account: string) => Promise<string>;
+  private readonly runAccounts: () => Promise<GhAccounts>;
   private token: string | null;
   private account = '';
 
@@ -253,6 +344,14 @@ export class GitHubClient implements ForgeClient {
     this.runToken = options.runToken ?? ghToken;
     this.token = options.token ?? null;
     if (options.token) this.runToken = async () => options.token!;
+    // With a token of its own (the tests), `gh` is never asked.
+    this.runAccounts =
+      options.runAccounts ?? (options.token ? async () => NO_ACCOUNTS : ghAccounts);
+  }
+
+  /** The accounts of `gh`, to pick the one that reads the repositories. */
+  accounts(): Promise<GhAccounts> {
+    return this.runAccounts().catch(() => NO_ACCOUNTS);
   }
 
   setAccount(account: string): void {
