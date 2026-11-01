@@ -39,6 +39,9 @@ interface Props {
   /** Opens or closes the task board. */
   onBoard(): void;
   boardOpen: boolean;
+  /** Opens or closes the pull requests of the watched repositories. */
+  onPulls(): void;
+  pullsOpen: boolean;
 }
 
 type Dragging = { kind: 'session'; id: string } | { kind: 'group'; id: string };
@@ -99,6 +102,8 @@ export function Sidebar({
   overviewOpen,
   onBoard,
   boardOpen,
+  onPulls,
+  pullsOpen,
 }: Props) {
   const sessions = useAppState((s) => s.sessions);
   const groups = useAppState((s) => s.groups);
@@ -107,6 +112,10 @@ export function Sidebar({
   const t = useT();
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
   const permissionStale = useAppState((s) => s.permissionStale);
+  // My pull requests whose pipeline failed: the button of the panel shows how many.
+  const failingPulls = useAppState(
+    (s) => s.pulls.pulls.filter((p) => p.mine && p.pipeline.state === 'failure').length,
+  );
   // On top or at the bottom the list runs sideways, and so do the arrows.
   const horizontal = useAppState((s) => isHorizontal(s.prefs.layout.sessions));
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -629,6 +638,21 @@ export function Sidebar({
           onClick={onBoard}
         >
           ☷
+        </button>
+        <button
+          className={`icon-button pulls-button ${pullsOpen ? 'active' : ''}`}
+          title={hint(t('pulls.open'), shortcuts.pulls[0])}
+          aria-label={t('pulls.open')}
+          aria-pressed={pullsOpen}
+          data-testid="pulls-button"
+          onClick={onPulls}
+        >
+          ⇄
+          {failingPulls > 0 && (
+            <span className="pulls-badge" data-testid="pulls-badge">
+              {failingPulls}
+            </span>
+          )}
         </button>
         <button
           className="icon-button group-add-button"

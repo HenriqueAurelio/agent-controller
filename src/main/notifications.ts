@@ -40,3 +40,20 @@ export function showNotification(
   live.set(request.sessionId, notification);
   notification.show();
 }
+
+/** A notice that is not about a session, under a key of its own: a pull request, for one. */
+export function showNotice(
+  key: string,
+  notice: { title: string; body: string; silent: boolean },
+  onClick: () => void,
+): void {
+  if (!Notification.isSupported()) return;
+  live.get(key)?.close();
+  const notification = new Notification(notice);
+  notification.on('click', onClick);
+  notification.on('close', () => {
+    if (live.get(key) === notification) live.delete(key);
+  });
+  live.set(key, notification);
+  notification.show();
+}

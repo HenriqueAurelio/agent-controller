@@ -26,6 +26,9 @@ import { TaskBoard } from '@core/tasks/TaskBoard';
 import { HandoffService } from '@core/handoff/HandoffService';
 import { FlowEngine } from '@core/handoff/FlowEngine';
 import { ReviewerService } from '@core/handoff/ReviewerService';
+import { GitHubClient } from '@core/forges/github';
+import { fetchTransport, GitLabClient } from '@core/forges/gitlab';
+import { PullWatcher, type PullNotice } from '@core/forges/PullWatcher';
 import { defaultWorktreesFolder } from '@core/git/WorktreeService';
 import { PromptQueue } from '@core/prompts/PromptQueue';
 import { PtyManager } from '@core/pty/PtyManager';
@@ -46,11 +49,12 @@ import {
 import type { AgentAvailability } from '@shared/agents';
 import { summarizeRun } from '@shared/checks';
 import { factoryPrompts } from '@shared/prompts';
+import { pullRef } from '@shared/pulls';
 import { REVIEW_PROMPT_ID } from '@shared/reviewer';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import { STATUS_DETAIL, type Session, type SessionGroup } from '@shared/session';
 import { expandForSession, registerIpc, snapshotOf, type IpcContext } from './ipc';
-import { showNotification } from './notifications';
+import { showNotice, showNotification } from './notifications';
 import { createMainWindow, saveWindowState } from './window';
 
 const TEST_SHELL = process.env.AGENT_CONTROLLER_TEST_SHELL === '1';
@@ -648,6 +652,74 @@ export async function startApp(): Promise<void> {
     flows.checksFinished(sessionId, summarizeRun(run).state === 'passed' ? 'passed' : 'failed');
   });
 
+  // The pull requests of the watched repositories (docs/v2/acompanhar-prs). The tests point the
+  // clients at a fake GitHub and a fake GitLab of their own; only in test mode, or the token of
+  // `gh` could be sent to whatever address the environment names.
+  // A test without a fake GitLab gets an address that refuses, never the user's own glab.
+  const fakeGitLab = TEST_SHELL
+    ? process.env.AGENT_CONTROLLER_GITLAB_API || 'http://127.0.0.1:1'
+    : undefined;
+  const pulls = new PullWatcher({
+    clients: {
+      github: new GitHubClient(
+        TEST_SHELL
+          ? {
+              apiUrl: process.env.AGENT_CONTROLLER_GITHUB_API || undefined,
+              token: process.env.AGENT_CONTROLLER_GITHUB_TOKEN || undefined,
+            }
+          : {},
+      ),
+      gitlab: new GitLabClient(
+        fakeGitLab
+          ? fetchTransport(fakeGitLab, process.env.AGENT_CONTROLLER_GITLAB_TOKEN ?? '')
+          : undefined,
+      ),
+    },
+    intervalMs:
+      TEST_SHELL && process.env.AGENT_CONTROLLER_PULLS_MS
+        ? Number(process.env.AGENT_CONTROLLER_PULLS_MS)
+        : undefined,
+    describeError: (err) => errorText(data.prefs.language, err),
+  });
+  pulls.configure(data.prefs.pulls);
+  pulls.on('changed', (state) => send('pulls:changed', state));
+  const pullNotice = ({ kind, pull }: PullNotice) => {
+    const settings = data.prefs.pulls;
+    const wanted =
+      kind === 'failed'
+        ? settings.notifyFailed
+        : kind === 'comment'
+          ? settings.notifyComments
+          : settings.notifyReview;
+    if (!wanted) return;
+    const where = pullRef(pull);
+    const failed = pull.pipeline.jobs.filter((j) => j.state === 'failure').map((j) => j.name);
+    showNotice(
+      `pull:${pull.key}`,
+      {
+        title:
+          kind === 'failed'
+            ? t('pulls.notice.failed', { pull: where })
+            : kind === 'comment'
+              ? t('pulls.notice.comment', { pull: where, author: pull.lastCommentBy ?? '' })
+              : t('pulls.notice.review', { pull: where, author: pull.author }),
+        body:
+          kind === 'failed' && failed.length > 0
+            ? `${pull.title}\n${failed.slice(0, 3).join(', ')}`
+            : pull.title,
+        silent: !data.prefs.notifySound,
+      },
+      () => {
+        if (!window || window.isDestroyed()) return;
+        if (window.isMinimized()) window.restore();
+        window.show();
+        window.focus();
+        send('pulls:focus', pull.key);
+      },
+    );
+  };
+  pulls.on('notice', pullNotice);
+
   registerIpc({
     manager,
     changes,
@@ -660,6 +732,7 @@ export async function startApp(): Promise<void> {
     reviewer,
     flows,
     tails,
+    pulls,
     data,
     discardDir,
     codeThemes: new CodeThemeStore(path.join(userData, 'themes')),
@@ -676,6 +749,7 @@ export async function startApp(): Promise<void> {
       data.prefs = prefs;
       if (JSON.stringify(prefs.overlaps) !== overlapsBefore) void overlaps.refreshAll();
       manager.setPreferences(prefs);
+      pulls.configure(prefs.pulls);
       manager.flushPersist();
       send('prefs:changed', prefs);
     },
@@ -718,6 +792,7 @@ export async function startApp(): Promise<void> {
     reviewer.dispose();
     flows.dispose();
     tasks.dispose();
+    pulls.dispose();
     checks.dispose();
     if (window && !window.isDestroyed()) saveWindowState(window, data.window);
     // Every agent, and whatever it started, ends with the app (ADR 0006).
@@ -774,6 +849,7 @@ export async function startApp(): Promise<void> {
 
   openWindow();
   metrics.start();
+  pulls.start();
 
   // Fast mode counts as working once the window has been up for a while.
   window!.webContents.once('did-finish-load', () => {

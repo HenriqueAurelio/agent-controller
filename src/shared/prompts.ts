@@ -2,6 +2,7 @@
 // moment of sending. They are only text, so they travel with the exported preferences.
 import { translate, type Language, type MessageKey } from './i18n';
 import { FIX_PROMPT_ID } from './checks';
+import { FIX_PIPELINE_PROMPT_ID } from './pulls';
 import { REVIEW_PROMPT_ID } from './reviewer';
 import { normalizeBinding } from './shortcuts';
 
@@ -41,6 +42,11 @@ const FACTORY: { id: string; name: MessageKey; text: MessageKey }[] = [
     id: FIX_PROMPT_ID,
     name: 'prompts.factory.fixProblems.name',
     text: 'prompts.factory.fixProblems.text',
+  },
+  {
+    id: FIX_PIPELINE_PROMPT_ID,
+    name: 'prompts.factory.fixPipeline.name',
+    text: 'prompts.factory.fixPipeline.text',
   },
 ];
 
@@ -116,6 +122,10 @@ export interface PromptValues {
   selection?: string;
   /** The problems picked in the problems list, one per line; `{problemas}` in a prompt. */
   problems?: string;
+  /** The pull request of a failed pipeline; `{pr}` in a prompt. */
+  pr?: string;
+  /** Its failed jobs and the end of their logs; `{pipeline}` in a prompt. */
+  pipeline?: string;
   /** Answers to the `{?question}` fields, by the question's text. */
   answers?: Record<string, string>;
 }

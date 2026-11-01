@@ -227,6 +227,20 @@ Cartões que viram sessões. Abra com `Ctrl+Shift+B`, com o botão **☷** no to
 
 A decisão está na [ADR 0025](adr/0025-tarefas-como-origem-das-sessoes.md).
 
+### Pull requests e pipelines
+
+Os PRs do GitHub e os MRs do GitLab (gitlab.com ou o da empresa) dos repositórios que você escolhe, com o pipeline de cada um. Abra com `Ctrl+Shift+U` ou com o botão **⇄** no topo da barra lateral; ele ocupa o lugar do terminal, como o quadro de tarefas.
+
+- **Login:** o do CLI de cada serviço; o app não guarda token.
+  - **GitHub:** instale o [`gh`](https://cli.github.com) e rode `gh auth login` uma vez. Com mais de uma conta no `gh`, escreva em **Conta do gh** a que enxerga os repositórios (a conta ativa não muda).
+  - **GitLab:** instale o [`glab`](https://gitlab.com/gitlab-org/cli) e rode `glab auth login` (para o GitLab da empresa, `glab auth login --hostname gitlab.empresa.com`).
+- **Repositórios:** cole os nomes (`dono/repo`) ou os endereços, separados por vírgula, ou use **Escolher dos que tenho acesso**. Do GitLab, cole o endereço do projeto, de um MR dele ou de clone; o app guarda `servidor/grupo/projeto`. **Copiar a lista** leva os nomes para outra máquina. No máximo 40.
+- **Abas:** **Meus**, **Para eu revisar** e **Todos abertos**. Os MRs do GitLab têm o número com `!`. Cada PR mostra o pipeline (verde, vermelho ou âmbar), quantos jobs passaram, autor, branch, revisão, revisores e comentários. Clique no título para abrir no navegador.
+- **Pipeline quebrado:** os jobs que falharam aparecem com link, e **Mandar ao agente corrigir** abre o prompt "Corrigir pipeline" com o fim do log de cada job, já apontado para a sessão que está na branch do PR. O texto do prompt se edita em **Preferências → Prompts** (variáveis `{pr}` e `{pipeline}`).
+- **Avisos:** pipeline de um PR seu falhou, comentário novo num PR seu e pedido de revisão para você. Cada um se liga ou desliga no painel, em **Repositórios**. O botão **⇄** mostra quantos PRs seus estão com o pipeline quebrado.
+
+O app consulta a cada minuto (mais espaçado acima de 15 repositórios) e só lê: não comenta, não aprova e não faz merge. Sem repositório na lista, não consulta nada. Se um serviço não responde, o outro continua aparecendo. O Bitbucket não entra. A decisão está na [ADR 0027](adr/0027-servicos-de-repositorio.md); os detalhes, em [`docs/v2/acompanhar-prs`](docs/v2/acompanhar-prs/README.md).
+
 ### Experimentos (melhor de N)
 
 O mesmo pedido, feito por várias tentativas, para ficar com a melhor. Clique em **⑂** no cabeçalho da lista (ou use a paleta, "Novo experimento (melhor de N)"), escolha a pasta (precisa estar em um repositório git), dê um nome, escolha a base e escreva o pedido. Cada linha de **Tentativas** é um agente, com um comando próprio opcional; são de 1 a 4, e o diálogo lembra que "3 tentativas = 3× o uso dos agentes".
@@ -444,6 +458,7 @@ As sessões, as verificações de cada pasta e os temas importados não vão no 
 | `Ctrl+P` | Abrir arquivo pelo nome (com o foco fora do terminal, ou em qualquer lugar com a preferência) |
 | `Ctrl+Shift+O` | Abrir ou fechar o painel geral |
 | `Ctrl+Shift+B` | Abrir ou fechar o quadro de tarefas |
+| `Ctrl+Shift+U` | Abrir ou fechar os pull requests |
 | `Ctrl+,` | Preferências |
 | sem atalho de fábrica | Próxima sessão aguardando você; fechar a sessão atual; novo grupo de sessões |
 | `Ctrl+clique` | Num caminho (`arquivo:linha`) ou endereço, no terminal e na saída das verificações: abre o arquivo na linha, ou o navegador (fixo) |

@@ -30,6 +30,7 @@ Registro das decisões de arquitetura do agent-controller. Cada arquivo traz o c
 | [0024](0024-regras-que-enviam-sozinhas.md) | Regras que enviam sozinhas (encadear sessões) | Aceita |
 | [0025](0025-tarefas-como-origem-das-sessoes.md) | Tarefas como origem das sessões (quadro de tarefas) | Aceita |
 | [0026](0026-core-em-processo-proprio.md) | Core em processo próprio (sessões que sobrevivem à janela) | Proposta |
+| [0027](0027-servicos-de-repositorio.md) | Serviços de repositório: PRs do GitHub e MRs do GitLab com o login do CLI, só leitura | Aceita |
 
 ## Status
 

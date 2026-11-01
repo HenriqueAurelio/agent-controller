@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatProblem, FIX_PROMPT_ID, type Problem } from '@shared/checks';
 import type { DiffBase } from '@shared/git';
 import { factoryPrompts, PROBLEMS_TEXT_LIMIT } from '@shared/prompts';
+import { FIX_PIPELINE_PROMPT_ID } from '@shared/pulls';
+import type { PipelineFix } from '@shared/ipc';
 import { statusDetail, statusLabel, type SessionGroup, type SessionView } from '@shared/session';
 import {
   bindingFromEvent,
@@ -21,6 +23,7 @@ import { codeThemeName, themesOfKind, useCustomThemes } from './lib/codeThemes';
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { Overview } from './components/Overview';
 import { TaskBoard } from './components/TaskBoard';
+import { PullRequests } from './components/PullRequests';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { PromptDialog, type PromptContext } from './components/PromptDialog';
 import { FlowDialog } from './components/FlowDialog';
@@ -114,6 +117,10 @@ export function App() {
   /** The grid of every session, in place of the terminal. */
   const [overviewOpen, setOverviewOpen] = useState(false);
   const [boardOpen, setBoardOpen] = useState(false);
+  const [pullsOpen, setPullsOpen] = useState(false);
+  // The pull request a clicked notice was about; a new object each time, so the same one twice
+  // still scrolls to it.
+  const [pullsFocus, setPullsFocus] = useState<{ key: string } | null>(null);
   // Bumped by the palette: the board opens its dialog of a new card.
   const [boardNewCard, setBoardNewCard] = useState(0);
   /** The experiment whose attempts the comparison shows. */
@@ -236,6 +243,25 @@ export function App() {
     [openPrompt],
   );
 
+  /** A failed pipeline goes to the agent through the prompt "Fix the pipeline". */
+  const fixPipeline = useCallback(
+    (fix: PipelineFix) => {
+      const { prefs } = store.get();
+      // A user who deleted or never had the factory prompt still gets its text.
+      const saved = prefs.prompts.some((p) => p.id === FIX_PIPELINE_PROMPT_ID);
+      const text = saved
+        ? undefined
+        : factoryPrompts(prefs.language).find((p) => p.id === FIX_PIPELINE_PROMPT_ID)?.text;
+      openPrompt(
+        FIX_PIPELINE_PROMPT_ID,
+        { pr: fix.pr, pipeline: fix.pipeline },
+        fix.sessions.length > 0 ? fix.sessions : undefined,
+        text,
+      );
+    },
+    [openPrompt],
+  );
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
@@ -255,9 +281,16 @@ export function App() {
   overviewOpenRef.current = overviewOpen;
   const boardOpenRef = useRef(false);
   boardOpenRef.current = boardOpen;
+  const pullsOpenRef = useRef(false);
+  pullsOpenRef.current = pullsOpen;
   // A panel beside the terminal leaves it in sight, and reachable.
   coveredRef.current = Boolean(
-    overlay || closing || overviewOpen || boardOpen || (changesOpen && layout.panel === 'cover'),
+    overlay ||
+    closing ||
+    overviewOpen ||
+    boardOpen ||
+    pullsOpen ||
+    (changesOpen && layout.panel === 'cover'),
   );
 
   /**
@@ -286,6 +319,10 @@ export function App() {
     setBoardOpen(false);
     focusTerminal(true);
   }, [focusTerminal]);
+  const closePulls = useCallback(() => {
+    setPullsOpen(false);
+    focusTerminal(true);
+  }, [focusTerminal]);
   const openFromBoard = useCallback(
     (id: string) => {
       store.select(id);
@@ -307,6 +344,7 @@ export function App() {
     shownSelection.current = selectedId;
     setOverviewOpen(false);
     setBoardOpen(false);
+    setPullsOpen(false);
   }, [selectedId]);
 
   const selectByOffset = useCallback((offset: number) => {
@@ -437,6 +475,18 @@ export function App() {
 
   useEffect(
     () =>
+      window.api.on('pulls:focus', (key) => {
+        setOverlay(null);
+        setOverviewOpen(false);
+        setBoardOpen(false);
+        setPullsOpen(true);
+        setPullsFocus({ key });
+      }),
+    [],
+  );
+
+  useEffect(
+    () =>
       window.api.on('app:focusSession', (id) => {
         store.select(id);
         focusTerminal(true);
@@ -475,6 +525,7 @@ export function App() {
           setOverlay(null);
           setOverviewOpen(false);
           setBoardOpen(false);
+          setPullsOpen(false);
           requestAnimationFrame(() => focusTerminal(true));
         },
         palette: () => setOverlay((o) => (o === 'palette' ? null : 'palette')),
@@ -482,14 +533,23 @@ export function App() {
         overview: () => {
           setOverlay(null);
           setBoardOpen(false);
+          setPullsOpen(false);
           if (overviewOpenRef.current) closeOverview();
           else setOverviewOpen(true);
         },
         board: () => {
           setOverlay(null);
           setOverviewOpen(false);
+          setPullsOpen(false);
           if (boardOpenRef.current) closeBoard();
           else setBoardOpen(true);
+        },
+        pulls: () => {
+          setOverlay(null);
+          setOverviewOpen(false);
+          setBoardOpen(false);
+          if (pullsOpenRef.current) closePulls();
+          else setPullsOpen(true);
         },
         toggleChanges: () => togglePanel('changes'),
         toggleFiles: () => togglePanel('files'),
@@ -525,6 +585,7 @@ export function App() {
       editGroup,
       closeOverview,
       closeBoard,
+      closePulls,
     ],
   );
 
@@ -542,6 +603,7 @@ export function App() {
       action('nextWaiting'),
       action('overview'),
       action('board'),
+      action('pulls'),
       {
         id: 'new-task',
         title: t('command.newTask'),
@@ -796,9 +858,18 @@ export function App() {
         overviewOpen={overviewOpen}
         onBoard={() => runAction('board')}
         boardOpen={boardOpen}
+        onPulls={() => runAction('pulls')}
+        pullsOpen={pullsOpen}
       />
       <main className="main">
         {overviewOpen && <Overview onOpen={openFromOverview} onClose={closeOverview} />}
+        {pullsOpen && (
+          <PullRequests
+            onClose={closePulls}
+            focusKey={pullsFocus?.key ?? null}
+            onFix={fixPipeline}
+          />
+        )}
         {boardOpen && (
           <TaskBoard
             onOpen={openFromBoard}

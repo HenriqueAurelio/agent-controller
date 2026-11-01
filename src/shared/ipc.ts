@@ -25,6 +25,7 @@ import type { NewTasksInput, TaskBoardState, TaskStartResult } from './tasks';
 import type { ReviewResult, ReviewerSetInput, ReviewerSummary } from './reviewer';
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
+import type { PullsState } from './pulls';
 import type {
   PromptValues,
   QueueCondition,
@@ -107,6 +108,16 @@ export interface OverviewGit {
   branch: string | null;
   /** Files changed against HEAD; null outside a repository. */
   changes: number | null;
+}
+
+/** What the prompt "Fix the pipeline" is filled in with, and the sessions it may go to. */
+export interface PipelineFix {
+  /** `{pr}`: number, title, branches and link. */
+  pr: string;
+  /** `{pipeline}`: the failed jobs and the end of their logs. */
+  pipeline: string;
+  /** Sessions whose folder has the branch of the pull request checked out. */
+  sessions: string[];
 }
 
 export interface SessionMetrics {
@@ -340,6 +351,15 @@ export interface IpcCommands {
   'checks:cancel': (sessionId: string) => void;
   /** Pastes what failed in the latest run into the agent's prompt, without sending it. */
   'checks:sendFailure': (sessionId: string) => void;
+
+  /** The pull requests of the watched repositories, as of the latest look (`prefs.pulls`). */
+  'pulls:get': () => PullsState;
+  /** Looks again now; resolves once the answer is in. */
+  'pulls:refresh': () => PullsState;
+  /** The repositories the account can see, to pick the ones to watch from. */
+  'pulls:available': () => string[];
+  /** The failed pipeline of a pull request, ready for the prompt that sends it to an agent. */
+  'pulls:fixPipeline': (key: string) => PipelineFix;
 }
 
 /** Main → renderer, one way. */
@@ -368,6 +388,9 @@ export interface IpcEvents {
   'queue:changed': (sessionId: string, state: QueueState) => void;
   /** The timeline of a session changed: a checkpoint came, went or was restored. */
   'checkpoints:changed': (sessionId: string) => void;
+  'pulls:changed': (state: PullsState) => void;
+  /** A notice of a pull request was clicked: the panel opens on it. */
+  'pulls:focus': (key: string) => void;
 }
 
 export type CommandChannel = keyof IpcCommands;
@@ -478,6 +501,10 @@ export const COMMAND_CHANNELS = [
   'checks:run',
   'checks:cancel',
   'checks:sendFailure',
+  'pulls:get',
+  'pulls:refresh',
+  'pulls:available',
+  'pulls:fixPipeline',
 ] as const satisfies readonly CommandChannel[];
 
 export const EVENT_CHANNELS = [
@@ -497,6 +524,8 @@ export const EVENT_CHANNELS = [
   'checks:changed',
   'queue:changed',
   'checkpoints:changed',
+  'pulls:changed',
+  'pulls:focus',
 ] as const satisfies readonly EventChannel[];
 
 // Compile-time check that the runtime lists cover every channel of the contract.
