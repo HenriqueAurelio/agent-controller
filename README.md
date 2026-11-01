@@ -241,6 +241,17 @@ Os PRs do GitHub e os MRs do GitLab (gitlab.com ou o da empresa) dos repositóri
 
 O app consulta a cada minuto (mais espaçado acima de 15 repositórios) e só lê: não comenta, não aprova e não faz merge. Sem repositório na lista, não consulta nada. Se um serviço não responde, o outro continua aparecendo. O Bitbucket não entra. A decisão está na [ADR 0027](adr/0027-servicos-de-repositorio.md); os detalhes, em [`docs/v2/acompanhar-prs`](docs/v2/acompanhar-prs/README.md).
 
+### Comandos em segundo plano
+
+Para o que fica rodando o dia todo e não é de nenhuma sessão: o proxy do banco (um alias como `sql_exp_prod`), um túnel, um servidor local. Abra com `Ctrl+Shift+K` ou com o botão **▶** no topo da barra lateral.
+
+- **+ Novo comando:** nome, a linha de comando e, se quiser, a pasta. Ele roda no **seu shell**, com os aliases e as funções do seu perfil: `bash -ic` (ou o `$SHELL`) no Linux, PowerShell com o perfil no Windows.
+- **Ligado:** marcado, roda agora e volta a rodar quando o app abrir; desmarcado, para. Todos param quando o app fecha.
+- **Estado:** rodando (há quanto tempo), desligado, parou sozinho (com o código) ou não iniciou. Quando um cai sozinho, chega um aviso e o botão **▶** mostra quantos caíram; **Reiniciar** sobe de novo.
+- **Saída:** a de cada comando, num terminal. O que se digita ali vai para ele.
+
+Os detalhes estão em [`docs/v2/comandos-em-segundo-plano`](docs/v2/comandos-em-segundo-plano/README.md).
+
 ### Experimentos (melhor de N)
 
 O mesmo pedido, feito por várias tentativas, para ficar com a melhor. Clique em **⑂** no cabeçalho da lista (ou use a paleta, "Novo experimento (melhor de N)"), escolha a pasta (precisa estar em um repositório git), dê um nome, escolha a base e escreva o pedido. Cada linha de **Tentativas** é um agente, com um comando próprio opcional; são de 1 a 4, e o diálogo lembra que "3 tentativas = 3× o uso dos agentes".
@@ -459,6 +470,7 @@ As sessões, as verificações de cada pasta e os temas importados não vão no 
 | `Ctrl+Shift+O` | Abrir ou fechar o painel geral |
 | `Ctrl+Shift+B` | Abrir ou fechar o quadro de tarefas |
 | `Ctrl+Shift+U` | Abrir ou fechar os pull requests |
+| `Ctrl+Shift+K` | Abrir ou fechar os comandos em segundo plano |
 | `Ctrl+,` | Preferências |
 | sem atalho de fábrica | Próxima sessão aguardando você; fechar a sessão atual; novo grupo de sessões |
 | `Ctrl+clique` | Num caminho (`arquivo:linha`) ou endereço, no terminal e na saída das verificações: abre o arquivo na linha, ou o navegador (fixo) |

@@ -9,6 +9,7 @@ import {
   getProfile,
   interactiveShell,
   PROFILES,
+  shellCommandLine,
   wrapInShell,
 } from '@core/agents';
 import type { LaunchCommand } from '@core/agents';
@@ -29,6 +30,7 @@ import { ReviewerService } from '@core/handoff/ReviewerService';
 import { GitHubClient } from '@core/forges/github';
 import { fetchTransport, GitLabClient } from '@core/forges/gitlab';
 import { PullWatcher, type PullNotice } from '@core/forges/PullWatcher';
+import { BackgroundService } from '@core/background/BackgroundService';
 import { defaultWorktreesFolder } from '@core/git/WorktreeService';
 import { PromptQueue } from '@core/prompts/PromptQueue';
 import { PtyManager } from '@core/pty/PtyManager';
@@ -730,6 +732,31 @@ export async function startApp(): Promise<void> {
   };
   pulls.on('notice', pullNotice);
 
+  // Commands in the background, apart from the sessions (docs/v2/comandos-em-segundo-plano).
+  // In test mode the shell starts without the user's profile.
+  const background = new BackgroundService({
+    launch: (command) => shellCommandLine(command, { profile: !TEST_SHELL }),
+  });
+  background.on('changed', (state) => send('background:changed', state));
+  background.on('data', (id, chunk) => send('background:data', id, chunk));
+  background.on('notice', ({ command, exitCode }) => {
+    showNotice(
+      `background:${command.id}`,
+      {
+        title: t('background.notice.exited', { name: command.name }),
+        body: t('background.notice.exitedBody', { command: command.command, code: exitCode }),
+        silent: !data.prefs.notifySound,
+      },
+      () => {
+        if (!window || window.isDestroyed()) return;
+        if (window.isMinimized()) window.restore();
+        window.show();
+        window.focus();
+        send('background:focus', command.id);
+      },
+    );
+  });
+
   registerIpc({
     manager,
     changes,
@@ -743,6 +770,7 @@ export async function startApp(): Promise<void> {
     flows,
     tails,
     pulls,
+    background,
     data,
     discardDir,
     codeThemes: new CodeThemeStore(path.join(userData, 'themes')),
@@ -760,6 +788,7 @@ export async function startApp(): Promise<void> {
       if (JSON.stringify(prefs.overlaps) !== overlapsBefore) void overlaps.refreshAll();
       manager.setPreferences(prefs);
       pulls.configure(prefs.pulls);
+      background.configure(prefs.background);
       manager.flushPersist();
       send('prefs:changed', prefs);
     },
@@ -804,6 +833,8 @@ export async function startApp(): Promise<void> {
     tasks.dispose();
     pulls.dispose();
     checks.dispose();
+    // Every background command ends with the app: no proxy is left holding a port.
+    await background.dispose();
     if (window && !window.isDestroyed()) saveWindowState(window, data.window);
     // Every agent, and whatever it started, ends with the app (ADR 0006).
     await manager.dispose();
@@ -860,6 +891,8 @@ export async function startApp(): Promise<void> {
   openWindow();
   metrics.start();
   pulls.start();
+  // The ones left on start with the app.
+  background.configure(data.prefs.background);
 
   // Fast mode counts as working once the window has been up for a while.
   window!.webContents.once('did-finish-load', () => {

@@ -17,6 +17,7 @@ import { factoryPrompts, sanitizePrompts, type PromptTemplate } from './prompts'
 import { DEFAULT_SHORTCUTS, sanitizeShortcuts, type ShortcutMap } from './shortcuts';
 import { DEFAULT_FALLBACK, sanitizeFallback, type FallbackSettings } from './fallback';
 import { DEFAULT_PULLS_SETTINGS, sanitizePullsSettings, type PullsSettings } from './pulls';
+import { sanitizeBackgroundCommands, type BackgroundCommand } from './background';
 
 export type ThemeName = 'dark' | 'light';
 
@@ -64,6 +65,8 @@ export interface Preferences {
   fallback: FallbackSettings;
   /** The repositories whose pull requests the app watches, and which of their news it tells. */
   pulls: PullsSettings;
+  /** Commands that run in the background, apart from the sessions (a database proxy, a tunnel). */
+  background: BackgroundCommand[];
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -93,6 +96,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   overlaps: DEFAULT_OVERLAP_SETTINGS,
   fallback: DEFAULT_FALLBACK,
   pulls: DEFAULT_PULLS_SETTINGS,
+  background: [],
 };
 
 export const SCROLLBACK_LIMITS = { min: 200, max: 20000 } as const;
@@ -172,5 +176,6 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
     overlaps: sanitizeOverlapSettings(p.overlaps),
     fallback: sanitizeFallback(p.fallback),
     pulls: sanitizePullsSettings(p.pulls),
+    background: sanitizeBackgroundCommands(p.background),
   };
 }

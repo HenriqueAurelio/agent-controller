@@ -24,6 +24,7 @@ import { NewSessionDialog } from './components/NewSessionDialog';
 import { Overview } from './components/Overview';
 import { TaskBoard } from './components/TaskBoard';
 import { PullRequests } from './components/PullRequests';
+import { BackgroundCommands } from './components/BackgroundCommands';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { PromptDialog, type PromptContext } from './components/PromptDialog';
 import { FlowDialog } from './components/FlowDialog';
@@ -121,6 +122,9 @@ export function App() {
   // The pull request a clicked notice was about; a new object each time, so the same one twice
   // still scrolls to it.
   const [pullsFocus, setPullsFocus] = useState<{ key: string } | null>(null);
+  const [backgroundOpen, setBackgroundOpen] = useState(false);
+  // The background command a clicked notice was about.
+  const [backgroundFocus, setBackgroundFocus] = useState<{ id: string } | null>(null);
   // Bumped by the palette: the board opens its dialog of a new card.
   const [boardNewCard, setBoardNewCard] = useState(0);
   /** The experiment whose attempts the comparison shows. */
@@ -283,6 +287,8 @@ export function App() {
   boardOpenRef.current = boardOpen;
   const pullsOpenRef = useRef(false);
   pullsOpenRef.current = pullsOpen;
+  const backgroundOpenRef = useRef(false);
+  backgroundOpenRef.current = backgroundOpen;
   // A panel beside the terminal leaves it in sight, and reachable.
   coveredRef.current = Boolean(
     overlay ||
@@ -290,6 +296,7 @@ export function App() {
     overviewOpen ||
     boardOpen ||
     pullsOpen ||
+    backgroundOpen ||
     (changesOpen && layout.panel === 'cover'),
   );
 
@@ -321,6 +328,11 @@ export function App() {
   }, [focusTerminal]);
   const closePulls = useCallback(() => {
     setPullsOpen(false);
+    setBackgroundOpen(false);
+    focusTerminal(true);
+  }, [focusTerminal]);
+  const closeBackground = useCallback(() => {
+    setBackgroundOpen(false);
     focusTerminal(true);
   }, [focusTerminal]);
   const openFromBoard = useCallback(
@@ -345,6 +357,7 @@ export function App() {
     setOverviewOpen(false);
     setBoardOpen(false);
     setPullsOpen(false);
+    setBackgroundOpen(false);
   }, [selectedId]);
 
   const selectByOffset = useCallback((offset: number) => {
@@ -479,8 +492,22 @@ export function App() {
         setOverlay(null);
         setOverviewOpen(false);
         setBoardOpen(false);
+        setBackgroundOpen(false);
         setPullsOpen(true);
         setPullsFocus({ key });
+      }),
+    [],
+  );
+
+  useEffect(
+    () =>
+      window.api.on('background:focus', (id) => {
+        setOverlay(null);
+        setOverviewOpen(false);
+        setBoardOpen(false);
+        setPullsOpen(false);
+        setBackgroundOpen(true);
+        setBackgroundFocus({ id });
       }),
     [],
   );
@@ -526,6 +553,7 @@ export function App() {
           setOverviewOpen(false);
           setBoardOpen(false);
           setPullsOpen(false);
+          setBackgroundOpen(false);
           requestAnimationFrame(() => focusTerminal(true));
         },
         palette: () => setOverlay((o) => (o === 'palette' ? null : 'palette')),
@@ -534,6 +562,7 @@ export function App() {
           setOverlay(null);
           setBoardOpen(false);
           setPullsOpen(false);
+          setBackgroundOpen(false);
           if (overviewOpenRef.current) closeOverview();
           else setOverviewOpen(true);
         },
@@ -541,6 +570,7 @@ export function App() {
           setOverlay(null);
           setOverviewOpen(false);
           setPullsOpen(false);
+          setBackgroundOpen(false);
           if (boardOpenRef.current) closeBoard();
           else setBoardOpen(true);
         },
@@ -548,8 +578,17 @@ export function App() {
           setOverlay(null);
           setOverviewOpen(false);
           setBoardOpen(false);
+          setBackgroundOpen(false);
           if (pullsOpenRef.current) closePulls();
           else setPullsOpen(true);
+        },
+        background: () => {
+          setOverlay(null);
+          setOverviewOpen(false);
+          setBoardOpen(false);
+          setPullsOpen(false);
+          if (backgroundOpenRef.current) closeBackground();
+          else setBackgroundOpen(true);
         },
         toggleChanges: () => togglePanel('changes'),
         toggleFiles: () => togglePanel('files'),
@@ -586,6 +625,7 @@ export function App() {
       closeOverview,
       closeBoard,
       closePulls,
+      closeBackground,
     ],
   );
 
@@ -604,6 +644,7 @@ export function App() {
       action('overview'),
       action('board'),
       action('pulls'),
+      action('background'),
       {
         id: 'new-task',
         title: t('command.newTask'),
@@ -860,6 +901,8 @@ export function App() {
         boardOpen={boardOpen}
         onPulls={() => runAction('pulls')}
         pullsOpen={pullsOpen}
+        onBackground={() => runAction('background')}
+        backgroundOpen={backgroundOpen}
       />
       <main className="main">
         {overviewOpen && <Overview onOpen={openFromOverview} onClose={closeOverview} />}
@@ -869,6 +912,9 @@ export function App() {
             focusKey={pullsFocus?.key ?? null}
             onFix={fixPipeline}
           />
+        )}
+        {backgroundOpen && (
+          <BackgroundCommands onClose={closeBackground} focusId={backgroundFocus?.id ?? null} />
         )}
         {boardOpen && (
           <TaskBoard

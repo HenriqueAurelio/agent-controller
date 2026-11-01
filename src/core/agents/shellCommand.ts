@@ -91,3 +91,27 @@ export function interactiveShell({
   }
   return { file: env.SHELL || '/bin/bash', args: [], env: {} };
 }
+
+/**
+ * One command line of the user, in their own shell, as in their terminal: interactive on POSIX
+ * (`-i` reads the `.bashrc` or `.zshrc`, where aliases live), with the profile on Windows. Without
+ * `profile` (the tests), the shell starts clean.
+ */
+export function shellCommandLine(
+  command: string,
+  {
+    platform = process.platform,
+    env = process.env,
+    profile = true,
+  }: ShellOptions & {
+    profile?: boolean;
+  } = {},
+): LaunchCommand {
+  if (platform === 'win32') {
+    const shell = findOnPath('pwsh', env) ?? 'powershell.exe';
+    const encoded = Buffer.from(powerShellScript(command, []), 'utf16le').toString('base64');
+    const args = ['-NoLogo', ...(profile ? [] : ['-NoProfile']), '-EncodedCommand', encoded];
+    return { file: shell, args, env: {} };
+  }
+  return { file: env.SHELL || '/bin/bash', args: [profile ? '-ic' : '-c', command], env: {} };
+}
