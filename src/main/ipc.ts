@@ -65,7 +65,7 @@ import type {
   WorktreesInfo,
 } from '@shared/ipc';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
-import { normalizeRepo, PIPELINE_TEXT_LIMIT, pullRef } from '@shared/pulls';
+import { FORGES, normalizeRepo, PIPELINE_TEXT_LIMIT, pullRef } from '@shared/pulls';
 import {
   PROMPT_TEXT_LIMIT,
   QUEUE_CONDITIONS,
@@ -968,7 +968,12 @@ export function registerIpc(context: IpcContext): void {
     await context.pulls.refresh();
     return context.pulls.get();
   });
-  handle('pulls:available', () => context.pulls.available());
+  handle('pulls:available', (forge) => {
+    if (!FORGES.includes(forge)) {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.forge' } });
+    }
+    return context.pulls.available(forge);
+  });
   handle('pulls:fixPipeline', async (key) => {
     const value = str(key, 'pull', 300);
     const pull = context.pulls.find(value);

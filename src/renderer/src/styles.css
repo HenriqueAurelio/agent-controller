@@ -3345,17 +3345,73 @@ textarea.associations {
   margin: 0;
   font-size: 12px;
 }
-.pulls-add {
+.pulls-settings-head {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pulls-forges {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+.pulls-forge,
+.pulls-notify {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 6px 10px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.pulls-forge legend,
+.pulls-notify legend {
+  padding: 0 4px;
+  font-weight: 600;
+}
+.pulls-notify {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.pulls-notify label,
+.pulls-account {
+  display: flex;
+  align-items: center;
   gap: 6px;
 }
-.pulls-add input {
-  flex: 1;
+.pulls-picker {
+  position: relative;
 }
-.pulls-chips {
+.pulls-picker-field {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  cursor: text;
+}
+.pulls-picker-field:focus-within {
+  border-color: var(--accent);
+}
+.pulls-picker-field input {
+  flex: 1;
+  min-width: 140px;
+  padding: 2px;
+  border: none;
+  outline: none;
+  background: transparent;
+}
+.pulls-chips {
+  display: contents;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -3365,48 +3421,64 @@ textarea.associations {
   display: flex;
   align-items: center;
   gap: 2px;
+  max-width: 100%;
   padding: 0 2px 0 8px;
   border: 1px solid var(--border);
   border-radius: 10px;
-}
-.pulls-available ul {
-  max-height: 180px;
-  margin: 6px 0 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-  font-size: 12px;
-}
-.pulls-available label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  background: var(--bg-raised);
+  overflow-wrap: anywhere;
 }
 .pulls-options {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 16px;
-  font-size: 12px;
-}
-.pulls-options > label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.pulls-options fieldset {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
   margin: 0;
-  padding: 4px 8px;
+  padding: 2px 0;
+  overflow-y: auto;
+  list-style: none;
   border: 1px solid var(--border);
   border-radius: 4px;
+  background: var(--bg-raised);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 25%);
+  font-size: 12px;
 }
-.pulls-options fieldset label {
+.pulls-option {
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.pulls-option.active {
+  background: var(--bg-hover);
+}
+.pulls-option.muted {
+  cursor: default;
+}
+.pulls-check {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 12px;
+  text-align: center;
+}
+.pulls-option[aria-selected='true'] .pulls-check {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.pulls-option.add .pulls-check {
+  border-style: dashed;
+}
+.pulls-picker-problem {
+  margin: 4px 0 0;
+  color: var(--danger);
 }
 .pulls-button {
   position: relative;

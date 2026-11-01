@@ -25,7 +25,7 @@ import type { NewTasksInput, TaskBoardState, TaskStartResult } from './tasks';
 import type { ReviewResult, ReviewerSetInput, ReviewerSummary } from './reviewer';
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
-import type { PullsState } from './pulls';
+import type { AvailableRepos, Forge, PullsState } from './pulls';
 import type {
   PromptValues,
   QueueCondition,
@@ -356,8 +356,8 @@ export interface IpcCommands {
   'pulls:get': () => PullsState;
   /** Looks again now; resolves once the answer is in. */
   'pulls:refresh': () => PullsState;
-  /** The repositories the account can see, to pick the ones to watch from. */
-  'pulls:available': () => string[];
+  /** The repositories one service shows the account, to pick the ones to watch from. */
+  'pulls:available': (forge: Forge) => AvailableRepos;
   /** The failed pipeline of a pull request, ready for the prompt that sends it to an agent. */
   'pulls:fixPipeline': (key: string) => PipelineFix;
 }

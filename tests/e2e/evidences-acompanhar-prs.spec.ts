@@ -129,13 +129,16 @@ test('evidences: pull requests and pipelines', async () => {
       return;
     }
     await page.getByTestId('pulls-button').click();
-    await page.getByTestId('pulls-repos-input').fill('acme/api, https://github.com/acme/web');
-    await page.getByTestId('pulls-repos-add').click();
+    const box = page.getByTestId('pulls-repos-input-github');
+    await box.fill('acme/api, https://github.com/acme/web');
+    await box.press('Enter');
     const view = page.getByTestId('pulls-view');
     await expect(view.getByTestId('pull-row')).toHaveCount(6);
-    await page.getByTestId('pulls-pick').click();
-    await expect(page.getByTestId('pulls-available')).toContainText('ana/dotfiles');
+    // The list the account sees, open under the box, with the watched ones marked.
+    await box.fill('');
+    await expect(page.getByTestId('pulls-available-github')).toContainText('ana/dotfiles');
     await shot(page, '04-repositorios');
+    await box.press('Escape');
 
     await page.getByTestId('pulls-repos-button').click();
     await page.getByTestId('pulls-tab-mine').click();
@@ -246,17 +249,20 @@ test('evidences: GitLab next to GitHub', async () => {
     await page.setViewportSize({ width: 1280, height: 760 });
     await createSession(page, 'Estoque · reserva', repo);
     await page.getByTestId('pulls-button').click();
-    await page
-      .getByTestId('pulls-repos-input')
-      .fill(
-        'acme/api, https://gitlab.com/time/estoque/-/merge_requests/42, git@gitlab.com:time/plataforma/pagamentos.git',
-      );
-    await page.getByTestId('pulls-repos-add').click();
+    const box = page.getByTestId('pulls-repos-input-gitlab');
+    await box.fill(
+      'acme/api, https://gitlab.com/time/estoque/-/merge_requests/42, git@gitlab.com:time/plataforma/pagamentos.git',
+    );
+    await box.press('Enter');
     const view = page.getByTestId('pulls-view');
     await expect(view.getByTestId('pull-row')).toHaveCount(5);
-    await page.getByTestId('pulls-pick').click();
-    await expect(page.getByTestId('pulls-available')).toContainText('gitlab.com/time/estoque');
+    // Typing filters the projects GitLab shows the account.
+    await box.fill('time');
+    await expect(page.getByTestId('pulls-available-gitlab')).toContainText(
+      'gitlab.com/time/estoque',
+    );
     await shot(page, '07-gitlab-repositorios');
+    await box.press('Escape');
 
     await page.getByTestId('pulls-repos-button').click();
     await page.getByTestId('pulls-tab-all').click();

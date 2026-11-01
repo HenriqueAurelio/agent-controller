@@ -51,6 +51,14 @@ export interface PullRequestView {
 export type PullsStatus = 'idle' | 'ok' | 'noCli' | 'loggedOut' | 'error';
 
 /** A service that could not be read in the latest look, while the others may have been. */
+/** The repositories of one service the accounts can see, or why they could not be listed. */
+export interface AvailableRepos {
+  repos: string[];
+  problem?: ForgeProblem;
+}
+
+export const FORGES: readonly Forge[] = ['github', 'gitlab'];
+
 export interface ForgeProblem {
   forge: Forge;
   status: 'noCli' | 'loggedOut' | 'error';

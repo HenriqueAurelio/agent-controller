@@ -3,6 +3,7 @@
 import { EventEmitter } from 'node:events';
 import {
   EMPTY_PULLS_STATE,
+  type AvailableRepos,
   forgeOf,
   PIPELINE_TEXT_LIMIT,
   PULLS_INTERVAL_MS,
@@ -161,16 +162,18 @@ export class PullWatcher extends EventEmitter<Events> {
     return this.running;
   }
 
-  /** The repositories the account can see on each service, to pick from. */
-  async available(): Promise<string[]> {
-    const lists = await Promise.allSettled(
-      Object.values(this.clients).map((client) => client.available(this.repos)),
-    );
-    const names = lists.flatMap((l) => (l.status === 'fulfilled' ? l.value : []));
-    // Nothing to pick from and a service that failed: why is worth more than an empty list.
-    const failed = lists.find((l) => l.status === 'rejected');
-    if (names.length === 0 && failed) throw failed.reason;
-    return names;
+  /**
+   * The repositories the account can see on one service, to pick from. Each service is asked
+   * apart: a slow or broken one does not hold the other's list, and says why it has none.
+   */
+  async available(forge: Forge): Promise<AvailableRepos> {
+    const client = this.clients[forge];
+    if (!client) return { repos: [] };
+    try {
+      return { repos: await client.available(this.repos) };
+    } catch (err) {
+      return { repos: [], problem: this.problem(forge, err) };
+    }
   }
 
   /** The text of `{pipeline}`: each failed job, its link and the end of its log. */

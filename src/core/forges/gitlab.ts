@@ -2,6 +2,7 @@
 // login, renews it when it expires and knows the company's own servers: the app keeps no token
 // and never sees one.
 import { spawn } from 'node:child_process';
+import { resolveCli } from './cli';
 import type { JobState, PipelineJob, PipelineState, PullRequestView } from '@shared/pulls';
 import { eachRepo, ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
 import { ANSI, tailLines } from './log';
@@ -28,14 +29,22 @@ interface Run {
   err: string;
 }
 
-function runGlab(args: string[], input?: string): Promise<Run> {
+async function runGlab(args: string[], input?: string): Promise<Run> {
+  const command = await resolveCli('glab');
   return new Promise((resolve, reject) => {
     let child;
     try {
-      child = spawn('glab', args, {
+      child = spawn(command, args, {
         windowsHide: true,
-        // No question on the terminal, no colors, no look for a new version on every call.
-        env: { ...process.env, NO_PROMPT: '1', NO_COLOR: '1', GLAB_CHECK_UPDATE: 'false' },
+        // No question on the terminal (GLAB_NO_PROMPT; NO_PROMPT for glab before 1.126), no colors,
+        // no look for a new version on every call.
+        env: {
+          ...process.env,
+          GLAB_NO_PROMPT: '1',
+          NO_PROMPT: '1',
+          NO_COLOR: '1',
+          GLAB_CHECK_UPDATE: 'false',
+        },
       });
     } catch (error) {
       reject(new ForgeError('noCli', String(error)));
@@ -364,6 +373,7 @@ export class GitLabClient implements ForgeClient {
     const hosts = new Set([await this.transport.defaultHost()]);
     for (const repo of watched)
       if (repo.split('/')[0]!.includes('.')) hosts.add(splitRepo(repo).host);
+    const failures: unknown[] = [];
     const lists = await Promise.all(
       [...hosts].map(async (host) => {
         const answer = await this.transport
@@ -371,7 +381,10 @@ export class GitLabClient implements ForgeClient {
             host,
             'projects?membership=true&archived=false&simple=true&order_by=last_activity_at&per_page=100',
           )
-          .catch(() => '[]');
+          .catch((err: unknown) => {
+            failures.push(err);
+            return '[]';
+          });
         let list: unknown;
         try {
           list = JSON.parse(answer);
@@ -384,6 +397,9 @@ export class GitLabClient implements ForgeClient {
           .map((path) => `${host}/${path}`);
       }),
     );
+    // A server without a login does not hide the others; no server at all (glab missing, no login
+    // anywhere) is worth saying, not an empty list.
+    if (failures.length === hosts.size) throw failures[0];
     return lists.flat();
   }
 
