@@ -232,7 +232,7 @@ A decisão está na [ADR 0025](adr/0025-tarefas-como-origem-das-sessoes.md).
 Os PRs do GitHub e os MRs do GitLab (gitlab.com ou o da empresa) dos repositórios que você escolhe, com o pipeline de cada um. Abra com `Ctrl+Shift+U` ou com o botão **⇄** no topo da barra lateral; ele ocupa o lugar do terminal, como o quadro de tarefas.
 
 - **Login:** o do CLI de cada serviço; o app não guarda token.
-  - **GitHub:** instale o [`gh`](https://cli.github.com) e rode `gh auth login` uma vez. Com mais de uma conta no `gh`, escreva em **Conta do gh** a que enxerga os repositórios (a conta ativa não muda).
+  - **GitHub:** instale o [`gh`](https://cli.github.com) e rode `gh auth login` uma vez. Com mais de uma conta no `gh`, o quadro do GitHub mostra a lista **Conta do gh** para escolher a que enxerga os repositórios (a conta ativa do `gh` não muda).
   - **GitLab:** instale o [`glab`](https://gitlab.com/gitlab-org/cli) e rode `glab auth login` (para o GitLab da empresa, `glab auth login --hostname gitlab.empresa.com`).
 - **Repositórios:** um quadro para o GitHub e outro para o GitLab, cada um com uma caixa: clique para ver os repositórios que a conta enxerga, digite para filtrar e marque quantos quiser. A mesma caixa aceita nomes (`dono/repo`) e endereços colados, separados por vírgula. Do GitLab, o endereço do projeto, de um MR dele ou de clone; o app guarda `servidor/grupo/projeto`. **Copiar a lista** leva os nomes para outra máquina. No máximo 40.
 - **Abas:** **Meus**, **Para eu revisar** e **Todos abertos**. Os MRs do GitLab têm o número com `!`. Cada PR mostra o pipeline (verde, vermelho ou âmbar), quantos jobs passaram, autor, branch, revisão, revisores e comentários. Clique no título para abrir no navegador.

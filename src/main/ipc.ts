@@ -974,6 +974,7 @@ export function registerIpc(context: IpcContext): void {
     }
     return context.pulls.available(forge);
   });
+  handle('pulls:accounts', () => context.pulls.ghAccounts());
   handle('pulls:fixPipeline', async (key) => {
     const value = str(key, 'pull', 300);
     const pull = context.pulls.find(value);

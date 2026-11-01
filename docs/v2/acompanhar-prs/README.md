@@ -47,7 +47,7 @@ Em **Repositórios**, no topo do painel, um quadro para o GitHub e outro para o 
   O que não for reconhecido aparece numa nota e continua no campo.
 - **`gh` e `glab` instalados com o app aberto:** no Windows, um programa aberto antes da instalação (o app, ou o editor de onde ele foi aberto) não enxerga a pasta nova no PATH. Quando o PATH herdado não tem o `gh` ou o `glab`, o app lê o PATH que o Windows guarda agora; não é preciso reabrir nada.
 - **Copiar a lista:** copia os nomes separados por vírgula, para colar em outra máquina.
-- **Conta do gh:** vazio usa a conta ativa. Com mais de uma conta logada no `gh`, escreva o usuário que enxerga esses repositórios. A conta ativa do `gh` não muda. No GitLab não há escolha: o `glab` tem um login por servidor.
+- **Conta do gh:** só aparece com mais de uma conta logada no `gh` (lidas de `gh auth status`). É uma lista com as contas, a ativa primeiro; escolher outra pede de novo a lista de repositórios do GitHub, já com ela. A conta ativa do `gh` não muda. Uma conta escolhida que saiu do `gh` continua na lista, marcada "sem login", para ser trocada. No GitLab não há escolha: o `glab` tem um login por servidor.
 
 No máximo 40 repositórios, somando os dois serviços. A lista e a escolha dos avisos ficam nas preferências e vão junto na exportação.
 

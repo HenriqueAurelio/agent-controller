@@ -1178,7 +1178,10 @@ export const es: Record<keyof typeof ptBR, string> = {
   'pulls.repos.copied': 'Copiada.',
   'pulls.account': 'Cuenta de gh',
   'pulls.accountHint':
-    'Vacío usa la cuenta activa de gh. Con más de una cuenta, escribe el usuario que ve esos repositorios.',
+    'La cuenta de gh que lee los repositorios de GitHub. La cuenta activa de gh no cambia.',
+  'pulls.accountActive': '{login} (la activa en gh)',
+  'pulls.accountDefault': 'La activa en gh',
+  'pulls.accountMissing': '{login} (sin sesión en gh)',
   'pulls.notify.title': 'Avisos',
   'pulls.notify.failed': 'El pipeline de un PR mío falló',
   'pulls.notify.comments': 'Comentario o revisión nueva en un PR mío',

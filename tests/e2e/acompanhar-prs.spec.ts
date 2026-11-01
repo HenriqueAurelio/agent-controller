@@ -29,7 +29,10 @@ test('the pull requests of the watched repositories, with the pipeline and the f
   const repo = makeRepo();
   git(repo, 'checkout', '-q', '-b', 'paginar');
   git(repo, 'remote', 'add', 'origin', 'https://github.com/acme/api.git');
-  const running = await launch(userData, fakeGitHubEnv(fake));
+  const running = await launch(userData, {
+    ...fakeGitHubEnv(fake),
+    AGENT_CONTROLLER_GH_ACCOUNTS: 'ana*,bruno',
+  });
   const { page } = running;
   try {
     await createSession(page, 'Relatório', repo);
@@ -88,6 +91,21 @@ test('the pull requests of the watched repositories, with the pipeline and the f
     await box.press('Escape');
     await expect(options).toBeHidden();
     await expect(view).toBeVisible();
+
+    // Two accounts logged in to gh: a list of them, the active one first. Picking another saves
+    // it, and the list of GitHub is asked again.
+    const account = page.getByTestId('pulls-account');
+    await expect(account.locator('option')).toHaveText(['ana (a ativa no gh)', 'bruno']);
+    await expect(account).toHaveValue('');
+    await account.selectOption('bruno');
+    await expect
+      .poll(async () => (await page.evaluate(() => window.api.invoke('prefs:get'))).pulls.account)
+      .toBe('bruno');
+    await expect(account).toHaveValue('bruno');
+    await box.focus();
+    await expect(options).toContainText('acme/infra');
+    await box.press('Escape');
+    await account.selectOption('');
 
     // The pipeline breaks: the row and the button of the list say so.
     mine.sha = 'quebrou';
@@ -231,6 +249,8 @@ test('GitLab merge requests next to GitHub pull requests, each service on its ow
     await expect(page.getByTestId('pulls-repos-gitlab')).toContainText('gitlab.com/time/estoque');
     await expect(page.getByTestId('pulls-repos-gitlab')).not.toContainText('acme/api');
     await expect(page.getByTestId('pulls-repos-github')).toContainText('acme/api');
+    // A single account of gh (here, none): nothing to pick, no list.
+    await expect(page.getByTestId('pulls-account')).toHaveCount(0);
 
     const mr = view.locator('[data-testid="pull-row"][data-key="gitlab.com/time/estoque!12"]');
     await expect(mr).toHaveAttribute('data-pipeline', 'failure');
