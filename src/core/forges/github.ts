@@ -1,6 +1,7 @@
 // Reads pull requests from GitHub with the login of the `gh` command line tool: the app keeps no
 // token of its own, and the one `gh` gives stays in this process, never in the renderer.
 import { spawn } from 'node:child_process';
+import { resolveCli } from './cli';
 import type { JobState, PipelineJob, PipelineState, PullRequestView } from '@shared/pulls';
 import { eachRepo, ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
 import { ANSI, tailLines } from './log';
@@ -24,14 +25,15 @@ const PAGE = { pulls: 20, jobs: 30 };
 const SMALL_PAGE = { pulls: 8, jobs: 15 };
 
 /** `gh auth token`, for one account or the active one. */
-export function ghToken(account: string): Promise<string> {
+export async function ghToken(account: string): Promise<string> {
+  const command = await resolveCli('gh');
   return new Promise((resolve, reject) => {
     const args = ['auth', 'token', ...(account ? ['--user', account] : [])];
     let out = '';
     let err = '';
     let child;
     try {
-      child = spawn('gh', args, {
+      child = spawn(command, args, {
         windowsHide: true,
         env: { ...process.env, GH_PROMPT_DISABLED: '1' },
       });

@@ -41,15 +41,16 @@ test('the pull requests of the watched repositories, with the pipeline and the f
     await expect(page.getByTestId('pulls-settings')).toBeVisible();
     expect(fake.queries).toBe(0);
 
-    // Names pasted with commas; an address and a name that is not one.
-    await page
-      .getByTestId('pulls-repos-input')
-      .fill('acme/api, https://github.com/acme/gone, nada');
-    await page.getByTestId('pulls-repos-add').click();
-    await expect(page.getByTestId('pulls-repos')).toContainText('acme/api');
-    await expect(page.getByTestId('pulls-repos')).toContainText('acme/gone');
-    await expect(page.getByTestId('pulls-repos-note')).toContainText('nada');
-    await expect(page.getByTestId('pulls-repos-input')).toHaveValue('nada');
+    // One box per service. Names pasted with commas in GitHub's; an address and a name that is
+    // not one, which stays in the field.
+    const box = page.getByTestId('pulls-repos-input-github');
+    await box.fill('acme/api, https://github.com/acme/gone, nada');
+    await box.press('Enter');
+    const chips = page.getByTestId('pulls-repos-github');
+    await expect(chips).toContainText('acme/api');
+    await expect(chips).toContainText('acme/gone');
+    await expect(page.getByTestId('pulls-repos-invalid-github')).toContainText('nada');
+    await expect(box).toHaveValue('nada');
 
     const row = view.locator('[data-testid="pull-row"][data-key="acme/api#7"]');
     await expect(row).toHaveAttribute('data-pipeline', 'success');
@@ -60,12 +61,33 @@ test('the pull requests of the watched repositories, with the pipeline and the f
     await expect(page.getByTestId('pulls-tab-mine')).toHaveText('Meus (1)');
     await expect(page.getByTestId('pulls-checked')).toContainText('como ana');
 
-    // The list of the repositories the account sees, to tick.
-    await page.getByTestId('pulls-pick').click();
-    await expect(page.getByTestId('pulls-available')).toContainText('acme/infra');
-    await expect(
-      page.getByTestId('pulls-available').getByRole('checkbox', { name: 'acme/api' }),
-    ).toBeChecked();
+    // The repositories the account sees open under the box; typing filters them, Enter picks
+    // the one marked and keeps the list open for the next.
+    await box.fill('');
+    const options = page.getByTestId('pulls-available-github');
+    await expect(options).toContainText('acme/infra');
+    await expect(options.getByRole('option', { name: 'acme/api' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await box.fill('infra');
+    await expect(options.getByRole('option')).toHaveCount(1);
+    await box.press('Enter');
+    await expect(chips).toContainText('acme/infra');
+    await expect(options.getByRole('option', { name: 'acme/infra' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    // Picked again, it leaves; Backspace in the empty field takes the last chip.
+    await box.press('Enter');
+    await expect(chips).not.toContainText('acme/infra');
+    await box.fill('');
+    await box.press('Backspace');
+    await expect(chips).not.toContainText('acme/gone');
+    // Esc closes only the list; the panel stays.
+    await box.press('Escape');
+    await expect(options).toBeHidden();
+    await expect(view).toBeVisible();
 
     // The pipeline breaks: the row and the button of the list say so.
     mine.sha = 'quebrou';
@@ -201,12 +223,14 @@ test('GitLab merge requests next to GitHub pull requests, each service on its ow
     await createSession(page, 'Estoque', repo);
     await page.getByTestId('pulls-button').click();
     const view = page.getByTestId('pulls-view');
-    // The address of a merge request, pasted, names its project.
-    await page
-      .getByTestId('pulls-repos-input')
-      .fill('acme/api, https://gitlab.com/time/estoque/-/merge_requests/12');
-    await page.getByTestId('pulls-repos-add').click();
-    await expect(page.getByTestId('pulls-repos')).toContainText('gitlab.com/time/estoque');
+    // The address of a merge request, pasted, names its project. A GitHub name pasted in the same
+    // list goes to GitHub's box.
+    const gitlabBox = page.getByTestId('pulls-repos-input-gitlab');
+    await gitlabBox.fill('acme/api, https://gitlab.com/time/estoque/-/merge_requests/12');
+    await gitlabBox.press('Enter');
+    await expect(page.getByTestId('pulls-repos-gitlab')).toContainText('gitlab.com/time/estoque');
+    await expect(page.getByTestId('pulls-repos-gitlab')).not.toContainText('acme/api');
+    await expect(page.getByTestId('pulls-repos-github')).toContainText('acme/api');
 
     const mr = view.locator('[data-testid="pull-row"][data-key="gitlab.com/time/estoque!12"]');
     await expect(mr).toHaveAttribute('data-pipeline', 'failure');
@@ -219,13 +243,17 @@ test('GitLab merge requests next to GitHub pull requests, each service on its ow
     await expect(page.getByTestId('pulls-tab-mine')).toHaveText('Meus (2)');
     await expect(page.getByTestId('pulls-tab-review')).toHaveText('Para eu revisar (1)');
 
-    // The projects of GitLab are in the list to pick from, next to the repositories of GitHub.
-    await page.getByTestId('pulls-pick').click();
+    // The projects of GitLab are in GitLab's box, and only there.
+    await gitlabBox.focus();
     await expect(
       page
-        .getByTestId('pulls-available')
-        .getByRole('checkbox', { name: 'gitlab.com/time/estoque' }),
-    ).toBeChecked();
+        .getByTestId('pulls-available-gitlab')
+        .getByRole('option', { name: 'gitlab.com/time/estoque' }),
+    ).toHaveAttribute('aria-selected', 'true');
+    await page.getByTestId('pulls-repos-input-github').focus();
+    await expect(page.getByTestId('pulls-available-github')).toContainText('acme/api');
+    await expect(page.getByTestId('pulls-available-github')).not.toContainText('gitlab.com');
+    await page.getByTestId('pulls-repos-input-github').press('Escape');
 
     // The fix finds the session by its remote over ssh, and the log comes without the runner.
     await mr.getByTestId('pull-fix').click();
@@ -247,6 +275,16 @@ test('GitLab merge requests next to GitHub pull requests, each service on its ow
     );
     await expect(mr).toBeVisible();
     await expect(view.locator('[data-key="acme/api#7"]')).toBeVisible();
+
+    // The list to pick from says GitLab could not be listed, and GitHub's still opens.
+    await page.getByTestId('pulls-repos-button').click();
+    await page.getByTestId('pulls-repos-button').click();
+    await page.getByTestId('pulls-repos-input-gitlab').focus();
+    await expect(page.getByTestId('pulls-available-problem-gitlab')).toContainText(
+      'Não foi possível consultar o GitLab',
+    );
+    await page.getByTestId('pulls-repos-input-github').focus();
+    await expect(page.getByTestId('pulls-available-github')).toContainText('acme/api');
   } finally {
     await running.close();
     await github.close();

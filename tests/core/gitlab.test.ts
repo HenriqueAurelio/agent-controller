@@ -318,6 +318,13 @@ describe('the GitLab client', () => {
     });
   });
 
+  it('says why when no server could be listed, instead of an empty list', async () => {
+    const transport = new FakeTransport();
+    await expect(new GitLabClient(transport).available([])).rejects.toMatchObject({
+      kind: 'loggedOut',
+    });
+  });
+
   it('lists the projects of glab’s server and of every watched one', async () => {
     const transport = new FakeTransport();
     transport.projects = { 'gitlab.com': ['acme/web'], 'gitlab.empresa.com': ['time/app'] };
@@ -435,19 +442,20 @@ describe('watching both services', () => {
 });
 
 describe('the repositories to pick from', () => {
-  it('puts both services together, and says why when there is nothing at all', async () => {
+  it('asks each service apart, and says why one has nothing', async () => {
     const github = new Client();
     const gitlab = new Client();
     github.available = async () => ['acme/api'];
-    gitlab.available = async () => ['gitlab.com/acme/web'];
-    const watcher = new PullWatcher({ clients: { github, gitlab } });
-    expect(await watcher.available()).toEqual(['acme/api', 'gitlab.com/acme/web']);
-
-    github.available = async () => {
-      throw new ForgeError('noCli', 'spawn gh ENOENT');
+    gitlab.available = async () => {
+      throw new ForgeError('noCli', 'spawn glab ENOENT');
     };
-    gitlab.available = async () => [];
-    await expect(watcher.available()).rejects.toMatchObject({ kind: 'noCli' });
+    const watcher = new PullWatcher({ clients: { github, gitlab } });
+    // GitLab down does not take the GitHub list with it.
+    expect(await watcher.available('github')).toEqual({ repos: ['acme/api'] });
+    expect(await watcher.available('gitlab')).toEqual({
+      repos: [],
+      problem: { forge: 'gitlab', status: 'noCli' },
+    });
     watcher.dispose();
   });
 });

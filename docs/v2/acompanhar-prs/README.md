@@ -34,16 +34,18 @@ Um painel **Pull requests**, aberto com `Ctrl+Shift+U` ou pelo botão **⇄** no
 
 ### Escolher os repositórios
 
-Em **Repositórios**, no topo do painel:
+Em **Repositórios**, no topo do painel, um quadro para o GitHub e outro para o GitLab. Cada quadro tem uma caixa só: os repositórios observados aparecem nela como etiquetas (o **×** tira), e o campo dela serve para tudo.
 
-- **Colar:** separados por vírgula, espaço ou linha.
+- **Escolher:** ao clicar no campo, abre embaixo a lista dos repositórios que a conta enxerga, com os observados marcados. Digitar filtra a lista; clique ou `Enter` marca e desmarca, e a lista fica aberta para o próximo. As setas andam pela lista, `Esc` fecha só a lista, e `Backspace` com o campo vazio tira a última etiqueta.
+  - **GitHub:** até 300, os de push mais recente primeiro.
+  - **GitLab:** até 100 por servidor, os de atividade mais recente primeiro. Os servidores são o padrão do `glab` e os de cada projeto já observado.
+  - A lista é pedida ao serviço só quando o campo é usado, e cada serviço à parte: um lento ou fora do ar não segura o outro. Quando um não lista nada, o quadro diz por quê (`glab` não encontrado, sem login, erro).
+- **Colar:** nomes e endereços separados por vírgula, espaço ou linha; `Enter` adiciona. Cada um vai para o quadro do seu serviço, não importa em qual campo foi colado.
   - **GitHub:** `dono/repo`, o endereço da página ou o de clone.
   - **GitLab:** o endereço do projeto, de um MR dele (`https://gitlab.com/grupo/projeto/-/merge_requests/3`) ou de clone (`git@gitlab.empresa.com:time/app.git`). O app guarda `servidor/grupo/projeto`, com subgrupos.
 
   O que não for reconhecido aparece numa nota e continua no campo.
-- **Escolher dos que tenho acesso:** lista os repositórios que as contas enxergam, com filtro e uma caixa para cada um.
-  - **GitHub:** até 300, os de push mais recente primeiro.
-  - **GitLab:** até 100 por servidor, os de atividade mais recente primeiro. Os servidores são o padrão do `glab` e os de cada projeto já observado.
+- **`gh` e `glab` instalados com o app aberto:** no Windows, um programa aberto antes da instalação (o app, ou o editor de onde ele foi aberto) não enxerga a pasta nova no PATH. Quando o PATH herdado não tem o `gh` ou o `glab`, o app lê o PATH que o Windows guarda agora; não é preciso reabrir nada.
 - **Copiar a lista:** copia os nomes separados por vírgula, para colar em outra máquina.
 - **Conta do gh:** vazio usa a conta ativa. Com mais de uma conta logada no `gh`, escreva o usuário que enxerga esses repositórios. A conta ativa do `gh` não muda. No GitLab não há escolha: o `glab` tem um login por servidor.
 
