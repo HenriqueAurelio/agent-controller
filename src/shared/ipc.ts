@@ -26,6 +26,7 @@ import type { ReviewResult, ReviewerSetInput, ReviewerSummary } from './reviewer
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
 import type { AvailableRepos, Forge, GhAccounts, PullsState } from './pulls';
+import type { BackgroundState } from './background';
 import type {
   PromptValues,
   QueueCondition,
@@ -358,6 +359,15 @@ export interface IpcCommands {
   'pulls:refresh': () => PullsState;
   /** The repositories one service shows the account, to pick the ones to watch from. */
   'pulls:available': (forge: Forge) => AvailableRepos;
+  /** How each background command is doing (`prefs.background` says which are on). */
+  'background:get': () => BackgroundState;
+  /** The output of the latest run of a background command; what comes next, by `background:data`. */
+  'background:output': (id: string) => string;
+  /** Starts a command that is on again: after it fell, or to pick up a change. */
+  'background:restart': (id: string) => void;
+  'background:input': (id: string, data: string) => void;
+  /** The size of the view of the output; every background terminal takes it. */
+  'background:resize': (size: TerminalSize) => void;
   /** The accounts logged in to `gh`, to pick the one that reads GitHub. */
   'pulls:accounts': () => GhAccounts;
   /** The failed pipeline of a pull request, ready for the prompt that sends it to an agent. */
@@ -391,6 +401,10 @@ export interface IpcEvents {
   /** The timeline of a session changed: a checkpoint came, went or was restored. */
   'checkpoints:changed': (sessionId: string) => void;
   'pulls:changed': (state: PullsState) => void;
+  'background:changed': (state: BackgroundState) => void;
+  'background:data': (id: string, data: string) => void;
+  /** A notice about a background command was clicked: the panel opens on it. */
+  'background:focus': (id: string) => void;
   /** A notice of a pull request was clicked: the panel opens on it. */
   'pulls:focus': (key: string) => void;
 }
@@ -507,6 +521,11 @@ export const COMMAND_CHANNELS = [
   'pulls:refresh',
   'pulls:available',
   'pulls:accounts',
+  'background:get',
+  'background:output',
+  'background:restart',
+  'background:input',
+  'background:resize',
   'pulls:fixPipeline',
 ] as const satisfies readonly CommandChannel[];
 
@@ -529,6 +548,9 @@ export const EVENT_CHANNELS = [
   'checkpoints:changed',
   'pulls:changed',
   'pulls:focus',
+  'background:changed',
+  'background:data',
+  'background:focus',
 ] as const satisfies readonly EventChannel[];
 
 // Compile-time check that the runtime lists cover every channel of the contract.

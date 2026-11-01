@@ -3496,3 +3496,117 @@ textarea.associations {
   line-height: 14px;
   text-align: center;
 }
+
+/* Background commands: a list of rows, each with its switch, status and output. */
+.background-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 8px 12px 12px;
+  overflow-y: auto;
+}
+.background-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--stopped);
+  border-radius: 6px;
+  background: var(--bg-raised);
+}
+.background-row.status-running {
+  border-left-color: var(--done);
+}
+.background-row.status-exited,
+.background-row.status-failed {
+  border-left-color: var(--danger);
+}
+.background-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.background-switch {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.background-what {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 12px;
+}
+.background-what strong {
+  font-size: 13px;
+}
+.background-what code,
+.background-what span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.background-status {
+  flex: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+.status-running .background-status {
+  color: var(--done);
+}
+.status-exited .background-status,
+.status-failed .background-status {
+  color: var(--danger);
+}
+.background-actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+}
+.background-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 12px;
+}
+.background-form label,
+.background-folder {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.background-form .mono {
+  font-family: var(--mono, monospace);
+}
+.background-form-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 6px;
+}
+.background-output {
+  height: 260px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+}
+.background-dot {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--done);
+}

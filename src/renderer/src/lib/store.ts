@@ -3,6 +3,7 @@ import type { AgentAvailability } from '@shared/agents';
 import type { AppInfo, SessionMetrics } from '@shared/ipc';
 import { DEFAULT_PREFERENCES, type Preferences } from '@shared/prefs';
 import { EMPTY_PULLS_STATE, type PullsState } from '@shared/pulls';
+import { EMPTY_BACKGROUND_STATE, type BackgroundState } from '@shared/background';
 import type { PermissionChoice, SessionGroup, SessionView } from '@shared/session';
 
 export interface AppState {
@@ -20,6 +21,8 @@ export interface AppState {
   permissionStale: string | null;
   /** The pull requests of the watched repositories. */
   pulls: PullsState;
+  /** How each background command is doing. */
+  background: BackgroundState;
 }
 
 let state: AppState = {
@@ -33,6 +36,7 @@ let state: AppState = {
   recentFolders: [],
   permissionStale: null,
   pulls: EMPTY_PULLS_STATE,
+  background: EMPTY_BACKGROUND_STATE,
 };
 let staleTimer: ReturnType<typeof setTimeout> | null = null;
 /** How long "the request changed" stays in the list. */
@@ -66,13 +70,15 @@ export const store = {
     api.on('metrics:update', (metrics) => set({ metrics }));
     api.on('prefs:changed', (prefs) => set({ prefs }));
     api.on('pulls:changed', (pulls) => set({ pulls }));
-    const [info, snapshot, prefs, pulls] = await Promise.all([
+    api.on('background:changed', (background) => set({ background }));
+    const [info, snapshot, prefs, pulls, background] = await Promise.all([
       api.invoke('app:info'),
       api.invoke('sessions:list'),
       api.invoke('prefs:get'),
       api.invoke('pulls:get'),
+      api.invoke('background:get'),
     ]);
-    set({ info, ...snapshot, prefs, pulls });
+    set({ info, ...snapshot, prefs, pulls, background });
     void store.refreshRecentFolders();
     void store.detectAgents(false);
   },

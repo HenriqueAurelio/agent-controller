@@ -42,6 +42,9 @@ interface Props {
   /** Opens or closes the pull requests of the watched repositories. */
   onPulls(): void;
   pullsOpen: boolean;
+  /** Opens or closes the commands that run in the background. */
+  onBackground(): void;
+  backgroundOpen: boolean;
 }
 
 type Dragging = { kind: 'session'; id: string } | { kind: 'group'; id: string };
@@ -104,6 +107,8 @@ export function Sidebar({
   boardOpen,
   onPulls,
   pullsOpen,
+  onBackground,
+  backgroundOpen,
 }: Props) {
   const sessions = useAppState((s) => s.sessions);
   const groups = useAppState((s) => s.groups);
@@ -113,6 +118,15 @@ export function Sidebar({
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
   const permissionStale = useAppState((s) => s.permissionStale);
   // My pull requests whose pipeline failed: the button of the panel shows how many.
+  // Background commands: how many run, and how many fell by themselves.
+  const backgroundRunning = useAppState(
+    (s) => Object.values(s.background.runs).filter((r) => r.status === 'running').length,
+  );
+  const backgroundFell = useAppState(
+    (s) =>
+      Object.values(s.background.runs).filter((r) => r.status === 'exited' || r.status === 'failed')
+        .length,
+  );
   const failingPulls = useAppState(
     (s) => s.pulls.pulls.filter((p) => p.mine && p.pipeline.state === 'failure').length,
   );
@@ -652,6 +666,29 @@ export function Sidebar({
             <span className="pulls-badge" data-testid="pulls-badge">
               {failingPulls}
             </span>
+          )}
+        </button>
+        <button
+          className={`icon-button pulls-button ${backgroundOpen ? 'active' : ''}`}
+          title={hint(
+            backgroundRunning > 0
+              ? t('background.openRunning', { count: backgroundRunning })
+              : t('background.open'),
+            shortcuts.background[0],
+          )}
+          aria-label={t('background.open')}
+          aria-pressed={backgroundOpen}
+          data-testid="background-button"
+          data-running={backgroundRunning}
+          onClick={onBackground}
+        >
+          ▶
+          {backgroundFell > 0 ? (
+            <span className="pulls-badge" data-testid="background-badge">
+              {backgroundFell}
+            </span>
+          ) : (
+            backgroundRunning > 0 && <span className="background-dot" aria-hidden="true" />
           )}
         </button>
         <button

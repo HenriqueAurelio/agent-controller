@@ -34,6 +34,9 @@ const THEMES: Record<ThemeName, ITheme> = {
   },
 };
 
+/** The colors of a terminal in a theme of the app. */
+export const terminalTheme = (name: ThemeName): ITheme => THEMES[name];
+
 const RESIZE_DEBOUNCE_MS = 80;
 const LARGE_PASTE_LINES = 8;
 const LARGE_PASTE_CHARS = 2_000;

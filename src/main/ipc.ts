@@ -17,6 +17,7 @@ import type { TailFeed } from '@core/sessions/TailFeed';
 import { locateFiles, MAX_CANDIDATES } from '@core/git/FileLocator';
 import { currentBranch, runGit } from '@core/git/GitService';
 import type { PullWatcher } from '@core/forges/PullWatcher';
+import type { BackgroundService } from '@core/background/BackgroundService';
 import { expandPrompt, promptVariables } from '@core/prompts/expand';
 import {
   defaultWorktreesFolder,
@@ -102,6 +103,7 @@ export interface IpcContext {
   flows: FlowEngine;
   tails: TailFeed;
   pulls: PullWatcher;
+  background: BackgroundService;
   data: AppData;
   /** Where the copies of discarded files go. */
   discardDir: string;
@@ -973,6 +975,16 @@ export function registerIpc(context: IpcContext): void {
       throw new UserError('error.invalidArgument', { name: { key: 'arg.forge' } });
     }
     return context.pulls.available(forge);
+  });
+  handle('background:get', () => context.background.get());
+  handle('background:output', (id) => context.background.outputOf(str(id, 'item', 64)));
+  handle('background:restart', (id) => context.background.restart(str(id, 'item', 64)));
+  handle('background:input', (id, data) =>
+    context.background.input(str(id, 'item', 64), terminalData(data)),
+  );
+  handle('background:resize', (terminalSize) => {
+    const { cols, rows } = size(terminalSize);
+    context.background.resize(cols, rows);
   });
   handle('pulls:accounts', () => context.pulls.ghAccounts());
   handle('pulls:fixPipeline', async (key) => {
