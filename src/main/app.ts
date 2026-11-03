@@ -39,6 +39,7 @@ import { SonarService } from '@core/sonar/SonarService';
 import { SonarConfigStore } from '@core/sonar/SonarConfigStore';
 import { currentBranch } from '@core/git/GitService';
 import { SonarTokens } from './sonarTokens';
+import { Preview } from './preview';
 import { defaultWorktreesFolder } from '@core/git/WorktreeService';
 import { PromptQueue } from '@core/prompts/PromptQueue';
 import { PtyManager } from '@core/pty/PtyManager';
@@ -845,6 +846,11 @@ export async function startApp(): Promise<void> {
   const sonarConfigs = new SonarConfigStore(path.join(userData, 'sonar.json'));
   const sonarTokens = new SonarTokens(path.join(userData, 'sonar-tokens.json'));
   sonarService.on('changed', (sessionId, run) => send('sonar:changed', sessionId, run));
+  // The preview of a local page, over the place of the terminal (ADR 0031).
+  const preview = new Preview(
+    () => window,
+    (state) => send('preview:changed', state),
+  );
   const startSonar = async (sessionId: string) => {
     const s = manager.get(sessionId);
     const config = s?.groupId ? sonarConfigs.get(s.groupId) : null;
@@ -899,6 +905,8 @@ export async function startApp(): Promise<void> {
     guard,
     background,
     review,
+    preview,
+    shotsDir: path.join(userData, 'shots'),
     sonar: {
       service: sonarService,
       configs: sonarConfigs,

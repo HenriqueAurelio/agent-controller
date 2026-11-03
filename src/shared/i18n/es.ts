@@ -1478,4 +1478,27 @@ export const es: Record<keyof typeof ptBR, string> = {
   'branch.stacked':
     'Esta copia está apilada sobre {base}, la copia de “{name}”: el PR va a {base}, y traer {base} toma lo que cambió allí.',
   'branch.behind': '{base} tiene {count} commits que esta copia aún no tiene.',
+  'command.preview': 'Vista previa: abrir la página local de la sesión en la app',
+  'preview.title': 'Vista previa',
+  'preview.back': 'Atrás',
+  'preview.reload': 'Recargar',
+  'preview.address': 'Dirección local (localhost:3000, o solo el puerto)',
+  'preview.shot': 'Marcar y enviar al agente',
+  'preview.shotHint':
+    'Toma una captura de la página, te deja marcar lo que está mal y envía la captura al agente',
+  'preview.external': 'Abrir en el navegador',
+  'preview.externalHint': 'Abre esta página en tu navegador',
+  'preview.loading': 'Cargando…',
+  'preview.loadFailed': 'La página no cargó: {error}. ¿El servidor está corriendo?',
+  'preview.annotate.title': '¿Qué está mal en la pantalla?',
+  'preview.annotate.hint':
+    'Arrastra sobre la captura para marcar qué cambiar. La captura, con las marcas, va al agente como archivo.',
+  'preview.annotate.note': 'Qué debe cambiar el agente (opcional)',
+  'preview.annotate.undo': 'Deshacer la última marca',
+  'preview.annotate.send': 'Enviar al agente',
+  'preview.shotPrompt':
+    'Mira la captura en {file}. Las marcas rojas muestran lo que está mal: corrígelo.',
+  'preview.shotPromptNote': 'Mira la captura en {file}. Las marcas rojas muestran dónde: {note}',
+  'error.preview.notLocal':
+    'La vista previa solo abre páginas de esta máquina (localhost, 127.0.0.1).',
 };

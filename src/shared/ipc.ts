@@ -32,6 +32,7 @@ import type { BackgroundState } from './background';
 import type { NewReviewComment, ReviewComment } from './review';
 import type { MergeOptions, OpenedPull, PullReviewData, ReviewSubmission } from './pullReview';
 import type { BranchInfo, OpenPullInput } from './branch';
+import type { PreviewBounds, PreviewState } from './preview';
 import type { BaseUpdate } from './branchUpdate';
 import type { SonarConfig, SonarGroupInfo, SonarRun, SonarTestResult } from './sonar';
 import type {
@@ -424,6 +425,19 @@ export interface IpcCommands {
   'sonar:runGroup': (groupId: string) => void;
   /** The latest analysis of each session. */
   'sonar:runs': () => Record<string, SonarRun>;
+  /** Shows a local page over the place given (ADR 0031); only addresses of this machine. */
+  'preview:open': (url: string, bounds: PreviewBounds) => void;
+  'preview:bounds': (bounds: PreviewBounds) => void;
+  /** Out of sight while a dialog of the app is over it; `preview:open` shows it again. */
+  'preview:hide': () => void;
+  'preview:reload': () => void;
+  'preview:back': () => void;
+  'preview:close': () => void;
+  'preview:state': () => PreviewState | null;
+  /** The page as it shows now, as a PNG data URL. */
+  'preview:capture': () => string;
+  /** Keeps a marked-up screenshot for the agent of a session; returns the file. */
+  'preview:saveShot': (sessionId: string, png: string) => string;
   /** The guard of each guarded pull request. */
   'pulls:guard': () => GuardState;
   /** Turns the guard of one of my pull requests on or off. */
@@ -472,6 +486,8 @@ export interface IpcEvents {
   'background:focus': (id: string) => void;
   /** A notice of a pull request was clicked: the panel opens on it. */
   'pulls:focus': (key: string) => void;
+  /** The page of the preview loaded, changed title or failed; null: the preview closed. */
+  'preview:changed': (state: PreviewState | null) => void;
   /** The analysis of Sonar of a session changed; null: it has none any more. */
   'sonar:changed': (sessionId: string, run: SonarRun | null) => void;
   /** A guard changed: it sent a fix, gave up, or was turned on or off. */
@@ -607,6 +623,15 @@ export const COMMAND_CHANNELS = [
   'pulls:fixPipeline',
   'pulls:guard',
   'pulls:setGuard',
+  'preview:open',
+  'preview:bounds',
+  'preview:hide',
+  'preview:reload',
+  'preview:back',
+  'preview:close',
+  'preview:state',
+  'preview:capture',
+  'preview:saveShot',
   'pulls:review',
   'sonar:group',
   'sonar:configure',
@@ -645,6 +670,7 @@ export const EVENT_CHANNELS = [
   'pulls:focus',
   'pulls:guardChanged',
   'sonar:changed',
+  'preview:changed',
   'background:changed',
   'background:data',
   'background:focus',

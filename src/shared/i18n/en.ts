@@ -1464,4 +1464,25 @@ export const en: Record<keyof typeof ptBR, string> = {
   'branch.stacked':
     'This copy is stacked on {base}, the copy of “{name}”: the PR goes to {base}, and bringing {base} in takes what changed there.',
   'branch.behind': '{base} has {count} commits this copy does not have yet.',
+  'command.preview': 'Preview: open the local page of the session in the app',
+  'preview.title': 'Preview',
+  'preview.back': 'Back',
+  'preview.reload': 'Reload',
+  'preview.address': 'Local address (localhost:3000, or only the port)',
+  'preview.shot': 'Mark up and send to the agent',
+  'preview.shotHint':
+    'Takes a screenshot of the page, lets you mark what is wrong and sends the screenshot to the agent',
+  'preview.external': 'Open in the browser',
+  'preview.externalHint': 'Opens this page in your browser',
+  'preview.loading': 'Loading…',
+  'preview.loadFailed': 'The page did not load: {error}. Is the server running?',
+  'preview.annotate.title': 'What is wrong on the screen?',
+  'preview.annotate.hint':
+    'Drag over the screenshot to mark what to change. The screenshot, with the marks, goes to the agent as a file.',
+  'preview.annotate.note': 'What the agent should change (optional)',
+  'preview.annotate.undo': 'Undo the last mark',
+  'preview.annotate.send': 'Send to the agent',
+  'preview.shotPrompt': 'See the screenshot at {file}. The red marks show what is wrong: fix it.',
+  'preview.shotPromptNote': 'See the screenshot at {file}. The red marks show where: {note}',
+  'error.preview.notLocal': 'The preview only opens pages of this machine (localhost, 127.0.0.1).',
 };

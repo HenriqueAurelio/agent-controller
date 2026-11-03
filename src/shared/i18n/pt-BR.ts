@@ -1465,4 +1465,27 @@ export const ptBR = {
   'branch.stacked':
     'Esta cópia está empilhada sobre {base}, a cópia de “{name}”: o PR vai para {base}, e trazer {base} pega o que mudou lá.',
   'branch.behind': '{base} tem {count} commits que esta cópia ainda não tem.',
+  'command.preview': 'Prévia: abrir a página local da sessão no app',
+  'preview.title': 'Prévia',
+  'preview.back': 'Voltar',
+  'preview.reload': 'Recarregar',
+  'preview.address': 'Endereço local (localhost:3000, ou só a porta)',
+  'preview.shot': 'Marcar e mandar ao agente',
+  'preview.shotHint':
+    'Tira um print da página, deixa você marcar o que está errado e manda o print ao agente',
+  'preview.external': 'Abrir no navegador',
+  'preview.externalHint': 'Abre esta página no seu navegador',
+  'preview.loading': 'Carregando…',
+  'preview.loadFailed': 'A página não carregou: {error}. O servidor está rodando?',
+  'preview.annotate.title': 'O que está errado na tela?',
+  'preview.annotate.hint':
+    'Arraste sobre o print para marcar o que mudar. O print, com as marcas, vai ao agente como arquivo.',
+  'preview.annotate.note': 'O que o agente deve mudar (opcional)',
+  'preview.annotate.undo': 'Desfazer a última marca',
+  'preview.annotate.send': 'Mandar ao agente',
+  'preview.shotPrompt':
+    'Veja o print da tela em {file}. As marcas em vermelho mostram o que está errado: corrija.',
+  'preview.shotPromptNote':
+    'Veja o print da tela em {file}. As marcas em vermelho mostram onde: {note}',
+  'error.preview.notLocal': 'A prévia só abre páginas desta máquina (localhost, 127.0.0.1).',
 } as const;
