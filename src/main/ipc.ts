@@ -57,7 +57,7 @@ import {
   TASKS_PER_PASTE_LIMIT,
   type NewTasksInput,
 } from '@shared/tasks';
-import type { DiffBase } from '@shared/git';
+import type { DiffBase, HunkRevert } from '@shared/git';
 import type {
   CommandChannel,
   EventChannel,
@@ -206,6 +206,32 @@ const newComment = (value: unknown): NewReviewComment => {
     // A longer snippet is cut, not refused: the lines still say where the comment is.
     snippet: str(v.snippet ?? '', 'text', 1024 * 1024).slice(0, REVIEW_SNIPPET_LIMIT),
     text: str(v.text, 'text', REVIEW_COMMENT_TEXT_LIMIT),
+  };
+};
+/** Lines of a block, each one line of text. */
+const hunkLines = (value: unknown): string[] => {
+  if (!Array.isArray(value) || value.length > 50_000) {
+    throw new UserError('error.invalidArgument', { name: { key: 'arg.text' } });
+  }
+  return value.map((line) => {
+    const text = str(line, 'text', 100_000);
+    if (text.includes('\n')) {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.text' } });
+    }
+    return text;
+  });
+};
+const hunkRevert = (value: unknown): HunkRevert => {
+  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  const start = v.newStart;
+  if (typeof start !== 'number' || !Number.isInteger(start) || start < 1) {
+    throw new UserError('error.invalidArgument', { name: { key: 'arg.line' } });
+  }
+  return {
+    file: str(v.file, 'file'),
+    newStart: start,
+    before: hunkLines(v.before),
+    after: hunkLines(v.after),
   };
 };
 const base = (value: unknown): DiffBase =>
@@ -870,6 +896,16 @@ export function registerIpc(context: IpcContext): void {
     const s = session(id);
     const b = base(diffBase);
     return changes.diff(s.id, str(file, 'file'), b, await checkpointTrees(s.id, b));
+  });
+  handle('git:hunks', async (id, diffBase) => {
+    const s = session(id);
+    const b = base(diffBase);
+    return changes.hunks(s.id, b, await checkpointTrees(s.id, b));
+  });
+  handle('git:revertHunk', async (id, diffBase, revert) => {
+    const s = session(id);
+    const b = base(diffBase);
+    await changes.revertHunk(s.id, b, hunkRevert(revert), await checkpointTrees(s.id, b));
   });
   handle('git:save', async (id, file, content, expected) => {
     const result = await changes.save(

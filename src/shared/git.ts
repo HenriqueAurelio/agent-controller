@@ -110,3 +110,56 @@ export const CHANGE_LETTER: Record<ChangeKind, string> = {
   untracked: 'U',
   conflict: '!',
 };
+
+// ---- every changed block of every file, in one scroll ----------------------------------------
+
+export interface HunkLine {
+  kind: 'ctx' | 'add' | 'del';
+  /** Without the line end. */
+  text: string;
+  /** The line on the old side; absent on an added line. */
+  oldNo?: number;
+  /** The line on the new side; absent on a removed line. */
+  newNo?: number;
+}
+
+export interface DiffHunk {
+  /** Stays the same while the block reads the same: what was marked as seen stays marked. */
+  id: string;
+  oldStart: number;
+  oldLines: number;
+  newStart: number;
+  newLines: number;
+  lines: HunkLine[];
+}
+
+export interface FileHunks {
+  path: string;
+  kind: ChangeKind;
+  origPath?: string;
+  hunks: DiffHunk[];
+  /** Why the file shows no blocks: binary, too large, or too many lines to split. */
+  skipped?: 'binary' | 'too-large';
+  /** A block can be put back as it was: the new side is the file on disk, and it existed before. */
+  revertible: boolean;
+}
+
+export interface MultiDiff {
+  base: DiffBase;
+  files: FileHunks[];
+  /** More files changed than the scroll carries. */
+  truncated: boolean;
+}
+
+/** A block to put back as it was: where it starts on the new side, and its lines on each side. */
+export interface HunkRevert {
+  file: string;
+  newStart: number;
+  /** Its lines on the old side, which come back. */
+  before: string[];
+  /** Its lines on the new side, which the file must still have there. */
+  after: string[];
+}
+
+/** How many files the scroll of every block reads at once. */
+export const MULTIDIFF_FILES_LIMIT = 150;

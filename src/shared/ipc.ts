@@ -10,6 +10,8 @@ import type {
   FileIndexResult,
   FileListing,
   GitOverview,
+  HunkRevert,
+  MultiDiff,
 } from './git';
 import type { LocatedPath } from './locations';
 import type { OverlapFile } from './overlaps';
@@ -298,6 +300,10 @@ export interface IpcCommands {
   'git:refresh': (sessionId: string, base: DiffBase) => GitOverview;
   'git:close': (sessionId: string) => void;
   'git:diff': (sessionId: string, path: string, base: DiffBase) => FileDiff;
+  /** Every changed block of the files the panel lists, for the scroll that shows them all. */
+  'git:hunks': (sessionId: string, base: DiffBase) => MultiDiff;
+  /** Puts one block back as it was, in the file on disk. */
+  'git:revertHunk': (sessionId: string, base: DiffBase, revert: HunkRevert) => void;
   /** Writes an edit to the working tree. `expected` null overwrites whatever is on disk. */
   'git:save': (
     sessionId: string,
@@ -507,6 +513,8 @@ export const COMMAND_CHANNELS = [
   'git:refresh',
   'git:close',
   'git:diff',
+  'git:hunks',
+  'git:revertHunk',
   'git:save',
   'git:count',
   'git:stage',
