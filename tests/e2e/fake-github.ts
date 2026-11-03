@@ -27,6 +27,19 @@ export interface FakePull {
   /** Running when set: the rollup is PENDING. */
   running?: boolean;
   jobs: FakeJob[];
+  /** What `GET /pulls/{n}/files` lists, to review it in the app. */
+  files?: { filename: string; status: string; patch?: string }[];
+  /** The review comments already on it. */
+  reviewComments?: Record<string, unknown>[];
+  /** `mergeable_state` of the REST API; `clean` when not set. */
+  mergeableState?: string;
+}
+
+/** A review or merge the app published, as the fake received it. */
+export interface FakeWrite {
+  method: string;
+  path: string;
+  body: unknown;
 }
 
 export interface FakeGitHub {
@@ -38,6 +51,8 @@ export interface FakeGitHub {
   login: string;
   /** Queries of pull requests answered so far. */
   queries: number;
+  /** Every review, merge and branch deletion the app sent. */
+  writes: FakeWrite[];
   close(): Promise<void>;
 }
 
@@ -53,6 +68,7 @@ export async function startFakeGitHub(
     available: Object.keys(repos),
     login,
     queries: 0,
+    writes: [],
     close: async () => {},
   };
   const logs = new Map<number, string>();
@@ -114,6 +130,52 @@ export async function startFakeGitHub(
     req.on('end', () => {
       if (req.headers.authorization !== `Bearer ${FAKE_TOKEN}`) {
         res.writeHead(401).end();
+        return;
+      }
+      const rest =
+        /^\/repos\/([^/]+\/[^/]+)\/(pulls\/(\d+)(?:\/(files|comments|reviews|merge))?|git\/refs\/heads\/.+)(?:\?.*)?$/.exec(
+          req.url ?? '',
+        );
+      if (rest) {
+        const [, repo, , number, part] = rest;
+        const pull = fake.repos[repo!]?.find((p) => p.number === Number(number));
+        const path = (req.url ?? '').replace(/\?.*$/, '');
+        res.setHeader('content-type', 'application/json');
+        if (req.method !== 'GET') {
+          fake.writes.push({
+            method: req.method ?? '',
+            path,
+            body: body ? JSON.parse(body) : null,
+          });
+          // A merged pull request leaves the open ones.
+          if (part === 'merge' && pull) {
+            fake.repos[repo!] = fake.repos[repo!]!.filter((p) => p !== pull);
+          }
+          res.end(part === 'merge' ? '{"merged":true}' : '{}');
+          return;
+        }
+        if (!pull) {
+          res.writeHead(404).end('{"message":"Not Found"}');
+          return;
+        }
+        const page = /[?&]page=(\d+)/.exec(req.url ?? '')?.[1] ?? '1';
+        if (part === 'files') res.end(JSON.stringify(page === '1' ? (pull.files ?? []) : []));
+        else if (part === 'comments') {
+          res.end(JSON.stringify(page === '1' ? (pull.reviewComments ?? []) : []));
+        } else {
+          res.end(
+            JSON.stringify({
+              title: pull.title,
+              html_url: `https://github.com/${repo}/pull/${pull.number}`,
+              user: { login: pull.author },
+              head: { ref: pull.branch, sha: pull.sha ?? `sha-${pull.number}` },
+              base: { ref: pull.base ?? 'main' },
+              draft: pull.draft === true,
+              mergeable_state: pull.mergeableState ?? 'clean',
+              changed_files: pull.files?.length ?? 0,
+            }),
+          );
+        }
         return;
       }
       const job = /^\/repos\/[^/]+\/[^/]+\/actions\/jobs\/(\d+)\/logs$/.exec(req.url ?? '');

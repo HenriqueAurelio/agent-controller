@@ -30,6 +30,7 @@ import type { Preferences } from './prefs';
 import type { AvailableRepos, Forge, GhAccounts, GuardState, PullsState } from './pulls';
 import type { BackgroundState } from './background';
 import type { NewReviewComment, ReviewComment } from './review';
+import type { MergeOptions, PullReviewData, ReviewSubmission } from './pullReview';
 import type {
   PromptValues,
   QueueCondition,
@@ -379,6 +380,11 @@ export interface IpcCommands {
   'pulls:accounts': () => GhAccounts;
   /** The failed pipeline of a pull request, ready for the prompt that sends it to an agent. */
   'pulls:fixPipeline': (key: string) => PipelineFix;
+  /** The changes of a pull request and the comments on it, to review it in the app. */
+  'pulls:review': (key: string) => PullReviewData;
+  /** Publishes the comments and the verdict written in the app (ADR 0028). */
+  'pulls:submitReview': (key: string, submission: ReviewSubmission) => void;
+  'pulls:merge': (key: string, options: MergeOptions) => void;
   /** The guard of each guarded pull request. */
   'pulls:guard': () => GuardState;
   /** Turns the guard of one of my pull requests on or off. */
@@ -555,6 +561,9 @@ export const COMMAND_CHANNELS = [
   'pulls:fixPipeline',
   'pulls:guard',
   'pulls:setGuard',
+  'pulls:review',
+  'pulls:submitReview',
+  'pulls:merge',
   'review:list',
   'review:add',
   'review:update',

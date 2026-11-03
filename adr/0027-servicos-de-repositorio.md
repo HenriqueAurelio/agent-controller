@@ -1,6 +1,7 @@
 # 0027 — Serviços de repositório (GitHub e GitLab)
 
 - **Status:** Aceita
+- **Revisão:** o item 3 ("Só leitura") foi revisto pela [ADR 0028](0028-escrever-nos-servicos-de-repositorio.md), que deixa o app publicar revisões e fazer merge a pedido da pessoa.
 - **Data:** 2026-10-31
 - **Funcionalidade:** [`docs/v2/acompanhar-prs`](../docs/v2/acompanhar-prs/README.md)
 

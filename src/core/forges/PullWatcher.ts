@@ -14,6 +14,9 @@ import {
   type PullsState,
 } from '@shared/pulls';
 import { ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
+import { isReviewClient, type ReviewClient } from './review';
+import { UserError } from '@shared/i18n';
+import type { MergeOptions, PullReviewData, ReviewSubmission } from '@shared/pullReview';
 
 /** The share of the interval each watched repository takes, at most. */
 const REPO_GAP_MS = 4000;
@@ -181,6 +184,35 @@ export class PullWatcher extends EventEmitter<Events> {
   async ghAccounts(): Promise<GhAccounts> {
     const github = this.clients.github as { accounts?: () => Promise<GhAccounts> } | undefined;
     return (await github?.accounts?.()) ?? { accounts: [], active: '' };
+  }
+
+  /** A pull request of the latest look and the client of its service, to review it. */
+  private reviewer(key: string): { pull: PullRequestView; client: ReviewClient } {
+    const pull = this.find(key);
+    if (!pull) throw new UserError('error.pulls.notFound');
+    const client = this.clients[pull.forge];
+    if (!isReviewClient(client)) throw new UserError('error.pulls.notFound');
+    return { pull, client };
+  }
+
+  /** Its changes and the comments already on it, read now. */
+  async review(key: string): Promise<PullReviewData> {
+    const { pull, client } = this.reviewer(key);
+    const data = await client.review(pull.repo, pull.number);
+    return { ...data, key, mine: pull.mine };
+  }
+
+  /** Publishes a review written in the app; the next look shows what it changed. */
+  async submitReview(key: string, submission: ReviewSubmission): Promise<void> {
+    const { pull, client } = this.reviewer(key);
+    await client.submitReview(pull.repo, pull.number, submission);
+    void this.refresh();
+  }
+
+  async merge(key: string, options: MergeOptions): Promise<void> {
+    const { pull, client } = this.reviewer(key);
+    await client.merge(pull.repo, pull.number, pull.branch, options);
+    void this.refresh();
   }
 
   /** The text of `{pipeline}`: each failed job, its link and the end of its log. */

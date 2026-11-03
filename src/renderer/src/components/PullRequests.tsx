@@ -16,6 +16,7 @@ import {
   type PullsSettings,
 } from '@shared/pulls';
 import { errorMessage } from '../lib/format';
+import { PullReview } from './PullReview';
 import { useT } from '../lib/i18n';
 import { useAppState } from '../lib/store';
 import { duration, useNow } from './Overview';
@@ -70,6 +71,8 @@ export function PullRequests({ onClose, focusKey, onFix }: Props) {
   const [editing, setEditing] = useState(settings.repos.length === 0);
   const [fixing, setFixing] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  /** The pull request being reviewed in the app, which takes the place of the list. */
+  const [reviewing, setReviewing] = useState<PullRequestView | null>(null);
   const root = useRef<HTMLElement>(null);
 
   useEffect(() => root.current?.focus(), []);
@@ -160,6 +163,21 @@ export function PullRequests({ onClose, focusKey, onFix }: Props) {
     logins.length > 1
       ? logins.map(([forge, login]) => `${login} (${t(`pulls.forge.${forge}`)})`).join(', ')
       : (logins[0]?.[1] ?? '');
+
+  if (reviewing) {
+    return (
+      <section className="board pulls" aria-label={t('pulls.title')} data-testid="pulls-view">
+        <PullReview
+          pullKey={reviewing.key}
+          forge={reviewing.forge}
+          onBack={() => {
+            setReviewing(null);
+            requestAnimationFrame(() => root.current?.focus());
+          }}
+        />
+      </section>
+    );
+  }
 
   return (
     <section
@@ -262,6 +280,7 @@ export function PullRequests({ onClose, focusKey, onFix }: Props) {
                   fixing={fixing === pull.key}
                   onFix={() => void fix(pull)}
                   guard={guard[pull.key]}
+                  onReview={() => setReviewing(pull)}
                   onGuard={(on) =>
                     void window.api
                       .invoke('pulls:setGuard', pull.key, on)
@@ -285,6 +304,7 @@ function PullRow({
   onFix,
   guard,
   onGuard,
+  onReview,
 }: {
   pull: PullRequestView;
   now: number;
@@ -294,6 +314,7 @@ function PullRow({
   /** The guard of this pull request, when it is on. */
   guard: GuardEntry | undefined;
   onGuard(on: boolean): void;
+  onReview(): void;
 }) {
   const t = useT();
   const { state, jobs } = pull.pipeline;
@@ -339,9 +360,17 @@ function PullRow({
         {pull.reviewRequested && (
           <span className="pull-tag review-me">{t('pulls.reviewRequested')}</span>
         )}
+        <span className="spacer" />
+        <button
+          className="pull-review-button"
+          data-testid="pull-review-open"
+          title={t('pullReview.openHint')}
+          onClick={onReview}
+        >
+          {t('pullReview.open')}
+        </button>
         {pull.mine && (
           <>
-            <span className="spacer" />
             {guard && (
               <span
                 className={`pull-tag guard-${guard.status}`}

@@ -31,6 +31,7 @@ Registro das decisões de arquitetura do agent-controller. Cada arquivo traz o c
 | [0025](0025-tarefas-como-origem-das-sessoes.md) | Tarefas como origem das sessões (quadro de tarefas) | Aceita |
 | [0026](0026-core-em-processo-proprio.md) | Core em processo próprio (sessões que sobrevivem à janela) | Proposta |
 | [0027](0027-servicos-de-repositorio.md) | Serviços de repositório: PRs do GitHub e MRs do GitLab com o login do CLI, só leitura | Aceita |
+| [0028](0028-escrever-nos-servicos-de-repositorio.md) | Escrever no GitHub e no GitLab a pedido: revisão (comentários, aprovar, pedir mudanças) e merge | Aceita |
 
 ## Status
 
