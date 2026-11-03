@@ -27,6 +27,7 @@ import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
 import type { AvailableRepos, Forge, GhAccounts, PullsState } from './pulls';
 import type { BackgroundState } from './background';
+import type { NewReviewComment, ReviewComment } from './review';
 import type {
   PromptValues,
   QueueCondition,
@@ -372,6 +373,15 @@ export interface IpcCommands {
   'pulls:accounts': () => GhAccounts;
   /** The failed pipeline of a pull request, ready for the prompt that sends it to an agent. */
   'pulls:fixPipeline': (key: string) => PipelineFix;
+  /** The comments of the review of a session, as left on lines of the diff. */
+  'review:list': (sessionId: string) => ReviewComment[];
+  'review:add': (sessionId: string, comment: NewReviewComment) => ReviewComment;
+  'review:update': (sessionId: string, id: string, text: string) => void;
+  'review:remove': (sessionId: string, id: string) => void;
+  /** Drops the comments given (the ones sent to the agent), or all of them. */
+  'review:clear': (sessionId: string, ids?: string[]) => void;
+  /** The review as `{revisao}` reads, and which comments it carries. */
+  'review:text': (sessionId: string) => { text: string; ids: string[] };
 }
 
 /** Main → renderer, one way. */
@@ -407,6 +417,8 @@ export interface IpcEvents {
   'background:focus': (id: string) => void;
   /** A notice of a pull request was clicked: the panel opens on it. */
   'pulls:focus': (key: string) => void;
+  /** The comments of the review of a session changed. */
+  'review:changed': (sessionId: string, comments: ReviewComment[]) => void;
 }
 
 export type CommandChannel = keyof IpcCommands;
@@ -527,6 +539,12 @@ export const COMMAND_CHANNELS = [
   'background:input',
   'background:resize',
   'pulls:fixPipeline',
+  'review:list',
+  'review:add',
+  'review:update',
+  'review:remove',
+  'review:clear',
+  'review:text',
 ] as const satisfies readonly CommandChannel[];
 
 export const EVENT_CHANNELS = [
@@ -551,6 +569,7 @@ export const EVENT_CHANNELS = [
   'background:changed',
   'background:data',
   'background:focus',
+  'review:changed',
 ] as const satisfies readonly EventChannel[];
 
 // Compile-time check that the runtime lists cover every channel of the contract.

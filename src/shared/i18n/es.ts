@@ -68,6 +68,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'command.seeChanges': 'Ver cambios: lo que cambió en la sesión',
   'command.files': 'Archivos: ver todos los archivos de la carpeta',
   'command.problems': 'Problemas: ver los errores de las verificaciones',
+  'command.review': 'Revisión: los comentarios dejados en el diff',
   'command.toggleHidden': 'Archivos: mostrar u ocultar los ocultos',
   'command.start': 'Iniciar el agente de “{name}”',
   'command.stop': 'Detener el agente de “{name}”',
@@ -600,7 +601,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'prompts.name': 'Nombre',
   'prompts.text': 'Texto',
   'prompts.variablesHint':
-    'Variables: {sessao}, {pasta}, {branch}, {arquivo} (el abierto en el panel), {selecao} (el fragmento seleccionado en él), {problemas} (los marcados en la pestaña Problemas), {pr} y {pipeline} (el pull request y lo que falló en su pipeline, desde el botón de los pull requests) y {?pregunta}, que pide un valor al enviar.',
+    'Variables: {sessao}, {pasta}, {branch}, {arquivo} (el abierto en el panel), {selecao} (el fragmento seleccionado en él), {problemas} (los marcados en la pestaña Problemas), {revisao} (los comentarios de la pestaña Revisión), {pr} y {pipeline} (el pull request y lo que falló en su pipeline, desde el botón de los pull requests) y {?pregunta}, que pide un valor al enviar.',
   'prompts.shortcut': 'Atajo',
   'prompts.shortcutAdd': 'Definir atajo',
   'prompts.shortcutChange': 'Cambiar atajo',
@@ -1243,4 +1244,39 @@ export const es: Record<keyof typeof ptBR, string> = {
     'Abre el prompt "Corregir el pipeline" (editable en la biblioteca de prompts) con los jobs que fallaron y el final de sus logs, para la sesión en esa rama.',
   'pulls.fixing': 'Leyendo los logs…',
   'pulls.openSite': 'Abrir en {service}',
+  'prompts.factory.applyReview.name': 'Aplicar la revisión',
+  'prompts.factory.applyReview.text':
+    'Revisé tus cambios y dejé comentarios. Ajusta cada punto de abajo: la ruta y las líneas dicen dónde, y el fragmento muestra el código como estaba cuando comenté.\n\n{revisao}\n\nAl final, di en una línea lo que hiciste en cada punto.',
+  'review.tab': 'Revisión',
+  'review.tabHint':
+    'Los comentarios dejados en las líneas del diff, que van juntos al agente en un solo prompt',
+  'review.comment': 'Comentar',
+  'review.commentHint':
+    'Comenta las líneas seleccionadas (o la del cursor). Los comentarios van juntos al agente desde la pestaña Revisión.',
+  'review.dialog.new': 'Comentar {place}',
+  'review.dialog.edit': 'Comentario en {place}',
+  'review.dialog.placeholder': '¿Qué debe cambiar el agente aquí?',
+  'review.dialog.save': 'Guardar comentario',
+  'review.dialog.delete': 'Borrar',
+  'review.dialog.hint': 'Ctrl+Enter guarda.',
+  'review.empty.title': 'Ningún comentario',
+  'review.empty.body':
+    'Selecciona líneas en el diff y haz clic en Comentar, o haz clic en el + junto al número de línea. Los comentarios van juntos al agente en un solo prompt.',
+  'review.send': 'Enviar al agente ({count})',
+  'review.sendHint':
+    'Abre el prompt "Aplicar la revisión" (editable en la biblioteca de prompts) con todos los comentarios. Salen de la lista cuando se envía el prompt.',
+  'review.clear': 'Limpiar revisión',
+  'review.clearConfirm': '¿Borrar los {count} comentarios de la revisión?',
+  'review.stale': 'desactualizado',
+  'review.staleHint':
+    'Las líneas cambiaron desde el comentario. El fragmento original va al agente con él.',
+  'review.remove': 'Borrar el comentario de {place}',
+  'review.place.line': '{file}, línea {line}',
+  'review.place.lines': '{file}, líneas {start} a {end}',
+  'error.review.badFile': 'Este archivo no se puede comentar.',
+  'error.review.tooMany': 'La revisión ya tiene {limit} comentarios. Envía o borra algunos antes.',
+  'error.review.empty': 'Escribe el comentario.',
+  'error.review.badLines': 'Las líneas del comentario no son válidas.',
+  'error.review.notFound': 'Ese comentario ya no existe.',
+  'error.review.nothing': 'La revisión no tiene comentarios.',
 };

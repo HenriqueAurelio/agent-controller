@@ -18,6 +18,8 @@ import { locateFiles, MAX_CANDIDATES } from '@core/git/FileLocator';
 import { currentBranch, runGit } from '@core/git/GitService';
 import type { PullWatcher } from '@core/forges/PullWatcher';
 import type { BackgroundService } from '@core/background/BackgroundService';
+import type { ReviewStore } from '@core/review/ReviewStore';
+import { buildReviewText } from '@core/review/reviewText';
 import { expandPrompt, promptVariables } from '@core/prompts/expand';
 import {
   defaultWorktreesFolder,
@@ -68,6 +70,13 @@ import type {
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
 import { FORGES, normalizeRepo, PIPELINE_TEXT_LIMIT, pullRef } from '@shared/pulls';
 import {
+  REVIEW_COMMENT_TEXT_LIMIT,
+  REVIEW_LINE_LIMIT,
+  REVIEW_SNIPPET_LIMIT,
+  REVIEW_TEXT_LIMIT,
+  type NewReviewComment,
+} from '@shared/review';
+import {
   PROMPT_TEXT_LIMIT,
   QUEUE_CONDITIONS,
   QUEUE_LIMIT,
@@ -104,6 +113,7 @@ export interface IpcContext {
   tails: TailFeed;
   pulls: PullWatcher;
   background: BackgroundService;
+  review: ReviewStore;
   data: AppData;
   /** Where the copies of discarded files go. */
   discardDir: string;
@@ -174,7 +184,28 @@ const promptValues = (value: unknown): PromptValues => {
     problems: v.problems === undefined ? undefined : str(v.problems, 'text', PROBLEMS_TEXT_LIMIT),
     pr: v.pr === undefined ? undefined : str(v.pr, 'text', 2000),
     pipeline: v.pipeline === undefined ? undefined : str(v.pipeline, 'text', PIPELINE_TEXT_LIMIT),
+    review: v.review === undefined ? undefined : str(v.review, 'text', REVIEW_TEXT_LIMIT),
     answers,
+  };
+};
+const line = (value: unknown): number => {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    throw new UserError('error.review.badLines');
+  }
+  return Math.min(value, REVIEW_LINE_LIMIT);
+};
+const newComment = (value: unknown): NewReviewComment => {
+  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  const startLine = line(v.startLine);
+  const endLine = line(v.endLine);
+  if (endLine < startLine) throw new UserError('error.review.badLines');
+  return {
+    file: str(v.file, 'file'),
+    startLine,
+    endLine,
+    // A longer snippet is cut, not refused: the lines still say where the comment is.
+    snippet: str(v.snippet ?? '', 'text', 1024 * 1024).slice(0, REVIEW_SNIPPET_LIMIT),
+    text: str(v.text, 'text', REVIEW_COMMENT_TEXT_LIMIT),
   };
 };
 const base = (value: unknown): DiffBase =>
@@ -243,6 +274,7 @@ export async function expandForSession(
       problems: values.problems,
       pr: values.pr,
       pipeline: values.pipeline,
+      review: values.review,
     },
     values.answers,
   );
@@ -1013,5 +1045,26 @@ export function registerIpc(context: IpcContext): void {
       pipeline,
       sessions: (same.length > 0 ? same : found).map((l) => l.id),
     };
+  });
+
+  handle('review:list', (id) => context.review.list(session(id).id));
+  handle('review:add', (id, comment) => context.review.add(session(id).id, newComment(comment)));
+  handle('review:update', (id, commentId, text) =>
+    context.review.update(
+      session(id).id,
+      str(commentId, 'item', 64),
+      str(text, 'text', REVIEW_COMMENT_TEXT_LIMIT),
+    ),
+  );
+  handle('review:remove', (id, commentId) =>
+    context.review.remove(session(id).id, str(commentId, 'item', 64)),
+  );
+  handle('review:clear', (id, commentIds) =>
+    context.review.clear(session(id).id, commentIds === undefined ? undefined : ids(commentIds)),
+  );
+  handle('review:text', (id) => {
+    const comments = context.review.list(session(id).id);
+    if (comments.length === 0) throw new UserError('error.review.nothing');
+    return { text: buildReviewText(comments), ids: comments.map((c) => c.id) };
   });
 }

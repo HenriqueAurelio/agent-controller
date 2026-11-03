@@ -14,7 +14,7 @@ Pela ADR 0007, item novo de escopo exige uma ADR. Cada proposta diz qual.
 
 ## As propostas
 
-Feitas: 4, 5, 6, 8, 9, 10 e 11. Pendentes: 1, 2, 3 e 7.
+Feitas: 3, 4, 5, 6, 8, 9, 10 e 11. Pendentes: 1, 2 e 7 (a 7 foi coberta em parte por [uso e contexto](../v2/uso-e-contexto/README.md)).
 
 | # | Funcionalidade | Em uma frase | Valor | Esforço | ADR nova |
 |---|---|---|---|---|---|

@@ -3610,3 +3610,35 @@ textarea.associations {
   border-radius: 50%;
   background: var(--done);
 }
+
+/* Review: comments left on lines of the diff. */
+.problem-icon.review-icon {
+  color: var(--waiting);
+  font-size: 10px;
+}
+.review-row .problem-message {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.review-comment-dialog {
+  width: min(640px, 92vw);
+}
+.review-comment-dialog textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.review-snippet {
+  max-height: 160px;
+  margin: 0 0 8px;
+  padding: 8px;
+  overflow: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--waiting);
+  border-radius: 6px;
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: 12px;
+  white-space: pre;
+}

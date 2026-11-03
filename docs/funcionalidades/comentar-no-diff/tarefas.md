@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 3.1 Modelo e montagem do prompt
+## [x] 3.1 Modelo e montagem do prompt
 
 - **Frente:** A · **Tamanho:** P · **Depende de:** nada
 
@@ -18,7 +18,7 @@
 
 ---
 
-## [ ] 3.2 ReviewStore e IPC
+## [x] 3.2 ReviewStore e IPC
 
 - **Frente:** A · **Tamanho:** M · **Depende de:** 3.1
 
@@ -31,7 +31,7 @@
 
 ---
 
-## [ ] 3.3 Comentar no Monaco
+## [x] 3.3 Comentar no Monaco
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 3.2
 
@@ -46,7 +46,7 @@
 
 ---
 
-## [ ] 3.4 Aba Revisão
+## [x] 3.4 Aba Revisão
 
 - **Frente:** B · **Tamanho:** P · **Depende de:** 3.3
 
@@ -60,7 +60,7 @@
 
 ---
 
-## [ ] 3.5 Enviar ao agente
+## [x] 3.5 Enviar ao agente
 
 - **Frente:** B · **Tamanho:** P · **Depende de:** 3.1, 3.4, [biblioteca de prompts](../biblioteca-de-prompts/tarefas.md) 6.2
 
@@ -85,7 +85,7 @@
 
 ---
 
-## [ ] 3.7 README e evidências
+## [x] 3.7 README e evidências
 
 - **Frente:** C · **Tamanho:** P · **Depende de:** 3.5
 

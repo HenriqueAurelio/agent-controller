@@ -68,6 +68,7 @@ export const ptBR = {
   'command.seeChanges': 'Ver mudanças: o que mudou na sessão',
   'command.files': 'Arquivos: ver todos os arquivos da pasta',
   'command.problems': 'Problemas: ver os erros das verificações',
+  'command.review': 'Revisão: os comentários deixados no diff',
   'command.toggleHidden': 'Arquivos: mostrar ou esconder os ocultos',
   'command.start': 'Iniciar o agente de “{name}”',
   'command.stop': 'Parar o agente de “{name}”',
@@ -597,7 +598,7 @@ export const ptBR = {
   'prompts.name': 'Nome',
   'prompts.text': 'Texto',
   'prompts.variablesHint':
-    'Variáveis: {sessao}, {pasta}, {branch}, {arquivo} (o aberto no painel), {selecao} (o trecho selecionado nele), {problemas} (os marcados na aba Problemas), {pr} e {pipeline} (o pull request e o que falhou no pipeline dele, no botão dos pull requests) e {?pergunta}, que pede um valor na hora.',
+    'Variáveis: {sessao}, {pasta}, {branch}, {arquivo} (o aberto no painel), {selecao} (o trecho selecionado nele), {problemas} (os marcados na aba Problemas), {revisao} (os comentários da aba Revisão), {pr} e {pipeline} (o pull request e o que falhou no pipeline dele, no botão dos pull requests) e {?pergunta}, que pede um valor na hora.',
   'prompts.shortcut': 'Atalho',
   'prompts.shortcutAdd': 'Definir atalho',
   'prompts.shortcutChange': 'Trocar atalho',
@@ -1232,4 +1233,39 @@ export const ptBR = {
     'Abre o prompt "Corrigir pipeline" (editável na biblioteca de prompts) com os jobs que falharam e o fim dos logs, para a sessão que está nessa branch.',
   'pulls.fixing': 'Lendo os logs…',
   'pulls.openSite': 'Abrir no {service}',
+  'prompts.factory.applyReview.name': 'Aplicar a revisão',
+  'prompts.factory.applyReview.text':
+    'Revisei as suas mudanças e deixei comentários. Ajuste cada item abaixo: o caminho e as linhas dizem onde, e o trecho mostra o código como estava quando comentei.\n\n{revisao}\n\nNo fim, diga em uma linha o que fez em cada item.',
+  'review.tab': 'Revisão',
+  'review.tabHint':
+    'Os comentários deixados nas linhas do diff, que vão juntos ao agente num prompt só',
+  'review.comment': 'Comentar',
+  'review.commentHint':
+    'Comenta as linhas selecionadas (ou a do cursor). Os comentários vão juntos ao agente pela aba Revisão.',
+  'review.dialog.new': 'Comentar {place}',
+  'review.dialog.edit': 'Comentário em {place}',
+  'review.dialog.placeholder': 'O que o agente deve mudar aqui?',
+  'review.dialog.save': 'Salvar comentário',
+  'review.dialog.delete': 'Apagar',
+  'review.dialog.hint': 'Ctrl+Enter salva.',
+  'review.empty.title': 'Nenhum comentário',
+  'review.empty.body':
+    'Selecione linhas no diff e clique em Comentar, ou clique no + ao lado do número da linha. Os comentários vão juntos ao agente num prompt só.',
+  'review.send': 'Enviar ao agente ({count})',
+  'review.sendHint':
+    'Abre o prompt "Aplicar a revisão" (editável na biblioteca de prompts) com todos os comentários. Eles saem da lista quando o prompt é enviado.',
+  'review.clear': 'Limpar revisão',
+  'review.clearConfirm': 'Apagar os {count} comentários da revisão?',
+  'review.stale': 'desatualizado',
+  'review.staleHint':
+    'As linhas mudaram desde o comentário. O trecho original vai junto ao agente.',
+  'review.remove': 'Apagar o comentário de {place}',
+  'review.place.line': '{file}, linha {line}',
+  'review.place.lines': '{file}, linhas {start} a {end}',
+  'error.review.badFile': 'Esse arquivo não pode ser comentado.',
+  'error.review.tooMany': 'A revisão já tem {limit} comentários. Envie ou apague alguns antes.',
+  'error.review.empty': 'Escreva o comentário.',
+  'error.review.badLines': 'As linhas do comentário são inválidas.',
+  'error.review.notFound': 'Esse comentário não existe mais.',
+  'error.review.nothing': 'A revisão não tem comentários.',
 } as const;

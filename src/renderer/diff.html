@@ -22,6 +22,71 @@
         background: #f4f5f7;
         color-scheme: light;
       }
+      /* Comments of the review: the + that starts one, the mark of each, the lines it covers and
+         its text under them. */
+      :root {
+        --comment-accent: #d9a441;
+        --comment-bg: rgba(217, 164, 65, 0.1);
+        --comment-zone: #2a2f3a;
+        --comment-text: #e6e8ee;
+      }
+      html[data-theme='light'] {
+        --comment-accent: #a86b00;
+        --comment-bg: rgba(168, 107, 0, 0.08);
+        --comment-zone: #fff8e8;
+        --comment-text: #2b2f36;
+      }
+      .comment-add,
+      .comment-mark {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .comment-add::before {
+        content: '+';
+        width: 14px;
+        height: 14px;
+        line-height: 13px;
+        text-align: center;
+        border-radius: 3px;
+        background: var(--comment-accent);
+        color: #1e2128;
+        font-weight: 700;
+        font-size: 12px;
+      }
+      .comment-mark::before {
+        content: '';
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--comment-accent);
+      }
+      .comment-range {
+        background: var(--comment-bg);
+      }
+      .comment-zone {
+        box-sizing: border-box;
+        height: 100%;
+        margin-left: 4px;
+        padding: 4px 10px;
+        border-left: 3px solid var(--comment-accent);
+        background: var(--comment-zone);
+        color: var(--comment-text);
+        font:
+          12px/1.45 system-ui,
+          sans-serif;
+        cursor: pointer;
+        overflow: hidden;
+      }
+      .comment-zone.stale {
+        border-left-style: dashed;
+        opacity: 0.75;
+      }
+      .comment-text {
+        white-space: pre-wrap;
+        overflow: hidden;
+      }
     </style>
   </head>
   <body>

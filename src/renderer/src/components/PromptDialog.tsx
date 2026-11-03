@@ -23,6 +23,8 @@ export interface PromptContext {
   /** A pull request whose pipeline failed, and what failed in it. */
   pr?: string;
   pipeline?: string;
+  /** The comments of the review of the session, as `{revisao}` reads. */
+  review?: string;
 }
 
 interface Props {
@@ -81,9 +83,19 @@ export function PromptDialog({
       }),
       ...(context.pr !== undefined && { pr: context.pr }),
       ...(context.pipeline !== undefined && { pipeline: context.pipeline }),
+      ...(context.review !== undefined && { review: context.review }),
       answers,
     }),
-    [context.file, selection, cut, context.problems, context.pr, context.pipeline, answers],
+    [
+      context.file,
+      selection,
+      cut,
+      context.problems,
+      context.pr,
+      context.pipeline,
+      context.review,
+      answers,
+    ],
   );
   const questions = useMemo(() => promptQuestions(text), [text]);
   const ordered = sessions.filter((s) => targets.includes(s.id));

@@ -31,7 +31,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 | Isolamento | Cópia isolada por sessão (git worktree), com comando de preparo e limpeza; aviso quando sessões em cópias diferentes mudam o mesmo arquivo, com "provável conflito" quando as linhas se cruzam |
 | Verificações | Lint, typecheck e testes ao fim de cada turno, com ✓/✗ na sessão e "mandar o erro ao agente"; aba **Problemas** com cada erro numa linha (arquivo, linha, mensagem), que abre o arquivo na linha e manda ao agente só os que você marcar |
 | Prompts | Prompts guardados com variáveis, enviados a uma ou várias sessões, com espera pelo fim do turno; fila de prompts por sessão, um a cada fim de turno |
-| Revisão de código | Painel de mudanças com diff editável, árvore de arquivos, stage, commit e descarte com desfazer, vários repositórios na mesma pasta, realce TextMate e temas do VS Code |
+| Revisão de código | Painel de mudanças com diff editável, árvore de arquivos, stage, commit e descarte com desfazer, vários repositórios na mesma pasta, realce TextMate e temas do VS Code; comentários nas linhas do diff, reunidos na aba **Revisão** e mandados ao agente num prompt só |
 | Checkpoints | Uma foto da pasta no fim de cada turno, no próprio git e fora das branches: ver só o que o último turno mudou, comparar dois turnos, voltar a um turno e desfazer |
 | Abrir arquivo | `Ctrl+P`: busca aproximada pelo nome (`sesmgr` acha `SessionManager.ts`), `nome:42` abre na linha, sobre todos os arquivos da pasta da sessão |
 | Terminal | Links com `Ctrl+clique` (`arquivo:linha` abre o editor do painel na linha, `http://…` abre o navegador), terminal auxiliar por sessão, layout configurável, atalhos editáveis e uso completo sem mouse |
@@ -41,7 +41,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 
 - **Leva 1, orquestração:** concluída (a última foi o quadro de tarefas).
 - **Leva 2, IDE:** links `arquivo:linha` no terminal, `Ctrl+P` e o painel de problemas (concluídos), depois busca no projeto, seguir o agente, histórico e autoria do arquivo, tela dividida e multibuffer.
-- **Depois:** o que está em [`docs/funcionalidades/futuras`](docs/funcionalidades/futuras/README.md), as propostas que restam da primeira rodada (formatar ao salvar, extensões, comentar no diff, uso e custo) e [retomar a conversa](docs/planos/retomar-conversa.md).
+- **Próximas versões (v0.3 a v0.6):** revisar e devolver sem sair do app, do pedido ao PR, ver o que o agente construiu e supervisionar de longe, na ordem de [`docs/proximas-versoes.md`](docs/proximas-versoes.md). A primeira, comentar no diff, está pronta.
 
 A `v0.1.0` existe como release em rascunho, com os três instaladores, e ainda falta testá-la numa máquina limpa antes de publicar. O que falta está em [`docs/pendencias/primeira-release.md`](docs/pendencias/primeira-release.md).
 
@@ -303,6 +303,18 @@ A decisão está na [ADR 0024](adr/0024-regras-que-enviam-sozinhas.md).
 - **Abrir arquivo rápido:** `Ctrl+P` (ou "Abrir arquivo pelo nome…" na paleta) abre uma caixa no topo, no estilo da paleta de comandos, que busca pelo nome entre **todos** os arquivos da pasta da sessão. A busca é aproximada: as letras só precisam aparecer na ordem, e valem mais as que começam uma palavra (depois de `/`, `_`, `-` ou `.`), as maiúsculas de um nome em `camelCase` e as que estão no nome do arquivo e não nas pastas (`sesmgr` acha `SessionManager.ts`, `ipcts` acha `ipc.ts`, `s/c/git` acha `src/core/git/…`). As letras encontradas aparecem em destaque. `Enter` abre o arquivo no editor do painel (em **Todos os arquivos**); `nome:42` (ou `nome:42:7`) abre na linha. Com a caixa vazia ela lista os arquivos que você abriu por último naquela sessão (por ela ou por um link do terminal), marcados `recente`, e os que **mudaram**, com a letra do painel (`M`, `A`, `U`…). Os arquivos ocultos e os ignorados pelo git seguem a caixa **Ocultos** do painel (em Preferências → Geral e no atalho `Ctrl+Shift+H`); numa pasta ignorada inteira (`node_modules`) não se entra. Num repositório a lista vem de `git ls-files`; fora do git a pasta é percorrida; ambos com limite de 50 mil arquivos (a caixa avisa). A lista fica na memória só enquanto a caixa está em uso e é descartada um minuto depois. Com o foco **no terminal** o `Ctrl+P` continua sendo da tecla do shell (histórico); para usá-lo também ali, marque **Ctrl+P também vale com o foco no terminal** em Preferências → Geral. A paleta funciona de qualquer lugar.
 - **Vários repositórios:** se a pasta da sessão guarda mais de um repositório (lado a lado numa pasta comum, ou um dentro do outro), a lista ganha um cabeçalho por repositório, com a branch e a contagem de cada um, e o contador do botão soma todos. Com um repositório só, nada muda.
 
+### Revisar e pedir ajustes
+
+Em vez de descrever no terminal "no arquivo X, perto da linha Y, troque Z", comente nas linhas do diff, como numa revisão de pull request, e mande tudo ao agente de uma vez.
+
+- **Comentar:** no editor do painel (lista de mudanças ou **Todos os arquivos**), selecione as linhas (ou ponha o cursor numa) e clique em **Comentar**, no topo do editor ou no menu do botão direito. Também dá para clicar no **+** que aparece na margem, ao lado do número da linha; com várias linhas selecionadas, o **+** comenta a seleção inteira. Escreva o que mudar e salve (`Ctrl+Enter`).
+- **No editor:** cada comentário aparece logo abaixo das linhas que comenta, com as linhas destacadas e uma marca na margem. Clicar no comentário (ou na marca) abre para editar ou apagar.
+- **Desatualizado:** se o agente mudar as linhas depois do comentário, ele fica tracejado. O trecho de código guardado na hora vai junto ao agente, então ele acha o lugar mesmo assim.
+- **Aba Revisão:** no painel, ao lado de **Problemas** (ou "Revisão" na paleta), a lista dos comentários por arquivo, com a contagem no botão. Clicar num comentário abre o arquivo na linha; o **×** apaga um; **Limpar revisão** apaga todos.
+- **Enviar ao agente (N)** abre o diálogo de envio do prompt de fábrica **Aplicar a revisão**, com a variável `{revisao}`: cada comentário numerado, com `arquivo:linha`, o trecho de código e o texto. Dá para editar o texto, esperar o fim do turno ou pôr na fila, como qualquer prompt. Quem apagou esse prompt recebe o texto de fábrica do mesmo jeito.
+- **Depois de enviar**, os comentários que foram saem da lista; um escrito enquanto o diálogo estava aberto fica.
+- Os comentários são **por sessão** e ficam guardados ao fechar o app (em `review.json`, na pasta de dados). Fechar a sessão apaga os dela. Até 200 comentários por sessão.
+
 ### Ver todos os arquivos da pasta
 
 **Arquivos** (botão no topo da sessão, `Ctrl+Shift+E`, ou o botão **Todos os arquivos** dentro do painel) troca a lista de mudanças por uma árvore com tudo o que há na pasta, a partir da raiz do repositório. Funciona também em pastas sem git.
@@ -380,6 +392,7 @@ No diálogo você escolhe o prompt, responde às perguntas dele, pode mexer no t
 | `{arquivo}` | O arquivo aberto no painel de mudanças |
 | `{selecao}` | O trecho selecionado no editor do painel (até 20 mil caracteres; o resto é cortado, com aviso) |
 | `{problemas}` | Os problemas escolhidos na aba Problemas, um por linha (vazio fora dela) |
+| `{revisao}` | Os comentários da aba Revisão, numerados, com `arquivo:linha`, o trecho e o texto (vazio fora do botão **Enviar ao agente** da aba) |
 | `{?pergunta}` | Um campo que o diálogo pede na hora de enviar |
 
 Uma variável que o app não conhece fica como está escrita. Cada sessão recebe o texto com as variáveis dela.
