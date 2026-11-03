@@ -33,6 +33,7 @@ O que não muda: cada agente roda no terminal dele, do jeito de sempre; o app n�
 | Prompts | Prompts guardados com variáveis, enviados a uma ou várias sessões, com espera pelo fim do turno; fila de prompts por sessão, um a cada fim de turno |
 | Revisão de código | Painel de mudanças com diff editável, árvore de arquivos, stage, commit e descarte com desfazer, vários repositórios na mesma pasta, realce TextMate e temas do VS Code; comentários nas linhas do diff, reunidos na aba **Revisão** e mandados ao agente num prompt só; aba **Tudo** com todos os trechos do turno numa rolagem, para marcar como visto, desfazer e comentar cada um |
 | Checkpoints | Uma foto da pasta no fim de cada turno, no próprio git e fora das branches: ver só o que o último turno mudou, comparar dois turnos, voltar a um turno e desfazer |
+| Buscar | `Ctrl+Shift+F`: o texto em todos os arquivos, com maiúsculas, palavra inteira, expressão regular e filtros; os resultados abrem na linha e vão ao agente |
 | Abrir arquivo | `Ctrl+P`: busca aproximada pelo nome (`sesmgr` acha `SessionManager.ts`), `nome:42` abre na linha, sobre todos os arquivos da pasta da sessão |
 | Terminal | Links com `Ctrl+clique` (`arquivo:linha` abre o editor do painel na linha, `http://…` abre o navegador), terminal auxiliar por sessão, layout configurável, atalhos editáveis e uso completo sem mouse |
 | Interface | Português, inglês e espanhol |
@@ -338,6 +339,15 @@ A aba **Tudo** do painel (ou "Tudo" na paleta) junta os trechos alterados de tod
 - **Comentar:** comenta as linhas alteradas do trecho, como no editor (veja [Revisar e pedir ajustes](#revisar-e-pedir-ajustes)). Os comentários aparecem logo abaixo do trecho.
 - **Abrir no arquivo** leva ao editor do painel, na linha do trecho, para editar.
 - Segue o **Comparar com** do painel: último commit, início da sessão, base da branch ou um checkpoint. Arquivos binários ou com mais de 20 mil linhas aparecem só com o nome. Lê até 150 arquivos.
+
+### Buscar no projeto
+
+`Ctrl+Shift+F` (ou a aba **Buscar** do painel, ou "Buscar no projeto" na paleta) busca um texto em todos os arquivos da pasta da sessão.
+
+- **Opções:** **Aa** (maiúsculas), **ab** (palavra inteira), **.\*** (expressão regular), **Incluir** e **Excluir** (`src/**`, `*.test.ts`, separados por vírgula) e **Só nos arquivos mudados**. `Enter` busca.
+- **Resultados** agrupados por arquivo, com a linha. O clique abre o arquivo no editor do painel, na linha.
+- **Mandar ao agente:** os resultados (`arquivo:linha: trecho`, até 300) abrem no diálogo de envio, para você pedir algo sobre eles ("troque todos estes por…").
+- Num repositório, a busca é a do `git grep`: respeita o `.gitignore`, pula binários e inclui os arquivos novos ainda sem commit. Fora do git, lê os arquivos da pasta (sem os ocultos e os maiores que 1 MB). Para em 2 000 resultados e em 30 s. A decisão está na [ADR 0032](adr/0032-busca-por-git-grep.md).
 
 ### Prévia da página
 

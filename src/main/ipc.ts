@@ -18,6 +18,8 @@ import { locateFiles, MAX_CANDIDATES } from '@core/git/FileLocator';
 import { currentBranch, runGit } from '@core/git/GitService';
 import { branchState, pushBranch, updateFromBase } from '@core/git/BranchFlow';
 import { pullBody, type BranchInfo } from '@shared/branch';
+import { searchProject } from '@core/search/searchProject';
+import { SEARCH_TEXT_LIMIT, type SearchQuery } from '@shared/search';
 import type { PullWatcher } from '@core/forges/PullWatcher';
 import type { PullGuard } from '@core/forges/PullGuard';
 import { sessionsForPull } from './pullSessions';
@@ -308,6 +310,23 @@ const bounds = (value: unknown): PreviewBounds => {
   const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
   const n = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
   return { x: n(v.x), y: n(v.y), width: n(v.width), height: n(v.height) };
+};
+const patterns = (value: unknown): string[] =>
+  (Array.isArray(value) ? value : [])
+    .slice(0, 20)
+    .map((p) => str(p, 'text', 200).trim())
+    .filter((p) => p && !p.split(/[\\/]/).includes('..'));
+const searchQuery = (value: unknown): SearchQuery => {
+  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  return {
+    text: str(v.text, 'text', SEARCH_TEXT_LIMIT),
+    caseSensitive: v.caseSensitive === true,
+    wholeWord: v.wholeWord === true,
+    regex: v.regex === true,
+    include: patterns(v.include),
+    exclude: patterns(v.exclude),
+    changedOnly: v.changedOnly === true,
+  };
 };
 const base = (value: unknown): DiffBase =>
   value === 'session' || value === 'branchBase' || value === 'previousTurn'
@@ -909,6 +928,24 @@ export function registerIpc(context: IpcContext): void {
     };
   };
   handle('tasks:list', (folder) => tasks.list(str(folder, 'folder')));
+  handle('search:run', async (id, value) => {
+    const s = session(id);
+    const query = searchQuery(value);
+    // The root the panel shows paths from, so a click opens the right file.
+    const root = changes.rootFor(s.id) ?? s.cwd;
+    const repo = await runGit(root, ['rev-parse', '--is-inside-work-tree']).catch(() => null);
+    const inGit = repo?.code === 0 && repo.stdout.toString('utf8').trim() === 'true';
+    let changed: string[] = [];
+    if (inGit && query.changedOnly) {
+      const listed = await runGit(root, ['status', '--porcelain', '-z', '--untracked-files=all']);
+      changed = listed.stdout
+        .toString('utf8')
+        .split('\0')
+        .filter((entry) => entry.length > 3)
+        .map((entry) => entry.slice(3));
+    }
+    return searchProject(root, query, { inGit, changed });
+  });
   /** A session in a copy, its branch and how it stands; anything else has no pull request here. */
   const copyBranch = async (id: unknown) => {
     const s = session(id);
