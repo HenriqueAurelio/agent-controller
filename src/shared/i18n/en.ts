@@ -1508,4 +1508,12 @@ export const en: Record<keyof typeof ptBR, string> = {
   'error.search.badRegex': 'The regular expression is not valid.',
   'error.search.timeout': 'The search took more than 30 seconds. Narrow the text or the filters.',
   'error.search.failed': 'The search failed: {output}',
+  'history.button': 'History',
+  'history.buttonHint':
+    'The commits that touched this file, what each changed in it, and who changed the line of the cursor',
+  'history.title': 'History of {file}',
+  'history.blame': 'Line {line}: {author}, {date}, in “{subject}”',
+  'history.uncommitted': 'Line {line}: not committed yet (changed in the folder).',
+  'history.none': 'No commit touched this file yet.',
+  'error.history.badCommit': 'That commit does not exist in this repository.',
 };

@@ -340,6 +340,10 @@ A aba **Tudo** do painel (ou "Tudo" na paleta) junta os trechos alterados de tod
 - **Abrir no arquivo** leva ao editor do painel, na linha do trecho, para editar.
 - Segue o **Comparar com** do painel: último commit, início da sessão, base da branch ou um checkpoint. Arquivos binários ou com mais de 20 mil linhas aparecem só com o nome. Lê até 150 arquivos.
 
+### Histórico do arquivo
+
+**Histórico**, no topo do editor do painel, abre os commits que mexeram no arquivo (até 200, seguindo renomeações), do mais novo ao mais antigo, com autor e data. Clicar num commit mostra o que ele mudou naquele arquivo. No topo, quem mudou por último a linha onde está o cursor, e em qual commit; esse commit já vem escolhido. Uma linha mudada na pasta e ainda sem commit aparece como "ainda sem commit". Fora do git, ou num arquivo novo, o botão não aparece.
+
 ### Buscar no projeto
 
 `Ctrl+Shift+F` (ou a aba **Buscar** do painel, ou "Buscar no projeto" na paleta) busca um texto em todos os arquivos da pasta da sessão.

@@ -485,6 +485,10 @@ window.addEventListener('message', (event: MessageEvent<ParentMessage>) => {
   } else if (message?.type === 'comments') {
     commentSet = message;
     applyComments();
+  } else if (message?.type === 'request-line') {
+    const position = fileSide.getPosition();
+    if (shownPath !== null)
+      post({ type: 'line', path: shownPath, line: position?.lineNumber ?? 1 });
   } else if (message?.type === 'request-comment') {
     const lines = selectedLines();
     if (lines) startComment(lines.startLine, lines.endLine);

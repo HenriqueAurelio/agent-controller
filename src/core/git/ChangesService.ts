@@ -617,6 +617,12 @@ export class ChangesService {
     return { repo, inside: repo.prefix ? file.slice(repo.prefix.length + 1) : file };
   }
 
+  /** The repository a file of the panel is in, and its path there: to read its history. */
+  locate(sessionId: string, file: string): { root: string; inside: string } {
+    const { repo, inside } = this.target(sessionId, file);
+    return { root: repo.root, inside };
+  }
+
   private byRepo(sessionId: string, files: string[]): Map<RepoState, string[]> {
     const groups = new Map<RepoState, string[]>();
     for (const file of files) {

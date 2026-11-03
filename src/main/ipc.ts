@@ -17,6 +17,7 @@ import type { TailFeed } from '@core/sessions/TailFeed';
 import { locateFiles, MAX_CANDIDATES } from '@core/git/FileLocator';
 import { currentBranch, runGit } from '@core/git/GitService';
 import { branchState, pushBranch, updateFromBase } from '@core/git/BranchFlow';
+import { blameLine, commitDiff, fileLog } from '@core/git/history';
 import { pullBody, type BranchInfo } from '@shared/branch';
 import { searchProject } from '@core/search/searchProject';
 import { SEARCH_TEXT_LIMIT, type SearchQuery } from '@shared/search';
@@ -1115,6 +1116,24 @@ export function registerIpc(context: IpcContext): void {
     const s = session(id);
     const b = base(diffBase);
     await changes.revertHunk(s.id, b, hunkRevert(revert), await checkpointTrees(s.id, b));
+  });
+  handle('git:log', (id, file) => {
+    const { root, inside } = changes.locate(session(id).id, str(file, 'file'));
+    return fileLog(root, inside);
+  });
+  handle('git:commitDiff', (id, file, sha) => {
+    const { root, inside } = changes.locate(session(id).id, str(file, 'file'));
+    return commitDiff(root, inside, str(sha, 'text', 64));
+  });
+  handle('git:blameLine', async (id, file, at) => {
+    const s = session(id);
+    const path0 = str(file, 'file');
+    const { root, inside } = changes.locate(s.id, path0);
+    const lineNo = typeof at === 'number' && Number.isInteger(at) && at >= 1 ? at : 1;
+    // The file as it is on disk, so an edit not committed yet reads as such.
+    const diff = await changes.diff(s.id, path0, 'head');
+    const contents = diff.modified.kind === 'text' ? diff.modified.text : '';
+    return blameLine(root, inside, lineNo, contents);
   });
   handle('git:save', async (id, file, content, expected) => {
     const result = await changes.save(

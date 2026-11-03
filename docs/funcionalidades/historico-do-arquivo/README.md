@@ -1,6 +1,6 @@
 # Histórico do arquivo
 
-- **Estado:** proposta, leva 2.
+- **Estado:** primeira entrega na v0.5 (2026-11-03): o botão **Histórico** abre a lista dos commits do arquivo (`git log --follow`), o diff de cada um no arquivo e a autoria da linha do cursor (`git blame -L --contents`, que vê as linhas ainda sem commit). Ficaram para depois a coluna de autoria em todas as linhas da margem, o `Ctrl+Alt+B` e o "comparar com este commit" no painel.
 - **ADR:** nenhuma nova. Só lê o git.
 
 ## O problema

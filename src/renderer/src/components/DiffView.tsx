@@ -10,6 +10,7 @@ import { errorMessage, formatBytes } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { useAppState } from '../lib/store';
 import { ReviewCommentDialog, type CommentDraft } from './ReviewCommentDialog';
+import { FileHistoryDialog } from './FileHistoryDialog';
 
 interface Props {
   sessionId: string;
@@ -119,6 +120,8 @@ export function DiffView({
   const discardNext = useRef(false);
   /** The comment being written or edited. */
   const [draft, setDraft] = useState<CommentDraft | null>(null);
+  /** The history of the file, open on the line of the cursor. */
+  const [history, setHistory] = useState<{ line: number | null } | null>(null);
   // The theme the frame opens in; a change of theme later reaches it with the file.
   const [frameSrc] = useState(() => `diff.html?theme=${theme}`);
 
@@ -215,6 +218,8 @@ export function DiffView({
       else if (message?.type === 'comment-start') {
         const { path: file, startLine, endLine, snippet } = message;
         setDraft({ file, startLine, endLine, snippet, text: '' });
+      } else if (message?.type === 'line') {
+        setHistory({ line: message.line });
       } else if (message?.type === 'comment-open') {
         const found = commentsRef.current?.find((c) => c.id === message.id);
         if (found) setDraft({ ...found });
@@ -300,6 +305,15 @@ export function DiffView({
           {dirty && <span className="diff-note unsaved">{t('diff.unsaved')}</span>}
           {diff.readOnly && <span className="diff-note">{t('diff.readOnly')}</span>}
           <span className="spacer" />
+          {!plain && diff.original.kind !== 'missing' && (
+            <button
+              data-testid="diff-history"
+              title={t('history.buttonHint')}
+              onClick={() => (ready ? send({ type: 'request-line' }) : setHistory({ line: null }))}
+            >
+              {t('history.button')}
+            </button>
+          )}
           {comments && !removed && (
             <button
               data-testid="diff-comment"
@@ -401,6 +415,14 @@ export function DiffView({
       )}
       {draft && (
         <ReviewCommentDialog sessionId={sessionId} draft={draft} onClose={() => setDraft(null)} />
+      )}
+      {history && (
+        <FileHistoryDialog
+          sessionId={sessionId}
+          path={path}
+          line={history.line}
+          onClose={() => setHistory(null)}
+        />
       )}
       <iframe
         ref={frameRef}

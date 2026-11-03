@@ -1524,4 +1524,12 @@ export const es: Record<keyof typeof ptBR, string> = {
   'error.search.badRegex': 'La expresión regular no es válida.',
   'error.search.timeout': 'La búsqueda pasó de 30 segundos. Refina el texto o los filtros.',
   'error.search.failed': 'La búsqueda falló: {output}',
+  'history.button': 'Historial',
+  'history.buttonHint':
+    'Los commits que tocaron este archivo, lo que cada uno cambió en él y quién cambió la línea del cursor',
+  'history.title': 'Historial de {file}',
+  'history.blame': 'Línea {line}: {author}, {date}, en “{subject}”',
+  'history.uncommitted': 'Línea {line}: aún sin commit (cambiada en la carpeta).',
+  'history.none': 'Ningún commit tocó este archivo todavía.',
+  'error.history.badCommit': 'Ese commit no existe en este repositorio.',
 };
