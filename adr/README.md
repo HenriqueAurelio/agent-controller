@@ -32,6 +32,7 @@ Registro das decisões de arquitetura do agent-controller. Cada arquivo traz o c
 | [0026](0026-core-em-processo-proprio.md) | Core em processo próprio (sessões que sobrevivem à janela) | Proposta |
 | [0027](0027-servicos-de-repositorio.md) | Serviços de repositório: PRs do GitHub e MRs do GitLab com o login do CLI, só leitura | Aceita |
 | [0028](0028-escrever-nos-servicos-de-repositorio.md) | Escrever no GitHub e no GitLab a pedido: revisão (comentários, aprovar, pedir mudanças) e merge | Aceita |
+| [0029](0029-push-e-pr-da-copia-isolada.md) | Push da branch da cópia isolada e PR a partir do app; atualizar a cópia com a base (merge, conflito para o agente) | Aceita |
 
 ## Status
 

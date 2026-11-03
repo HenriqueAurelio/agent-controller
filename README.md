@@ -200,7 +200,10 @@ Depois disso:
 - O painel de mudanças mostra só o que aconteceu na cópia. Em **Comparar com**, a opção **A base da branch** mostra tudo o que a branch mudou desde que saiu da base: os commits dela e o que ainda não tem commit.
 - **Duplicar** uma sessão em cópia abre a nova na mesma cópia. Enquanto as duas existirem, uma faixa avisa que elas mexem nos mesmos arquivos.
 - **Ao fechar**, o app pergunta o que fazer com a cópia. **Manter** (o padrão) deixa a pasta e a branch; dá para abrir outra sessão nela depois. **Remover a cópia** apaga a pasta, e só é possível quando nada nela está sem commit e nenhuma outra sessão a usa; com mudanças, o app diz quais e não remove. A **branch nunca é apagada**.
-- O app não faz commit nem push: abrir o PR fica com você ou com o agente.
+- **Da cópia ao PR:** o botão **PR** no topo da sessão (ou "Abrir o PR da cópia" na paleta) mostra a branch, a base e os commits que a base não tem.
+  - **Fazer push e abrir o PR:** faz push da branch da cópia para o remote dela (sem `--force`, e nunca para a base) e abre o PR no GitHub ou no GitLab do remote, com o título e a descrição que você vê e edita. A descrição começa com os commits e, se o cartão do quadro veio de uma issue, `Closes #12`. **Abrir como rascunho** abre o PR como draft. O repositório entra na lista do painel de pull requests, para o PR aparecer lá. Mudanças sem commit ficam de fora do push, e o diálogo avisa quantas.
+  - **Atualizar com a base:** traz para a cópia o que entrou na base depois que ela foi criada, por um merge (a branch não é reescrita). Busca a base no remote antes, se ele a tiver. Se der conflito, o merge fica parado na cópia, o diálogo lista os arquivos e **Mandar o conflito ao agente** abre o prompt com eles. Com mudanças sem commit na cópia, a atualização é recusada.
+  - O push e a busca usam o login do git da sua máquina (credential manager, chave ssh), sem terminal: se faltar credencial, o erro do git aparece no diálogo. A decisão está na [ADR 0029](adr/0029-push-e-pr-da-copia-isolada.md).
 
 **Conflito entre sessões.** As cópias evitam que dois agentes escrevam no mesmo arquivo ao mesmo tempo, mas não o conflito na hora de juntar as branches. Por isso o app cruza o que cada sessão mudou em todas as cópias do mesmo repositório (e na pasta original dele) e avisa quando duas mexem no mesmo arquivo:
 

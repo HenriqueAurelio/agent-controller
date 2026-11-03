@@ -16,6 +16,8 @@ import type { PromptQueue } from '@core/prompts/PromptQueue';
 import type { TailFeed } from '@core/sessions/TailFeed';
 import { locateFiles, MAX_CANDIDATES } from '@core/git/FileLocator';
 import { currentBranch, runGit } from '@core/git/GitService';
+import { branchState, pushBranch, updateFromBase } from '@core/git/BranchFlow';
+import { pullBody, type BranchInfo } from '@shared/branch';
 import type { PullWatcher } from '@core/forges/PullWatcher';
 import type { PullGuard } from '@core/forges/PullGuard';
 import { sessionsForPull } from './pullSessions';
@@ -83,6 +85,7 @@ import {
   type IssueList,
 } from '@shared/pulls';
 import {
+  PULL_TITLE_LIMIT,
   REVIEW_BODY_LIMIT,
   REVIEW_DRAFTS_LIMIT,
   type ReviewSubmission,
@@ -889,6 +892,64 @@ export function registerIpc(context: IpcContext): void {
     };
   };
   handle('tasks:list', (folder) => tasks.list(str(folder, 'folder')));
+  /** A session in a copy, its branch and how it stands; anything else has no pull request here. */
+  const copyBranch = async (id: unknown) => {
+    const s = session(id);
+    if (!s.worktree) throw new UserError('error.branch.notCopy');
+    const state = await branchState(s.cwd, s.worktree.base);
+    const repo = state.remoteUrl ? normalizeRepo(state.remoteUrl) : null;
+    return { s, state, repo };
+  };
+  handle('branch:info', async (id): Promise<BranchInfo> => {
+    const { s, state, repo } = await copyBranch(id);
+    const card = tasks.findBySession(s.id);
+    const issue = card?.issue ?? null;
+    return {
+      branch: state.branch,
+      base: state.base,
+      ahead: state.ahead,
+      subjects: state.subjects,
+      dirty: state.dirty,
+      remote: state.remote,
+      repo,
+      title: (card?.title ?? state.subjects[0] ?? state.branch).slice(0, PULL_TITLE_LIMIT),
+      body: pullBody(state.subjects, issue),
+      issue,
+    };
+  });
+  handle('branch:openPull', async (id, input) => {
+    const v = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+    const title = str(v.title, 'name', PULL_TITLE_LIMIT).trim();
+    if (!title) throw new UserError('error.branch.noTitle');
+    const body = str(v.body ?? '', 'text', REVIEW_BODY_LIMIT);
+    const { s, state, repo } = await copyBranch(id);
+    if (!state.remote || !repo) throw new UserError('error.branch.noRemote');
+    if (state.ahead === 0) throw new UserError('error.branch.nothingToPush');
+    await pushBranch(s.cwd, state.remote, state.branch);
+    const opened = await context.pulls.createPull(repo, {
+      title,
+      body,
+      head: state.branch,
+      base: state.base,
+      draft: v.draft === true,
+    });
+    // The pull request shows in the panel from now on, and can be guarded.
+    const prefs = context.data.prefs;
+    if (!prefs.pulls.repos.some((r) => r.toLowerCase() === repo.toLowerCase())) {
+      context.savePrefs(
+        sanitizePreferences({
+          ...prefs,
+          pulls: { ...prefs.pulls, repos: [...prefs.pulls.repos, repo] },
+        }),
+      );
+    }
+    return opened;
+  });
+  handle('branch:updateFromBase', async (id) => {
+    const { s, state } = await copyBranch(id);
+    const result = await updateFromBase(s.cwd, state.base, state.remote);
+    return result;
+  });
   handle('tasks:issues', async (folder): Promise<IssueList> => {
     const cwd = str(folder, 'folder');
     const remotes = await runGit(cwd, ['remote', '-v']).catch(() => null);

@@ -1427,4 +1427,42 @@ export const es: Record<keyof typeof ptBR, string> = {
   'task.issues.none': 'Ninguna issue abierta en {repo}.',
   'task.issues.noRemote': 'La carpeta no tiene un remote de GitHub o GitLab.',
   'task.issues.picked': '{count} issues elegidas: cada una se vuelve una tarjeta.',
+  'command.branchPull': 'Abrir el PR de la copia de “{name}”',
+  'branch.button': 'PR',
+  'branch.buttonHint':
+    'Hacer push de la rama de esta copia y abrir el pull request, o actualizar la copia con la base',
+  'branch.title': 'Pull request de la copia de “{name}”',
+  'branch.summary': '{branch} → {base}: {count} commits que la base no tiene',
+  'branch.dirty':
+    '{count} archivos cambiados y sin commit quedan fuera del push. Haz el commit antes, en el panel de cambios.',
+  'branch.noRepo':
+    'El repositorio no tiene un remote de GitHub o GitLab: no hay dónde abrir el PR.',
+  'branch.pullTitle': 'Título',
+  'branch.pullBody': 'Descripción',
+  'branch.draft': 'Abrir como borrador',
+  'branch.openPull': 'Hacer push y abrir el PR',
+  'branch.pushing': 'Enviando…',
+  'branch.nothingToPush': 'La rama no tiene commits que la base no tenga.',
+  'branch.opened': 'PR #{number} abierto. Aparece en el panel de pull requests.',
+  'branch.openSite': 'Abrir en el sitio',
+  'branch.updateTitle': 'Actualizar con la base',
+  'branch.updateHint':
+    'Trae a la copia lo que entró en la base después de crearla (merge, sin reescribir la rama). Un conflicto queda en la copia, para que el agente lo resuelva.',
+  'branch.update': 'Traer {base} a la copia',
+  'branch.update.current': 'La copia ya tiene todo de {from}.',
+  'branch.update.merged': '{from} entró en la copia, sin conflicto.',
+  'branch.update.conflict': 'El merge de {from} se detuvo en {count} archivos con conflicto:',
+  'branch.sendConflict': 'Enviar el conflicto al agente',
+  'branch.conflictPrompt':
+    'Hice el merge de {from} en esta rama y se detuvo con conflictos en estos archivos:\n\n{files}\n\nResuelve cada conflicto manteniendo lo que ambas versiones quieren hacer, ejecuta las pruebas y termina el merge con un commit.',
+  'error.branch.notCopy': 'Solo una sesión en una copia aislada tiene un PR para abrir desde aquí.',
+  'error.branch.detached': 'La copia no está en una rama (HEAD suelto).',
+  'error.branch.noRemote': 'El repositorio no tiene un remote de GitHub o GitLab.',
+  'error.branch.noTitle': 'Escribe el título del PR.',
+  'error.branch.nothingToPush': 'La rama no tiene commits que la base no tenga.',
+  'error.branch.pushTimeout': 'El push no terminó en 2 minutos.',
+  'error.branch.pushFailed': 'El push falló:\n{output}',
+  'error.branch.dirty':
+    'La copia tiene cambios sin commit. Haz el commit (o descártalos) antes de traer la base.',
+  'error.branch.mergeFailed': 'El merge falló:\n{output}',
 };

@@ -1415,4 +1415,42 @@ export const ptBR = {
   'task.issues.none': 'Nenhuma issue aberta em {repo}.',
   'task.issues.noRemote': 'A pasta não tem um remote do GitHub ou do GitLab.',
   'task.issues.picked': '{count} issues escolhidas: cada uma vira um cartão.',
+  'command.branchPull': 'Abrir o PR da cópia de “{name}”',
+  'branch.button': 'PR',
+  'branch.buttonHint':
+    'Fazer push da branch desta cópia e abrir o pull request, ou atualizar a cópia com a base',
+  'branch.title': 'Pull request da cópia de “{name}”',
+  'branch.summary': '{branch} → {base}: {count} commits que a base não tem',
+  'branch.dirty':
+    '{count} arquivos mudados e sem commit ficam de fora do push. Faça o commit antes, no painel de mudanças.',
+  'branch.noRepo':
+    'O repositório não tem um remote do GitHub ou do GitLab: não há onde abrir o PR.',
+  'branch.pullTitle': 'Título',
+  'branch.pullBody': 'Descrição',
+  'branch.draft': 'Abrir como rascunho',
+  'branch.openPull': 'Fazer push e abrir o PR',
+  'branch.pushing': 'Enviando…',
+  'branch.nothingToPush': 'A branch não tem commits que a base não tenha.',
+  'branch.opened': 'PR #{number} aberto. Ele aparece no painel de pull requests.',
+  'branch.openSite': 'Abrir no site',
+  'branch.updateTitle': 'Atualizar com a base',
+  'branch.updateHint':
+    'Traz para a cópia o que entrou na base depois que ela foi criada (merge, sem reescrever a branch). Um conflito fica na cópia, para o agente resolver.',
+  'branch.update': 'Trazer {base} para a cópia',
+  'branch.update.current': 'A cópia já tem tudo de {from}.',
+  'branch.update.merged': '{from} entrou na cópia, sem conflito.',
+  'branch.update.conflict': 'O merge de {from} parou em {count} arquivos com conflito:',
+  'branch.sendConflict': 'Mandar o conflito ao agente',
+  'branch.conflictPrompt':
+    'Fiz o merge de {from} nesta branch e ele parou com conflitos nestes arquivos:\n\n{files}\n\nResolva cada conflito mantendo o que as duas versões querem fazer, rode os testes e termine o merge com um commit.',
+  'error.branch.notCopy': 'Só uma sessão em cópia isolada tem um PR para abrir por aqui.',
+  'error.branch.detached': 'A cópia não está numa branch (HEAD solto).',
+  'error.branch.noRemote': 'O repositório não tem um remote do GitHub ou do GitLab.',
+  'error.branch.noTitle': 'Escreva o título do PR.',
+  'error.branch.nothingToPush': 'A branch não tem commits que a base não tenha.',
+  'error.branch.pushTimeout': 'O push não terminou em 2 minutos.',
+  'error.branch.pushFailed': 'O push falhou:\n{output}',
+  'error.branch.dirty':
+    'A cópia tem mudanças sem commit. Faça o commit (ou descarte) antes de trazer a base.',
+  'error.branch.mergeFailed': 'O merge falhou:\n{output}',
 } as const;

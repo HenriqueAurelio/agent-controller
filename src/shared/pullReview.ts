@@ -80,6 +80,23 @@ export interface MergeOptions {
   deleteBranch: boolean;
 }
 
+/** A pull request to open from the branch of a copy (ADR 0029). */
+export interface NewPull {
+  title: string;
+  body: string;
+  /** The branch pushed. */
+  head: string;
+  base: string;
+  draft: boolean;
+}
+
+/** The pull request opened. */
+export interface OpenedPull {
+  number: number;
+  url: string;
+}
+
+export const PULL_TITLE_LIMIT = 300;
 export const REVIEW_BODY_LIMIT = 20_000;
 export const REVIEW_DRAFTS_LIMIT = 100;
 /** Files read of a pull request. */

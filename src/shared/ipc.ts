@@ -30,7 +30,9 @@ import type { Preferences } from './prefs';
 import type { AvailableRepos, Forge, GhAccounts, GuardState, IssueList, PullsState } from './pulls';
 import type { BackgroundState } from './background';
 import type { NewReviewComment, ReviewComment } from './review';
-import type { MergeOptions, PullReviewData, ReviewSubmission } from './pullReview';
+import type { MergeOptions, OpenedPull, PullReviewData, ReviewSubmission } from './pullReview';
+import type { BranchInfo, OpenPullInput } from './branch';
+import type { BaseUpdate } from './branchUpdate';
 import type { SonarConfig, SonarGroupInfo, SonarRun, SonarTestResult } from './sonar';
 import type {
   PromptValues,
@@ -266,6 +268,12 @@ export interface IpcCommands {
   'tasks:list': (folder: string) => TaskBoardState;
   /** One card per draft, all with the same agent and options (ADR 0025). */
   'tasks:create': (input: NewTasksInput) => TaskBoardState;
+  /** How the branch of a session in a copy stands, for the dialog that opens its pull request. */
+  'branch:info': (sessionId: string) => BranchInfo;
+  /** Pushes the branch of the copy and opens its pull request (ADR 0029). */
+  'branch:openPull': (sessionId: string, input: OpenPullInput) => OpenedPull;
+  /** Brings the base into the copy; a conflict stays there, for the agent. */
+  'branch:updateFromBase': (sessionId: string) => BaseUpdate;
   /** The open issues of the repository of a folder (its remote on GitHub or GitLab). */
   'tasks:issues': (folder: string) => IssueList;
   /** Edits the title or the description of a card that was not started. */
@@ -532,6 +540,9 @@ export const COMMAND_CHANNELS = [
   'tasks:list',
   'tasks:create',
   'tasks:issues',
+  'branch:info',
+  'branch:openPull',
+  'branch:updateFromBase',
   'tasks:update',
   'tasks:remove',
   'tasks:reorder',

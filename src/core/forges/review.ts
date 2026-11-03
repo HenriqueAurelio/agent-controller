@@ -1,6 +1,12 @@
 // What a service gives to review a pull request inside the app, and takes back. Apart from
 // `ForgeClient`: reading pull requests does not need it, and writing is a step of its own (ADR 0028).
-import type { MergeOptions, PullReviewData, ReviewSubmission } from '@shared/pullReview';
+import type {
+  MergeOptions,
+  NewPull,
+  OpenedPull,
+  PullReviewData,
+  ReviewSubmission,
+} from '@shared/pullReview';
 import type { ForgeIssue } from '@shared/pulls';
 
 /** A pull request as the review reads it, before the app adds what only it knows. */
@@ -12,6 +18,14 @@ export interface ReviewClient {
   submitReview(repo: string, number: number, submission: ReviewSubmission): Promise<void>;
   merge(repo: string, number: number, branch: string, options: MergeOptions): Promise<void>;
 }
+
+/** Opens a pull request from a branch already pushed (ADR 0029). */
+export interface PullCreator {
+  createPull(repo: string, pull: NewPull): Promise<OpenedPull>;
+}
+
+export const isPullCreator = (client: unknown): client is PullCreator =>
+  !!client && typeof (client as PullCreator).createPull === 'function';
 
 /** The open issues of a repository, for cards of the task board. */
 export interface IssueClient {
