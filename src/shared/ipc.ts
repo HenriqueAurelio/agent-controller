@@ -27,7 +27,7 @@ import type { NewTasksInput, TaskBoardState, TaskStartResult } from './tasks';
 import type { ReviewResult, ReviewerSetInput, ReviewerSummary } from './reviewer';
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
-import type { AvailableRepos, Forge, GhAccounts, GuardState, PullsState } from './pulls';
+import type { AvailableRepos, Forge, GhAccounts, GuardState, IssueList, PullsState } from './pulls';
 import type { BackgroundState } from './background';
 import type { NewReviewComment, ReviewComment } from './review';
 import type { MergeOptions, PullReviewData, ReviewSubmission } from './pullReview';
@@ -266,6 +266,8 @@ export interface IpcCommands {
   'tasks:list': (folder: string) => TaskBoardState;
   /** One card per draft, all with the same agent and options (ADR 0025). */
   'tasks:create': (input: NewTasksInput) => TaskBoardState;
+  /** The open issues of the repository of a folder (its remote on GitHub or GitLab). */
+  'tasks:issues': (folder: string) => IssueList;
   /** Edits the title or the description of a card that was not started. */
   'tasks:update': (
     taskId: string,
@@ -529,6 +531,7 @@ export const COMMAND_CHANNELS = [
   'experiments:keep',
   'tasks:list',
   'tasks:create',
+  'tasks:issues',
   'tasks:update',
   'tasks:remove',
   'tasks:reorder',

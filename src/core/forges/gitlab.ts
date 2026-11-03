@@ -3,11 +3,18 @@
 // and never sees one.
 import { spawn } from 'node:child_process';
 import { resolveCli } from './cli';
-import type { JobState, PipelineJob, PipelineState, PullRequestView } from '@shared/pulls';
+import {
+  ISSUES_LIMIT,
+  type ForgeIssue,
+  type JobState,
+  type PipelineJob,
+  type PipelineState,
+  type PullRequestView,
+} from '@shared/pulls';
 import { eachRepo, ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
 import { ANSI, tailLines } from './log';
 import { parsePatch } from './patch';
-import type { ForgeReview, ReviewClient } from './review';
+import type { ForgeReview, IssueClient, ReviewClient } from './review';
 import {
   PULL_FILES_LIMIT,
   type MergeOptions,
@@ -440,7 +447,24 @@ export function parseDiscussions(list: unknown): PullThread[] {
   return threads;
 }
 
-export class GitLabClient implements ForgeClient, ReviewClient {
+/** The issues of `GET /projects/:id/issues`. */
+export function parseGitLabIssues(list: unknown): ForgeIssue[] {
+  return (Array.isArray(list) ? list : [])
+    .map(obj)
+    .filter((i) => typeof i.iid === 'number')
+    .map((i) => ({
+      number: i.iid as number,
+      title: text(i.title),
+      body: text(i.description),
+      url: text(i.web_url),
+      author: text(obj(i.author).username),
+      labels: (Array.isArray(i.labels) ? i.labels : []).filter(
+        (l): l is string => typeof l === 'string',
+      ),
+    }));
+}
+
+export class GitLabClient implements ForgeClient, ReviewClient, IssueClient {
   constructor(private readonly transport: GitLabTransport = glabTransport) {}
 
   /** glab has one login per server: there is no account to pick. */
@@ -495,6 +519,15 @@ export class GitLabClient implements ForgeClient, ReviewClient {
     // anywhere) is worth saying, not an empty list.
     if (failures.length === hosts.size) throw failures[0];
     return lists.flat();
+  }
+
+  async issues(repo: string): Promise<ForgeIssue[]> {
+    const { host, path } = splitRepo(repo);
+    const answer = await this.transport.rest(
+      host,
+      `projects/${encodeURIComponent(path)}/issues?state=opened&order_by=updated_at&per_page=${ISSUES_LIMIT}`,
+    );
+    return parseGitLabIssues(JSON.parse(answer) as unknown);
   }
 
   async review(repo: string, number: number): Promise<ForgeReview> {

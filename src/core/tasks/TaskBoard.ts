@@ -286,6 +286,7 @@ export class TaskBoard extends EventEmitter<TaskBoardEvents> {
         isolated: input.isolated,
         base,
         ...(groupId && { groupId }),
+        ...(draft.issue && { issue: draft.issue }),
       });
     }
     this.save(board);

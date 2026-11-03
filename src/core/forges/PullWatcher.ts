@@ -9,12 +9,13 @@ import {
   PIPELINE_TEXT_LIMIT,
   PULLS_INTERVAL_MS,
   type Forge,
+  type ForgeIssue,
   type ForgeProblem,
   type PullRequestView,
   type PullsState,
 } from '@shared/pulls';
 import { ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
-import { isReviewClient, type ReviewClient } from './review';
+import { isIssueClient, isReviewClient, type ReviewClient } from './review';
 import { UserError } from '@shared/i18n';
 import type { MergeOptions, PullReviewData, ReviewSubmission } from '@shared/pullReview';
 
@@ -193,6 +194,13 @@ export class PullWatcher extends EventEmitter<Events> {
     const client = this.clients[pull.forge];
     if (!isReviewClient(client)) throw new UserError('error.pulls.notFound');
     return { pull, client };
+  }
+
+  /** The open issues of a repository, read now, from the service it lives on. */
+  async issues(repo: string): Promise<ForgeIssue[]> {
+    const client = this.clients[forgeOf(repo)];
+    if (!isIssueClient(client)) return [];
+    return client.issues(repo);
   }
 
   /** Its changes and the comments already on it, read now. */

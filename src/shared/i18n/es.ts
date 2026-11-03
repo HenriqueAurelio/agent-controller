@@ -1419,4 +1419,12 @@ export const es: Record<keyof typeof ptBR, string> = {
   'error.sonar.scannerTimeout': 'El scanner no terminó en 15 minutos.',
   'sonar.runGroup': 'Analizar las sesiones ahora',
   'sonar.runGroupHint': 'Analiza ahora cada sesión del grupo, con la conexión guardada',
+  'task.issues.import': 'Importar issues…',
+  'task.issues.hint':
+    'Lista las issues abiertas del repositorio (GitHub o GitLab, por el remote de la carpeta). Cada una elegida se vuelve una tarjeta, con el texto y el enlace de la issue, y la rama lleva su número.',
+  'task.issues.loading': 'Leyendo las issues…',
+  'task.issues.filter': 'Filtrar issues',
+  'task.issues.none': 'Ninguna issue abierta en {repo}.',
+  'task.issues.noRemote': 'La carpeta no tiene un remote de GitHub o GitLab.',
+  'task.issues.picked': '{count} issues elegidas: cada una se vuelve una tarjeta.',
 };

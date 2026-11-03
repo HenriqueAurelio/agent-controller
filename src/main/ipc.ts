@@ -15,7 +15,7 @@ import type { OverlapService } from '@core/git/OverlapService';
 import type { PromptQueue } from '@core/prompts/PromptQueue';
 import type { TailFeed } from '@core/sessions/TailFeed';
 import { locateFiles, MAX_CANDIDATES } from '@core/git/FileLocator';
-import { currentBranch } from '@core/git/GitService';
+import { currentBranch, runGit } from '@core/git/GitService';
 import type { PullWatcher } from '@core/forges/PullWatcher';
 import type { PullGuard } from '@core/forges/PullGuard';
 import { sessionsForPull } from './pullSessions';
@@ -75,7 +75,13 @@ import type {
   WorktreesInfo,
 } from '@shared/ipc';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
-import { FORGES, PIPELINE_TEXT_LIMIT, pullSummary } from '@shared/pulls';
+import {
+  FORGES,
+  normalizeRepo,
+  PIPELINE_TEXT_LIMIT,
+  pullSummary,
+  type IssueList,
+} from '@shared/pulls';
 import {
   REVIEW_BODY_LIMIT,
   REVIEW_DRAFTS_LIMIT,
@@ -860,9 +866,16 @@ export function registerIpc(context: IpcContext): void {
     }
     const drafts = v.drafts.map((raw: unknown) => {
       const d = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+      const issue =
+        d.issue && typeof d.issue === 'object' ? (d.issue as Record<string, unknown>) : null;
+      const url = issue ? str(issue.url, 'url', 2000) : '';
+      if (issue && !/^https?:\/\//.test(url)) {
+        throw new UserError('error.invalidArgument', { name: { key: 'arg.url' } });
+      }
       return {
         title: str(d.title, 'name', TASK_TITLE_LIMIT * 4),
         description: str(d.description ?? '', 'text', TASK_DESCRIPTION_LIMIT),
+        ...(issue && { issue: { ref: str(issue.ref, 'name', 40), url } }),
       };
     });
     return {
@@ -876,6 +889,22 @@ export function registerIpc(context: IpcContext): void {
     };
   };
   handle('tasks:list', (folder) => tasks.list(str(folder, 'folder')));
+  handle('tasks:issues', async (folder): Promise<IssueList> => {
+    const cwd = str(folder, 'folder');
+    const remotes = await runGit(cwd, ['remote', '-v']).catch(() => null);
+    // The first remote whose address names a repository of GitHub or GitLab.
+    const repo =
+      (remotes?.stdout.toString('utf8') ?? '')
+        .split(/\s+/)
+        .map((word) => normalizeRepo(word))
+        .find((name): name is string => !!name) ?? null;
+    if (!repo) return { repo: null, issues: [] };
+    try {
+      return { repo, issues: await context.pulls.issues(repo) };
+    } catch (err) {
+      return { repo, issues: [], error: errorText(language(), err) };
+    }
+  });
   handle('tasks:create', async (input) => {
     const clean = taskInput(input);
     const state = await tasks.create(clean);

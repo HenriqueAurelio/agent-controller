@@ -2,6 +2,7 @@
 // token of its own, and the one `gh` gives stays in this process, never in the renderer.
 import { spawn } from 'node:child_process';
 import { resolveCli } from './cli';
+import { ISSUES_LIMIT, type ForgeIssue } from '@shared/pulls';
 import type {
   GhAccounts,
   JobState,
@@ -12,7 +13,7 @@ import type {
 import { eachRepo, ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
 import { ANSI, tailLines } from './log';
 import { parsePatch } from './patch';
-import type { ForgeReview, ReviewClient } from './review';
+import type { ForgeReview, IssueClient, ReviewClient } from './review';
 import {
   PULL_FILES_LIMIT,
   type MergeOptions,
@@ -413,7 +414,24 @@ export function parsePullThreads(list: unknown): PullThread[] {
   return [...threads.values()];
 }
 
-export class GitHubClient implements ForgeClient, ReviewClient {
+/** The issues of `GET /repos/{r}/issues`, without the pull requests that list also carries. */
+export function parseIssues(list: unknown): ForgeIssue[] {
+  return (Array.isArray(list) ? list : [])
+    .map(obj)
+    .filter((i) => !i.pull_request && typeof i.number === 'number')
+    .map((i) => ({
+      number: i.number as number,
+      title: text(i.title),
+      body: text(i.body),
+      url: text(i.html_url),
+      author: text(obj(i.user).login),
+      labels: (Array.isArray(i.labels) ? i.labels : [])
+        .map((l) => text(obj(l).name))
+        .filter(Boolean),
+    }));
+}
+
+export class GitHubClient implements ForgeClient, ReviewClient, IssueClient {
   private readonly apiUrl: string;
   private readonly fetch: Fetch;
   private readonly runToken: (account: string) => Promise<string>;
@@ -487,6 +505,12 @@ export class GitHubClient implements ForgeClient, ReviewClient {
     // GitHub answers with a redirect to the file; fetch follows it, without the token.
     if (!response.ok) return '';
     return logTail(await response.text());
+  }
+
+  async issues(repo: string): Promise<ForgeIssue[]> {
+    return parseIssues(
+      await this.json(`/repos/${repo}/issues?state=open&sort=updated&per_page=${ISSUES_LIMIT}`),
+    );
   }
 
   async review(repo: string, number: number): Promise<ForgeReview> {

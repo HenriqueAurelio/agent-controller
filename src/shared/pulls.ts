@@ -105,6 +105,28 @@ export interface PullsSettings {
   guarded?: string[];
 }
 
+/** An open issue of a repository, to become a card of the task board. */
+export interface ForgeIssue {
+  number: number;
+  title: string;
+  body: string;
+  url: string;
+  author: string;
+  labels: string[];
+}
+
+/** The issues of the repository of a folder: which repository that is, and its open issues. */
+export interface IssueList {
+  /** As the watched list names it; null when the folder has no remote of GitHub or GitLab. */
+  repo: string | null;
+  issues: ForgeIssue[];
+  /** Why they could not be read, as the user reads it. */
+  error?: string;
+}
+
+/** Open issues read at once. */
+export const ISSUES_LIMIT = 50;
+
 /** The pull request as `{pr}` reads: reference, title, branches and link. */
 export const pullSummary = (pull: PullRequestView): string =>
   `${pullRef(pull)}: ${pull.title}\n${pull.branch} → ${pull.base}\n${pull.url}`;
