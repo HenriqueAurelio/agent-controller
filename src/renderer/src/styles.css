@@ -4037,3 +4037,61 @@ textarea.associations {
   color: var(--accent);
   background: transparent;
 }
+
+/* The preview of a local page (ADR 0031): the page itself is drawn over .preview-area. */
+.preview-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+}
+.preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.preview-address {
+  flex: 1;
+  min-width: 120px;
+}
+.preview-address input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+}
+.preview-error {
+  padding: 6px 12px;
+  color: var(--error);
+  font-size: 12px;
+}
+.preview-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+.annotate-dialog {
+  width: min(1100px, 94vw);
+}
+.annotate-canvas {
+  /* The element is exactly the picture on screen: a point of the mouse maps straight to it. */
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 60vh;
+  margin: 0 auto;
+  cursor: crosshair;
+  border: 1px solid var(--border);
+}
+.annotate-dialog textarea {
+  width: 100%;
+  box-sizing: border-box;
+}

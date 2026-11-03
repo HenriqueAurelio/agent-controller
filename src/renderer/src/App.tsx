@@ -31,6 +31,7 @@ import { PromptDialog, type PromptContext } from './components/PromptDialog';
 import { FlowDialog } from './components/FlowDialog';
 import { SonarDialog } from './components/SonarDialog';
 import { BranchDialog } from './components/BranchDialog';
+import { PreviewPanel } from './components/PreviewPanel';
 import { useSonarRuns } from './lib/sonar';
 import { ReviewerDialog } from './components/ReviewerDialog';
 import { QueueDialog, sendQueueFailure, skipQueueItem } from './components/QueueDialog';
@@ -131,6 +132,8 @@ export function App() {
   // still scrolls to it.
   const [pullsFocus, setPullsFocus] = useState<{ key: string } | null>(null);
   const [backgroundOpen, setBackgroundOpen] = useState(false);
+  /** The local page shown in place of the terminal (ADR 0031). */
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   // The background command a clicked notice was about.
   const [backgroundFocus, setBackgroundFocus] = useState<{ id: string } | null>(null);
   // Bumped by the palette: the board opens its dialog of a new card.
@@ -745,6 +748,14 @@ export function App() {
             void window.api.invoke('sessions:newConversation', selected.id).catch(() => {}),
         },
         {
+          id: 'preview-open',
+          title: t('command.preview'),
+          run: () => {
+            const port = metrics[selected.id]?.ports?.[0];
+            setPreviewUrl(`http://localhost:${port ?? 3000}`);
+          },
+        },
+        {
           id: 'sonar-run',
           title: t('command.sonarRun', { name: selected.name }),
           run: () => runSonar(selected.id),
@@ -893,6 +904,7 @@ export function App() {
     customThemes,
     t,
     runSonar,
+    metrics,
   ]);
 
   // Global shortcuts are taken in the capture phase, before the terminal sees the key.
@@ -994,6 +1006,28 @@ export function App() {
         )}
         {backgroundOpen && (
           <BackgroundCommands onClose={closeBackground} focusId={backgroundFocus?.id ?? null} />
+        )}
+        {previewUrl && selected && (
+          <PreviewPanel
+            key={selected.id}
+            url={previewUrl}
+            ports={metrics[selected.id]?.ports ?? []}
+            sessionId={selected.id}
+            covered={Boolean(
+              overlay || closing || overviewOpen || boardOpen || pullsOpen || backgroundOpen,
+            )}
+            onClose={() => setPreviewUrl(null)}
+            onShot={(file, note) =>
+              openPrompt(
+                undefined,
+                {},
+                [selected.id],
+                note
+                  ? t('preview.shotPromptNote', { file, note })
+                  : t('preview.shotPrompt', { file }),
+              )
+            }
+          />
         )}
         {boardOpen && (
           <TaskBoard
@@ -1138,9 +1172,13 @@ export function App() {
                     key={port}
                     className="port-chip"
                     title={t('app.port', { port })}
-                    onClick={() =>
-                      void window.api.invoke('shell:openExternal', `http://localhost:${port}`)
-                    }
+                    onClick={() => {
+                      setOverviewOpen(false);
+                      setBoardOpen(false);
+                      setPullsOpen(false);
+                      setBackgroundOpen(false);
+                      setPreviewUrl(`http://localhost:${port}`);
+                    }}
                   >
                     :{port}
                   </button>

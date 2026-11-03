@@ -28,6 +28,8 @@ import type { SonarConfigStore } from '@core/sonar/SonarConfigStore';
 import { SonarApi } from '@core/sonar/SonarApi';
 import { sanitizeSonarConfig, SONAR_TOKEN_LIMIT, type SonarGroupInfo } from '@shared/sonar';
 import type { SonarTokens } from './sonarTokens';
+import { saveShot, type Preview } from './preview';
+import { isLocalUrl, SHOT_LIMIT, type PreviewBounds } from '@shared/preview';
 import { buildReviewText } from '@core/review/reviewText';
 import { expandPrompt, promptVariables } from '@core/prompts/expand';
 import {
@@ -138,6 +140,9 @@ export interface IpcContext {
   guard: PullGuard;
   background: BackgroundService;
   review: ReviewStore;
+  preview: Preview;
+  /** Where the marked-up screenshots for the agents are kept. */
+  shotsDir: string;
   sonar: {
     service: SonarService;
     configs: SonarConfigStore;
@@ -298,6 +303,11 @@ const submission = (value: unknown): ReviewSubmission => {
     comments,
     headSha: str(v.headSha ?? '', 'text', 100),
   };
+};
+const bounds = (value: unknown): PreviewBounds => {
+  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  const n = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
+  return { x: n(v.x), y: n(v.y), width: n(v.width), height: n(v.height) };
 };
 const base = (value: unknown): DiffBase =>
   value === 'session' || value === 'branchBase' || value === 'previousTurn'
@@ -1299,6 +1309,21 @@ export function registerIpc(context: IpcContext): void {
     }
   });
   handle('sonar:runs', () => context.sonar.service.all());
+  handle('preview:open', (url, where) => {
+    const address = str(url, 'url', 2000);
+    if (!isLocalUrl(address)) throw new UserError('error.preview.notLocal');
+    context.preview.open(address, bounds(where));
+  });
+  handle('preview:bounds', (where) => context.preview.setBounds(bounds(where)));
+  handle('preview:hide', () => context.preview.hide());
+  handle('preview:reload', () => context.preview.reload());
+  handle('preview:back', () => context.preview.back());
+  handle('preview:close', () => context.preview.close());
+  handle('preview:state', () => context.preview.state());
+  handle('preview:capture', () => context.preview.capture());
+  handle('preview:saveShot', (id, png) =>
+    saveShot(context.shotsDir, session(id).id, str(png, 'data', SHOT_LIMIT)),
+  );
   handle('pulls:guard', () => context.guard.get());
   handle('pulls:setGuard', (key, on) => {
     const value = str(key, 'pull', 300);
