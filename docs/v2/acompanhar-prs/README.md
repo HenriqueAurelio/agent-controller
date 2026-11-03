@@ -103,6 +103,22 @@ Rodado em 2026-10-31, no Windows 10, só lendo.
 - **Fork:** no `gitlab-org/cli!4268`, o pipeline rodou no fork do autor; o log foi lido lá (432 linhas) e termina na mensagem do `check_docs_update` e em `ERROR: Job failed: exit code 1`.
 - **Runner Windows:** um log de 3 230 linhas, quase todas `Status: processing`, com `\r\n`, ficou com 1,5 mil caracteres e termina no estouro de tempo.
 
+## Vigiar um PR
+
+Adicionado na v0.3 (`docs/proximas-versoes.md`, item 4), a partir do vigia de MRs do Maestro.
+
+- **O botão Vigiar**, nos PRs da pessoa, guarda a chave do PR em `prefs.pulls.guarded`.
+- **`PullGuard`** (`src/core/forges/PullGuard.ts`) ouve os avisos de "pipeline falhou" do `PullWatcher`, uma vez por commit, e decide quando mandar e quando parar:
+  - cada falha nova de um PR vigiado vira um conserto;
+  - depois de 3 falhas seguidas, o vigia para e avisa;
+  - um pipeline verde zera a contagem;
+  - ligar o vigia num PR já quebrado manda o conserto na hora.
+- **O processo principal** acha a sessão da branch, com a mesma regra do botão **Mandar ao agente corrigir** (agora em `src/main/pullSessions.ts`), e põe o prompt "Corrigir pipeline" na fila dela, para o fim do turno.
+  - Uma falha nova tira da fila a anterior que ainda não saiu.
+  - Sem sessão na branch, a tentativa não conta, e o aviso diz isso.
+- **Canais:** `pulls:guard` e `pulls:setGuard`, mais o evento `pulls:guardChanged`.
+- **Ficou de fora:** comentários novos indo ao agente sozinhos. O app ainda não lê o texto dos comentários; isso entra com a revisão do PR dentro do app.
+
 ## O que ficou de fora
 
 - **Bitbucket:** sem CLI oficial, exigiria guardar um token no app ([ADR 0027](../../../adr/0027-servicos-de-repositorio.md)).

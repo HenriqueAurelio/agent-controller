@@ -27,7 +27,7 @@ import type { NewTasksInput, TaskBoardState, TaskStartResult } from './tasks';
 import type { ReviewResult, ReviewerSetInput, ReviewerSummary } from './reviewer';
 import type { CodeThemeData, CodeThemeInfo } from './codeThemes';
 import type { Preferences } from './prefs';
-import type { AvailableRepos, Forge, GhAccounts, PullsState } from './pulls';
+import type { AvailableRepos, Forge, GhAccounts, GuardState, PullsState } from './pulls';
 import type { BackgroundState } from './background';
 import type { NewReviewComment, ReviewComment } from './review';
 import type {
@@ -379,6 +379,10 @@ export interface IpcCommands {
   'pulls:accounts': () => GhAccounts;
   /** The failed pipeline of a pull request, ready for the prompt that sends it to an agent. */
   'pulls:fixPipeline': (key: string) => PipelineFix;
+  /** The guard of each guarded pull request. */
+  'pulls:guard': () => GuardState;
+  /** Turns the guard of one of my pull requests on or off. */
+  'pulls:setGuard': (key: string, on: boolean) => void;
   /** The comments of the review of a session, as left on lines of the diff. */
   'review:list': (sessionId: string) => ReviewComment[];
   'review:add': (sessionId: string, comment: NewReviewComment) => ReviewComment;
@@ -423,6 +427,8 @@ export interface IpcEvents {
   'background:focus': (id: string) => void;
   /** A notice of a pull request was clicked: the panel opens on it. */
   'pulls:focus': (key: string) => void;
+  /** A guard changed: it sent a fix, gave up, or was turned on or off. */
+  'pulls:guardChanged': (state: GuardState) => void;
   /** The comments of the review of a session changed. */
   'review:changed': (sessionId: string, comments: ReviewComment[]) => void;
 }
@@ -547,6 +553,8 @@ export const COMMAND_CHANNELS = [
   'background:input',
   'background:resize',
   'pulls:fixPipeline',
+  'pulls:guard',
+  'pulls:setGuard',
   'review:list',
   'review:add',
   'review:update',
@@ -574,6 +582,7 @@ export const EVENT_CHANNELS = [
   'checkpoints:changed',
   'pulls:changed',
   'pulls:focus',
+  'pulls:guardChanged',
   'background:changed',
   'background:data',
   'background:focus',

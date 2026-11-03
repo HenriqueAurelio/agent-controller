@@ -4,7 +4,10 @@ import {
   FORGES,
   forgeOf,
   parseRepoList,
+  GUARD_ATTEMPTS,
   PULLS_REPOS_LIMIT,
+  type GuardEntry,
+  type GuardState,
   type AvailableRepos,
   type GhAccounts,
   type Forge,
@@ -39,8 +42,27 @@ const openSite = (url: string) => void window.api.invoke('shell:openExternal', u
  * The open pull requests of the watched repositories, with their pipelines: one look a minute,
  * in the main process, for this panel and for the notices.
  */
+/** The guard of each guarded pull request, kept up to date while the panel is open. */
+function useGuard(): GuardState {
+  const [state, setState] = useState<GuardState>({});
+  useEffect(() => {
+    let cancelled = false;
+    window.api
+      .invoke('pulls:guard')
+      .then((value) => !cancelled && setState(value))
+      .catch(() => {});
+    const off = window.api.on('pulls:guardChanged', setState);
+    return () => {
+      cancelled = true;
+      off();
+    };
+  }, []);
+  return state;
+}
+
 export function PullRequests({ onClose, focusKey, onFix }: Props) {
   const t = useT();
+  const guard = useGuard();
   const state = useAppState((s) => s.pulls);
   const settings = useAppState((s) => s.prefs.pulls);
   const now = useNow(10_000);
@@ -239,6 +261,12 @@ export function PullRequests({ onClose, focusKey, onFix }: Props) {
                   focused={pull.key === focusKey}
                   fixing={fixing === pull.key}
                   onFix={() => void fix(pull)}
+                  guard={guard[pull.key]}
+                  onGuard={(on) =>
+                    void window.api
+                      .invoke('pulls:setGuard', pull.key, on)
+                      .catch((err) => setProblem(errorMessage(err)))
+                  }
                 />
               ))}
             </section>
@@ -255,12 +283,17 @@ function PullRow({
   focused,
   fixing,
   onFix,
+  guard,
+  onGuard,
 }: {
   pull: PullRequestView;
   now: number;
   focused: boolean;
   fixing: boolean;
   onFix(): void;
+  /** The guard of this pull request, when it is on. */
+  guard: GuardEntry | undefined;
+  onGuard(on: boolean): void;
 }) {
   const t = useT();
   const { state, jobs } = pull.pipeline;
@@ -305,6 +338,35 @@ function PullRow({
         )}
         {pull.reviewRequested && (
           <span className="pull-tag review-me">{t('pulls.reviewRequested')}</span>
+        )}
+        {pull.mine && (
+          <>
+            <span className="spacer" />
+            {guard && (
+              <span
+                className={`pull-tag guard-${guard.status}`}
+                data-testid="pull-guard-status"
+                data-status={guard.status}
+              >
+                {guard.status === 'sent'
+                  ? t('pulls.guard.sent', { attempt: guard.attempts, limit: GUARD_ATTEMPTS })
+                  : guard.status === 'noSession'
+                    ? t('pulls.guard.noSession')
+                    : guard.status === 'gaveUp'
+                      ? t('pulls.guard.gaveUp', { limit: GUARD_ATTEMPTS })
+                      : t('pulls.guard.watching')}
+              </span>
+            )}
+            <button
+              className={`pull-guard ${guard ? 'active' : ''}`}
+              aria-pressed={guard !== undefined}
+              data-testid="pull-guard"
+              title={t('pulls.guard.hint', { limit: GUARD_ATTEMPTS })}
+              onClick={() => onGuard(guard === undefined)}
+            >
+              {t('pulls.guard.toggle')}
+            </button>
+          </>
         )}
       </div>
       <div className="pull-meta muted">

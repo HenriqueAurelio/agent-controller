@@ -1317,4 +1317,18 @@ export const es: Record<keyof typeof ptBR, string> = {
   'error.hunk.changed':
     'El archivo cambió desde que se leyeron los fragmentos. La lista se actualizó; inténtalo de nuevo.',
   'error.hunk.notRevertible': 'Este fragmento no se puede deshacer aquí.',
+  'pulls.guard.toggle': 'Vigilar',
+  'pulls.guard.hint':
+    'Cuando el pipeline de este PR falle, el prompt "Corregir el pipeline" entra solo en la cola de la sesión de esta rama y sale al terminar el turno. Se detiene tras {limit} fallos seguidos; un pipeline verde reinicia la cuenta.',
+  'pulls.guard.watching': 'vigilando el pipeline',
+  'pulls.guard.sent': 'enviado al agente ({attempt} de {limit})',
+  'pulls.guard.noSession': 'falló, sin sesión en la rama',
+  'pulls.guard.gaveUp': 'se detuvo tras {limit} intentos',
+  'pulls.guard.notice.sent': '{pull}: la vigilancia envió el pipeline al agente',
+  'pulls.guard.notice.sentBody':
+    'En la cola de {session}, para el final del turno (intento {attempt} de {limit}).',
+  'pulls.guard.notice.noSession': '{pull}: el pipeline falló y ninguna sesión está en la rama',
+  'pulls.guard.notice.gaveUp': '{pull}: la vigilancia se detuvo',
+  'pulls.guard.notice.gaveUpBody':
+    'El pipeline volvió a fallar tras {limit} intentos. Mira qué está pasando antes de volver a activar la vigilancia.',
 };
