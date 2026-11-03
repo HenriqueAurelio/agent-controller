@@ -1306,4 +1306,18 @@ export const ptBR = {
   'error.hunk.changed':
     'O arquivo mudou desde que os trechos foram lidos. A lista foi atualizada; tente de novo.',
   'error.hunk.notRevertible': 'Este trecho não pode ser desfeito aqui.',
+  'pulls.guard.toggle': 'Vigiar',
+  'pulls.guard.hint':
+    'Quando o pipeline deste PR falhar, o prompt "Corrigir pipeline" entra sozinho na fila da sessão desta branch e sai no fim do turno. Para depois de {limit} falhas seguidas; um pipeline verde zera a contagem.',
+  'pulls.guard.watching': 'vigiando o pipeline',
+  'pulls.guard.sent': 'mandado ao agente ({attempt} de {limit})',
+  'pulls.guard.noSession': 'falhou, sem sessão na branch',
+  'pulls.guard.gaveUp': 'parou depois de {limit} tentativas',
+  'pulls.guard.notice.sent': '{pull}: o vigia mandou o pipeline ao agente',
+  'pulls.guard.notice.sentBody':
+    'Na fila de {session}, para o fim do turno (tentativa {attempt} de {limit}).',
+  'pulls.guard.notice.noSession': '{pull}: o pipeline falhou e nenhuma sessão está na branch',
+  'pulls.guard.notice.gaveUp': '{pull}: o vigia parou',
+  'pulls.guard.notice.gaveUpBody':
+    'O pipeline falhou de novo depois de {limit} tentativas. Veja o que está acontecendo antes de ligar o vigia de novo.',
 } as const;

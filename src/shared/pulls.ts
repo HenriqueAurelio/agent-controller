@@ -101,7 +101,34 @@ export interface PullsSettings {
   notifyFailed: boolean;
   notifyComments: boolean;
   notifyReview: boolean;
+  /** The keys of my pull requests whose failed pipeline goes to the agent by itself. */
+  guarded?: string[];
 }
+
+/** The pull request as `{pr}` reads: reference, title, branches and link. */
+export const pullSummary = (pull: PullRequestView): string =>
+  `${pullRef(pull)}: ${pull.title}\n${pull.branch} → ${pull.base}\n${pull.url}`;
+
+/** How many failed pipelines in a row the guard sends to the agent before it stops. */
+export const GUARD_ATTEMPTS = 3;
+export const GUARDED_LIMIT = 40;
+
+/**
+ * `watching`: nothing to do; `sent`: the latest failure went to the agent; `noSession`: it failed
+ * and no session is on its branch; `gaveUp`: it failed again after the last attempt.
+ */
+export type GuardStatus = 'watching' | 'sent' | 'noSession' | 'gaveUp';
+
+export interface GuardEntry {
+  /** Failures sent in a row since the pipeline last passed. */
+  attempts: number;
+  status: GuardStatus;
+  /** The session the latest failure went to. */
+  session?: string;
+}
+
+/** The guard of each guarded pull request, by its key. */
+export type GuardState = Record<string, GuardEntry>;
 
 export const PULLS_REPOS_LIMIT = 40;
 /** How often the services are asked again. */
@@ -117,6 +144,7 @@ export const DEFAULT_PULLS_SETTINGS: PullsSettings = {
   notifyFailed: true,
   notifyComments: true,
   notifyReview: true,
+  guarded: [],
 };
 
 const PART = /^[A-Za-z0-9_.-]{1,100}$/;
@@ -201,6 +229,16 @@ export function sanitizePullsSettings(value: unknown): PullsSettings {
     notifyFailed: flag('notifyFailed'),
     notifyComments: flag('notifyComments'),
     notifyReview: flag('notifyReview'),
+    guarded: Array.isArray(v.guarded)
+      ? [
+          ...new Set(
+            v.guarded.filter(
+              (key): key is string =>
+                typeof key === 'string' && key.length <= 300 && /[#!]\d+$/.test(key),
+            ),
+          ),
+        ].slice(0, GUARDED_LIMIT)
+      : [],
   };
 }
 

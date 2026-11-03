@@ -30,6 +30,7 @@ import { ReviewerService } from '@core/handoff/ReviewerService';
 import { GitHubClient } from '@core/forges/github';
 import { fetchTransport, GitLabClient } from '@core/forges/gitlab';
 import { PullWatcher, type PullNotice } from '@core/forges/PullWatcher';
+import { PullGuard } from '@core/forges/PullGuard';
 import { BackgroundService } from '@core/background/BackgroundService';
 import { ReviewStore } from '@core/review/ReviewStore';
 import { defaultWorktreesFolder } from '@core/git/WorktreeService';
@@ -52,12 +53,19 @@ import {
 import type { AgentAvailability } from '@shared/agents';
 import { summarizeRun } from '@shared/checks';
 import { factoryPrompts } from '@shared/prompts';
-import { pullRef } from '@shared/pulls';
+import {
+  FIX_PIPELINE_PROMPT_ID,
+  GUARD_ATTEMPTS,
+  pullRef,
+  pullSummary,
+  type PullRequestView,
+} from '@shared/pulls';
 import { REVIEW_PROMPT_ID } from '@shared/reviewer';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import { STATUS_DETAIL, type Session, type SessionGroup } from '@shared/session';
 import { expandForSession, registerIpc, snapshotOf, type IpcContext } from './ipc';
 import { showNotice, showNotification } from './notifications';
+import { sessionsForPull } from './pullSessions';
 import { createMainWindow, saveWindowState } from './window';
 
 const TEST_SHELL = process.env.AGENT_CONTROLLER_TEST_SHELL === '1';
@@ -733,6 +741,78 @@ export async function startApp(): Promise<void> {
   };
   pulls.on('notice', pullNotice);
 
+  // The guard of my pull requests: a failed pipeline goes to the agent of its branch by itself.
+  const guard = new PullGuard();
+  guard.configure(data.prefs.pulls.guarded ?? []);
+  pulls.on('notice', (notice) => guard.notice(notice));
+  pulls.on('changed', (state) => guard.update(state));
+  guard.on('changed', (state) => send('pulls:guardChanged', state));
+  const openPull = (pull: PullRequestView) => () => {
+    if (!window || window.isDestroyed()) return;
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+    send('pulls:focus', pull.key);
+  };
+  const guardNotice = (pull: PullRequestView, title: string, body: string) =>
+    showNotice(
+      `guard:${pull.key}`,
+      { title, body, silent: !data.prefs.notifySound },
+      openPull(pull),
+    );
+  /** The fix each guard put in a queue: a newer failure replaces it while it has not gone. */
+  const guardItems = new Map<string, { session: string; item: string }>();
+  guard.on('fix', (pull) => {
+    void (async () => {
+      const ids = await sessionsForPull(manager, pull);
+      const target = ids.find((id) => manager.isRunning(id)) ?? ids[0];
+      const where = pullRef(pull);
+      if (!target) {
+        guard.sent(pull.key, null);
+        guardNotice(pull, t('pulls.guard.notice.noSession', { pull: where }), pull.branch);
+        return;
+      }
+      const pipeline = await pulls.failureText(pull.key);
+      // A user who deleted or never had the factory prompt still gets its text.
+      const prompt =
+        data.prefs.prompts.find((p) => p.id === FIX_PIPELINE_PROMPT_ID) ??
+        factoryPrompts(data.prefs.language).find((p) => p.id === FIX_PIPELINE_PROMPT_ID)!;
+      const previous = guardItems.get(pull.key);
+      if (previous && queue.get(previous.session).items.some((i) => i.id === previous.item)) {
+        queue.remove(previous.session, previous.item);
+      }
+      try {
+        const item = queue.add(target, {
+          text: prompt.text,
+          values: { pr: pullSummary(pull), pipeline },
+          condition: 'turnEnd',
+        });
+        guardItems.set(pull.key, { session: target, item: item.id });
+      } catch {
+        guard.sent(pull.key, null);
+        return;
+      }
+      guard.sent(pull.key, target);
+      const attempts = guard.get()[pull.key]?.attempts ?? 1;
+      guardNotice(
+        pull,
+        t('pulls.guard.notice.sent', { pull: where }),
+        t('pulls.guard.notice.sentBody', {
+          session: manager.get(target)?.name ?? '',
+          attempt: attempts,
+          limit: GUARD_ATTEMPTS,
+        }),
+      );
+    })().catch(() => guard.sent(pull.key, null));
+  });
+  guard.on('gaveUp', (pull) =>
+    guardNotice(
+      pull,
+      t('pulls.guard.notice.gaveUp', { pull: pullRef(pull) }),
+      t('pulls.guard.notice.gaveUpBody', { limit: GUARD_ATTEMPTS }),
+    ),
+  );
+
   // Commands in the background, apart from the sessions (docs/v2/comandos-em-segundo-plano).
   // In test mode the shell starts without the user's profile.
   const background = new BackgroundService({
@@ -774,6 +854,7 @@ export async function startApp(): Promise<void> {
     flows,
     tails,
     pulls,
+    guard,
     background,
     review,
     data,
@@ -793,6 +874,7 @@ export async function startApp(): Promise<void> {
       if (JSON.stringify(prefs.overlaps) !== overlapsBefore) void overlaps.refreshAll();
       manager.setPreferences(prefs);
       pulls.configure(prefs.pulls);
+      guard.configure(prefs.pulls.guarded ?? []);
       background.configure(prefs.background);
       manager.flushPersist();
       send('prefs:changed', prefs);

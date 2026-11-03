@@ -15,8 +15,10 @@ import type { OverlapService } from '@core/git/OverlapService';
 import type { PromptQueue } from '@core/prompts/PromptQueue';
 import type { TailFeed } from '@core/sessions/TailFeed';
 import { locateFiles, MAX_CANDIDATES } from '@core/git/FileLocator';
-import { currentBranch, runGit } from '@core/git/GitService';
+import { currentBranch } from '@core/git/GitService';
 import type { PullWatcher } from '@core/forges/PullWatcher';
+import type { PullGuard } from '@core/forges/PullGuard';
+import { sessionsForPull } from './pullSessions';
 import type { BackgroundService } from '@core/background/BackgroundService';
 import type { ReviewStore } from '@core/review/ReviewStore';
 import { buildReviewText } from '@core/review/reviewText';
@@ -68,7 +70,7 @@ import type {
   WorktreesInfo,
 } from '@shared/ipc';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
-import { FORGES, normalizeRepo, PIPELINE_TEXT_LIMIT, pullRef } from '@shared/pulls';
+import { FORGES, PIPELINE_TEXT_LIMIT, pullSummary } from '@shared/pulls';
 import {
   REVIEW_COMMENT_TEXT_LIMIT,
   REVIEW_LINE_LIMIT,
@@ -112,6 +114,7 @@ export interface IpcContext {
   flows: FlowEngine;
   tails: TailFeed;
   pulls: PullWatcher;
+  guard: PullGuard;
   background: BackgroundService;
   review: ReviewStore;
   data: AppData;
@@ -1061,26 +1064,19 @@ export function registerIpc(context: IpcContext): void {
     if (!pull) throw new UserError('error.pulls.notFound');
     const pipeline = await context.pulls.failureText(pull.key);
     if (!pipeline) throw new UserError('error.pulls.nothingFailed');
-    // The sessions with the branch checked out; among them, the ones of this repository first.
-    const looks = await Promise.all(
-      manager.list().map(async (s) => {
-        const branch = await currentBranch(s.cwd).catch(() => null);
-        if (branch !== pull.branch) return null;
-        const remotes = await runGit(s.cwd, ['remote', '-v']).catch(() => null);
-        // Each address read the way the watched list is (`git@host:group/project.git` too).
-        const names = (remotes?.stdout.toString('utf8') ?? '')
-          .split(/\s+/)
-          .map((word) => normalizeRepo(word)?.toLowerCase());
-        return { id: s.id, same: names.includes(pull.repo.toLowerCase()) };
-      }),
+    return { pr: pullSummary(pull), pipeline, sessions: await sessionsForPull(manager, pull) };
+  });
+  handle('pulls:guard', () => context.guard.get());
+  handle('pulls:setGuard', (key, on) => {
+    const value = str(key, 'pull', 300);
+    const prefs = context.data.prefs;
+    const guarded = new Set(prefs.pulls.guarded ?? []);
+    if (on === true) guarded.add(value);
+    else guarded.delete(value);
+    context.savePrefs(
+      sanitizePreferences({ ...prefs, pulls: { ...prefs.pulls, guarded: [...guarded] } }),
     );
-    const found = looks.filter((l) => l !== null);
-    const same = found.filter((l) => l.same);
-    return {
-      pr: `${pullRef(pull)}: ${pull.title}\n${pull.branch} → ${pull.base}\n${pull.url}`,
-      pipeline,
-      sessions: (same.length > 0 ? same : found).map((l) => l.id),
-    };
+    if (on === true) context.guard.started(context.pulls.find(value));
   });
 
   handle('review:list', (id) => context.review.list(session(id).id));

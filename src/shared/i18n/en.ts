@@ -1304,4 +1304,18 @@ export const en: Record<keyof typeof ptBR, string> = {
   'error.hunk.changed':
     'The file changed since the blocks were read. The list was refreshed; try again.',
   'error.hunk.notRevertible': 'This block cannot be undone here.',
+  'pulls.guard.toggle': 'Guard',
+  'pulls.guard.hint':
+    'When the pipeline of this PR fails, the prompt "Fix the pipeline" goes into the queue of the session on this branch by itself and is sent when the turn ends. Stops after {limit} failures in a row; a green pipeline resets the count.',
+  'pulls.guard.watching': 'guarding the pipeline',
+  'pulls.guard.sent': 'sent to the agent ({attempt} of {limit})',
+  'pulls.guard.noSession': 'failed, no session on the branch',
+  'pulls.guard.gaveUp': 'stopped after {limit} attempts',
+  'pulls.guard.notice.sent': '{pull}: the guard sent the pipeline to the agent',
+  'pulls.guard.notice.sentBody':
+    'In the queue of {session}, for the end of the turn (attempt {attempt} of {limit}).',
+  'pulls.guard.notice.noSession': '{pull}: the pipeline failed and no session is on the branch',
+  'pulls.guard.notice.gaveUp': '{pull}: the guard stopped',
+  'pulls.guard.notice.gaveUpBody':
+    'The pipeline failed again after {limit} attempts. See what is going on before turning the guard on again.',
 };

@@ -3759,3 +3759,20 @@ textarea.associations {
   color: var(--text);
   font-size: 12px;
 }
+
+/* The guard of a pull request: its pipeline goes to the agent by itself when it fails. */
+.pull-guard {
+  padding: 1px 8px;
+  font-size: 12px;
+}
+.pull-guard.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.pull-tag.guard-sent {
+  color: var(--working);
+}
+.pull-tag.guard-noSession,
+.pull-tag.guard-gaveUp {
+  color: var(--waiting);
+}

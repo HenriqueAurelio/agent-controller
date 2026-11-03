@@ -32,7 +32,7 @@ O núcleo do produto: o agente fez, a pessoa revisa e devolve ali mesmo.
 | 1 | [Comentar no diff](funcionalidades/comentar-no-diff/README.md) (**feita**) | Comentários por linha no painel viram um prompt só, enviado pela fila | Maestro, Orca, Alas | M |
 | 2 | [Multibuffer do turno](funcionalidades/multibuffer/README.md) (**feita**, sem edição na rolagem) | Todos os trechos do turno numa rolagem, com **aceitar ou desfazer por bloco** | Maestro, Volt | G |
 | 3 | Revisar o PR dentro do app | O diff do PR ou MR no painel, com comentários por linha, respostas, resolver, aprovar e merge; o revisor automático deixa rascunhos que você edita antes de publicar | Maestro | G |
-| 4 | Vigia do PR | Pipeline vermelho ou comentário novo no PR da sessão vai sozinho para o agente, com limite de tentativas (o Maestro para em 3); reaproveita as regras de encadear | Maestro | M |
+| 4 | Vigia do PR (**feita**, só o pipeline) | Pipeline vermelho ou comentário novo no PR da sessão vai sozinho para o agente, com limite de tentativas (o Maestro para em 3); reaproveita as regras de encadear | Maestro | M |
 | 5 | [Sonar por grupo](planos/sonar-por-grupo-e-worktree.md) (seu rascunho) | O Sonar entra nas verificações, com o resultado separado por cópia | Pedido do usuário | M |
 
 A ordem é 1, 2, 4, 3 e 5. O **1** é o de maior valor pelo menor esforço, e o **2** reaproveita os checkpoints. O **3** é o maior item e pede ADR, porque o app passa a escrever no serviço (comentar, aprovar, fazer merge), não só ler (ADR 0027).

@@ -151,6 +151,7 @@ describe('the list of repositories', () => {
       notifyFailed: false,
       notifyComments: true,
       notifyReview: true,
+      guarded: [],
     });
     expect(sanitizePullsSettings(undefined).repos).toEqual([]);
   });
