@@ -374,6 +374,17 @@ Daí em diante:
 - **Mandar o erro ao agente:** com uma rodada que falhou, o botão cola no prompt do agente o que falhou (o comando e as últimas linhas da saída), numa linha só, com **⏎** onde havia quebra de linha. Ele **não envia**: confira no terminal e aperte **Enter**. Uma linha só porque, no Windows, uma quebra de linha colada no agente pode enviar o texto antes da hora.
 - No máximo duas sessões rodam verificações ao mesmo tempo; as outras esperam a vez.
 
+#### Sonar por grupo
+
+O Sonar (SonarQube ou SonarCloud) entra como mais uma validação. A conexão se configura uma vez no grupo, e cada sessão tem o próprio resultado, porque cada uma pode estar numa branch diferente.
+
+- **Configurar:** o botão **◈** no cabeçalho do grupo (aparece ao passar o mouse). Escolha SonarQube (com o endereço, como `http://localhost:9000`) ou SonarCloud (com a organização), a chave do projeto e o token. **Testar conexão** confere o token e o projeto antes de salvar.
+- **Token:** fica no cofre do sistema (no Windows, o do usuário; no Linux, o chaveiro, como o GNOME Keyring ou o KWallet). Não vai para as preferências, para a exportação nem para o terminal do agente. Sem cofre, o diálogo avisa e o token não é salvo.
+- **Scanner:** o comando que roda a análise, `sonar-scanner` por padrão (instale o [SonarScanner CLI](https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/sonarscanner/)); `npx @sonar/scan` também serve. Ele roda na pasta de cada sessão (a cópia isolada, se tiver), no seu shell.
+- **Analisar cada branch à parte:** manda a branch da sessão. É preciso SonarCloud ou uma edição paga do SonarQube; com a Community Edition, desligue.
+- **Quando roda:** **Analisar as sessões agora** (no mesmo diálogo), "Sonar: analisar … agora" na paleta, a etiqueta **Sonar: …** no topo da sessão (clique para de novo) ou, com **Analisar ao fim de cada turno**, sozinho. Se o agente volta a trabalhar, a análise daquela sessão é cancelada.
+- **Resultado:** a etiqueta da sessão diz "passou" ou "com problemas" (pelo quality gate), e as issues abertas entram na aba **Problemas**, marcadas "Sonar", junto com as das verificações. O cabeçalho do grupo resume quantas sessões passaram (`✓`) e quantas têm problemas (`✗`).
+
 #### Aba Problemas
 
 No painel de mudanças, a aba **Problemas (7)** (ao lado de **Todos os arquivos**; ou "Problemas: ver os erros das verificações" na paleta) lista cada erro e aviso da última rodada, em vez do bloco de saída do diálogo:

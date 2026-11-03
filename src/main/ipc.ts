@@ -21,6 +21,11 @@ import type { PullGuard } from '@core/forges/PullGuard';
 import { sessionsForPull } from './pullSessions';
 import type { BackgroundService } from '@core/background/BackgroundService';
 import type { ReviewStore } from '@core/review/ReviewStore';
+import type { SonarService } from '@core/sonar/SonarService';
+import type { SonarConfigStore } from '@core/sonar/SonarConfigStore';
+import { SonarApi } from '@core/sonar/SonarApi';
+import { sanitizeSonarConfig, SONAR_TOKEN_LIMIT, type SonarGroupInfo } from '@shared/sonar';
+import type { SonarTokens } from './sonarTokens';
 import { buildReviewText } from '@core/review/reviewText';
 import { expandPrompt, promptVariables } from '@core/prompts/expand';
 import {
@@ -123,6 +128,13 @@ export interface IpcContext {
   guard: PullGuard;
   background: BackgroundService;
   review: ReviewStore;
+  sonar: {
+    service: SonarService;
+    configs: SonarConfigStore;
+    tokens: SonarTokens;
+    /** Starts the analysis of a session with the setup of its group. */
+    start(sessionId: string): Promise<void>;
+  };
   data: AppData;
   /** Where the copies of discarded files go. */
   discardDir: string;
@@ -587,7 +599,13 @@ export function registerIpc(context: IpcContext): void {
   handle('groups:update', (id, update) =>
     manager.updateGroup(str(id, 'group', 64), groupUpdate(update)),
   );
-  handle('groups:remove', (id) => manager.removeGroup(str(id, 'group', 64)));
+  handle('groups:remove', (id) => {
+    const groupId = str(id, 'group', 64);
+    manager.removeGroup(groupId);
+    // The setup and the token of Sonar go with the group.
+    context.sonar.configs.set(groupId, null);
+    if (context.sonar.tokens.has(groupId)) context.sonar.tokens.set(groupId, null);
+  });
   handle('groups:reorder', (list) => manager.reorderGroups(ids(list)));
   handle('sessions:select', (id) => manager.select(id === null ? null : session(id).id));
   handle('sessions:start', (id, terminalSize) => manager.start(session(id).id, size(terminalSize)));
@@ -1117,6 +1135,69 @@ export function registerIpc(context: IpcContext): void {
       deleteBranch: o.deleteBranch === true,
     });
   });
+  const sonarGroup = (groupId: string): SonarGroupInfo => ({
+    config: context.sonar.configs.get(groupId),
+    hasToken: context.sonar.tokens.has(groupId),
+    secureStorage: context.sonar.tokens.available(),
+  });
+  const knownGroup = (id: unknown) => {
+    const groupId = str(id, 'group', 64);
+    if (!manager.listGroups().some((g) => g.id === groupId)) {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.group' } });
+    }
+    return groupId;
+  };
+  const sonarConfig = (value: unknown) => {
+    const config = sanitizeSonarConfig(value);
+    if (!config) throw new UserError('error.sonar.badConfig');
+    return config;
+  };
+  handle('sonar:group', (id) => sonarGroup(knownGroup(id)));
+  handle('sonar:configure', (id, config, token) => {
+    const groupId = knownGroup(id);
+    context.sonar.configs.set(groupId, config === null ? null : sonarConfig(config));
+    if (token === null || config === null) {
+      if (context.sonar.tokens.has(groupId)) context.sonar.tokens.set(groupId, null);
+    } else if (token !== undefined) {
+      const value = str(token, 'text', SONAR_TOKEN_LIMIT).trim();
+      if (value) {
+        if (!context.sonar.tokens.available()) throw new UserError('error.sonar.noVault');
+        context.sonar.tokens.set(groupId, value);
+      }
+    }
+    return sonarGroup(groupId);
+  });
+  handle('sonar:test', async (id, config, token) => {
+    const groupId = knownGroup(id);
+    const given = token === undefined ? '' : str(token, 'text', SONAR_TOKEN_LIMIT).trim();
+    const value = given || context.sonar.tokens.get(groupId);
+    if (!value) return { ok: false, error: t('error.sonar.noToken') };
+    try {
+      await new SonarApi(sonarConfig(config), value).test();
+      return { ok: true };
+    } catch (err) {
+      const status = (err as { status?: number | null }).status;
+      return {
+        ok: false,
+        error:
+          status === 401
+            ? t('error.sonar.badToken')
+            : status === 404
+              ? t('error.sonar.noProject')
+              : err instanceof Error
+                ? err.message
+                : String(err),
+      };
+    }
+  });
+  handle('sonar:run', (id) => context.sonar.start(session(id).id));
+  handle('sonar:runGroup', async (id) => {
+    const groupId = knownGroup(id);
+    for (const s of manager.list().filter((s) => s.groupId === groupId)) {
+      await context.sonar.start(s.id);
+    }
+  });
+  handle('sonar:runs', () => context.sonar.service.all());
   handle('pulls:guard', () => context.guard.get());
   handle('pulls:setGuard', (key, on) => {
     const value = str(key, 'pull', 300);
