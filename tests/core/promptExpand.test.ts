@@ -91,6 +91,7 @@ describe('saved prompts', () => {
         'review-turn',
         'fix-problems',
         'fix-pipeline',
+        'apply-review',
       ]);
       for (const prompt of prompts) expect(prompt.name && prompt.text).toBeTruthy();
     }

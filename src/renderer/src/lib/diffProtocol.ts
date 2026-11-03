@@ -42,7 +42,20 @@ export type ParentMessage =
   /** Puts the cursor on a line of the file, once that file is the one shown. */
   | { type: 'reveal'; path: string; line: number; column?: number }
   /** Underlines these lines of the file, the way the editor shows its own errors. */
-  | { type: 'markers'; path: string; items: FrameMarker[] };
+  | { type: 'markers'; path: string; items: FrameMarker[] }
+  /** The comments of the review on this file, drawn under their lines. */
+  | { type: 'comments'; path: string; items: FrameComment[] }
+  /** Start a comment on the selected lines, or on the line of the cursor. */
+  | { type: 'request-comment' };
+
+/** A comment of the review, as the editor draws it. */
+export interface FrameComment {
+  id: string;
+  startLine: number;
+  endLine: number;
+  text: string;
+  snippet: string;
+}
 
 /** A problem of the checks, drawn on a line of the open file. */
 export interface FrameMarker {
@@ -63,6 +76,10 @@ export type FrameMessage =
   | { type: 'save'; path: string; content: string; expected: string | null }
   /** The menu of the editor was asked for, at a point of the frame, over this selection. */
   | { type: 'contextmenu'; x: number; y: number; selection: string }
+  /** The user wants to comment these lines of the file; `snippet` is their text. */
+  | { type: 'comment-start'; path: string; startLine: number; endLine: number; snippet: string }
+  /** A comment drawn in the editor was clicked: open it to edit or delete. */
+  | { type: 'comment-open'; id: string }
   /** The answer to `request-selection`. */
   | { type: 'selection'; selection: string }
   /** The language the file name points to (null: none known), and the one in use. */

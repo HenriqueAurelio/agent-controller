@@ -4,6 +4,7 @@ import { translate, type Language, type MessageKey } from './i18n';
 import { FIX_PROMPT_ID } from './checks';
 import { FIX_PIPELINE_PROMPT_ID } from './pulls';
 import { REVIEW_PROMPT_ID } from './reviewer';
+import { APPLY_REVIEW_PROMPT_ID } from './review';
 import { normalizeBinding } from './shortcuts';
 
 export interface PromptTemplate {
@@ -47,6 +48,11 @@ const FACTORY: { id: string; name: MessageKey; text: MessageKey }[] = [
     id: FIX_PIPELINE_PROMPT_ID,
     name: 'prompts.factory.fixPipeline.name',
     text: 'prompts.factory.fixPipeline.text',
+  },
+  {
+    id: APPLY_REVIEW_PROMPT_ID,
+    name: 'prompts.factory.applyReview.name',
+    text: 'prompts.factory.applyReview.text',
   },
 ];
 
@@ -126,6 +132,8 @@ export interface PromptValues {
   pr?: string;
   /** Its failed jobs and the end of their logs; `{pipeline}` in a prompt. */
   pipeline?: string;
+  /** The comments of the review, as `buildReviewText` wrote them; `{revisao}` in a prompt. */
+  review?: string;
   /** Answers to the `{?question}` fields, by the question's text. */
   answers?: Record<string, string>;
 }

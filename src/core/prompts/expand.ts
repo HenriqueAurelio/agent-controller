@@ -15,6 +15,8 @@ export interface PromptVariables {
   pr: string;
   /** The failed jobs of that pipeline and the end of their logs. */
   pipeline: string;
+  /** The comments of the review of the session. */
+  review: string;
 }
 
 /** Each variable under its Portuguese name, as the prompts are written, and in English. */
@@ -34,6 +36,9 @@ const NAMES: Record<string, keyof PromptVariables> = {
   problems: 'problems',
   pr: 'pr',
   pipeline: 'pipeline',
+  revisao: 'review',
+  revisão: 'review',
+  review: 'review',
 };
 
 /** Which of the known variables a prompt uses. */

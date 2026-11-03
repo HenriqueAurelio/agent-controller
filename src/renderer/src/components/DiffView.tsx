@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CODE_LANGUAGES, codeLanguage, PLAIN_TEXT } from '@shared/codeLanguages';
 import type { DiffBase, FileDiff, SideContent } from '@shared/git';
 import type { Translate } from '@shared/i18n';
 import type { ThemeName } from '@shared/prefs';
-import type { FrameMarker, FrameMessage, ParentMessage } from '../lib/diffProtocol';
+import { commentsOf, type ReviewComment } from '@shared/review';
+import type { FrameComment, FrameMarker, FrameMessage, ParentMessage } from '../lib/diffProtocol';
 import { useCodeTheme } from '../lib/codeThemes';
 import { errorMessage, formatBytes } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { useAppState } from '../lib/store';
+import { ReviewCommentDialog, type CommentDraft } from './ReviewCommentDialog';
 
 interface Props {
   sessionId: string;
@@ -28,6 +30,8 @@ interface Props {
   reveal?: { path: string; line: number; column?: number; nonce: number } | null;
   /** The problems of the checks in this file, underlined in the editor. */
   markers?: FrameMarker[];
+  /** The comments of the review of the session; the ones of this file show under their lines. */
+  comments?: ReviewComment[];
 }
 
 function unavailable(t: Translate, side: SideContent): string | null {
@@ -91,6 +95,7 @@ export function DiffView({
   onSendSelection,
   reveal,
   markers,
+  comments,
 }: Props) {
   const t = useT();
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
@@ -112,6 +117,8 @@ export function DiffView({
   /** The menu of the editor, where it was opened, with what was selected then. */
   const [menu, setMenu] = useState<{ x: number; y: number; selection: string } | null>(null);
   const discardNext = useRef(false);
+  /** The comment being written or edited. */
+  const [draft, setDraft] = useState<CommentDraft | null>(null);
   // The theme the frame opens in; a change of theme later reaches it with the file.
   const [frameSrc] = useState(() => `diff.html?theme=${theme}`);
 
@@ -158,6 +165,23 @@ export function DiffView({
     if (ready) send({ type: 'markers', path, items: markers ?? [] });
   }, [ready, path, markers, send]);
 
+  const fileComments = useMemo<FrameComment[]>(
+    () =>
+      commentsOf(comments ?? [], path).map(({ id, startLine, endLine, text, snippet }) => ({
+        id,
+        startLine,
+        endLine,
+        text,
+        snippet,
+      })),
+    [comments, path],
+  );
+  useEffect(() => {
+    if (ready) send({ type: 'comments', path, items: fileComments });
+  }, [ready, path, fileComments, send]);
+  const commentsRef = useRef(comments);
+  commentsRef.current = comments;
+
   const save = useCallback(
     async (file: string, content: string, expected: string | null) => {
       try {
@@ -188,7 +212,13 @@ export function DiffView({
         });
       } else if (message?.type === 'selection') onSendSelection(path, message.selection);
       else if (message?.type === 'language') setHighlight(message);
-      else if (message?.type === 'key') {
+      else if (message?.type === 'comment-start') {
+        const { path: file, startLine, endLine, snippet } = message;
+        setDraft({ file, startLine, endLine, snippet, text: '' });
+      } else if (message?.type === 'comment-open') {
+        const found = commentsRef.current?.find((c) => c.id === message.id);
+        if (found) setDraft({ ...found });
+      } else if (message?.type === 'key') {
         // Replayed here so Esc and the global shortcuts behave the same everywhere.
         const { key, ctrlKey, shiftKey, altKey, metaKey } = message;
         frameRef.current?.dispatchEvent(
@@ -270,6 +300,15 @@ export function DiffView({
           {dirty && <span className="diff-note unsaved">{t('diff.unsaved')}</span>}
           {diff.readOnly && <span className="diff-note">{t('diff.readOnly')}</span>}
           <span className="spacer" />
+          {comments && !removed && (
+            <button
+              data-testid="diff-comment"
+              onClick={() => send({ type: 'request-comment' })}
+              title={t('review.commentHint')}
+            >
+              {t('review.comment')}
+            </button>
+          )}
           <button
             onClick={() => send({ type: 'request-selection' })}
             title={t('diff.sendToAgentHint')}
@@ -344,7 +383,24 @@ export function DiffView({
               {t('diff.sendToAgent')}
             </button>
           </li>
+          {comments && !removed && (
+            <li role="none">
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenu(null);
+                  send({ type: 'request-comment' });
+                }}
+                onKeyDown={(e) => e.key === 'Escape' && setMenu(null)}
+              >
+                {t('review.comment')}
+              </button>
+            </li>
+          )}
         </ul>
+      )}
+      {draft && (
+        <ReviewCommentDialog sessionId={sessionId} draft={draft} onClose={() => setDraft(null)} />
       )}
       <iframe
         ref={frameRef}

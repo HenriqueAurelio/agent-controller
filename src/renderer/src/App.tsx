@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatProblem, FIX_PROMPT_ID, type Problem } from '@shared/checks';
+import { APPLY_REVIEW_PROMPT_ID } from '@shared/review';
 import type { DiffBase } from '@shared/git';
 import { factoryPrompts, PROBLEMS_TEXT_LIMIT } from '@shared/prompts';
 import { FIX_PIPELINE_PROMPT_ID } from '@shared/pulls';
@@ -70,6 +71,8 @@ interface PromptRequest {
   context: PromptContext;
   /** A text to start from, in place of the one of a saved prompt. */
   text?: string;
+  /** What else to do once the prompt went (or was queued). */
+  onSent?: () => void;
 }
 
 export function App() {
@@ -203,7 +206,13 @@ export function App() {
 
   /** Opens the dialog that sends a prompt: to the picked sessions, or to the one in sight. */
   const openPrompt = useCallback(
-    (promptId?: string, context: PromptContext = {}, targets?: string[], text?: string) => {
+    (
+      promptId?: string,
+      context: PromptContext = {},
+      targets?: string[],
+      text?: string,
+      onSent?: () => void,
+    ) => {
       const { selectedId: current, sessions: list } = store.get();
       const picked = marked.filter((id) => list.some((s) => s.id === id));
       const to = targets ?? (picked.length ? picked : current ? [current] : []);
@@ -212,6 +221,7 @@ export function App() {
         targets: to,
         context: { file: panelFile.current ?? undefined, ...context },
         ...(text !== undefined && { text }),
+        ...(onSent && { onSent }),
       });
       setOverlay('prompt');
     },
@@ -243,6 +253,26 @@ export function App() {
         undefined,
         text,
       );
+    },
+    [openPrompt],
+  );
+
+  /**
+   * The comments of the review go to the agent of their session through the prompt "Apply the
+   * review"; once sent, they leave the review.
+   */
+  const sendReview = useCallback(
+    async (sessionId: string) => {
+      const { text: review, ids } = await window.api.invoke('review:text', sessionId);
+      const { prefs } = store.get();
+      // A user who deleted or never had the factory prompt still gets its text.
+      const saved = prefs.prompts.some((p) => p.id === APPLY_REVIEW_PROMPT_ID);
+      const text = saved
+        ? undefined
+        : factoryPrompts(prefs.language).find((p) => p.id === APPLY_REVIEW_PROMPT_ID)?.text;
+      openPrompt(APPLY_REVIEW_PROMPT_ID, { review }, [sessionId], text, () => {
+        void window.api.invoke('review:clear', sessionId, ids).catch(() => {});
+      });
     },
     [openPrompt],
   );
@@ -680,6 +710,11 @@ export function App() {
           title: t('command.problems'),
           run: () => showPanel('problems'),
         },
+        {
+          id: 'show-review',
+          title: t('command.review'),
+          run: () => showPanel('review'),
+        },
         action('quickOpen', t('command.quickOpen')),
         action('toggleHidden', t('command.toggleHidden')),
         action(
@@ -1110,6 +1145,7 @@ export function App() {
               onOpenFile={(file) => (panelFile.current = file)}
               onSendSelection={(file, selection) => openPrompt(undefined, { file, selection })}
               onSendProblems={sendProblems}
+              onSendReview={() => void sendReview(selected.id).catch(() => {})}
               requestedBase={panelBase}
               requestedFile={panelFileRequest?.sessionId === selected.id ? panelFileRequest : null}
               requestedLocation={panelLocation?.sessionId === selected.id ? panelLocation : null}
@@ -1244,6 +1280,7 @@ export function App() {
           context={promptRequest.context}
           onClose={closeOverlay}
           onSent={() => {
+            promptRequest.onSent?.();
             closeOverlay();
             setMarked([]);
             focusTerminal(true);

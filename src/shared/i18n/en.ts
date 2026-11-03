@@ -67,6 +67,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'command.seeChanges': 'See changes: what changed in the session',
   'command.files': 'Files: view all files in the folder',
   'command.problems': 'Problems: see the errors from the checks',
+  'command.review': 'Review: the comments left on the diff',
   'command.toggleHidden': 'Files: show or hide the hidden ones',
   'command.start': 'Start the agent of “{name}”',
   'command.stop': 'Stop the agent of “{name}”',
@@ -598,7 +599,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'prompts.name': 'Name',
   'prompts.text': 'Text',
   'prompts.variablesHint':
-    'Variables: {sessao}, {pasta}, {branch}, {arquivo} (the one open in the panel), {selecao} (the selected text in it), {problemas} (the ones ticked in the Problems tab), {pr} and {pipeline} (the pull request and what failed in its pipeline, from the button of the pull requests) and {?question}, which asks for a value when sending.',
+    'Variables: {sessao}, {pasta}, {branch}, {arquivo} (the one open in the panel), {selecao} (the selected text in it), {problemas} (the ones ticked in the Problems tab), {revisao} (the comments of the Review tab), {pr} and {pipeline} (the pull request and what failed in its pipeline, from the button of the pull requests) and {?question}, which asks for a value when sending.',
   'prompts.shortcut': 'Shortcut',
   'prompts.shortcutAdd': 'Set shortcut',
   'prompts.shortcutChange': 'Change shortcut',
@@ -1231,4 +1232,39 @@ export const en: Record<keyof typeof ptBR, string> = {
     'Opens the prompt "Fix the pipeline" (editable in the prompt library) with the failed jobs and the end of their logs, for the session on that branch.',
   'pulls.fixing': 'Reading the logs…',
   'pulls.openSite': 'Open on {service}',
+  'prompts.factory.applyReview.name': 'Apply the review',
+  'prompts.factory.applyReview.text':
+    'I reviewed your changes and left comments. Address each item below: the path and lines say where, and the snippet shows the code as it was when I commented.\n\n{revisao}\n\nWhen done, say in one line what you did for each item.',
+  'review.tab': 'Review',
+  'review.tabHint':
+    'The comments left on lines of the diff, which go to the agent together in one prompt',
+  'review.comment': 'Comment',
+  'review.commentHint':
+    'Comments on the selected lines (or the one with the cursor). The comments go to the agent together from the Review tab.',
+  'review.dialog.new': 'Comment on {place}',
+  'review.dialog.edit': 'Comment on {place}',
+  'review.dialog.placeholder': 'What should the agent change here?',
+  'review.dialog.save': 'Save comment',
+  'review.dialog.delete': 'Delete',
+  'review.dialog.hint': 'Ctrl+Enter saves.',
+  'review.empty.title': 'No comments',
+  'review.empty.body':
+    'Select lines in the diff and click Comment, or click the + next to the line number. The comments go to the agent together in one prompt.',
+  'review.send': 'Send to the agent ({count})',
+  'review.sendHint':
+    'Opens the prompt "Apply the review" (editable in the prompt library) with all the comments. They leave the list once the prompt is sent.',
+  'review.clear': 'Clear review',
+  'review.clearConfirm': 'Delete the {count} comments of the review?',
+  'review.stale': 'outdated',
+  'review.staleHint':
+    'The lines changed since the comment. The original snippet goes to the agent with it.',
+  'review.remove': 'Delete the comment on {place}',
+  'review.place.line': '{file}, line {line}',
+  'review.place.lines': '{file}, lines {start} to {end}',
+  'error.review.badFile': 'This file cannot be commented on.',
+  'error.review.tooMany': 'The review already has {limit} comments. Send or delete some first.',
+  'error.review.empty': 'Write the comment.',
+  'error.review.badLines': 'The lines of the comment are not valid.',
+  'error.review.notFound': 'That comment no longer exists.',
+  'error.review.nothing': 'The review has no comments.',
 };

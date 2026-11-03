@@ -1,6 +1,6 @@
 # Comentar no diff e devolver ao agente
 
-- **Estado:** proposta.
+- **Estado:** implementada (v0.3, 2026-11-03). O smoke com os agentes reais (3.6) não foi rodado: gasta créditos e espera pedido do usuário. Os testes usam o shell no lugar do agente.
 - **ADR:** a de "O app escreve no terminal do agente a pedido do usuário", criada pela [biblioteca de prompts](../biblioteca-de-prompts/README.md); esta proposta só a reaproveita.
 
 ## O problema
@@ -35,6 +35,15 @@ Revisei as mudanças. Ajuste o seguinte:
 - **Renderer:** decorações e *view zones* do Monaco no `DiffView`, estado da revisão no store da sessão.
 - **Core:** `src/core/review/ReviewStore.ts` guarda os comentários por sessão (em memória, e no disco para sobreviver a fechar o app: `review/<sessionId>.json` na pasta de dados). `buildReviewPrompt(comments, template)` é função pura, testável.
 - **IPC:** `review:list`, `review:add`, `review:update`, `review:remove`. O envio usa o `terminal:sendText` da [biblioteca de prompts](../biblioteca-de-prompts/README.md) (colagem em bloco, enviar quando terminar), com o texto montado no core. O renderer não monta texto para o PTY.
+
+## O que mudou em relação à proposta
+
+- **O modelo do prompt** não ficou numa aba nova de Preferências: é o prompt de fábrica **Aplicar a revisão**, com a variável `{revisao}`, editável na biblioteca de prompts como os outros. Assim o envio, a pré-visualização, a espera pelo fim do turno e a fila são os que já existiam.
+- **O texto da revisão** (`buildReviewText`, em `src/core/review/reviewText.ts`) não tem palavras de nenhum idioma: só número, `arquivo:linha`, o trecho cercado por crases e o comentário. As palavras ficam no prompt, nos três idiomas.
+- **Um arquivo só** (`review.json`, na pasta de dados) guarda os comentários de todas as sessões, em vez de um por sessão: a revisão é pequena e acaba quando é enviada.
+- **"Desatualizado"** é calculado pelo editor ao desenhar, comparando o trecho guardado com as linhas de agora; não é gravado.
+- **Escrever o comentário** acontece num diálogo da interface, não numa caixa dentro do editor: os textos traduzidos e o foco do teclado ficam onde já estão.
+- **Canais:** `review:list`, `review:add`, `review:update`, `review:remove`, `review:clear` (com os ids enviados, para não apagar o que foi escrito enquanto o diálogo estava aberto) e `review:text`; o evento é `review:changed`.
 
 ## Riscos
 

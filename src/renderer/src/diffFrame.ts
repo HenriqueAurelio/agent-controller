@@ -3,9 +3,11 @@
 // page could never be unloaded.
 import { codeLanguage, PLAIN_TEXT, resolveCodeLanguage } from '@shared/codeLanguages';
 import type { ThemeName } from '@shared/prefs';
+import { isStale, type ReviewComment } from '@shared/review';
 import { bindingFromEvent, DEFAULT_SHORTCUTS, SESSION_BINDING } from '@shared/shortcuts';
 import type {
   CodeThemeRequest,
+  FrameComment,
   FrameMessage,
   HighlightEngine,
   ParentMessage,
@@ -297,6 +299,165 @@ function applyMarkers(): void {
   document.body.dataset.markers = String(items.length);
 }
 
+// ---- comments of the review ------------------------------------------------------------------
+
+/** The comments of the review for the file shown, drawn under their lines. */
+let commentSet: Extract<ParentMessage, { type: 'comments' }> | null = null;
+const fileSide = editor.getModifiedEditor();
+// The margin of the glyphs holds the + that starts a comment and the mark of each comment.
+fileSide.updateOptions({ glyphMargin: true });
+const hoverMark = fileSide.createDecorationsCollection();
+const commentMarks = fileSide.createDecorationsCollection();
+/** The view zones of the comments, by the id Monaco gave each one. */
+let commentZones = new Map<string, string>();
+/** The line where each comment starts: a click on its mark in the margin opens it. */
+let commentStarts = new Map<number, string>();
+
+/** There is a file to comment on: a removed file has no lines left. */
+function commentable(): boolean {
+  const model = fileSide.getModel();
+  return shownPath !== null && model !== null && model.getValueLength() > 0;
+}
+
+function linesText(startLine: number, endLine: number): string {
+  const model = fileSide.getModel();
+  if (!model) return '';
+  return model
+    .getLinesContent()
+    .slice(startLine - 1, endLine)
+    .join('\n');
+}
+
+function startComment(startLine: number, endLine: number): void {
+  if (!commentable() || shownPath === null) return;
+  post({
+    type: 'comment-start',
+    path: shownPath,
+    startLine,
+    endLine,
+    snippet: linesText(startLine, endLine),
+  });
+}
+
+/** The selected lines, or the line of the cursor. */
+function selectedLines(): { startLine: number; endLine: number } | null {
+  const selection = fileSide.getSelection();
+  if (!selection) return null;
+  let endLine = selection.endLineNumber;
+  // A selection that ends at the start of a line does not take that line.
+  if (endLine > selection.startLineNumber && selection.endColumn === 1) endLine--;
+  return { startLine: selection.startLineNumber, endLine };
+}
+
+function zoneNode(comment: FrameComment, stale: boolean): HTMLElement {
+  const node = document.createElement('div');
+  node.className = `comment-zone${stale ? ' stale' : ''}`;
+  node.dataset.commentId = comment.id;
+  const text = document.createElement('div');
+  text.className = 'comment-text';
+  text.textContent = comment.text;
+  node.append(text);
+  return node;
+}
+
+function applyComments(): void {
+  const model = fileSide.getModel();
+  const items =
+    model && commentSet && commentSet.path === shownPath
+      ? commentSet.items.filter((c) => c.startLine <= model.getLineCount())
+      : [];
+  const lines = model ? model.getLinesContent() : [];
+  const starts = new Map<number, string>();
+  commentMarks.set(
+    items.flatMap((comment) => {
+      const end = Math.min(comment.endLine, lines.length);
+      const mark = !starts.has(comment.startLine);
+      if (mark) starts.set(comment.startLine, comment.id);
+      return [
+        {
+          range: new monaco.Range(comment.startLine, 1, end, 1),
+          options: { isWholeLine: true, className: 'comment-range' },
+        },
+        ...(mark
+          ? [
+              {
+                range: new monaco.Range(comment.startLine, 1, comment.startLine, 1),
+                options: { glyphMarginClassName: 'comment-mark' },
+              },
+            ]
+          : []),
+      ];
+    }),
+  );
+  commentStarts = starts;
+  let stale = 0;
+  fileSide.changeViewZones((zones) => {
+    for (const id of commentZones.keys()) zones.removeZone(id);
+    const next = new Map<string, string>();
+    for (const comment of items) {
+      const outdated = isStale(comment as ReviewComment, lines);
+      if (outdated) stale++;
+      const height = Math.min(8, comment.text.split('\n').length) + 0.7;
+      const id = zones.addZone({
+        afterLineNumber: Math.min(comment.endLine, lines.length),
+        heightInLines: height,
+        domNode: zoneNode(comment, outdated),
+      });
+      next.set(id, comment.id);
+    }
+    commentZones = next;
+  });
+  // Lets the tests see what the editor drew.
+  document.body.dataset.comments = String(items.length);
+  document.body.dataset.staleComments = String(stale);
+}
+
+fileSide.onMouseMove((event) => {
+  const line = event.target.position?.lineNumber;
+  const inMargin =
+    event.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN ||
+    event.target.type === monaco.editor.MouseTargetType.GUTTER_LINE_NUMBERS;
+  if (!line || !inMargin || !commentable() || commentStarts.has(line)) {
+    hoverMark.clear();
+    return;
+  }
+  hoverMark.set([
+    {
+      range: new monaco.Range(line, 1, line, 1),
+      options: { glyphMarginClassName: 'comment-add' },
+    },
+  ]);
+});
+fileSide.onMouseLeave(() => hoverMark.clear());
+fileSide.onMouseDown((event) => {
+  const { target } = event;
+  if (target.type === monaco.editor.MouseTargetType.CONTENT_VIEW_ZONE) {
+    const id = commentZones.get(target.detail.viewZoneId);
+    if (id) post({ type: 'comment-open', id });
+    return;
+  }
+  if (target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) return;
+  const line = target.position?.lineNumber;
+  if (!line) return;
+  const existing = commentStarts.get(line);
+  if (existing) {
+    post({ type: 'comment-open', id: existing });
+    return;
+  }
+  // The + on a line of the selection comments the whole selection.
+  const lines = selectedLines();
+  if (
+    lines &&
+    lines.startLine <= line &&
+    line <= lines.endLine &&
+    lines.endLine > lines.startLine
+  ) {
+    startComment(lines.startLine, lines.endLine);
+  } else {
+    startComment(line, line);
+  }
+});
+
 function applyReveal(): void {
   const wanted = pendingReveal;
   const model = editor.getModel()?.modified;
@@ -319,7 +480,14 @@ window.addEventListener('message', (event: MessageEvent<ParentMessage>) => {
   if (message?.type === 'show') {
     show(message);
     applyMarkers();
+    applyComments();
     applyReveal();
+  } else if (message?.type === 'comments') {
+    commentSet = message;
+    applyComments();
+  } else if (message?.type === 'request-comment') {
+    const lines = selectedLines();
+    if (lines) startComment(lines.startLine, lines.endLine);
   } else if (message?.type === 'markers') {
     markerSet = message;
     applyMarkers();

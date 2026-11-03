@@ -31,6 +31,7 @@ import { GitHubClient } from '@core/forges/github';
 import { fetchTransport, GitLabClient } from '@core/forges/gitlab';
 import { PullWatcher, type PullNotice } from '@core/forges/PullWatcher';
 import { BackgroundService } from '@core/background/BackgroundService';
+import { ReviewStore } from '@core/review/ReviewStore';
 import { defaultWorktreesFolder } from '@core/git/WorktreeService';
 import { PromptQueue } from '@core/prompts/PromptQueue';
 import { PtyManager } from '@core/pty/PtyManager';
@@ -738,6 +739,9 @@ export async function startApp(): Promise<void> {
     launch: (command) => shellCommandLine(command, { profile: !TEST_SHELL }),
   });
   background.on('changed', (state) => send('background:changed', state));
+  const review = new ReviewStore({ file: path.join(userData, 'review.json') });
+  review.on('changed', (sessionId, comments) => send('review:changed', sessionId, comments));
+  manager.on('removed', (id) => review.forget(id));
   background.on('data', (id, chunk) => send('background:data', id, chunk));
   background.on('notice', ({ command, exitCode }) => {
     showNotice(
@@ -771,6 +775,7 @@ export async function startApp(): Promise<void> {
     tails,
     pulls,
     background,
+    review,
     data,
     discardDir,
     codeThemes: new CodeThemeStore(path.join(userData, 'themes')),

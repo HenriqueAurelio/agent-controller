@@ -17,16 +17,19 @@ import { errorMessage } from '../lib/format';
 import { rich, useT } from '../lib/i18n';
 import { sessionNames, useOverlaps } from '../lib/overlaps';
 import { useAppState } from '../lib/store';
+import { useReview } from '../lib/review';
 import { useProblems } from '../lib/useProblems';
+import type { ReviewComment } from '@shared/review';
 import { DiffView } from './DiffView';
 import { FileTree } from './FileTree';
 import { ProblemsList } from './ProblemsList';
+import { ReviewList } from './ReviewList';
 
 /**
- * What the panel lists: what git says changed, every file of the folder, or the problems the
- * checks found.
+ * What the panel lists: what git says changed, every file of the folder, the problems the
+ * checks found, or the comments of the review.
  */
-export type PanelMode = 'changes' | 'files' | 'problems';
+export type PanelMode = 'changes' | 'files' | 'problems' | 'review';
 
 /** A file and the line to put the cursor on; a new nonce asks again. */
 export interface LocationRequest {
@@ -50,6 +53,8 @@ interface Props {
   onSendSelection(file: string, selection: string): void;
   /** "Send to the agent" on problems of the list: the prompt dialog opens with them. */
   onSendProblems(problems: Problem[]): void;
+  /** "Send to the agent" on the review: the prompt dialog opens with its comments. */
+  onSendReview(): void;
   /** A base asked for from outside (the timeline); a new nonce applies it again. */
   requestedBase?: { base: DiffBase; nonce: number } | null;
   /** A file to open, asked for from another session that also changed it. */
@@ -137,6 +142,7 @@ export function ChangesPanel({
   onOpenFile,
   onSendSelection,
   onSendProblems,
+  onSendReview,
   requestedBase,
   requestedFile,
   requestedLocation,
@@ -291,8 +297,11 @@ export function ChangesPanel({
   );
   const files = mode === 'files';
   const problemsMode = mode === 'problems';
-  /** The tree and the problems list both open files in the editor next to them. */
-  const browsing = files || problemsMode;
+  const reviewMode = mode === 'review';
+  /** The tree and the lists of problems and of comments open files in the editor next to them. */
+  const browsing = files || problemsMode || reviewMode;
+  const comments = useReview(session.id);
+  const [openComment, setOpenComment] = useState<string | null>(null);
   /** The file in the editor. */
   const current = browsing ? browsed : selected;
   const found = useProblems(session.id);
@@ -349,6 +358,14 @@ export function ChangesPanel({
       column: problem.column,
       nonce: Date.now(),
     });
+  };
+
+  /** A comment of the review: its file opens in the editor, on its first line. */
+  const openCommentInPanel = (comment: ReviewComment) => {
+    if (comment.file !== browsed && !mayLeave()) return;
+    setOpenComment(comment.id);
+    setBrowsed(comment.file);
+    setReveal({ path: comment.file, line: comment.startLine, nonce: Date.now() });
   };
 
   // A link clicked in a terminal while the panel is already open.
@@ -527,6 +544,15 @@ export function ChangesPanel({
             ? `${t('problems.tab')} (${found.problems.length}${found.more > 0 ? '+' : ''})`
             : t('problems.tab')}
         </button>
+        <button
+          className={reviewMode ? 'active' : ''}
+          aria-pressed={reviewMode}
+          data-testid="review-tab"
+          onClick={() => switchMode(reviewMode ? 'changes' : 'review')}
+          title={t('review.tabHint')}
+        >
+          {comments.length > 0 ? `${t('review.tab')} (${comments.length})` : t('review.tab')}
+        </button>
         {files && (
           <label className="check">
             <input
@@ -626,6 +652,14 @@ export function ChangesPanel({
               repos={repoFolders}
               onSelect={browse}
             />
+          ) : reviewMode ? (
+            <ReviewList
+              sessionId={sessionId}
+              comments={comments}
+              current={openComment}
+              onOpen={openCommentInPanel}
+              onSend={onSendReview}
+            />
           ) : (
             <ProblemsList
               sessionId={sessionId}
@@ -651,6 +685,7 @@ export function ChangesPanel({
               onSendSelection={onSendSelection}
               reveal={reveal?.line ? { ...reveal, line: reveal.line } : null}
               markers={markers}
+              comments={comments}
             />
           ) : (
             <div className="panel-message">{t('changes.pickFile')}</div>
@@ -798,6 +833,7 @@ export function ChangesPanel({
               fontSize={prefs.fontSize}
               onDirtyChange={setDirty}
               onSendSelection={onSendSelection}
+              comments={comments}
             />
           )}
         </div>
