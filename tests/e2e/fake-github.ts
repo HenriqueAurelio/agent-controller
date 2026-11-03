@@ -53,6 +53,8 @@ export interface FakeGitHub {
   queries: number;
   /** Every review, merge and branch deletion the app sent. */
   writes: FakeWrite[];
+  /** Open issues by repository, as `GET /repos/{r}/issues` lists them. */
+  issues: Record<string, { number: number; title: string; body?: string; labels?: string[] }[]>;
   close(): Promise<void>;
 }
 
@@ -69,6 +71,7 @@ export async function startFakeGitHub(
     login,
     queries: 0,
     writes: [],
+    issues: {},
     close: async () => {},
   };
   const logs = new Map<number, string>();
@@ -130,6 +133,24 @@ export async function startFakeGitHub(
     req.on('end', () => {
       if (req.headers.authorization !== `Bearer ${FAKE_TOKEN}`) {
         res.writeHead(401).end();
+        return;
+      }
+      const issues = /^\/repos\/([^/]+\/[^/]+)\/issues(?:\?.*)?$/.exec(req.url ?? '');
+      if (issues) {
+        const repo = issues[1]!;
+        res.setHeader('content-type', 'application/json');
+        res.end(
+          JSON.stringify(
+            (fake.issues[repo] ?? []).map((i) => ({
+              number: i.number,
+              title: i.title,
+              body: i.body ?? '',
+              html_url: `https://github.com/${repo}/issues/${i.number}`,
+              user: { login: 'ana' },
+              labels: (i.labels ?? []).map((name) => ({ name })),
+            })),
+          ),
+        );
         return;
       }
       const rest =

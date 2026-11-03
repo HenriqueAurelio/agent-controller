@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { WorktreeOrigin } from '@shared/ipc';
 import type { AgentProfileId } from '@shared/session';
+import type { IssueList } from '@shared/pulls';
 import {
+  draftFromIssue,
   draftsFromLines,
   TASK_DESCRIPTION_LIMIT,
   TASK_TITLE_LIMIT,
@@ -37,6 +39,11 @@ export function TaskDialog({ folder, onClose, onCreated }: Props) {
   const [base, setBase] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** The open issues of the repository, once asked for; the picked ones become the cards. */
+  const [issues, setIssues] = useState<IssueList | null>(null);
+  const [loadingIssues, setLoadingIssues] = useState(false);
+  const [picked, setPicked] = useState<ReadonlySet<number>>(new Set());
+  const [issueFilter, setIssueFilter] = useState('');
 
   useEffect(() => void store.detectAgents(true), []);
   const usable = agents.filter((a) => a.usable);
@@ -59,8 +66,23 @@ export function TaskDialog({ folder, onClose, onCreated }: Props) {
     };
   }, [folder]);
 
-  const drafts = draftsFromLines(title);
-  const many = drafts.length > 1;
+  const fromIssues = (issues?.issues ?? []).filter((i) => picked.has(i.number));
+  const drafts = fromIssues.length > 0 ? fromIssues.map(draftFromIssue) : draftsFromLines(title);
+  const many = drafts.length > 1 || fromIssues.length > 0;
+  const loadIssues = async () => {
+    setLoadingIssues(true);
+    try {
+      setIssues(await window.api.invoke('tasks:issues', folder));
+    } catch (err) {
+      setIssues({ repo: null, issues: [], error: errorMessage(err) });
+    } finally {
+      setLoadingIssues(false);
+    }
+  };
+  const shownIssues = (issues?.issues ?? []).filter((issue) => {
+    const query = issueFilter.trim().toLowerCase();
+    return !query || `#${issue.number} ${issue.title}`.toLowerCase().includes(query);
+  });
   const ready = drafts.length > 0 && drafts.length <= TASKS_PER_PASTE_LIMIT && (!isolated || base);
 
   const submit = async (event: FormEvent) => {
@@ -90,19 +112,81 @@ export function TaskDialog({ folder, onClose, onCreated }: Props) {
         <p className="muted path" title={folder}>
           {folder}
         </p>
-        <label className="field">
-          <span>{t('task.name')}</span>
-          <textarea
-            aria-label={t('task.name')}
-            data-autofocus
-            rows={3}
-            value={title}
-            maxLength={TASK_TITLE_LIMIT * TASKS_PER_PASTE_LIMIT}
-            placeholder={t('task.namePlaceholder')}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </label>
-        {many ? (
+        <div className="task-issues">
+          <button
+            type="button"
+            data-testid="task-import-issues"
+            disabled={loadingIssues}
+            title={t('task.issues.hint')}
+            onClick={() => void loadIssues()}
+          >
+            {loadingIssues ? t('task.issues.loading') : t('task.issues.import')}
+          </button>
+          {issues && (
+            <div className="task-issues-list" data-testid="task-issues">
+              {issues.error ? (
+                <p className="form-error">{issues.error}</p>
+              ) : !issues.repo ? (
+                <p className="muted">{t('task.issues.noRemote')}</p>
+              ) : issues.issues.length === 0 ? (
+                <p className="muted">{t('task.issues.none', { repo: issues.repo })}</p>
+              ) : (
+                <>
+                  <input
+                    aria-label={t('task.issues.filter')}
+                    placeholder={t('task.issues.filter')}
+                    value={issueFilter}
+                    onChange={(e) => setIssueFilter(e.target.value)}
+                  />
+                  <ul>
+                    {shownIssues.map((issue) => (
+                      <li key={issue.number}>
+                        <label className="check">
+                          <input
+                            type="checkbox"
+                            data-testid="task-issue"
+                            checked={picked.has(issue.number)}
+                            onChange={() =>
+                              setPicked((current) => {
+                                const next = new Set(current);
+                                if (!next.delete(issue.number)) next.add(issue.number);
+                                return next;
+                              })
+                            }
+                          />
+                          <span className="muted">#{issue.number}</span> {issue.title}
+                          {issue.labels.length > 0 && (
+                            <span className="muted"> · {issue.labels.join(', ')}</span>
+                          )}
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+        {fromIssues.length > 0 && (
+          <p className="muted" role="status" data-testid="task-from-issues">
+            {t('task.issues.picked', { count: fromIssues.length })}
+          </p>
+        )}
+        {fromIssues.length === 0 && (
+          <label className="field">
+            <span>{t('task.name')}</span>
+            <textarea
+              aria-label={t('task.name')}
+              data-autofocus
+              rows={3}
+              value={title}
+              maxLength={TASK_TITLE_LIMIT * TASKS_PER_PASTE_LIMIT}
+              placeholder={t('task.namePlaceholder')}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </label>
+        )}
+        {fromIssues.length > 0 ? null : many ? (
           <p className="muted" role="status" data-testid="task-many">
             {t('task.many', { count: drafts.length })}
           </p>

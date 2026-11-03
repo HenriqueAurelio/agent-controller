@@ -41,12 +41,22 @@ export interface Task {
   sessionClosed?: boolean;
   /** Marked by the user, or because the branch got into the base. */
   done?: boolean;
+  /** The issue of GitHub or GitLab the card was made from. */
+  issue?: TaskIssue;
+}
+
+/** The issue a card came from, which its pull request can close. */
+export interface TaskIssue {
+  /** `#12` on GitHub and GitLab. */
+  ref: string;
+  url: string;
 }
 
 /** One card to create: the rest is the options of the whole dialog. */
 export interface TaskDraft {
   title: string;
   description: string;
+  issue?: TaskIssue;
 }
 
 export interface NewTasksInput {
@@ -123,6 +133,23 @@ export function taskBranch(title: string): string {
 /** The text sent to the agent. */
 export const taskPrompt = (task: Pick<Task, 'title' | 'description'>): string =>
   task.description.trim() || task.title;
+
+/** A card made from an issue: its number in the title (and so in the branch), its text and link. */
+export function draftFromIssue(issue: {
+  number: number;
+  title: string;
+  body: string;
+  url: string;
+}): TaskDraft {
+  const ref = `#${issue.number}`;
+  const body = issue.body.trim();
+  const description = `${body ? `${body}\n\n` : ''}${issue.url}`;
+  return {
+    title: `${ref} ${issue.title}`.slice(0, TASK_TITLE_LIMIT),
+    description: description.slice(0, TASK_DESCRIPTION_LIMIT),
+    issue: { ref, url: issue.url },
+  };
+}
 
 /** One draft per non-empty line of a pasted list. */
 export function draftsFromLines(text: string): TaskDraft[] {

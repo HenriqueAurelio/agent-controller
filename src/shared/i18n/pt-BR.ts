@@ -1407,4 +1407,12 @@ export const ptBR = {
   'error.sonar.scannerTimeout': 'O scanner não terminou em 15 minutos.',
   'sonar.runGroup': 'Analisar as sessões agora',
   'sonar.runGroupHint': 'Analisa agora cada sessão do grupo, com a conexão salva',
+  'task.issues.import': 'Importar issues…',
+  'task.issues.hint':
+    'Lista as issues abertas do repositório (GitHub ou GitLab, pelo remote da pasta). Cada uma escolhida vira um cartão, com o texto e o link da issue, e a branch leva o número dela.',
+  'task.issues.loading': 'Lendo as issues…',
+  'task.issues.filter': 'Filtrar issues',
+  'task.issues.none': 'Nenhuma issue aberta em {repo}.',
+  'task.issues.noRemote': 'A pasta não tem um remote do GitHub ou do GitLab.',
+  'task.issues.picked': '{count} issues escolhidas: cada uma vira um cartão.',
 } as const;
