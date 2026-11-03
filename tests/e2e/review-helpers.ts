@@ -48,6 +48,8 @@ export const lineOf = (frame: FrameLocator, text: string) =>
 
 /** Clicks the + of the margin, at the height of the line that holds this text. */
 export async function clickPlus(page: Page, frame: FrameLocator, text: string) {
+  // The editor may still be drawing the file: wait for the line before measuring it.
+  await lineOf(frame, text).waitFor();
   const line = await lineOf(frame, text).boundingBox();
   const margin = await frame.locator('.editor.modified .glyph-margin').first().boundingBox();
   if (!line || !margin) throw new Error(`a linha de "${text}" não está na tela`);
