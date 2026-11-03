@@ -46,7 +46,9 @@ export type ParentMessage =
   /** The comments of the review on this file, drawn under their lines. */
   | { type: 'comments'; path: string; items: FrameComment[] }
   /** Start a comment on the selected lines, or on the line of the cursor. */
-  | { type: 'request-comment' };
+  | { type: 'request-comment' }
+  /** Ask the frame on which line of the file the cursor is. */
+  | { type: 'request-line' };
 
 /** A comment of the review, as the editor draws it. */
 export interface FrameComment {
@@ -78,6 +80,8 @@ export type FrameMessage =
   | { type: 'contextmenu'; x: number; y: number; selection: string }
   /** The user wants to comment these lines of the file; `snippet` is their text. */
   | { type: 'comment-start'; path: string; startLine: number; endLine: number; snippet: string }
+  /** The answer to `request-line`. */
+  | { type: 'line'; path: string; line: number }
   /** A comment drawn in the editor was clicked: open it to edit or delete. */
   | { type: 'comment-open'; id: string }
   /** The answer to `request-selection`. */

@@ -4128,3 +4128,56 @@ textarea.associations {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* The history of a file: its commits, and the diff of the one picked. */
+.history-dialog {
+  width: min(1100px, 94vw);
+}
+.history-blame {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--accent);
+  background: var(--bg-raised);
+  font-size: 12px;
+}
+.history-body {
+  display: flex;
+  gap: 10px;
+  height: min(60vh, 520px);
+}
+.history-list {
+  flex: 0 0 300px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.history-commit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 12px;
+}
+.history-commit.current {
+  background: var(--bg-selected);
+}
+.history-subject {
+  font-weight: 600;
+}
+.history-diff {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}

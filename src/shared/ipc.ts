@@ -3,8 +3,10 @@
 import type { AgentAvailability } from './agents';
 import type { CheckConfig, ChecksInfo } from './checks';
 import type { CheckpointList, CheckpointUsage, RestoreResult } from './checkpoints';
+import type { FileCommit, LineBlame } from './history';
 import type {
   DiffBase,
+  DiffHunk,
   FileChange,
   FileDiff,
   FileIndexResult,
@@ -326,6 +328,12 @@ export interface IpcCommands {
   'git:refresh': (sessionId: string, base: DiffBase) => GitOverview;
   'git:close': (sessionId: string) => void;
   'git:diff': (sessionId: string, path: string, base: DiffBase) => FileDiff;
+  /** The commits that touched a file of the panel, newest first. */
+  'git:log': (sessionId: string, path: string) => FileCommit[];
+  /** What one commit changed in a file. */
+  'git:commitDiff': (sessionId: string, path: string, sha: string) => DiffHunk[];
+  /** Who last changed a line of the file as it is on disk. */
+  'git:blameLine': (sessionId: string, path: string, line: number) => LineBlame | null;
   /** Every changed block of the files the panel lists, for the scroll that shows them all. */
   'git:hunks': (sessionId: string, base: DiffBase) => MultiDiff;
   /** Puts one block back as it was, in the file on disk. */
@@ -591,6 +599,9 @@ export const COMMAND_CHANNELS = [
   'git:refresh',
   'git:close',
   'git:diff',
+  'git:log',
+  'git:commitDiff',
+  'git:blameLine',
   'git:hunks',
   'git:revertHunk',
   'git:save',

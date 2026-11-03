@@ -1510,4 +1510,12 @@ export const ptBR = {
   'error.search.badRegex': 'A expressão regular não é válida.',
   'error.search.timeout': 'A busca passou de 30 segundos. Refine o texto ou os filtros.',
   'error.search.failed': 'A busca falhou: {output}',
+  'history.button': 'Histórico',
+  'history.buttonHint':
+    'Os commits que mexeram neste arquivo, o que cada um mudou nele e quem mudou a linha do cursor',
+  'history.title': 'Histórico de {file}',
+  'history.blame': 'Linha {line}: {author}, {date}, em “{subject}”',
+  'history.uncommitted': 'Linha {line}: ainda sem commit (mudada na pasta).',
+  'history.none': 'Nenhum commit mexeu neste arquivo ainda.',
+  'error.history.badCommit': 'Esse commit não existe neste repositório.',
 } as const;

@@ -58,7 +58,7 @@ Pede revisar a [ADR 0018](../adr/0018-operacoes-de-git-no-painel.md): hoje o app
 | 11 | Prévia no app (**feita**, [ADR 0031](../adr/0031-previa-embutida-de-localhost.md)) | Um painel de navegador ligado às portas dos comandos em segundo plano. Você marca um ponto na tela, e o print com a marcação vai para o agente | Orca, Agentastic, cmux, Ignite | G |
 | 12 | [Buscar no projeto](funcionalidades/buscar-no-projeto/README.md) (**feita**, [ADR 0032](../adr/0032-busca-por-git-grep.md)) | `Ctrl+Shift+F` com ripgrep, e os resultados mandados ao agente | Leva 2 | M |
 | 13 | Diagnósticos de linguagem (LSP) | Erros, hover e "ir para a definição" no editor, para TypeScript primeiro | Maestro | G |
-| 14 | [Histórico do arquivo](funcionalidades/historico-do-arquivo/README.md) (pendente) | Blame e log, com o PR que trouxe a linha | Maestro | M |
+| 14 | [Histórico do arquivo](funcionalidades/historico-do-arquivo/README.md) (**feita**: lista, diff e autoria da linha) | Blame e log, com o PR que trouxe a linha | Maestro | M |
 
 O **11** é o que mais muda o fluxo. O **13** é o que mais pesa na memória: pede medição contra a [ADR 0009](../adr/0009-meta-de-consumo-de-recursos.md) antes de qualquer código.
 
