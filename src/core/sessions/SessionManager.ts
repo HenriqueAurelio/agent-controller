@@ -30,10 +30,12 @@ import {
   type Signal,
   type WorktreeOnClose,
   type TerminalSize,
+  CONVERSATION_ID,
 } from '@shared/session';
 import {
   createAdapter,
   getProfile,
+  type LaunchConversation,
   interactiveShell,
   menuChoices,
   permissionKeys,
@@ -97,7 +99,7 @@ export interface SessionManagerOptions {
   selectedId: string | null;
   prefs: Preferences;
   /** How to open the agent of a session. Throws with a message for the user when it cannot. */
-  resolveLaunch: (session: Session) => LaunchCommand;
+  resolveLaunch: (session: Session, conversation?: LaunchConversation) => LaunchCommand;
   /** The shell for the terminal beside the agent. Default: the user's own. */
   resolveAuxShell?: (session: Session) => LaunchCommand;
   /** Called (debounced) whenever what is persisted changed. */
@@ -166,7 +168,15 @@ interface Runtime extends Stream {
   parser: StreamParser;
   adapter: AgentAdapter;
   silence: SilenceDetector;
+  /** Started to resume a conversation, which may turn out not to exist. */
+  resuming: boolean;
+  startedAt: number;
+  /** The agent showed it is up (a title, a hook): an exit after this is not a failed resume. */
+  alive: boolean;
 }
+
+/** A resume that ends sooner than this, with no sign of the agent, could not resume. */
+const RESUME_FAILURE_MS = 5000;
 
 interface Entry {
   session: Session;
@@ -534,8 +544,10 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     while (names.has(`${base} (${copy})`)) copy++;
 
     const position = this.order.indexOf(id) + 1;
+    // Two sessions in one conversation would write over each other: the copy starts a new one.
+    const { conversationId: _shared, ...rest } = source;
     const session: Session = {
-      ...source,
+      ...rest,
       id: randomUUID(),
       name: `${base} (${copy})`,
       order: position,
@@ -561,7 +573,9 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     // The shell beside the agent is in the old folder too.
     await Promise.all([this.stop(id), this.closeAux(id)]);
     if (this.entries.get(id) !== entry) return false; // Closed in the meantime.
-    entry.session = { ...entry.session, cwd: folder };
+    // The agents keep a conversation with its folder: another folder starts a new one.
+    const { conversationId: _old, ...rest } = entry.session;
+    entry.session = { ...rest, cwd: folder };
     this.changed(true);
     return wasRunning;
   }
@@ -770,8 +784,19 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     if (!entry || entry.runtime?.running) return;
     // A new run is a new conversation; the numbers of the old one would mislead.
     this.usage.stop(id);
+    // A conversation of its own: the one it had, resumed; or a new one, with an id chosen here
+    // when the agent takes one (the others name theirs once they start).
+    let fresh = false;
+    if (!entry.session.conversationId && getProfile(entry.session.profile).conversation.newWithId) {
+      entry.session = { ...entry.session, conversationId: randomUUID() };
+      fresh = true;
+      this.changed(true);
+    }
     const { session } = entry;
     const profile = getProfile(session.profile);
+    const conversation: LaunchConversation | undefined = session.conversationId
+      ? { id: session.conversationId, mode: fresh ? 'new' : 'resume' }
+      : undefined;
 
     const runtime: Runtime = {
       history: new ScreenHistory({ ...size, scrollback: this.prefs.scrollback }),
@@ -783,6 +808,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
         ask: (ask) => this.openPermission(id, ask),
         now: this.now,
         transcript: (file) => this.usage.track(id, file, runtime.adapter.usageReader()),
+        conversation: (conversationId) => this.learnConversation(id, conversationId),
       }),
       silence: new SilenceDetector(
         this.prefs.silenceSeconds * 1000,
@@ -803,6 +829,9 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       lastInputAt: Number.NEGATIVE_INFINITY,
       unacked: 0,
       paused: false,
+      resuming: conversation?.mode === 'resume',
+      startedAt: this.now(),
+      alive: false,
     };
     // A terminal that is fed answers the program's queries itself; otherwise the history does,
     // so an agent in the background does not stall.
@@ -814,8 +843,9 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     entry.hooks = 'unknown';
     this.emit('reset', id);
 
+    if (conversation?.mode === 'resume') this.writeNotice(id, runtime, this.t('notice.resuming'));
     try {
-      const launch = this.options.resolveLaunch(session);
+      const launch = this.options.resolveLaunch(session, conversation);
       this.options.ptys.create({
         id,
         file: launch.file,
@@ -969,6 +999,26 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     this.clearPermission(entry);
     runtime.adapter.dispose();
     runtime.silence.dispose();
+    // A resume that ended at once, with no sign of the agent, could not resume: the conversation
+    // is gone, or belongs to another account. Forget it, and let Enter start a new one.
+    if (
+      runtime.resuming &&
+      !runtime.alive &&
+      !runtime.stopRequested &&
+      exit.exitCode !== 0 &&
+      this.now() - runtime.startedAt < RESUME_FAILURE_MS
+    ) {
+      this.forgetConversation(id);
+      this.writeNotice(id, runtime, this.t('notice.resumeFailed'));
+      this.applySignal({
+        sessionId: id,
+        kind: 'exited',
+        origin: 'processo',
+        at: this.now(),
+        exitCode: exit.exitCode,
+      });
+      return;
+    }
     this.writeNotice(
       id,
       runtime,
@@ -1007,6 +1057,36 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     void this.usage.poke(message.sessionId);
   }
 
+  /** The agent named its conversation (or a new one, after `/clear` or `/resume` inside it). */
+  private learnConversation(id: string, conversationId: string): void {
+    const entry = this.entries.get(id);
+    if (!entry || !CONVERSATION_ID.test(conversationId)) return;
+    if (entry.runtime) entry.runtime.alive = true;
+    if (entry.session.conversationId === conversationId) return;
+    entry.session = { ...entry.session, conversationId };
+    this.changed(true);
+  }
+
+  /** The next start opens a new conversation. */
+  forgetConversation(id: string): void {
+    const entry = this.entries.get(id);
+    if (!entry?.session.conversationId) return;
+    const { conversationId: _gone, ...rest } = entry.session;
+    entry.session = rest;
+    this.changed(true);
+  }
+
+  /** "New conversation": the agent of the session starts over, with no conversation behind it. */
+  async newConversation(id: string, size?: TerminalSize): Promise<void> {
+    const entry = this.entries.get(id);
+    if (!entry) throw new UserError('error.session.notFound');
+    const wasRunning = entry.runtime?.running ?? false;
+    if (wasRunning) await this.stop(id);
+    if (this.entries.get(id) !== entry) return;
+    this.forgetConversation(id);
+    if (wasRunning) this.start(id, size);
+  }
+
   private setHooks(id: string, mode: HooksMode): void {
     const entry = this.entries.get(id);
     if (!entry || entry.hooks === mode) return;
@@ -1017,6 +1097,8 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
   private applySignal(signal: Signal): boolean {
     const entry = this.entries.get(signal.sessionId);
     if (!entry) return false;
+    // Anything the agent says, past the process starting, proves it is up.
+    if (entry.runtime && signal.origin !== 'processo') entry.runtime.alive = true;
     const previous = entry.aggregator.status;
     const next = entry.aggregator.apply(signal);
     if (!next) return false;

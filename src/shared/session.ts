@@ -68,8 +68,16 @@ export interface Session {
   readOnly?: boolean;
   /** The group the session is listed in. Absent: listed on its own, above the groups. */
   groupId?: string;
+  /**
+   * The conversation of the agent, which starting the session again resumes (ADR 0030). Absent:
+   * the next start opens a new one.
+   */
+  conversationId?: string;
   order: number;
 }
+
+/** What an id of a conversation may look like before it reaches a command line. */
+export const CONVERSATION_ID = /^[A-Za-z0-9][\w.-]{0,99}$/;
 
 /** A named set of sessions in the list, such as the ones of one repository. */
 export interface SessionGroup {

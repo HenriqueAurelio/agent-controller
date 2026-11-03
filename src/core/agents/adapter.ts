@@ -23,6 +23,8 @@ export interface AdapterHost {
   now(): number;
   /** Where the agent writes this conversation, once it says so. */
   transcript?(file: string): void;
+  /** The id of the conversation, once the agent says it (or a new one, after `/clear`). */
+  conversation?(id: string): void;
 }
 
 /** Translates what one agent emits (title, hooks, notify) into session signals. */
@@ -81,6 +83,11 @@ export abstract class BaseAdapter implements AgentAdapter {
     if (!path.isAbsolute(file) || !file.endsWith('.jsonl')) return;
     this.transcriptFile = file;
     this.host.transcript?.(file);
+  }
+
+  /** The id of the conversation, as the agent named it. */
+  protected reportConversation(id: unknown): void {
+    if (typeof id === 'string' && id) this.host.conversation?.(id);
   }
 
   protected get knowsTranscript(): boolean {

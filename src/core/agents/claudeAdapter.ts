@@ -29,8 +29,9 @@ export class ClaudeAdapter extends BaseAdapter {
     if (message.source !== CLAUDE_HOOK_SOURCE) return;
     const payload = asRecord(message.payload);
     this.markHooks('active');
-    // Every hook names the conversation file.
+    // Every hook names the conversation file, and the conversation.
     this.reportTranscript(payload.transcript_path);
+    this.reportConversation(payload.session_id);
 
     switch (payload.hook_event_name) {
       case 'PermissionRequest':

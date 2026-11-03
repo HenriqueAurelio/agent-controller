@@ -12,7 +12,7 @@ import {
   shellCommandLine,
   wrapInShell,
 } from '@core/agents';
-import type { LaunchCommand } from '@core/agents';
+import type { LaunchCommand, LaunchConversation } from '@core/agents';
 import { CheckService } from '@core/checks/CheckService';
 import { ChangesService } from '@core/git/ChangesService';
 import { CheckpointService } from '@core/git/CheckpointService';
@@ -148,14 +148,16 @@ export async function startApp(): Promise<void> {
     isKnownSession: (id) => manager.has(id),
   });
 
-  const resolveLaunch = (session: Session): LaunchCommand => {
+  const resolveLaunch = (session: Session, conversation?: LaunchConversation): LaunchCommand => {
     // The command of the session, or the one the preferences give its agent.
     const command = session.command || data.prefs.agentCommands[session.profile];
     if (TEST_SHELL) return testShell(session, hookServer.socketPath, command);
     const profile = getProfile(session.profile);
     const context = { agentctl, dataDirectory: userData, socketPath: hookServer.socketPath };
     // The shell of the user is who finds a command of theirs: the agent need not be on the PATH.
-    if (command) return wrapInShell(buildLaunchCommand(profile, session, context), command);
+    if (command) {
+      return wrapInShell(buildLaunchCommand(profile, session, context, conversation), command);
+    }
     const executablePath = findOnPath(profile.executable);
     if (!executablePath) {
       throw new UserError('agent.missing', {
@@ -163,7 +165,7 @@ export async function startApp(): Promise<void> {
         command: profile.installCommand,
       });
     }
-    return buildLaunchCommand(profile, session, { ...context, executablePath });
+    return buildLaunchCommand(profile, session, { ...context, executablePath }, conversation);
   };
 
   const persist = (

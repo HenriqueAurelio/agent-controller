@@ -45,7 +45,7 @@ O caminho completo de uma tarefa sem abrir o terminal do sistema.
 |---|---|---|---|---|
 | 6 | Issue vira sessão (**feita**) | Uma issue do GitHub ou do GitLab vira um cartão do quadro, com a cópia, a branch e o prompt já montados | Orca, Maestro, Open Session ([futuras](funcionalidades/futuras/README.md)) | M |
 | 7 | Da cópia ao PR (**feita**, [ADR 0029](../adr/0029-push-e-pr-da-copia-isolada.md)) | O botão "abrir PR" faz push e cria o PR da cópia; o botão "trazer para a base" faz o merge, com os conflitos no painel e "mandar o conflito ao agente" | Conductor, Orca, Aperant ([futuras](funcionalidades/futuras/README.md)) | M a G |
-| 8 | [Retomar a conversa](planos/retomar-conversa.md) (pendente) | A sessão volta com a conversa do agente depois de fechar o app | Mercado em geral | M |
+| 8 | [Retomar a conversa](planos/retomar-conversa.md) (**feita**, [ADR 0030](../adr/0030-sessao-retoma-a-conversa.md)) | A sessão volta com a conversa do agente depois de fechar o app | Mercado em geral | M |
 | 9 | Preparar a cópia | Copia os `.env*`, roda a preparação e mostra as portas de cada cópia, para duas cópias não brigarem pela 3000 | Maestro, cmux | P a M |
 | 10 | Features empilhadas | Uma cópia parte da branch de outra, com aviso de rebase quando a de baixo muda | Maestro | M |
 

@@ -1,6 +1,6 @@
 # Plano: voltar à conversa de uma sessão
 
-- **Estado:** proposta, aguardando aprovação.
+- **Estado:** implementado na v0.4 (2026-11-03), num PR só em vez dos três da "Ordem de entrega", com a [ADR 0030](../../adr/0030-sessao-retoma-a-conversa.md). O e2e não usa um agente falso que imprime os próprios argumentos: os testes do core conferem a linha de comando, e o e2e confere o lado do app (o id guardado, o aviso ao retomar, a "Nova conversa"). O smoke com os agentes reais não foi rodado (pede autorização).
 - **Data:** 2026-10-14.
 
 ## O problema

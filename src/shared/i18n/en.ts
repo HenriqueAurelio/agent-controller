@@ -1452,4 +1452,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'error.branch.dirty':
     'The copy has uncommitted changes. Commit (or discard) them before bringing the base in.',
   'error.branch.mergeFailed': 'The merge failed:\n{output}',
+  'notice.resuming': 'Resuming the previous conversation.',
+  'notice.resumeFailed': 'The conversation could not be resumed. Enter starts a new one.',
+  'command.newConversation': 'New conversation in “{name}”',
 };

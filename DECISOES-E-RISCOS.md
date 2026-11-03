@@ -47,7 +47,7 @@ Cada uma destas muda o que o usuário vai viver no produto. Se discordar de algu
 
 - [ ] Concordo
 
-Os agentes rodam "dentro" do app. Se você fechar a janela, todos param, mesmo no meio de uma tarefa. Ao reabrir, as sessões aparecem com nome e pasta, mas paradas.
+Os agentes rodam "dentro" do app. Se você fechar a janela, todos param, mesmo no meio de uma tarefa. Ao reabrir, as sessões aparecem com nome e pasta, mas paradas. Desde a v0.4, ao iniciar, cada sessão retoma a conversa do agente dela ([ADR 0030](adr/0030-sessao-retoma-a-conversa.md)).
 
 **Por quê.** Manter os agentes vivos exigiria um programa residente em segundo plano, o que aumenta o consumo e quase dobra a complexidade do v1.
 

@@ -738,6 +738,12 @@ export function App() {
             ]
           : []),
         {
+          id: 'new-conversation',
+          title: t('command.newConversation', { name: selected.name }),
+          run: () =>
+            void window.api.invoke('sessions:newConversation', selected.id).catch(() => {}),
+        },
+        {
           id: 'sonar-run',
           title: t('command.sonarRun', { name: selected.name }),
           run: () => runSonar(selected.id),

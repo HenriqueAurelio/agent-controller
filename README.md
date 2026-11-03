@@ -96,7 +96,7 @@ Outros caminhos para o mesmo lugar:
 - **Arrastar uma pasta** do gerenciador de arquivos para a janela abre **Nova sessão** já com ela preenchida. Um arquivo solto vale pela pasta em que está.
 - **Renomear:** clique duas vezes no nome da sessão, ou clique com o botão direito nela e escolha **Renomear** (ou `F2` com a sessão focada). `Enter` salva e `Esc` desiste.
 - **Duplicar** (o botão **⧉** na sessão, ou a paleta de comandos) abre outra sessão na mesma pasta, com o mesmo agente.
-- **Trocar a pasta** de uma sessão que já existe: clique no caminho no topo da sessão, ou use a paleta de comandos. O agente trabalha na pasta em que foi aberto; se estiver rodando, o app avisa, encerra e abre de novo na nova pasta, e a conversa em andamento não continua.
+- **Trocar a pasta** de uma sessão que já existe: clique no caminho no topo da sessão, ou use a paleta de comandos. O agente trabalha na pasta em que foi aberto; se estiver rodando, o app avisa, encerra e abre de novo na nova pasta, numa conversa nova.
 - **Parar e iniciar o agente** não tem botão: abrir uma sessão parada inicia o agente dela, e um agente que saiu com a sessão aberta inicia de novo com **Enter** no terminal. Para parar sem fechar a sessão, use "parar o agente" na paleta de comandos, ou peça ao próprio agente que saia (`/exit`).
 
 ### Grupos de sessões
@@ -111,6 +111,19 @@ Com várias sessões no mesmo repositório, dá para juntá-las num **grupo** (p
 - **Desfazer:** o **×** no cabeçalho desfaz o grupo. **As sessões continuam abertas**, só deixam de estar agrupadas.
 
 As sessões sem grupo ficam no topo da lista, e os grupos vêm em seguida, na ordem que você escolher (arraste um cabeçalho sobre o outro, ou `Alt+↑` / `Alt+↓` com ele focado). `Ctrl+1` … `Ctrl+9` seguem a lista como ela aparece. Os grupos são guardados com as sessões e voltam ao reabrir o app, recolhidos ou não; não vão no arquivo de exportação das configurações.
+
+### Retomar a conversa
+
+Cada sessão lembra a conversa do agente dela. Iniciar uma sessão parada (ao reabrir o app, ou o Enter depois de o agente sair) **retoma a mesma conversa**, com o aviso `[Retomando a conversa anterior.]` no terminal.
+
+- **Claude Code:** o app escolhe o id de cada conversa nova (`--session-id`) e retoma com `--resume`. Um `/clear` ou `/resume` feito dentro do agente passa a ser a conversa da sessão.
+- **Codex:** o id vem do próprio Codex depois da primeira resposta (com os hooks confiados, logo no início) e a sessão retoma com `codex resume`. Fechar o app antes da primeira resposta perde só uma conversa ainda vazia.
+- **Nova conversa em “…”**, na paleta, esquece a conversa: com o agente rodando, ele reinicia numa nova.
+- **Duplicar** e **trocar a pasta** começam uma conversa nova: duas sessões na mesma conversa escreveriam uma por cima da outra.
+- Se a conversa não puder ser retomada (apagada, ou de outra conta, como um alias com outra pasta de configuração), o agente sai logo; o app esquece a conversa e avisa `[Não foi possível retomar a conversa. Enter inicia uma nova.]`.
+- Com um comando seu no lugar do agente (um alias), a retomada só funciona se ele repassar os argumentos ao agente (`"$@"` no bash, `@args` no PowerShell).
+
+A decisão está na [ADR 0030](adr/0030-sessao-retoma-a-conversa.md).
 
 ### Comando do agente
 
@@ -152,7 +165,7 @@ Ao lado do agente, na lista, aparece quanto do contexto a conversa já ocupa (`3
 - **De onde vem:** do arquivo em que o próprio agente grava a conversa (`~/.claude/projects/…` no Claude Code, `~/.codex/sessions/…` no Codex). O app lê só o que foi acrescentado, depois de cada aviso do agente e a cada 5 s enquanto ele trabalha.
 - **Quando não aparece:** antes da primeira resposta, quando o app não conhece a janela de contexto do modelo, e no Codex sem os hooks confiados e antes do primeiro turno terminar.
 - **Custo em dinheiro não aparece.** O Claude Code não grava o custo no arquivo, e a conta da maioria é por assinatura.
-- Iniciar o agente de novo começa uma conversa nova, e os números recomeçam.
+- Iniciar o agente de novo recomeça os números, mesmo quando retoma a conversa: eles voltam com o próximo aviso do agente.
 
 ### Painel geral
 
@@ -565,7 +578,7 @@ O Claude Code não tem essa tela: os avisos funcionam sem você fazer nada. Os d
 
 ## Limitações do v1
 
-- **Fechar o app encerra todos os agentes**, mesmo no meio de uma tarefa. O app pede confirmação antes, listando as sessões que serão encerradas. Ao reabrir, as sessões voltam com nome, pasta e agente, paradas, e cada uma inicia quando você a abre (numa conversa nova). Encerrar os agentes leva alguns segundos, com a janela já fechada; se você abrir o app nesse meio-tempo, ele abre assim que o anterior terminar de sair.
+- **Fechar o app encerra todos os agentes**, mesmo no meio de uma tarefa. O app pede confirmação antes, listando as sessões que serão encerradas. Ao reabrir, as sessões voltam com nome, pasta e agente, paradas, e cada uma inicia quando você a abre, retomando a conversa dela ([Retomar a conversa](#retomar-a-conversa)). Encerrar os agentes leva alguns segundos, com a janela já fechada; se você abrir o app nesse meio-tempo, ele abre assim que o anterior terminar de sair.
 - **O painel de mudanças faz pouco no git, de propósito.** Marca para o commit, faz commit e descarta um arquivo por vez. Não há push, pull, branch, merge, stash, `--amend`, stage de trechos nem "descartar tudo"; para isso, use o git ou peça ao agente. É mais seguro editar e operar com o agente parado. Fora do painel, o app só cria e remove as [cópias isoladas](#cópia-isolada-git-worktree) e a branch nova de cada uma, e guarda os [checkpoints](#linha-do-tempo-e-checkpoints) em refs próprias; nunca faz push nem apaga uma branch.
 - **O painel de mudanças exige git**, instalado e com a pasta da sessão dentro de um repositório. Sem isso, ele explica o que falta.
 - **"Aguardando você" não é infalível.** Ver "Possivelmente aguardando" acima.
