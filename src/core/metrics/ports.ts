@@ -1,6 +1,9 @@
-// The TCP ports each process listens on, from the system's own tool: `netstat -ano` on Windows,
-// `ss -ltnpH` on Linux. Read now and then, apart from the process table, and joined to the process
-// tree of each session: what a session started (a dev server) shows with it.
+// The TCP ports each process listens on: `netstat -ano` on Windows; on Linux, `/proc` (which is
+// always there, unlike `ss`), with `ss -ltnpH` when `/proc` cannot be read. Read now and then,
+// apart from the process table, and joined to the process tree of each session: what a session
+// started (a dev server) shows with it.
+import fs from 'node:fs';
+import path from 'node:path';
 import { runTool } from '../tools/ToolRunner';
 
 export type PortTable = Map<number, number[]>;
@@ -40,8 +43,57 @@ export function parseSs(text: string): PortTable {
   return table;
 }
 
-/** The listening ports of every process the user can see; empty when the tool is missing. */
+/**
+ * The listening sockets of `/proc/net/tcp` and `tcp6`, by inode: `sl local rem st ... inode`, with
+ * the port in hex after the colon and `0A` as the state LISTEN.
+ */
+export function parseProcNetTcp(text: string): Map<string, number> {
+  const ports = new Map<string, number>();
+  for (const line of text.split('\n').slice(1)) {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length < 10 || parts[3] !== '0A') continue;
+    const port = parseInt(parts[1]!.split(':')[1] ?? '', 16);
+    if (port > 0 && parts[9] !== '0') ports.set(parts[9]!, port);
+  }
+  return ports;
+}
+
+/** Linux: the listening sockets, joined to the processes whose descriptors hold them. */
+async function procPorts(root = '/proc'): Promise<PortTable | null> {
+  const sockets = new Map<string, number>();
+  let read = false;
+  for (const name of ['tcp', 'tcp6']) {
+    const text = await fs.promises.readFile(path.join(root, 'net', name), 'utf8').catch(() => null);
+    if (text === null) continue;
+    read = true;
+    for (const [inode, port] of parseProcNetTcp(text)) sockets.set(inode, port);
+  }
+  if (!read) return null;
+  const table: PortTable = new Map();
+  if (sockets.size === 0) return table;
+  const pids = (await fs.promises.readdir(root).catch(() => [] as string[])).filter((n) =>
+    /^\d+$/.test(n),
+  );
+  for (const pid of pids) {
+    const fdDir = path.join(root, pid, 'fd');
+    // Processes of other users cannot be read, and are none of the sessions' anyway.
+    const fds = await fs.promises.readdir(fdDir).catch(() => [] as string[]);
+    for (const fd of fds) {
+      const target = await fs.promises.readlink(path.join(fdDir, fd)).catch(() => '');
+      const inode = /^socket:\[(\d+)\]$/.exec(target)?.[1];
+      const port = inode ? sockets.get(inode) : undefined;
+      if (port) add(table, Number(pid), port);
+    }
+  }
+  return table;
+}
+
+/** The listening ports of every process the user can see; empty when nothing can be read. */
 export async function listeningPorts(platform = process.platform): Promise<PortTable> {
+  if (platform === 'linux') {
+    const fromProc = await procPorts();
+    if (fromProc) return fromProc;
+  }
   const windows = platform === 'win32';
   const result = await runTool({
     file: windows ? 'netstat' : 'ss',

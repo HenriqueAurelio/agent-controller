@@ -4,7 +4,13 @@ import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { copyIntoWorktree, parseCopyPatterns } from '@core/git/copyIntoWorktree';
 import { computeMetrics } from '@core/metrics/MetricsSampler';
-import { listeningPorts, parseNetstat, parseSs, portsOf } from '@core/metrics/ports';
+import {
+  listeningPorts,
+  parseNetstat,
+  parseProcNetTcp,
+  parseSs,
+  portsOf,
+} from '@core/metrics/ports';
 import { sanitizeWorktreeSettings } from '@core/store/appStore';
 import { removeDir, tempDir } from './helpers';
 
@@ -71,6 +77,16 @@ describe('listening ports', () => {
       ]),
     );
     expect(portsOf(parseSs(ss), [12, 4321, 99])).toEqual([5173, 9229]);
+  });
+
+  it('reads the listening sockets of /proc/net/tcp, by inode', () => {
+    const text = [
+      '  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode',
+      '   0: 0100007F:0BB8 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 41234 1',
+      '   1: 0100007F:E8A2 0100007F:0BB8 01 00000000:00000000 00:00000000 00000000  1000        0 41299 1',
+      '   2: 00000000:1F90 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 0 1',
+    ].join('\n');
+    expect(parseProcNetTcp(text)).toEqual(new Map([['41234', 3000]]));
   });
 
   it('joins the ports to the process tree of each session', () => {
