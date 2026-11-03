@@ -15,6 +15,7 @@ export function WorktreesSettings() {
   const [info, setInfo] = useState<WorktreesInfo | null>(null);
   const [folder, setFolder] = useState('');
   const [setup, setSetup] = useState('');
+  const [copy, setCopy] = useState('');
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -22,6 +23,7 @@ export function WorktreesSettings() {
     setInfo(next);
     setFolder(next.configuredFolder);
     setSetup(next.setup);
+    setCopy(next.copy);
   };
   useEffect(() => {
     let cancelled = false;
@@ -34,10 +36,12 @@ export function WorktreesSettings() {
     };
   }, []);
 
-  const changed = info !== null && (folder !== info.configuredFolder || setup !== info.setup);
+  const changed =
+    info !== null &&
+    (folder !== info.configuredFolder || setup !== info.setup || copy !== info.copy);
   const save = async () => {
     try {
-      apply(await window.api.invoke('worktrees:configure', { folder, setup }));
+      apply(await window.api.invoke('worktrees:configure', { folder, setup, copy }));
       setStatus({ ok: true, text: t('worktrees.saved') });
     } catch (err) {
       setStatus({ ok: false, text: errorMessage(err) });
@@ -90,6 +94,19 @@ export function WorktreesSettings() {
             onChange={(e) => setSetup(e.target.value)}
           />
           <span className="muted">{t('worktrees.setupHint')}</span>
+        </label>
+        <label className="field">
+          <span>{t('worktrees.copy')}</span>
+          <textarea
+            aria-label={t('worktrees.copy')}
+            className="command"
+            data-testid="worktrees-copy"
+            rows={3}
+            value={copy}
+            spellCheck={false}
+            onChange={(e) => setCopy(e.target.value)}
+          />
+          <span className="muted">{t('worktrees.copyHint')}</span>
         </label>
         <div className="shortcut-footer">
           {status ? (

@@ -342,13 +342,13 @@ describe('sessions in a copy of the repository', () => {
       store.save({
         ...data,
         sessions: [session, broken as never],
-        worktrees: { folder: copies, setup: 'npm ci\nrm -rf /' },
+        worktrees: { folder: copies, setup: 'npm ci\nrm -rf /', copy: '' },
       });
       const back = createAppStore(dir).load();
       expect(back.sessions[0]!.worktree).toEqual(session.worktree);
       expect(back.sessions[1]!.worktree).toBeUndefined();
       // A command of more than one line is never kept.
-      expect(back.worktrees).toEqual({ folder: copies, setup: '' });
+      expect(back.worktrees).toEqual({ folder: copies, setup: '', copy: '' });
     } finally {
       removeDir(dir);
     }

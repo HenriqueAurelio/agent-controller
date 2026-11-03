@@ -1,4 +1,5 @@
 import type { SessionMetrics } from '@shared/ipc';
+import { portsOf, type PortTable } from './ports';
 import {
   createProcessReader,
   descendantsOf,
@@ -13,6 +14,9 @@ export interface MetricsSamplerOptions {
   intervalMs?: number;
   reader?: ProcessReader;
   now?: () => number;
+  /** The listening ports of every process; read every `portsEvery` samples. Absent: no ports. */
+  ports?: () => Promise<PortTable>;
+  portsEvery?: number;
 }
 
 /** Sums CPU and memory over the process tree of each session from two snapshots of the table. */
@@ -21,6 +25,7 @@ export function computeMetrics(
   table: ProcessTable,
   previous: { table: ProcessTable; at: number } | null,
   at: number,
+  ports?: PortTable,
 ): Record<string, SessionMetrics> {
   const out: Record<string, SessionMetrics> = {};
   const elapsed = previous ? at - previous.at : 0;
@@ -28,7 +33,8 @@ export function computeMetrics(
     let memory = 0;
     let cpuMs = 0;
     let processes = 0;
-    for (const pid of descendantsOf(table, root)) {
+    const tree = descendantsOf(table, root);
+    for (const pid of tree) {
       const info = table.get(pid);
       if (!info) continue;
       processes++;
@@ -37,7 +43,12 @@ export function computeMetrics(
       // A pid that was not there before started in between; its whole time counts.
       if (previous) cpuMs += Math.max(0, info.cpuTimeMs - (before?.cpuTimeMs ?? 0));
     }
-    out[id] = { memory, processes, cpu: elapsed > 0 ? (cpuMs / elapsed) * 100 : 0 };
+    out[id] = {
+      memory,
+      processes,
+      cpu: elapsed > 0 ? (cpuMs / elapsed) * 100 : 0,
+      ...(ports && { ports: portsOf(ports, tree) }),
+    };
   }
   return out;
 }
@@ -52,6 +63,8 @@ export class MetricsSampler {
   private previous: { table: ProcessTable; at: number } | null = null;
   private busy = false;
   private readonly now: () => number;
+  private samples = 0;
+  private portTable: PortTable | undefined;
 
   constructor(private readonly options: MetricsSamplerOptions) {
     this.now = options.now ?? Date.now;
@@ -77,9 +90,13 @@ export class MetricsSampler {
     try {
       this.reader ??= this.options.reader ?? createProcessReader();
       const table = await this.reader.snapshot();
+      // The ports cost a process of the system: read on the first sample and every few after.
+      if (this.options.ports && this.samples++ % (this.options.portsEvery ?? 3) === 0) {
+        this.portTable = await this.options.ports().catch(() => this.portTable);
+      }
       const at = this.now();
       if (table.size > 0) {
-        this.options.onSample(computeMetrics(roots, table, this.previous, at));
+        this.options.onSample(computeMetrics(roots, table, this.previous, at, this.portTable));
         this.previous = { table, at };
       }
     } finally {

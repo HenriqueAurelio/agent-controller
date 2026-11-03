@@ -33,6 +33,8 @@ import { PullWatcher, type PullNotice } from '@core/forges/PullWatcher';
 import { PullGuard } from '@core/forges/PullGuard';
 import { BackgroundService } from '@core/background/BackgroundService';
 import { ReviewStore } from '@core/review/ReviewStore';
+import { parseCopyPatterns } from '@core/git/copyIntoWorktree';
+import { listeningPorts } from '@core/metrics/ports';
 import { SonarService } from '@core/sonar/SonarService';
 import { SonarConfigStore } from '@core/sonar/SonarConfigStore';
 import { currentBranch } from '@core/git/GitService';
@@ -238,6 +240,10 @@ export async function startApp(): Promise<void> {
   void cleanDiscarded(discardDir);
 
   const metrics = new MetricsSampler({
+    // The ports of a dev server a session started show with it.
+    ports: () => listeningPorts(),
+    // The tests wait for a port to show: they read it at every sample.
+    portsEvery: TEST_SHELL ? 1 : 3,
     roots: () => {
       const roots = new Map<string, number>();
       for (const session of manager.runningSessions()) {
@@ -462,6 +468,7 @@ export async function startApp(): Promise<void> {
     worktrees: () => ({
       parent: data.worktrees.folder || defaultWorktreesFolder(),
       setup: data.worktrees.setup,
+      copy: parseCopyPatterns(data.worktrees.copy),
     }),
     // The watcher of the panel holds the folder open; on Windows that keeps it from going.
     beforeRemove: async (sessionId) => {
@@ -478,6 +485,7 @@ export async function startApp(): Promise<void> {
     worktrees: () => ({
       parent: data.worktrees.folder || defaultWorktreesFolder(),
       setup: data.worktrees.setup,
+      copy: parseCopyPatterns(data.worktrees.copy),
     }),
     describeError: (err) => errorText(data.prefs.language, err),
   });

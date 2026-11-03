@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { copyIntoWorktree } from '../git/copyIntoWorktree';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import { sanitizeAgentCommand } from '@shared/agents';
@@ -115,6 +116,8 @@ export interface WorktreeCreation {
   parent: string;
   /** Run once in the new copy, in the user's shell, before the session exists (`npm ci`). */
   setup?: string;
+  /** Files of the repository copied into the new copy (`.env*`), as patterns. */
+  copy?: string[];
 }
 
 export const SETUP_TIMEOUT_MS = 15 * 60 * 1000;
@@ -490,6 +493,10 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
       base: wanted.base,
       folder: suggestWorktreeFolder(creation.parent, repoRoot, branch),
     });
+    // What git leaves out (`.env`), before the setup that may need it.
+    if (creation.copy?.length) {
+      await copyIntoWorktree(repoRoot, created.folder, creation.copy).catch(() => []);
+    }
     const setup = creation.setup?.trim();
     if (setup) {
       const result = await (this.options.runSetup ?? defaultSetup)(setup, created.folder);

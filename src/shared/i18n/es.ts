@@ -1468,4 +1468,10 @@ export const es: Record<keyof typeof ptBR, string> = {
   'notice.resuming': 'Retomando la conversación anterior.',
   'notice.resumeFailed': 'No se pudo retomar la conversación. Enter inicia una nueva.',
   'command.newConversation': 'Nueva conversación en “{name}”',
+  'worktrees.copy': 'Archivos copiados a cada copia nueva',
+  'worktrees.copyHint':
+    'Uno por línea, desde la raíz del repositorio; * vale cualquier parte del nombre (.env.*). Se copian los que existen en el repositorio y faltan en la copia (git no los lleva), antes del comando de preparación. Vacío: no se copia nada.',
+  'app.ports':
+    'Puertos abiertos por los procesos de esta sesión. Haz clic para abrir en el navegador.',
+  'app.port': 'Abrir localhost:{port} en el navegador',
 };

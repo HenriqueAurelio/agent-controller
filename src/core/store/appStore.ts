@@ -14,6 +14,7 @@ import {
   GROUPS_LIMIT,
 } from '@shared/session';
 import { CONVERSATION_ID } from '@shared/session';
+import { DEFAULT_COPY_PATTERNS, parseCopyPatterns } from '../git/copyIntoWorktree';
 import { JsonStore, type Migration } from './JsonStore';
 import { folderKey, sanitizeRecentFolders } from './recentFolders';
 
@@ -53,15 +54,26 @@ export interface WorktreeSettings {
   folder: string;
   /** Empty: nothing runs. */
   setup: string;
+  /** Files of the repository copied into each new copy, one pattern per line (`.env*`). */
+  copy: string;
 }
 
-export const NO_WORKTREE_SETTINGS: WorktreeSettings = { folder: '', setup: '' };
+export const NO_WORKTREE_SETTINGS: WorktreeSettings = {
+  folder: '',
+  setup: '',
+  copy: DEFAULT_COPY_PATTERNS.join('\n'),
+};
 
 export function sanitizeWorktreeSettings(value: unknown): WorktreeSettings {
   const v = (value && typeof value === 'object' ? value : {}) as Partial<WorktreeSettings>;
   return {
     folder: typeof v.folder === 'string' && v.folder.length <= 4096 ? v.folder.trim() : '',
     setup: sanitizeAgentCommand(v.setup) ?? '',
+    // Settings from before this existed get the default list; an empty one is a choice.
+    copy:
+      typeof v.copy === 'string'
+        ? parseCopyPatterns(v.copy).join('\n')
+        : DEFAULT_COPY_PATTERNS.join('\n'),
   };
 }
 
