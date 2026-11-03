@@ -33,6 +33,8 @@ interface Props {
   markers?: FrameMarker[];
   /** The comments of the review of the session; the ones of this file show under their lines. */
   comments?: ReviewComment[];
+  /** F12 on a name: find where it is declared. */
+  onDefinition?(word: string): void;
 }
 
 function unavailable(t: Translate, side: SideContent): string | null {
@@ -97,6 +99,7 @@ export function DiffView({
   reveal,
   markers,
   comments,
+  onDefinition,
 }: Props) {
   const t = useT();
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
@@ -182,6 +185,8 @@ export function DiffView({
   useEffect(() => {
     if (ready) send({ type: 'comments', path, items: fileComments });
   }, [ready, path, fileComments, send]);
+  const onDefinitionRef = useRef(onDefinition);
+  onDefinitionRef.current = onDefinition;
   const commentsRef = useRef(comments);
   commentsRef.current = comments;
 
@@ -218,6 +223,8 @@ export function DiffView({
       else if (message?.type === 'comment-start') {
         const { path: file, startLine, endLine, snippet } = message;
         setDraft({ file, startLine, endLine, snippet, text: '' });
+      } else if (message?.type === 'definition') {
+        onDefinitionRef.current?.(message.word);
       } else if (message?.type === 'line') {
         setHistory({ line: message.line });
       } else if (message?.type === 'comment-open') {

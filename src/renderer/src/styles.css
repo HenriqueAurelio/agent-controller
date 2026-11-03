@@ -4181,3 +4181,27 @@ textarea.associations {
   border: 1px solid var(--border);
   border-radius: 6px;
 }
+
+/* Where a name is declared, when there is more than one place. */
+.definition-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 50vh;
+  overflow: auto;
+}
+.definition-list button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+.definition-place {
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: 12px;
+}

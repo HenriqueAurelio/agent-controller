@@ -340,6 +340,10 @@ A aba **Tudo** do painel (ou "Tudo" na paleta) junta os trechos alterados de tod
 - **Abrir no arquivo** leva ao editor do painel, na linha do trecho, para editar.
 - Segue o **Comparar com** do painel: último commit, início da sessão, base da branch ou um checkpoint. Arquivos binários ou com mais de 20 mil linhas aparecem só com o nome. Lê até 150 arquivos.
 
+### Ir para a definição
+
+No editor do painel, `F12` com o cursor sobre um nome abre o arquivo onde ele é declarado, já na linha. A busca é a mesma do `Ctrl+Shift+F`, atrás de uma declaração (`function`, `class`, `interface`, `type`, `const`, `def`, `fn`, `func`, `struct` e outras, ou um método no começo da linha); vale para TypeScript, JavaScript, Python, Rust, Go e parecidas. Com mais de um lugar, uma lista deixa escolher. É uma busca por texto, não um servidor de linguagem: um nome declarado de um jeito incomum pode não ser achado.
+
 ### Histórico do arquivo
 
 **Histórico**, no topo do editor do painel, abre os commits que mexeram no arquivo (até 200, seguindo renomeações), do mais novo ao mais antigo, com autor e data. Clicar num commit mostra o que ele mudou naquele arquivo. No topo, quem mudou por último a linha onde está o cursor, e em qual commit; esse commit já vem escolhido. Uma linha mudada na pasta e ainda sem commit aparece como "ainda sem commit". Fora do git, ou num arquivo novo, o botão não aparece.

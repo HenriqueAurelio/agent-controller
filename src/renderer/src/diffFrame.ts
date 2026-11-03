@@ -529,6 +529,18 @@ window.addEventListener(
       if (dirty) save(false);
       return;
     }
+    // F12 goes to where the name under the cursor is declared, as in the other editors.
+    if (event.key === 'F12' && !event.ctrlKey && !event.altKey && !event.shiftKey) {
+      const model = fileSide.getModel();
+      const position = fileSide.getPosition();
+      const word = model && position ? model.getWordAtPosition(position)?.word : undefined;
+      if (word) {
+        event.preventDefault();
+        event.stopPropagation();
+        post({ type: 'definition', word });
+      }
+      return;
+    }
     const binding = bindingFromEvent(event);
     // F6 moves the keyboard between the parts of the panel, out of the editor too.
     const shortcut =

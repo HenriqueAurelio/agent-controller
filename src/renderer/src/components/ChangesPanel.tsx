@@ -27,7 +27,8 @@ import { MultiDiffView } from './MultiDiffView';
 import { ProblemsList } from './ProblemsList';
 import { ReviewList } from './ReviewList';
 import { SearchList } from './SearchList';
-import { searchText, type SearchMatch } from '@shared/search';
+import { definitionQuery, IDENTIFIER, searchText, type SearchMatch } from '@shared/search';
+import { Dialog } from './Dialog';
 
 /**
  * What the panel lists: what git says changed, every file of the folder, the problems the
@@ -311,6 +312,11 @@ export function ChangesPanel({
   const allMode = mode === 'all';
   const searchMode = mode === 'search';
   const [openMatch, setOpenMatch] = useState<SearchMatch | null>(null);
+  /** Where a name may be declared, when there is more than one place. */
+  const [definitions, setDefinitions] = useState<{ word: string; matches: SearchMatch[] } | null>(
+    null,
+  );
+  const [definitionNote, setDefinitionNote] = useState<string | null>(null);
   /** The tree and the lists of problems and of comments open files in the editor next to them. */
   const browsing = files || problemsMode || reviewMode || searchMode;
   const comments = useReview(session.id);
@@ -383,6 +389,27 @@ export function ChangesPanel({
       column: problem.column,
       nonce: Date.now(),
     });
+  };
+
+  /** Opens a place of the project in the editor of all files, on its line. */
+  const openPlace = (match: SearchMatch) => {
+    if (match.file !== current && !mayLeave()) return;
+    if (!files) onModeChange('files');
+    setBrowsed(match.file);
+    setReveal({ path: match.file, line: match.line, column: match.column, nonce: Date.now() });
+  };
+  /** F12: where the name is declared; one place opens at once, more are listed. */
+  const goToDefinition = (word: string) => {
+    if (!IDENTIFIER.test(word)) return;
+    setDefinitionNote(null);
+    window.api
+      .invoke('search:run', sessionId, definitionQuery(word))
+      .then(({ matches }) => {
+        if (matches.length === 1) openPlace(matches[0]!);
+        else if (matches.length > 1) setDefinitions({ word, matches: matches.slice(0, 50) });
+        else setDefinitionNote(t('definition.none', { word }));
+      })
+      .catch((err) => setDefinitionNote(errorMessage(err)));
   };
 
   /** "Open in the file" of a block: the editor of all files, on the line. */
@@ -757,6 +784,7 @@ export function ChangesPanel({
               reveal={reveal?.line ? { ...reveal, line: reveal.line } : null}
               markers={markers}
               comments={comments}
+              onDefinition={goToDefinition}
             />
           ) : (
             <div className="panel-message">{t('changes.pickFile')}</div>
@@ -916,9 +944,48 @@ export function ChangesPanel({
               onDirtyChange={setDirty}
               onSendSelection={onSendSelection}
               comments={comments}
+              onDefinition={goToDefinition}
             />
           )}
         </div>
+      )}
+      {definitionNote && (
+        <div className="changes-toast" role="status" data-testid="definition-note">
+          <span>{definitionNote}</span>
+          <button
+            type="button"
+            className="toast-close"
+            aria-label={t('common.close')}
+            onClick={() => setDefinitionNote(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {definitions && (
+        <Dialog
+          title={t('definition.title', { word: definitions.word })}
+          onClose={() => setDefinitions(null)}
+          className="definition-dialog"
+        >
+          <ul className="definition-list" data-testid="definition-list">
+            {definitions.matches.map((match) => (
+              <li key={`${match.file}:${match.line}`}>
+                <button
+                  onClick={() => {
+                    setDefinitions(null);
+                    openPlace(match);
+                  }}
+                >
+                  <span className="definition-place">
+                    {match.file}:{match.line}
+                  </span>
+                  <span className="muted search-line">{match.text.trim()}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </Dialog>
       )}
 
       {!browsing && (discarded || opError || committed) && (
