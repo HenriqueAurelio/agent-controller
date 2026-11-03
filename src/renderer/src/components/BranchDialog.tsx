@@ -144,6 +144,16 @@ export function BranchDialog({ session, onClose, onSendConflict }: Props) {
         <section className="branch-update">
           <h3>{t('branch.updateTitle')}</h3>
           <p className="muted">{t('branch.updateHint')}</p>
+          {info && info.stackedOn && (
+            <p className="muted" data-testid="branch-stacked">
+              {t('branch.stacked', { base: info.base, name: info.stackedOn })}
+            </p>
+          )}
+          {info && info.behind > 0 && (
+            <p className="branch-warning" data-testid="branch-behind">
+              {t('branch.behind', { base: info.base, count: info.behind })}
+            </p>
+          )}
           <button
             type="button"
             data-testid="branch-update"

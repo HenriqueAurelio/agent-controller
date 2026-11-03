@@ -47,7 +47,7 @@ O caminho completo de uma tarefa sem abrir o terminal do sistema.
 | 7 | Da cópia ao PR (**feita**, [ADR 0029](../adr/0029-push-e-pr-da-copia-isolada.md)) | O botão "abrir PR" faz push e cria o PR da cópia; o botão "trazer para a base" faz o merge, com os conflitos no painel e "mandar o conflito ao agente" | Conductor, Orca, Aperant ([futuras](funcionalidades/futuras/README.md)) | M a G |
 | 8 | [Retomar a conversa](planos/retomar-conversa.md) (**feita**, [ADR 0030](../adr/0030-sessao-retoma-a-conversa.md)) | A sessão volta com a conversa do agente depois de fechar o app | Mercado em geral | M |
 | 9 | Preparar a cópia (**feita**) | Copia os `.env*`, roda a preparação e mostra as portas de cada cópia, para duas cópias não brigarem pela 3000 | Maestro, cmux | P a M |
-| 10 | Features empilhadas | Uma cópia parte da branch de outra, com aviso de rebase quando a de baixo muda | Maestro | M |
+| 10 | Features empilhadas (**feita**: base marcada na nova sessão, aviso de que a de baixo andou) | Uma cópia parte da branch de outra, com aviso de rebase quando a de baixo muda | Maestro | M |
 
 Pede revisar a [ADR 0018](../adr/0018-operacoes-de-git-no-painel.md): hoje o app não faz push nem merge.
 

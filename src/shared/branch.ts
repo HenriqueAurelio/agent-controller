@@ -9,6 +9,10 @@ export interface BranchInfo {
   subjects: string[];
   /** Files changed and not committed: a push leaves them behind. */
   dirty: number;
+  /** Commits of the base the copy does not have yet: the base moved since. */
+  behind: number;
+  /** The base is the branch of another session's copy: this copy is stacked on it. */
+  stackedOn: string | null;
   /** The remote the branch goes to; null without one. */
   remote: string | null;
   /** The repository of that remote on GitHub or GitLab; null when it is neither. */

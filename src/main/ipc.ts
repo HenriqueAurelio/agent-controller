@@ -917,6 +917,10 @@ export function registerIpc(context: IpcContext): void {
       ahead: state.ahead,
       subjects: state.subjects,
       dirty: state.dirty,
+      behind: state.behind,
+      stackedOn:
+        manager.list().find((other) => other.id !== s.id && other.worktree?.branch === state.base)
+          ?.name ?? null,
       remote: state.remote,
       repo,
       title: (card?.title ?? state.subjects[0] ?? state.branch).slice(0, PULL_TITLE_LIMIT),

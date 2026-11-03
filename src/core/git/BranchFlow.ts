@@ -23,6 +23,11 @@ export interface BranchState {
   subjects: string[];
   /** Files changed and not committed: what a push would leave behind. */
   dirty: number;
+  /**
+   * Commits the base has and the copy does not: the local base, or the remote one when the
+   * repository has it (no fetch here: the last one the repository did).
+   */
+  behind: number;
 }
 
 /** The branch checked out in the copy, and how it stands against its base. */
@@ -44,6 +49,11 @@ export async function branchState(cwd: string, base: string): Promise<BranchStat
   const log = await runGit(cwd, ['log', '--reverse', '--format=%s', `${base}..HEAD`]);
   const subjects = log.code === 0 ? log.stdout.toString('utf8').split('\n').filter(Boolean) : [];
   const status = await runGit(cwd, ['status', '--porcelain']);
+  const count = async (ref: string) => {
+    const result = await runGit(cwd, ['rev-list', '--count', `HEAD..${ref}`]);
+    return result.code === 0 ? Number(result.stdout.toString('utf8').trim()) || 0 : 0;
+  };
+  const behind = Math.max(await count(base), remote ? await count(`${remote}/${base}`) : 0);
   return {
     branch,
     base,
@@ -52,6 +62,7 @@ export async function branchState(cwd: string, base: string): Promise<BranchStat
     ahead: subjects.length,
     subjects,
     dirty: status.stdout.toString('utf8').split('\n').filter(Boolean).length,
+    behind,
   };
 }
 

@@ -67,9 +67,12 @@ describe('the branch of a copy', () => {
     fs.writeFileSync(path.join(repo, 'a.txt'), 'um\ndois\ntrês\nquatro\n');
     git(repo, 'commit', '-q', '-am', 'quatro');
     git(repo, 'push', '-q', 'origin', 'main');
+    git(copy, 'fetch', '-q', 'origin');
+    expect((await branchState(copy, 'main')).behind).toBe(1);
     const merged = await updateFromBase(copy, 'main', 'origin');
     expect(merged).toEqual({ status: 'merged', from: 'origin/main', conflicts: [] });
     expect(fs.readFileSync(path.join(copy, 'a.txt'), 'utf8')).toContain('quatro');
+    expect((await branchState(copy, 'main')).behind).toBe(0);
 
     // Both change the same line: the merge stops, and the conflict stays for the agent.
     fs.writeFileSync(path.join(copy, 'a.txt'), 'UM\ndois\ntrês\nquatro\n');
