@@ -22,14 +22,15 @@ import { useProblems } from '../lib/useProblems';
 import type { ReviewComment } from '@shared/review';
 import { DiffView } from './DiffView';
 import { FileTree } from './FileTree';
+import { MultiDiffView } from './MultiDiffView';
 import { ProblemsList } from './ProblemsList';
 import { ReviewList } from './ReviewList';
 
 /**
  * What the panel lists: what git says changed, every file of the folder, the problems the
- * checks found, or the comments of the review.
+ * checks found, the comments of the review, or every changed block in one scroll.
  */
-export type PanelMode = 'changes' | 'files' | 'problems' | 'review';
+export type PanelMode = 'changes' | 'files' | 'problems' | 'review' | 'all';
 
 /** A file and the line to put the cursor on; a new nonce asks again. */
 export interface LocationRequest {
@@ -298,6 +299,7 @@ export function ChangesPanel({
   const files = mode === 'files';
   const problemsMode = mode === 'problems';
   const reviewMode = mode === 'review';
+  const allMode = mode === 'all';
   /** The tree and the lists of problems and of comments open files in the editor next to them. */
   const browsing = files || problemsMode || reviewMode;
   const comments = useReview(session.id);
@@ -358,6 +360,13 @@ export function ChangesPanel({
       column: problem.column,
       nonce: Date.now(),
     });
+  };
+
+  /** "Open in the file" of a block: the editor of all files, on the line. */
+  const openFromAll = (path: string, line: number) => {
+    onModeChange('files');
+    setBrowsed(path);
+    setReveal({ path, line, nonce: Date.now() });
   };
 
   /** A comment of the review: its file opens in the editor, on its first line. */
@@ -534,6 +543,15 @@ export function ChangesPanel({
           {t('changes.allFiles')}
         </button>
         <button
+          className={allMode ? 'active' : ''}
+          aria-pressed={allMode}
+          data-testid="all-tab"
+          onClick={() => switchMode(allMode ? 'changes' : 'all')}
+          title={t('all.tabHint')}
+        >
+          {t('all.tab')}
+        </button>
+        <button
           className={problemsMode ? 'active' : ''}
           aria-pressed={problemsMode}
           data-testid="problems-tab"
@@ -693,7 +711,18 @@ export function ChangesPanel({
         </div>
       )}
 
-      {!browsing && !error && overview?.ok && changes.length > 0 && (
+      {allMode && !error && overview?.ok && changes.length > 0 && (
+        <MultiDiffView
+          sessionId={sessionId}
+          base={overview.base}
+          revision={revision}
+          comments={comments}
+          agentWorking={agentWorking}
+          onOpenFile={openFromAll}
+        />
+      )}
+
+      {!browsing && !allMode && !error && overview?.ok && changes.length > 0 && (
         <div className="changes-body">
           <ul
             ref={listRef}
@@ -871,7 +900,7 @@ export function ChangesPanel({
         </div>
       )}
 
-      {!browsing && operable && stagedChanges.length > 0 && (
+      {!browsing && !allMode && operable && stagedChanges.length > 0 && (
         <footer className="commit-bar" role="group" aria-label={t('changes.commitArea')}>
           <div className="commit-going-in" data-testid="commit-going-in">
             {t('changes.goingIn', {

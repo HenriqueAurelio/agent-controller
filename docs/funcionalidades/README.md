@@ -108,7 +108,7 @@ Concluídas: 21, 22 e 24 (sem ADR nova em nenhuma delas).
 | 26 | [Seguir o agente](seguir-o-agente/README.md) | O editor acompanha, ao vivo, o arquivo que o agente edita | Médio | M | Sim | Pendente |
 | 27 | [Histórico do arquivo](historico-do-arquivo/README.md) | Log e autoria (blame) do arquivo, e comparar com um commit | Médio | M | Não | Pendente |
 | 28 | [Dividir a tela](dividir-a-tela/README.md) | Duas a quatro sessões à vista ao mesmo tempo | Médio | M | Sim | Pendente |
-| 29 | [Multibuffer](multibuffer/README.md) | Todos os trechos do turno numa rolagem só, editável | Alto | G | Sim (revê a 0012) | Pendente |
+| 29 | [Multibuffer](multibuffer/README.md) | Todos os trechos do turno numa rolagem só, editável | Alto | G | Sim (revê a 0012) | Primeira entrega (só leitura) |
 
 ```
 Primeiro    21 links-no-terminal   22 abrir-arquivo-rapido

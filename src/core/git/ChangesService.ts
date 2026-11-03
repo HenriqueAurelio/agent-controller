@@ -6,9 +6,13 @@ import {
   type FileChange,
   type FileDiff,
   type FileIndexResult,
+  type FileHunks,
   type FileListing,
   type GitOverview,
+  type HunkRevert,
+  type MultiDiff,
   type RepoInfo,
+  MULTIDIFF_FILES_LIMIT,
 } from '@shared/git';
 import { UserError } from '@shared/i18n';
 import { compareVersions } from '../agents/detect';
@@ -39,6 +43,7 @@ import {
   type DiscardRecord,
 } from './GitWriteService';
 import { buildFileIndex, FileIndexCache } from './FileIndex';
+import { buildHunks, HUNK_MAX_LINES, revertHunk, splitLines } from './hunks';
 import { RepoWatcher } from './RepoWatcher';
 import { findRepositories, isRepository, MAX_REPOSITORIES } from './Workspace';
 
@@ -502,6 +507,83 @@ export class ChangesService {
             ? 'HEAD'
             : null;
     return { ...(await fileDiff(repo.root, change, treeish)), path: file };
+  }
+
+  /**
+   * Every changed block of the files the panel listed last, against the same base, for the
+   * scroll that shows them all. The panel must be open: the list is the one it has.
+   */
+  async hunks(sessionId: string, base: DiffBase, checkpoint?: CheckpointTrees): Promise<MultiDiff> {
+    const entry = this.sessions.get(sessionId);
+    if (!entry || !(entry.root ?? entry.browseRoot)) throw new UserError('error.panel.notOpen');
+    const changes = entry.lastChanges.slice(0, MULTIDIFF_FILES_LIMIT);
+    const files: FileHunks[] = new Array(changes.length);
+    // A few files at a time: each one reads both of its sides.
+    let next = 0;
+    const worker = async () => {
+      while (next < changes.length) {
+        const index = next++;
+        const change = changes[index]!;
+        const diff = await this.diff(sessionId, change.path, base, checkpoint);
+        const header = {
+          path: change.path,
+          kind: change.kind,
+          ...(change.origPath ? { origPath: change.origPath } : {}),
+        };
+        const blocked = [diff.original, diff.modified].find(
+          (side) => side.kind === 'binary' || side.kind === 'too-large',
+        );
+        const original = diff.original.kind === 'text' ? splitLines(diff.original.text) : [];
+        const modified = diff.modified.kind === 'text' ? splitLines(diff.modified.text) : [];
+        if (blocked || original.length > HUNK_MAX_LINES || modified.length > HUNK_MAX_LINES) {
+          files[index] = {
+            ...header,
+            hunks: [],
+            skipped: blocked?.kind === 'binary' ? 'binary' : 'too-large',
+            revertible: false,
+          };
+          continue;
+        }
+        files[index] = {
+          ...header,
+          hunks: buildHunks(change.path, original, modified),
+          revertible:
+            !diff.readOnly && diff.original.kind === 'text' && diff.modified.kind === 'text',
+        };
+      }
+    };
+    await Promise.all(Array.from({ length: 6 }, worker));
+    return {
+      base,
+      files: files.filter((f) => f.hunks.length > 0 || f.skipped),
+      truncated: entry.lastChanges.length > changes.length,
+    };
+  }
+
+  /**
+   * Puts one block back as it was on the old side, in the file on disk. Refused when the file no
+   * longer has the block's lines where they were: it changed since the scroll was read.
+   */
+  async revertHunk(
+    sessionId: string,
+    base: DiffBase,
+    revert: HunkRevert,
+    checkpoint?: CheckpointTrees,
+  ): Promise<void> {
+    const root = this.rootFor(sessionId);
+    if (!root) throw new UserError('error.panel.notOpen');
+    const diff = await this.diff(sessionId, revert.file, base, checkpoint);
+    if (diff.readOnly || diff.original.kind !== 'text' || diff.modified.kind !== 'text') {
+      throw new UserError('error.hunk.notRevertible');
+    }
+    const text = diff.modified.text;
+    const lines = revertHunk(splitLines(text), revert);
+    if (!lines) throw new UserError('error.hunk.changed');
+    const ending = text.endsWith('\n') || lines.length === 0 ? '\n' : '';
+    const content = lines.length === 0 ? '' : lines.join('\n') + ending;
+    const result = await saveWorkingTreeFile(root, revert.file, content, text);
+    if (!result.saved) throw new UserError('error.hunk.changed');
+    this.options.onChange(sessionId);
   }
 
   /** The folder the paths of the panel are relative to, once the panel has been opened. */

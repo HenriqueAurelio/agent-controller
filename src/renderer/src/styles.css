@@ -3642,3 +3642,120 @@ textarea.associations {
   font-size: 12px;
   white-space: pre;
 }
+
+/* All: every changed block of every file, in one scroll. */
+.multidiff {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.multidiff-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.multidiff-done {
+  color: var(--done);
+}
+.multidiff-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 12px 24px;
+}
+.multidiff-file {
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-raised);
+}
+.multidiff-file-header {
+  position: sticky;
+  top: -8px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  border-radius: 6px 6px 0 0;
+}
+.multidiff-path {
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.multidiff-note {
+  margin: 8px 10px;
+  font-size: 12px;
+}
+.multidiff-hunk + .multidiff-hunk {
+  border-top: 1px dashed var(--border);
+}
+.multidiff-hunk.seen {
+  opacity: 0.55;
+}
+.multidiff-hunk-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.multidiff-hunk-header button {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+.multidiff-lines {
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  background: var(--bg);
+  overflow-x: auto;
+}
+.multidiff-line {
+  display: flex;
+  white-space: pre;
+}
+.multidiff-line.line-add {
+  background: color-mix(in srgb, var(--done) 16%, transparent);
+}
+.multidiff-line.line-del {
+  background: color-mix(in srgb, var(--error) 16%, transparent);
+}
+.multidiff-no {
+  flex: 0 0 44px;
+  padding-right: 6px;
+  text-align: right;
+  color: var(--muted);
+  user-select: none;
+}
+.multidiff-sign {
+  flex: 0 0 16px;
+  color: var(--muted);
+  user-select: none;
+}
+.multidiff-text {
+  flex: 1;
+}
+.multidiff-comment {
+  display: block;
+  width: calc(100% - 20px);
+  margin: 6px 10px;
+  padding: 4px 10px;
+  text-align: left;
+  white-space: pre-wrap;
+  border: none;
+  border-left: 3px solid var(--waiting);
+  border-radius: 0 4px 4px 0;
+  background: color-mix(in srgb, var(--waiting) 10%, var(--bg-raised));
+  color: var(--text);
+  font-size: 12px;
+}

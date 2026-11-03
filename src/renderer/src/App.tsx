@@ -711,6 +711,11 @@ export function App() {
           run: () => showPanel('problems'),
         },
         {
+          id: 'show-all',
+          title: t('command.all'),
+          run: () => showPanel('all'),
+        },
+        {
           id: 'show-review',
           title: t('command.review'),
           run: () => showPanel('review'),

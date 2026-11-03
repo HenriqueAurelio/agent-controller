@@ -1279,4 +1279,42 @@ export const es: Record<keyof typeof ptBR, string> = {
   'error.review.badLines': 'Las líneas del comentario no son válidas.',
   'error.review.notFound': 'Ese comentario ya no existe.',
   'error.review.nothing': 'La revisión no tiene comentarios.',
+  'command.all': 'Todo: todos los fragmentos cambiados en un solo desplazamiento',
+  'all.tab': 'Todo',
+  'all.tabHint':
+    'Todos los fragmentos cambiados, de todos los archivos, en un solo desplazamiento: marcar como visto, deshacer y comentar cada uno',
+  'all.seen': '{seen} de {total} fragmentos vistos',
+  'all.showSeen': 'Mostrar los vistos',
+  'all.openFile': 'Abrir en el archivo',
+  'all.openFileHint':
+    'Abre el archivo en el editor del panel, en la primera línea del fragmento, para editarlo',
+  'all.markFileSeen': 'Archivo visto',
+  'all.markFileSeenHint': 'Marca todos los fragmentos de este archivo como vistos',
+  'all.skipped.binary': 'Archivo binario: no hay fragmentos para mostrar.',
+  'all.skipped.tooLarge': 'Archivo demasiado grande para mostrar en fragmentos. Abre el archivo.',
+  'all.hunk.lines': 'líneas {start} a {end}',
+  'all.hunk.line': 'línea {line}',
+  'all.hunk.removed': 'eliminado antes de la línea {line}',
+  'all.accept': 'Visto',
+  'all.acceptHint': 'Marca este fragmento como revisado y lo pliega. Si cambia, vuelve a aparecer.',
+  'all.unaccept': 'Revisar de nuevo',
+  'all.unacceptHint': 'Quita la marca de visto de este fragmento',
+  'all.revert': 'Deshacer',
+  'all.revertHint': 'Devuelve este fragmento a como era, en el archivo del disco',
+  'all.revertConfirm':
+    '¿Deshacer este fragmento de {file}? El archivo vuelve a tener las líneas de antes en ese lugar.',
+  'all.revertDisabled':
+    'Solo se puede deshacer un fragmento de un archivo que ya existía y está en el disco (no en una comparación entre checkpoints).',
+  'all.comment': 'Comentar',
+  'all.commentHint':
+    'Comenta las líneas cambiadas de este fragmento. El comentario va a la pestaña Revisión.',
+  'all.loading': 'Leyendo los fragmentos…',
+  'all.none': 'Ningún fragmento cambiado en esta comparación.',
+  'all.allSeen': 'Todos los fragmentos fueron vistos.',
+  'all.truncated': 'Solo aparecen aquí los primeros {count} archivos.',
+  'all.hunkCount': '{count} fragmentos',
+  'all.hunkOne': '1 fragmento',
+  'error.hunk.changed':
+    'El archivo cambió desde que se leyeron los fragmentos. La lista se actualizó; inténtalo de nuevo.',
+  'error.hunk.notRevertible': 'Este fragmento no se puede deshacer aquí.',
 };

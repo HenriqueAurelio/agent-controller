@@ -1,6 +1,6 @@
 # Multibuffer: revisar o turno numa rolagem só
 
-- **Estado:** proposta, leva 2, a última dela.
+- **Estado:** primeira entrega feita (v0.3, 2026-11-03): a rolagem só leitura, com visto, desfazer e comentar por trecho. A edição dentro da rolagem fica para depois; por ora, **Abrir no arquivo** leva ao editor.
 - **ADR:** nova, "Editor de trechos de vários arquivos". Revê a [ADR 0012](../../../adr/0012-see-changes-permite-editar.md) (o painel permite editar).
 
 ## O problema
@@ -28,6 +28,16 @@ Uma visão **Tudo**, no painel: todos os trechos alterados, de todos os arquivos
 - **Edição:** cada trecho guarda o intervalo de linhas no arquivo. Ao salvar, o app aplica as edições do fim para o começo e grava pelo `git:save` de hoje, com a mesma conferência de "o arquivo mudou no disco".
 - **Core:** `ChangesService.hunks(base)` devolve os trechos de todos os arquivos (`git diff -U3` com as posições), com o limite de tamanho do painel.
 - **IPC:** `git:hunks(sessionId, base)`. Salvar e desfazer usam os canais que já existem.
+
+## O que foi feito, e o que mudou na proposta
+
+- **Uma rolagem em React, sem Monaco:** cada trecho é desenhado como linhas de texto com as cores de adição e remoção. Sem editores vivos, não há o que virtualizar nem memória a medir por trecho. O preço é não ter o realce de sintaxe nem a edição ali.
+- **Os trechos são calculados no core** (`src/core/git/hunks.ts`, um diff de linhas de Myers), a partir dos dois lados que o painel já lê para cada base. Assim, último commit, início da sessão, base da branch e checkpoints dão os trechos do mesmo jeito, sem um `git diff` por base.
+- **Visto** é uma marca por trecho, guardada pelo conteúdo do trecho enquanto o app está aberto: um trecho que o agente muda de novo volta a aparecer.
+- **Desfazer por trecho** (`git:revertHunk`) troca as linhas do trecho no arquivo do disco pelas de antes, com a conferência de sempre: se o arquivo mudou, nada é gravado.
+- **Comentar por trecho** usa a revisão de [comentar no diff](../comentar-no-diff/README.md).
+- **Sem ADR nova:** a rolagem não edita nada além do que a [ADR 0012](../../../adr/0012-see-changes-permite-editar.md) já permite, que é gravar no arquivo do disco com a conferência de conflito. A ADR fica para quando a edição dentro da rolagem vier.
+- **Ficou para depois:** "mais 10 linhas" de contexto, a edição na rolagem e o realce.
 
 ## Riscos
 

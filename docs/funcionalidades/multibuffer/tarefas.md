@@ -4,7 +4,7 @@
 
 ---
 
-## [ ] 29.1 Trechos de todos os arquivos
+## [x] 29.1 Trechos de todos os arquivos
 
 - **Frente:** C · **Tamanho:** M · **Depende de:** nada
 
@@ -17,7 +17,7 @@
 
 ---
 
-## [ ] 29.2 Visão só leitura
+## [x] 29.2 Visão só leitura
 
 - **Frente:** B · **Tamanho:** M · **Depende de:** 29.1
 

@@ -1268,4 +1268,42 @@ export const ptBR = {
   'error.review.badLines': 'As linhas do comentário são inválidas.',
   'error.review.notFound': 'Esse comentário não existe mais.',
   'error.review.nothing': 'A revisão não tem comentários.',
+  'command.all': 'Tudo: todos os trechos alterados numa rolagem só',
+  'all.tab': 'Tudo',
+  'all.tabHint':
+    'Todos os trechos alterados, de todos os arquivos, numa rolagem só: marcar como visto, desfazer e comentar cada um',
+  'all.seen': '{seen} de {total} trechos vistos',
+  'all.showSeen': 'Mostrar os vistos',
+  'all.openFile': 'Abrir no arquivo',
+  'all.openFileHint':
+    'Abre o arquivo no editor do painel, na primeira linha do trecho, para editar',
+  'all.markFileSeen': 'Arquivo visto',
+  'all.markFileSeenHint': 'Marca todos os trechos deste arquivo como vistos',
+  'all.skipped.binary': 'Arquivo binário: não há trechos para mostrar.',
+  'all.skipped.tooLarge': 'Arquivo grande demais para mostrar em trechos. Abra o arquivo.',
+  'all.hunk.lines': 'linhas {start} a {end}',
+  'all.hunk.line': 'linha {line}',
+  'all.hunk.removed': 'removido antes da linha {line}',
+  'all.accept': 'Visto',
+  'all.acceptHint': 'Marca este trecho como revisado e o recolhe. Se ele mudar, volta a aparecer.',
+  'all.unaccept': 'Rever',
+  'all.unacceptHint': 'Tira a marca de visto deste trecho',
+  'all.revert': 'Desfazer',
+  'all.revertHint': 'Devolve este trecho ao que era, no arquivo do disco',
+  'all.revertConfirm':
+    'Desfazer este trecho de {file}? O arquivo volta a ter as linhas de antes nesse lugar.',
+  'all.revertDisabled':
+    'Só dá para desfazer um trecho de um arquivo que já existia e está no disco (não numa comparação entre checkpoints).',
+  'all.comment': 'Comentar',
+  'all.commentHint':
+    'Comenta as linhas alteradas deste trecho. O comentário vai para a aba Revisão.',
+  'all.loading': 'Lendo os trechos…',
+  'all.none': 'Nenhum trecho alterado nesta comparação.',
+  'all.allSeen': 'Todos os trechos foram vistos.',
+  'all.truncated': 'Só os {count} primeiros arquivos aparecem aqui.',
+  'all.hunkCount': '{count} trechos',
+  'all.hunkOne': '1 trecho',
+  'error.hunk.changed':
+    'O arquivo mudou desde que os trechos foram lidos. A lista foi atualizada; tente de novo.',
+  'error.hunk.notRevertible': 'Este trecho não pode ser desfeito aqui.',
 } as const;
