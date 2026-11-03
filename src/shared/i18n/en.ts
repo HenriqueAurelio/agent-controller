@@ -1460,4 +1460,8 @@ export const en: Record<keyof typeof ptBR, string> = {
     'One per line, from the root of the repository; * stands for any part of a name (.env.*). The ones in the repository and missing in the copy (git does not bring them) are copied, before the setup command. Empty: nothing is copied.',
   'app.ports': 'Ports opened by the processes of this session. Click to open in the browser.',
   'app.port': 'Open localhost:{port} in the browser',
+  'newSession.baseOfSession': '{branch} · copy of “{name}”',
+  'branch.stacked':
+    'This copy is stacked on {base}, the copy of “{name}”: the PR goes to {base}, and bringing {base} in takes what changed there.',
+  'branch.behind': '{base} has {count} commits this copy does not have yet.',
 };

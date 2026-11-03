@@ -1474,4 +1474,8 @@ export const es: Record<keyof typeof ptBR, string> = {
   'app.ports':
     'Puertos abiertos por los procesos de esta sesión. Haz clic para abrir en el navegador.',
   'app.port': 'Abrir localhost:{port} en el navegador',
+  'newSession.baseOfSession': '{branch} · copia de “{name}”',
+  'branch.stacked':
+    'Esta copia está apilada sobre {base}, la copia de “{name}”: el PR va a {base}, y traer {base} toma lo que cambió allí.',
+  'branch.behind': '{base} tiene {count} commits que esta copia aún no tiene.',
 };

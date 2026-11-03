@@ -255,11 +255,17 @@ export function NewSessionDialog({ initialCwd, initialGroupId, onClose, onCreate
                     value={baseBranch}
                     onChange={(e) => setBaseBranch(e.target.value)}
                   >
-                    {origin.branches.map((b) => (
-                      <option key={b} value={b}>
-                        {b}
-                      </option>
-                    ))}
+                    {origin.branches.map((b) => {
+                      // A branch of another session's copy: starting from it stacks the work.
+                      const owner = sessions.find((s) => s.worktree?.branch === b);
+                      return (
+                        <option key={b} value={b}>
+                          {owner
+                            ? t('newSession.baseOfSession', { branch: b, name: owner.name })
+                            : b}
+                        </option>
+                      );
+                    })}
                   </select>
                 </label>
               </div>
