@@ -200,6 +200,15 @@ Quando o agente pede permissão ("posso rodar `npm install`?"), a sessão ganha,
 - No Codex, o pedido só chega ao app com os hooks confiados (veja [abaixo](#codex-o-passo-de-confiança-dos-hooks)); sem eles, responda no terminal.
 - Para sempre ler o terminal antes de responder, desligue **Preferências → Geral → Responder pedidos de permissão pela lista de sessões e pela notificação**: a linha com o pedido continua, sem os botões.
 
+#### Avisar no celular
+
+Os mesmos avisos (aguardando você, terminou, pedido de permissão e vigia do PR) podem chegar também ao celular. Escolha em **Preferências → Geral → Avisar no celular**:
+
+- **ntfy:** instale o app ntfy no celular. No Aurelium, clique em **Gerar outro** para ter um tópico difícil de adivinhar e assine o mesmo tópico no celular. O servidor de fábrica é o público, `https://ntfy.sh`; troque pelo seu, se tiver um.
+- **Telegram:** crie um bot com o @BotFather, cole o token e clique em **Guardar** (ele fica no cofre do sistema e não aparece mais), e escreva o número do seu chat com o bot.
+- **Mandar um teste** confirma que chegou ou diz o que deu errado.
+- De fábrica, o aviso só vai quando a janela do app não está em foco. Vai apenas o título e a frase do aviso, nunca o que o terminal mostra ([ADR 0033](adr/0033-aviso-no-celular.md)).
+
 ### Cópia isolada (git worktree)
 
 Dois agentes na mesma pasta pisam um no outro. Para cada um trabalhar sem atrapalhar o outro, crie a sessão como **cópia isolada**: o app faz um `git worktree` do repositório, numa branch nova, e abre o agente lá. O repositório e o histórico são os mesmos; a pasta e a branch são só daquela sessão.

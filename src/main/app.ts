@@ -40,6 +40,7 @@ import { SonarConfigStore } from '@core/sonar/SonarConfigStore';
 import { currentBranch } from '@core/git/GitService';
 import { SonarTokens } from './sonarTokens';
 import { Preview } from './preview';
+import { sendToPhone } from '@core/notify/phonePush';
 import { defaultWorktreesFolder } from '@core/git/WorktreeService';
 import { PromptQueue } from '@core/prompts/PromptQueue';
 import { PtyManager } from '@core/pty/PtyManager';
@@ -274,7 +275,26 @@ export async function startApp(): Promise<void> {
     manager.select(sessionId);
     send('app:focusSession', sessionId);
   };
-  const notify = (request: NotificationRequest) =>
+  // The same notices on the phone (ADR 0033): only the title and the short line.
+  const phoneTokens = new SonarTokens(path.join(userData, 'phone-token.json'));
+  const sendPhone = (title: string, body: string) => {
+    const settings = data.prefs.phone;
+    const token = settings.provider === 'telegram' ? phoneTokens.get('telegram') : null;
+    return sendToPhone(settings, { title, body }, token);
+  };
+  const pushPhone = (title: string, body: string) => {
+    const settings = data.prefs.phone;
+    if (settings.provider === 'off') return;
+    if (settings.onlyWhenAway && window && !window.isDestroyed() && window.isFocused()) return;
+    void sendPhone(title, body).then((error) => {
+      if (error) console.error('Falha ao avisar no celular:', error);
+    });
+  };
+  const notify = (request: NotificationRequest) => {
+    pushPhone(request.title, request.body);
+    notifyHere(request);
+  };
+  const notifyHere = (request: NotificationRequest) =>
     showNotification(
       request,
       () => openSession(request.sessionId),
@@ -769,12 +789,14 @@ export async function startApp(): Promise<void> {
     window.focus();
     send('pulls:focus', pull.key);
   };
-  const guardNotice = (pull: PullRequestView, title: string, body: string) =>
+  const guardNotice = (pull: PullRequestView, title: string, body: string) => {
+    pushPhone(title, body);
     showNotice(
       `guard:${pull.key}`,
       { title, body, silent: !data.prefs.notifySound },
       openPull(pull),
     );
+  };
   /** The fix each guard put in a queue: a newer failure replaces it while it has not gone. */
   const guardItems = new Map<string, { session: string; item: string }>();
   guard.on('fix', (pull) => {
@@ -907,6 +929,7 @@ export async function startApp(): Promise<void> {
     review,
     preview,
     shotsDir: path.join(userData, 'shots'),
+    phone: { tokens: phoneTokens, send: sendPhone },
     sonar: {
       service: sonarService,
       configs: sonarConfigs,

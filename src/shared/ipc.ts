@@ -449,6 +449,12 @@ export interface IpcCommands {
   'preview:capture': () => string;
   /** Keeps a marked-up screenshot for the agent of a session; returns the file. */
   'preview:saveShot': (sessionId: string, png: string) => string;
+  /** Whether a token of the Telegram bot is kept, and whether the system can keep one. */
+  'phone:info': () => { hasToken: boolean; secureStorage: boolean };
+  /** Keeps (or, with null, drops) the token of the Telegram bot in the system's vault. */
+  'phone:setToken': (token: string | null) => { hasToken: boolean; secureStorage: boolean };
+  /** Sends a test notice to the phone; resolves with what went wrong, or null. */
+  'phone:test': () => string | null;
   /** The guard of each guarded pull request. */
   'pulls:guard': () => GuardState;
   /** Turns the guard of one of my pull requests on or off. */
@@ -638,6 +644,9 @@ export const COMMAND_CHANNELS = [
   'pulls:fixPipeline',
   'pulls:guard',
   'pulls:setGuard',
+  'phone:info',
+  'phone:setToken',
+  'phone:test',
   'preview:open',
   'preview:bounds',
   'preview:hide',
