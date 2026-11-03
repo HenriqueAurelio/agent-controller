@@ -1518,4 +1518,6 @@ export const ptBR = {
   'history.uncommitted': 'Linha {line}: ainda sem commit (mudada na pasta).',
   'history.none': 'Nenhum commit mexeu neste arquivo ainda.',
   'error.history.badCommit': 'Esse commit não existe neste repositório.',
+  'definition.title': 'Onde “{word}” é declarado',
+  'definition.none': 'Nenhuma declaração de “{word}” encontrada no projeto.',
 } as const;

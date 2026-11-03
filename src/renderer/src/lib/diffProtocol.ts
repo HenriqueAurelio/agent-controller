@@ -80,6 +80,8 @@ export type FrameMessage =
   | { type: 'contextmenu'; x: number; y: number; selection: string }
   /** The user wants to comment these lines of the file; `snippet` is their text. */
   | { type: 'comment-start'; path: string; startLine: number; endLine: number; snippet: string }
+  /** F12 or the menu: where is the name under the cursor declared? */
+  | { type: 'definition'; word: string }
   /** The answer to `request-line`. */
   | { type: 'line'; path: string; line: number }
   /** A comment drawn in the editor was clicked: open it to edit or delete. */

@@ -1532,4 +1532,6 @@ export const es: Record<keyof typeof ptBR, string> = {
   'history.uncommitted': 'Línea {line}: aún sin commit (cambiada en la carpeta).',
   'history.none': 'Ningún commit tocó este archivo todavía.',
   'error.history.badCommit': 'Ese commit no existe en este repositorio.',
+  'definition.title': 'Dónde se declara “{word}”',
+  'definition.none': 'No se encontró ninguna declaración de “{word}” en el proyecto.',
 };

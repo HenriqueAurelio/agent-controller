@@ -1516,4 +1516,6 @@ export const en: Record<keyof typeof ptBR, string> = {
   'history.uncommitted': 'Line {line}: not committed yet (changed in the folder).',
   'history.none': 'No commit touched this file yet.',
   'error.history.badCommit': 'That commit does not exist in this repository.',
+  'definition.title': 'Where “{word}” is declared',
+  'definition.none': 'No declaration of “{word}” found in the project.',
 };
