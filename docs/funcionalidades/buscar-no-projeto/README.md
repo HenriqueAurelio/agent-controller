@@ -1,7 +1,7 @@
 # Buscar no projeto
 
-- **Estado:** proposta, leva 2.
-- **ADR:** nova, "Busca de texto: ripgrep empacotado ou git grep".
+- **Estado:** implementada na v0.5 (2026-11-03), com o `git grep` ([ADR 0032](../../../adr/0032-busca-por-git-grep.md)). Os resultados chegam de uma vez, não aos poucos: o limite de 2 000 e o prazo de 30 s tornam a espera curta.
+- **ADR:** [0032](../../../adr/0032-busca-por-git-grep.md).
 
 ## O problema
 

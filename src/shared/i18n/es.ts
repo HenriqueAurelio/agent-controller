@@ -1501,4 +1501,27 @@ export const es: Record<keyof typeof ptBR, string> = {
   'preview.shotPromptNote': 'Mira la captura en {file}. Las marcas rojas muestran dónde: {note}',
   'error.preview.notLocal':
     'La vista previa solo abre páginas de esta máquina (localhost, 127.0.0.1).',
+  'shortcut.search': 'Buscar en el proyecto',
+  'command.search': 'Buscar en el proyecto',
+  'search.tab': 'Buscar',
+  'search.tabHint':
+    'Busca un texto en todos los archivos de la carpeta, y envía lo encontrado al agente',
+  'search.placeholder': 'Buscar',
+  'search.case': 'Distinguir mayúsculas',
+  'search.word': 'Palabra completa',
+  'search.regex': 'Expresión regular',
+  'search.include': 'Incluir (src/**, *.ts)',
+  'search.exclude': 'Excluir (*.test.ts)',
+  'search.changedOnly': 'Solo en los archivos cambiados',
+  'search.searching': 'Buscando…',
+  'search.count': '{count} resultados en {files} archivos',
+  'search.truncated': 'Se detuvo en {count} resultados: refina la búsqueda.',
+  'search.none': 'Nada encontrado.',
+  'search.send': 'Enviar al agente',
+  'search.sendHint':
+    'Abre el diálogo de envío con los resultados (archivo:línea: fragmento), para pedir algo sobre ellos',
+  'search.prompt': 'Encontré estos fragmentos con "{text}":\n\n{results}\n\n',
+  'error.search.badRegex': 'La expresión regular no es válida.',
+  'error.search.timeout': 'La búsqueda pasó de 30 segundos. Refina el texto o los filtros.',
+  'error.search.failed': 'La búsqueda falló: {output}',
 };

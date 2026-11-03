@@ -26,12 +26,14 @@ import { FileTree } from './FileTree';
 import { MultiDiffView } from './MultiDiffView';
 import { ProblemsList } from './ProblemsList';
 import { ReviewList } from './ReviewList';
+import { SearchList } from './SearchList';
+import { searchText, type SearchMatch } from '@shared/search';
 
 /**
  * What the panel lists: what git says changed, every file of the folder, the problems the
  * checks found, the comments of the review, or every changed block in one scroll.
  */
-export type PanelMode = 'changes' | 'files' | 'problems' | 'review' | 'all';
+export type PanelMode = 'changes' | 'files' | 'problems' | 'review' | 'all' | 'search';
 
 /** A file and the line to put the cursor on; a new nonce asks again. */
 export interface LocationRequest {
@@ -57,6 +59,8 @@ interface Props {
   onSendProblems(problems: Problem[]): void;
   /** "Send to the agent" on the review: the prompt dialog opens with its comments. */
   onSendReview(): void;
+  /** "Send to the agent" on search results: the prompt dialog opens with them. */
+  onSendSearch(text: string): void;
   /** The latest Sonar analysis of the session: its issues join the problems of the checks. */
   sonarRun?: SonarRun;
   /** A base asked for from outside (the timeline); a new nonce applies it again. */
@@ -147,6 +151,7 @@ export function ChangesPanel({
   onSendSelection,
   onSendProblems,
   onSendReview,
+  onSendSearch,
   sonarRun,
   requestedBase,
   requestedFile,
@@ -304,8 +309,10 @@ export function ChangesPanel({
   const problemsMode = mode === 'problems';
   const reviewMode = mode === 'review';
   const allMode = mode === 'all';
+  const searchMode = mode === 'search';
+  const [openMatch, setOpenMatch] = useState<SearchMatch | null>(null);
   /** The tree and the lists of problems and of comments open files in the editor next to them. */
-  const browsing = files || problemsMode || reviewMode;
+  const browsing = files || problemsMode || reviewMode || searchMode;
   const comments = useReview(session.id);
   const [openComment, setOpenComment] = useState<string | null>(null);
   /** The file in the editor. */
@@ -579,6 +586,15 @@ export function ChangesPanel({
             : t('problems.tab')}
         </button>
         <button
+          className={searchMode ? 'active' : ''}
+          aria-pressed={searchMode}
+          data-testid="search-tab"
+          onClick={() => switchMode(searchMode ? 'changes' : 'search')}
+          title={t('search.tabHint')}
+        >
+          {t('search.tab')}
+        </button>
+        <button
           className={reviewMode ? 'active' : ''}
           aria-pressed={reviewMode}
           data-testid="review-tab"
@@ -685,6 +701,27 @@ export function ChangesPanel({
               changes={kinds}
               repos={repoFolders}
               onSelect={browse}
+            />
+          ) : searchMode ? (
+            <SearchList
+              sessionId={sessionId}
+              current={openMatch}
+              onOpen={(match) => {
+                if (match.file !== browsed && !mayLeave()) return;
+                setOpenMatch(match);
+                setBrowsed(match.file);
+                setReveal({
+                  path: match.file,
+                  line: match.line,
+                  column: match.column,
+                  nonce: Date.now(),
+                });
+              }}
+              onSend={(text, matches) =>
+                onSendSearch(
+                  t('search.prompt', { text, results: searchText(matches.slice(0, 300)) }),
+                )
+              }
             />
           ) : reviewMode ? (
             <ReviewList

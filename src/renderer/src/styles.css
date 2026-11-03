@@ -4095,3 +4095,36 @@ textarea.associations {
   width: 100%;
   box-sizing: border-box;
 }
+
+/* Search in the project. */
+.search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+}
+.search-form input:not([type='checkbox']) {
+  width: 100%;
+  box-sizing: border-box;
+}
+.search-row {
+  display: flex;
+  gap: 4px;
+}
+.search-toggle {
+  flex: 0 0 auto;
+  padding: 0 6px;
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: 12px;
+}
+.search-toggle.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.search-line {
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

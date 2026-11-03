@@ -33,6 +33,7 @@ import type { NewReviewComment, ReviewComment } from './review';
 import type { MergeOptions, OpenedPull, PullReviewData, ReviewSubmission } from './pullReview';
 import type { BranchInfo, OpenPullInput } from './branch';
 import type { PreviewBounds, PreviewState } from './preview';
+import type { SearchQuery, SearchResult } from './search';
 import type { BaseUpdate } from './branchUpdate';
 import type { SonarConfig, SonarGroupInfo, SonarRun, SonarTestResult } from './sonar';
 import type {
@@ -285,6 +286,8 @@ export interface IpcCommands {
   'branch:openPull': (sessionId: string, input: OpenPullInput) => OpenedPull;
   /** Brings the base into the copy; a conflict stays there, for the agent. */
   'branch:updateFromBase': (sessionId: string) => BaseUpdate;
+  /** Searches the text of the folder of a session (git grep inside a repository). */
+  'search:run': (sessionId: string, query: SearchQuery) => SearchResult;
   /** The open issues of the repository of a folder (its remote on GitHub or GitLab). */
   'tasks:issues': (folder: string) => IssueList;
   /** Edits the title or the description of a card that was not started. */
@@ -567,6 +570,7 @@ export const COMMAND_CHANNELS = [
   'tasks:list',
   'tasks:create',
   'tasks:issues',
+  'search:run',
   'branch:info',
   'branch:openPull',
   'branch:updateFromBase',

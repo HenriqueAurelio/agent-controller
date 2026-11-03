@@ -35,6 +35,7 @@ Registro das decisões de arquitetura do agent-controller. Cada arquivo traz o c
 | [0029](0029-push-e-pr-da-copia-isolada.md) | Push da branch da cópia isolada e PR a partir do app; atualizar a cópia com a base (merge, conflito para o agente) | Aceita |
 | [0030](0030-sessao-retoma-a-conversa.md) | A sessão guarda o id da conversa do agente e a retoma ao iniciar; duplicar e trocar a pasta começam uma nova | Aceita |
 | [0031](0031-previa-embutida-de-localhost.md) | Prévia de páginas locais dentro do app, numa WebContentsView isolada; prints marcados vão ao agente como arquivo | Aceita |
+| [0032](0032-busca-por-git-grep.md) | Busca no projeto pelo git grep (-P, com -E de reserva), e leitura simples fora do git; sem empacotar o ripgrep | Aceita |
 
 ## Status
 

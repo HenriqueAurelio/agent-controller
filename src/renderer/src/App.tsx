@@ -639,6 +639,7 @@ export function App() {
         },
         toggleChanges: () => togglePanel('changes'),
         toggleFiles: () => togglePanel('files'),
+        search: () => togglePanel('search'),
         toggleHidden: () =>
           void window.api.invoke('prefs:set', { showHiddenFiles: !prefs.showHiddenFiles }),
         toggleAux: () => {
@@ -722,6 +723,7 @@ export function App() {
       list.unshift(
         action('toggleChanges', t('command.seeChanges'), () => showPanel('changes')),
         action('toggleFiles', t('command.files'), () => showPanel('files')),
+        action('search', t('command.search'), () => showPanel('search')),
         {
           id: 'show-problems',
           title: t('command.problems'),
@@ -1278,6 +1280,7 @@ export function App() {
               onSendSelection={(file, selection) => openPrompt(undefined, { file, selection })}
               onSendProblems={sendProblems}
               onSendReview={() => void sendReview(selected.id).catch(() => {})}
+              onSendSearch={(text) => openPrompt(undefined, {}, [selected.id], text)}
               sonarRun={sonarRuns[selected.id]}
               requestedBase={panelBase}
               requestedFile={panelFileRequest?.sessionId === selected.id ? panelFileRequest : null}

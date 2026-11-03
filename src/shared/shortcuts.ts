@@ -18,6 +18,7 @@ export const SHORTCUT_ACTIONS = [
   'background',
   'toggleChanges',
   'toggleFiles',
+  'search',
   'toggleHidden',
   'toggleAux',
   'sendPrompt',
@@ -47,6 +48,7 @@ export const DEFAULT_SHORTCUTS: ShortcutMap = {
   background: ['Ctrl+Shift+K'],
   toggleChanges: ['Ctrl+Shift+G'],
   toggleFiles: ['Ctrl+Shift+E'],
+  search: ['Ctrl+Shift+F'],
   toggleHidden: ['Ctrl+Shift+H'],
   // Shift+' gives `"` on the US and ABNT2 layouts; the other is for those where it does not.
   toggleAux: ['Ctrl+Shift+"', "Ctrl+Shift+'"],
