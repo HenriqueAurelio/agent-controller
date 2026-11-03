@@ -616,6 +616,7 @@ export function registerIpc(context: IpcContext): void {
     if (context.sonar.tokens.has(groupId)) context.sonar.tokens.set(groupId, null);
   });
   handle('groups:reorder', (list) => manager.reorderGroups(ids(list)));
+  handle('sessions:newConversation', (id) => manager.newConversation(session(id).id));
   handle('sessions:select', (id) => manager.select(id === null ? null : session(id).id));
   handle('sessions:start', (id, terminalSize) => manager.start(session(id).id, size(terminalSize)));
   handle('sessions:stop', (id) => manager.stop(session(id).id));

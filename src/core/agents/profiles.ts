@@ -35,6 +35,13 @@ export interface AgentProfile {
    * are only answered in the terminal.
    */
   permission?: PermissionMenu;
+  /** How a conversation is opened with a known id, and resumed (ADR 0030). */
+  conversation: {
+    /** Arguments that open a new conversation with an id the app chose; absent: it cannot. */
+    newWithId?: (id: string) => string[];
+    /** Arguments that resume a conversation: `before` goes first (a subcommand), `after` last. */
+    resume: (id: string) => { before?: string[]; after: string[] };
+  };
 }
 
 const BRAILLE = '\\u2800-\\u28FF';
@@ -70,6 +77,10 @@ export const CLAUDE_CODE: AgentProfile = {
     always: /\b2\.\s+Yes, (?:and don['’]t ask again|allow all)/i,
     keys: { allow: '1', allowAlways: '2', deny: '\x1b' },
   },
+  conversation: {
+    newWithId: (id) => ['--session-id', id],
+    resume: (id) => ({ after: ['--resume', id] }),
+  },
 };
 
 export const CODEX: AgentProfile = {
@@ -102,6 +113,11 @@ export const CODEX: AgentProfile = {
     menu: /Would you like to\b[\s\S]*\bYes, proceed\b/i,
     always: /\bYes, and don['’]t ask again\b/i,
     keys: { allow: 'y', allowAlways: 'a', deny: '\x1b' },
+  },
+  // `codex resume <id>` takes the same `-c` the app passes; there is no way to pick the id of a
+  // new conversation, which is learned from SessionStart or notify.
+  conversation: {
+    resume: (id) => ({ before: ['resume', id], after: [] }),
   },
 };
 

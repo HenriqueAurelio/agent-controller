@@ -1465,4 +1465,7 @@ export const es: Record<keyof typeof ptBR, string> = {
   'error.branch.dirty':
     'La copia tiene cambios sin commit. Haz el commit (o descártalos) antes de traer la base.',
   'error.branch.mergeFailed': 'El merge falló:\n{output}',
+  'notice.resuming': 'Retomando la conversación anterior.',
+  'notice.resumeFailed': 'No se pudo retomar la conversación. Enter inicia una nueva.',
+  'command.newConversation': 'Nueva conversación en “{name}”',
 };

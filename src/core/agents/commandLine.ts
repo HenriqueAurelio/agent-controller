@@ -85,12 +85,25 @@ export function codexConfigArgs(
 }
 
 /** The final command line for a session. What identifies the session is only the environment. */
+/** The conversation a start opens: a new one with this id, or this one again. */
+export interface LaunchConversation {
+  id: string;
+  mode: 'new' | 'resume';
+}
+
 export function buildLaunchCommand(
   profile: AgentProfile,
   session: { id: string; readOnly?: boolean; model?: string; reasoning?: string },
   context: LaunchContext,
+  conversation?: LaunchConversation,
 ): LaunchCommand {
-  const args = [...profile.baseArgs];
+  const resume =
+    conversation?.mode === 'resume' ? profile.conversation.resume(conversation.id) : null;
+  const args = [...(resume?.before ?? []), ...profile.baseArgs];
+  if (conversation?.mode === 'new' && profile.conversation.newWithId) {
+    args.push(...profile.conversation.newWithId(conversation.id));
+  }
+  if (resume) args.push(...resume.after);
   if (session.readOnly && profile.readOnlyArgs) args.push(...profile.readOnlyArgs);
   if (profile.id === 'claude-code') {
     if (session.model) args.push('--model', session.model);

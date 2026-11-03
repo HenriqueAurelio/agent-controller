@@ -2,6 +2,7 @@
 
 - **Status:** Aceita
 - **Data:** 2026-10-12
+- **Revisão (2026-11-03):** a [ADR 0030](0030-sessao-retoma-a-conversa.md) acrescenta à sessão persistida o id da conversa do agente, que iniciar a sessão retoma.
 
 ## Contexto
 

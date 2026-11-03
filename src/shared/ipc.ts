@@ -165,6 +165,8 @@ export interface IpcCommands {
   'shell:openExternal': (url: string) => void;
 
   'sessions:list': () => SessionsSnapshot;
+  /** The agent of the session starts over in a new conversation (ADR 0030). */
+  'sessions:newConversation': (id: string) => void;
   'sessions:create': (input: NewSessionInput) => SessionView;
   'sessions:rename': (id: string, name: string) => void;
   /** Another folder for a session. A running agent is ended for it: true when that happened. */
@@ -493,6 +495,7 @@ export const COMMAND_CHANNELS = [
   'clipboard:write',
   'shell:openExternal',
   'sessions:list',
+  'sessions:newConversation',
   'sessions:create',
   'sessions:rename',
   'sessions:setCwd',

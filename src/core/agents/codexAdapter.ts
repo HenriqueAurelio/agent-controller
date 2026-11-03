@@ -73,6 +73,7 @@ export class CodexAdapter extends BaseAdapter {
       case 'SessionStart':
         if (typeof payload.session_id === 'string') {
           this.threadId = payload.session_id;
+          this.reportConversation(payload.session_id);
           this.locate(payload.session_id);
         }
         break;
@@ -99,7 +100,10 @@ export class CodexAdapter extends BaseAdapter {
     if (this.threadId && threadId && threadId !== this.threadId) return;
     if (inputMessages(payload).some((m) => INTERNAL_PROMPT.test(m))) return;
     // Without trusted hooks, a real turn's notify is the only place the thread shows up.
-    if (threadId) this.locate(threadId);
+    if (threadId) {
+      this.reportConversation(threadId);
+      this.locate(threadId);
+    }
 
     if (this.activity === 'waiting') return; // A turn asking for permission is not complete.
     if (this.activity === 'working') {

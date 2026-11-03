@@ -13,6 +13,7 @@ import {
   GROUP_NAME_LIMIT,
   GROUPS_LIMIT,
 } from '@shared/session';
+import { CONVERSATION_ID } from '@shared/session';
 import { JsonStore, type Migration } from './JsonStore';
 import { folderKey, sanitizeRecentFolders } from './recentFolders';
 
@@ -169,6 +170,9 @@ function validate(raw: unknown): AppData {
       ...(worktree && { worktree }),
       ...(s.readOnly === true && { readOnly: true }),
       ...(groupId && { groupId }),
+      // Only an id that is plainly one goes back to a command line.
+      ...(typeof s.conversationId === 'string' &&
+        CONVERSATION_ID.test(s.conversationId) && { conversationId: s.conversationId }),
       order: typeof s.order === 'number' ? s.order : sessions.length,
     });
   }

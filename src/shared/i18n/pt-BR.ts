@@ -1453,4 +1453,7 @@ export const ptBR = {
   'error.branch.dirty':
     'A cópia tem mudanças sem commit. Faça o commit (ou descarte) antes de trazer a base.',
   'error.branch.mergeFailed': 'O merge falhou:\n{output}',
+  'notice.resuming': 'Retomando a conversa anterior.',
+  'notice.resumeFailed': 'Não foi possível retomar a conversa. Enter inicia uma nova.',
+  'command.newConversation': 'Nova conversa em “{name}”',
 } as const;
