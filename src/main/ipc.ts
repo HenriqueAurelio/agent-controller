@@ -146,6 +146,12 @@ export interface IpcContext {
   preview: Preview;
   /** Where the marked-up screenshots for the agents are kept. */
   shotsDir: string;
+  phone: {
+    /** The vault of the token of the Telegram bot, under the key `telegram`. */
+    tokens: SonarTokens;
+    /** Sends a notice now, whatever the focus of the window; resolves with the error, or null. */
+    send(title: string, body: string): Promise<string | null>;
+  };
   sonar: {
     service: SonarService;
     configs: SonarConfigStore;
@@ -1380,6 +1386,23 @@ export function registerIpc(context: IpcContext): void {
   handle('preview:saveShot', (id, png) =>
     saveShot(context.shotsDir, session(id).id, str(png, 'data', SHOT_LIMIT)),
   );
+  const phoneInfo = () => ({
+    hasToken: context.phone.tokens.has('telegram'),
+    secureStorage: context.phone.tokens.available(),
+  });
+  handle('phone:info', phoneInfo);
+  handle('phone:setToken', (token) => {
+    if (token === null) {
+      if (context.phone.tokens.has('telegram')) context.phone.tokens.set('telegram', null);
+    } else {
+      const value = str(token, 'text', 200).trim();
+      if (!/^\d+:[\w-]{20,}$/.test(value)) throw new UserError('error.phone.badToken');
+      if (!context.phone.tokens.available()) throw new UserError('error.sonar.noVault');
+      context.phone.tokens.set('telegram', value);
+    }
+    return phoneInfo();
+  });
+  handle('phone:test', () => context.phone.send(t('phone.testTitle'), t('phone.testBody')));
   handle('pulls:guard', () => context.guard.get());
   handle('pulls:setGuard', (key, on) => {
     const value = str(key, 'pull', 300);

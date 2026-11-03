@@ -22,6 +22,7 @@ import { PromptsEditor } from './PromptsEditor';
 import { ShortcutsEditor } from './ShortcutsEditor';
 import { OverlapsSettings } from './OverlapsSettings';
 import { WorktreesSettings } from './WorktreesSettings';
+import { PhoneSettings } from './PhoneSettings';
 
 const set = (patch: Partial<Preferences>) => void window.api.invoke('prefs:set', patch);
 
@@ -188,6 +189,8 @@ export function PreferencesDialog({
                 <span>{t('prefs.silenceAfter')}</span>
               </label>
             </fieldset>
+
+            <PhoneSettings />
 
             <fieldset className="field">
               <legend>{t('prefs.terminal')}</legend>

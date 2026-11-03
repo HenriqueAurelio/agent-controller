@@ -3,6 +3,7 @@ import {
   sanitizeCheckpointSettings,
   type CheckpointSettings,
 } from './checkpoints';
+import { DEFAULT_PHONE_SETTINGS, sanitizePhoneSettings, type PhoneSettings } from './phone';
 import { sanitizeAssociations } from './codeLanguages';
 import {
   DEFAULT_OVERLAP_SETTINGS,
@@ -65,6 +66,8 @@ export interface Preferences {
   fallback: FallbackSettings;
   /** The repositories whose pull requests the app watches, and which of their news it tells. */
   pulls: PullsSettings;
+  /** Notices on the phone (ADR 0033). */
+  phone: PhoneSettings;
   /** Commands that run in the background, apart from the sessions (a database proxy, a tunnel). */
   background: BackgroundCommand[];
 }
@@ -96,6 +99,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   overlaps: DEFAULT_OVERLAP_SETTINGS,
   fallback: DEFAULT_FALLBACK,
   pulls: DEFAULT_PULLS_SETTINGS,
+  phone: DEFAULT_PHONE_SETTINGS,
   background: [],
 };
 
@@ -176,6 +180,7 @@ export function sanitizePreferences(input: Partial<Preferences> | undefined): Pr
     overlaps: sanitizeOverlapSettings(p.overlaps),
     fallback: sanitizeFallback(p.fallback),
     pulls: sanitizePullsSettings(p.pulls),
+    phone: sanitizePhoneSettings(p.phone),
     background: sanitizeBackgroundCommands(p.background),
   };
 }
