@@ -279,6 +279,9 @@ class FakeTransport implements GitLabTransport {
   async defaultHost() {
     return 'gitlab.com';
   }
+  async send(): Promise<string> {
+    throw new Error('this test writes nothing');
+  }
 }
 const stamp = () => '2026-10-31T19:00:00.000000Z 01O ';
 

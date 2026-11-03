@@ -103,6 +103,28 @@ Rodado em 2026-10-31, no Windows 10, só lendo.
 - **Fork:** no `gitlab-org/cli!4268`, o pipeline rodou no fork do autor; o log foi lido lá (432 linhas) e termina na mensagem do `check_docs_update` e em `ERROR: Job failed: exit code 1`.
 - **Runner Windows:** um log de 3 230 linhas, quase todas `Status: processing`, com `\r\n`, ficou com 1,5 mil caracteres e termina no estouro de tempo.
 
+## Revisar um PR no app
+
+Adicionado na v0.3 (`docs/proximas-versoes.md`, item 3), a partir da revisão de MRs do Maestro. A decisão de escrever nos serviços está na [ADR 0028](../../../adr/0028-escrever-nos-servicos-de-repositorio.md).
+
+- **Ler:** `ReviewClient.review` (`src/core/forges/review.ts`).
+  - **GitHub:** `GET /pulls/{n}`, `/files` e `/comments`, pela REST, com o token do `gh`.
+  - **GitLab:** `/merge_requests/{iid}`, `/diffs` (ou `/changes` num servidor anterior ao 15.7) e `/discussions`, pelo `glab api`.
+  - Os patches dos dois são lidos por `src/core/forges/patch.ts`. Até 300 arquivos e 300 comentários.
+- **Publicar:** uma revisão só, contra o commit lido.
+  - **GitHub:** `POST /pulls/{n}/reviews`, com `commit_id`, o veredito e os comentários por linha (`side` RIGHT ou LEFT).
+  - **GitLab:** uma discussão por linha, com os `diff_refs` do MR, uma nota com o comentário geral e `POST /approve` ao aprovar. Antes de comentar, o app confere se o `sha` do MR ainda é o lido.
+- **Merge:** squash.
+  - **GitHub:** `PUT /merge`, e `DELETE /git/refs/heads/{branch}` se a pessoa marcou apagar a branch.
+  - **GitLab:** `PUT /merge` com `should_remove_source_branch`.
+  - O botão só liga quando `mergeable_state` (GitHub) ou `detailed_merge_status` (GitLab) dizem que o PR pode entrar.
+- **Canais:** `pulls:review`, `pulls:submitReview` e `pulls:merge`, com o veredito, as linhas e os textos validados no main.
+- **Ficou de fora:**
+  - responder um comentário e marcar como resolvido;
+  - o revisor automático (um agente que escreve rascunhos de comentários);
+  - "pedir mudanças" no GitLab;
+  - comentário em arquivo renomeado do GitLab, que pode ser recusado.
+
 ## Vigiar um PR
 
 Adicionado na v0.3 (`docs/proximas-versoes.md`, item 4), a partir do vigia de MRs do Maestro.
@@ -122,6 +144,6 @@ Adicionado na v0.3 (`docs/proximas-versoes.md`, item 4), a partir do vigia de MR
 ## O que ficou de fora
 
 - **Bitbucket:** sem CLI oficial, exigiria guardar um token no app ([ADR 0027](../../../adr/0027-servicos-de-repositorio.md)).
-- **Comentar, aprovar e fazer merge pelo app:** o painel só lê. Escrever no serviço em nome da pessoa pede outra decisão.
+- **Comentar, aprovar e fazer merge pelo app:** feito na v0.3, com a [ADR 0028](../../../adr/0028-escrever-nos-servicos-de-repositorio.md). Veja "Revisar um PR no app", acima.
 - **Texto dos comentários:** o aviso diz quem comentou, não o que escreveu. Ler os comentários seria mais uma consulta por PR.
 - **GitHub Enterprise e GitLab com porta no endereço:** o GitHub é sempre `api.github.com`, e o nome guardado do GitLab não leva porta.

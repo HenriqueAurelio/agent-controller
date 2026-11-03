@@ -11,6 +11,17 @@ import type {
 } from '@shared/pulls';
 import { eachRepo, ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
 import { ANSI, tailLines } from './log';
+import { parsePatch } from './patch';
+import type { ForgeReview, ReviewClient } from './review';
+import {
+  PULL_FILES_LIMIT,
+  type MergeOptions,
+  type MergeState,
+  type PullFile,
+  type PullFileStatus,
+  type PullThread,
+  type ReviewSubmission,
+} from '@shared/pullReview';
 
 export { ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
 
@@ -330,7 +341,79 @@ export function logTail(log: string, lines?: number): string {
   );
 }
 
-export class GitHubClient implements ForgeClient {
+/** What `mergeable_state` of the REST API says about merging now. */
+function mergeState(pull: Json): MergeState {
+  if (pull.merged === true) return 'merged';
+  if (pull.draft === true) return 'draft';
+  switch (text(pull.mergeable_state)) {
+    case 'clean':
+    case 'unstable':
+    case 'has_hooks':
+      return 'ready';
+    case 'dirty':
+      return 'conflict';
+    case 'blocked':
+    case 'behind':
+      return 'blocked';
+    default:
+      return 'unknown';
+  }
+}
+
+const FILE_STATUS: Record<string, PullFileStatus> = {
+  added: 'added',
+  removed: 'removed',
+  renamed: 'renamed',
+  copied: 'added',
+};
+
+/** The files of a pull request, as `GET /pulls/{n}/files` lists them. */
+export function parsePullFiles(list: unknown): PullFile[] {
+  return (Array.isArray(list) ? list : []).map((item) => {
+    const f = obj(item);
+    const path = text(f.filename);
+    const patch = typeof f.patch === 'string' ? f.patch : '';
+    return {
+      path,
+      ...(text(f.previous_filename) ? { oldPath: text(f.previous_filename) } : {}),
+      status: FILE_STATUS[text(f.status)] ?? 'modified',
+      hunks: patch ? parsePatch(path, patch) : [],
+      ...(!patch ? { noPatch: true } : {}),
+    };
+  });
+}
+
+/** The review comments of a pull request, in threads: each reply joins the comment it answers. */
+export function parsePullThreads(list: unknown): PullThread[] {
+  const threads = new Map<number, PullThread>();
+  for (const item of Array.isArray(list) ? list : []) {
+    const c = obj(item);
+    const id = typeof c.id === 'number' ? c.id : 0;
+    const root = typeof c.in_reply_to_id === 'number' ? c.in_reply_to_id : id;
+    const comment = {
+      author: text(obj(c.user).login),
+      body: text(c.body),
+      createdAt: text(c.created_at),
+    };
+    const thread = threads.get(root);
+    if (thread) {
+      thread.comments.push(comment);
+      continue;
+    }
+    const line = typeof c.line === 'number' ? c.line : null;
+    threads.set(root, {
+      id: String(root),
+      path: text(c.path) || null,
+      line,
+      ...(c.side === 'LEFT' ? { oldSide: true } : {}),
+      resolved: false,
+      comments: [comment],
+    });
+  }
+  return [...threads.values()];
+}
+
+export class GitHubClient implements ForgeClient, ReviewClient {
   private readonly apiUrl: string;
   private readonly fetch: Fetch;
   private readonly runToken: (account: string) => Promise<string>;
@@ -404,6 +487,86 @@ export class GitHubClient implements ForgeClient {
     // GitHub answers with a redirect to the file; fetch follows it, without the token.
     if (!response.ok) return '';
     return logTail(await response.text());
+  }
+
+  async review(repo: string, number: number): Promise<ForgeReview> {
+    const base = `/repos/${repo}/pulls/${number}`;
+    const pull = obj(await this.json(base));
+    const files: unknown[] = [];
+    for (let page = 1; files.length < PULL_FILES_LIMIT && page <= 3; page++) {
+      const list = await this.json(`${base}/files?per_page=100&page=${page}`);
+      if (!Array.isArray(list) || list.length === 0) break;
+      files.push(...list);
+      if (list.length < 100) break;
+    }
+    const comments: unknown[] = [];
+    for (let page = 1; page <= 3; page++) {
+      const list = await this.json(`${base}/comments?per_page=100&page=${page}`);
+      if (!Array.isArray(list) || list.length === 0) break;
+      comments.push(...list);
+      if (list.length < 100) break;
+    }
+    return {
+      title: text(pull.title),
+      url: text(pull.html_url),
+      author: text(obj(pull.user).login),
+      branch: text(obj(pull.head).ref),
+      base: text(obj(pull.base).ref),
+      headSha: text(obj(pull.head).sha),
+      files: parsePullFiles(files.slice(0, PULL_FILES_LIMIT)),
+      threads: parsePullThreads(comments),
+      truncated: typeof pull.changed_files === 'number' && pull.changed_files > PULL_FILES_LIMIT,
+      merge: mergeState(pull),
+    };
+  }
+
+  async submitReview(repo: string, number: number, submission: ReviewSubmission): Promise<void> {
+    await this.json(`/repos/${repo}/pulls/${number}/reviews`, {
+      method: 'POST',
+      body: JSON.stringify({
+        commit_id: submission.headSha,
+        event: submission.verdict,
+        body: submission.body,
+        comments: submission.comments.map((c) => ({
+          path: c.path,
+          line: c.line,
+          side: c.oldSide ? 'LEFT' : 'RIGHT',
+          body: c.body,
+        })),
+      }),
+    });
+  }
+
+  async merge(repo: string, number: number, branch: string, options: MergeOptions): Promise<void> {
+    await this.json(`/repos/${repo}/pulls/${number}/merge`, {
+      method: 'PUT',
+      body: JSON.stringify({ merge_method: options.squash ? 'squash' : 'merge' }),
+    });
+    if (!options.deleteBranch || !branch) return;
+    // A branch of a fork is not in this repository: GitHub answers 422, and that is fine.
+    await this.request(`/repos/${repo}/git/refs/heads/${encodeURIComponent(branch)}`, {
+      method: 'DELETE',
+    }).catch(() => undefined);
+  }
+
+  /** A REST call whose answer is JSON; an error status becomes an error with GitHub's message. */
+  private async json(path: string, init: RequestInit = {}): Promise<unknown> {
+    const response = await this.request(path, init);
+    const body = await response.text();
+    if (!response.ok) {
+      let message = '';
+      try {
+        const parsed = obj(JSON.parse(body));
+        const details = Array.isArray(parsed.errors)
+          ? parsed.errors.map((e) => (typeof e === 'string' ? e : text(obj(e).message)))
+          : [];
+        message = [text(parsed.message), ...details].filter(Boolean).join(': ');
+      } catch {
+        // Not JSON: the status says it.
+      }
+      throw new ForgeError('error', `GitHub ${response.status}${message ? `: ${message}` : ''}`);
+    }
+    return body ? (JSON.parse(body) as unknown) : null;
   }
 
   private async graphql(query: string, variables: Json = {}): Promise<unknown> {

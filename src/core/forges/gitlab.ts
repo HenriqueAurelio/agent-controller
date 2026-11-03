@@ -6,6 +6,16 @@ import { resolveCli } from './cli';
 import type { JobState, PipelineJob, PipelineState, PullRequestView } from '@shared/pulls';
 import { eachRepo, ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
 import { ANSI, tailLines } from './log';
+import { parsePatch } from './patch';
+import type { ForgeReview, ReviewClient } from './review';
+import {
+  PULL_FILES_LIMIT,
+  type MergeOptions,
+  type MergeState,
+  type PullFile,
+  type PullThread,
+  type ReviewSubmission,
+} from '@shared/pullReview';
 
 type Json = Record<string, unknown>;
 
@@ -17,6 +27,8 @@ export interface GitLabTransport {
   rest(host: string, path: string): Promise<string>;
   /** The server glab uses when none is named. */
   defaultHost(): Promise<string>;
+  /** A REST call that writes (`POST`, `PUT`), with a JSON body: the text of the answer. */
+  send(host: string, method: 'POST' | 'PUT', path: string, body: Json): Promise<string>;
 }
 
 const TIMEOUT_MS = 30_000;
@@ -116,6 +128,25 @@ export const glabTransport: GitLabTransport = {
     const run = await runGlab(['config', 'get', 'host']).catch(() => null);
     return run?.code === 0 && run.out.trim() ? run.out.trim() : 'gitlab.com';
   },
+  async send(host, method, path, body) {
+    const run = await runGlab(
+      [
+        'api',
+        path,
+        '--hostname',
+        host,
+        '--method',
+        method,
+        '-H',
+        'Content-Type: application/json',
+        '--input',
+        '-',
+      ],
+      JSON.stringify(body),
+    );
+    if (run.code !== 0) throw glabError(host, run);
+    return run.out;
+  },
 };
 
 /** A GitLab at an address, with a token: only for the tests, which run a fake one. */
@@ -141,6 +172,8 @@ export function fetchTransport(apiUrl: string, token: string): GitLabTransport {
       ) as unknown,
     rest: (_host, path) => request(`/api/v4/${path}`),
     defaultHost: async () => 'gitlab.com',
+    send: (_host, method, path, body) =>
+      request(`/api/v4/${path}`, { method, body: JSON.stringify(body) }),
   };
 }
 
@@ -346,7 +379,68 @@ export function gitlabLogTail(log: string, lines?: number): string {
   return tailLines(kept.slice(0, end), lines);
 }
 
-export class GitLabClient implements ForgeClient {
+/** What `detailed_merge_status` says about merging now. */
+function mergeState(mr: Json): MergeState {
+  if (text(mr.state) === 'merged') return 'merged';
+  if (mr.draft === true || mr.work_in_progress === true) return 'draft';
+  const status = text(mr.detailed_merge_status) || text(mr.merge_status);
+  if (status === 'mergeable' || status === 'can_be_merged') return 'ready';
+  if (status === 'conflict' || status === 'cannot_be_merged') return 'conflict';
+  if (!status || /checking|unchecked|preparing/.test(status)) return 'unknown';
+  return 'blocked';
+}
+
+/** The changed files of a merge request, as `/diffs` (or the older `/changes`) lists them. */
+export function parseMergeRequestDiffs(list: unknown): PullFile[] {
+  return (Array.isArray(list) ? list : []).map((item) => {
+    const d = obj(item);
+    const path = text(d.new_path) || text(d.old_path);
+    const diff = typeof d.diff === 'string' ? d.diff : '';
+    return {
+      path,
+      ...(d.renamed_file === true && text(d.old_path) ? { oldPath: text(d.old_path) } : {}),
+      status:
+        d.new_file === true
+          ? 'added'
+          : d.deleted_file === true
+            ? 'removed'
+            : d.renamed_file === true
+              ? 'renamed'
+              : 'modified',
+      hunks: diff ? parsePatch(path, diff) : [],
+      ...(!diff ? { noPatch: true } : {}),
+    };
+  });
+}
+
+/** The discussions of a merge request that people wrote (system notes left out). */
+export function parseDiscussions(list: unknown): PullThread[] {
+  const threads: PullThread[] = [];
+  for (const item of Array.isArray(list) ? list : []) {
+    const d = obj(item);
+    const notes = (Array.isArray(d.notes) ? d.notes : []).map(obj).filter((n) => n.system !== true);
+    if (notes.length === 0) continue;
+    const position = obj(notes[0]!.position);
+    const newLine = typeof position.new_line === 'number' ? position.new_line : null;
+    const oldLine = typeof position.old_line === 'number' ? position.old_line : null;
+    threads.push({
+      id: text(d.id),
+      path: text(position.new_path) || text(position.old_path) || null,
+      line: newLine ?? oldLine,
+      ...(newLine === null && oldLine !== null ? { oldSide: true } : {}),
+      resolved:
+        notes.some((n) => n.resolvable === true) && notes.every((n) => n.resolved !== false),
+      comments: notes.map((n) => ({
+        author: text(obj(n.author).username),
+        body: text(n.body),
+        createdAt: text(n.created_at),
+      })),
+    });
+  }
+  return threads;
+}
+
+export class GitLabClient implements ForgeClient, ReviewClient {
   constructor(private readonly transport: GitLabTransport = glabTransport) {}
 
   /** glab has one login per server: there is no account to pick. */
@@ -401,6 +495,86 @@ export class GitLabClient implements ForgeClient {
     // anywhere) is worth saying, not an empty list.
     if (failures.length === hosts.size) throw failures[0];
     return lists.flat();
+  }
+
+  async review(repo: string, number: number): Promise<ForgeReview> {
+    const { host, path } = splitRepo(repo);
+    const base = `projects/${encodeURIComponent(path)}/merge_requests/${number}`;
+    const get = async (url: string) => JSON.parse(await this.transport.rest(host, url)) as unknown;
+    const mr = obj(await get(base));
+    const pages = async (url: string, limit: number) => {
+      const all: unknown[] = [];
+      for (let page = 1; all.length < limit && page <= 3; page++) {
+        const list = await get(`${url}${url.includes('?') ? '&' : '?'}per_page=100&page=${page}`);
+        if (!Array.isArray(list) || list.length === 0) break;
+        all.push(...list);
+        if (list.length < 100) break;
+      }
+      return all;
+    };
+    // `/diffs` came in GitLab 15.7; an older server only has the changes inside the MR.
+    let diffs: unknown[];
+    try {
+      diffs = await pages(`${base}/diffs`, PULL_FILES_LIMIT);
+    } catch {
+      diffs = (obj(await get(`${base}/changes`)).changes as unknown[]) ?? [];
+    }
+    const discussions = await pages(`${base}/discussions`, 300);
+    return {
+      title: text(mr.title),
+      url: text(mr.web_url),
+      author: text(obj(mr.author).username),
+      branch: text(mr.source_branch),
+      base: text(mr.target_branch),
+      headSha: text(mr.sha),
+      files: parseMergeRequestDiffs(diffs.slice(0, PULL_FILES_LIMIT)),
+      threads: parseDiscussions(discussions),
+      truncated: diffs.length > PULL_FILES_LIMIT,
+      merge: mergeState(mr),
+    };
+  }
+
+  async submitReview(repo: string, number: number, submission: ReviewSubmission): Promise<void> {
+    const { host, path } = splitRepo(repo);
+    const base = `projects/${encodeURIComponent(path)}/merge_requests/${number}`;
+    if (submission.comments.length > 0) {
+      const mr = obj(JSON.parse(await this.transport.rest(host, base)) as unknown);
+      const refs = obj(mr.diff_refs);
+      if (text(mr.sha) && submission.headSha && text(mr.sha) !== submission.headSha) {
+        throw new ForgeError('error', 'GitLab: the merge request moved since it was read', host);
+      }
+      for (const comment of submission.comments) {
+        await this.transport.send(host, 'POST', `${base}/discussions`, {
+          body: comment.body,
+          position: {
+            position_type: 'text',
+            base_sha: text(refs.base_sha),
+            start_sha: text(refs.start_sha),
+            head_sha: text(refs.head_sha),
+            new_path: comment.path,
+            old_path: comment.path,
+            ...(comment.oldSide ? { old_line: comment.line } : { new_line: comment.line }),
+          },
+        });
+      }
+    }
+    if (submission.body.trim()) {
+      await this.transport.send(host, 'POST', `${base}/notes`, { body: submission.body });
+    }
+    // GitLab has no "request changes" of its own: the comments say it.
+    if (submission.verdict === 'APPROVE') {
+      await this.transport.send(host, 'POST', `${base}/approve`, { sha: submission.headSha });
+    }
+  }
+
+  async merge(repo: string, number: number, _branch: string, options: MergeOptions): Promise<void> {
+    const { host, path } = splitRepo(repo);
+    await this.transport.send(
+      host,
+      'PUT',
+      `projects/${encodeURIComponent(path)}/merge_requests/${number}/merge`,
+      { squash: options.squash, should_remove_source_branch: options.deleteBranch },
+    );
   }
 
   async jobLog(repo: string, job: FailedJob): Promise<string> {

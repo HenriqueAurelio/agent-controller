@@ -72,6 +72,12 @@ import type {
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
 import { FORGES, PIPELINE_TEXT_LIMIT, pullSummary } from '@shared/pulls';
 import {
+  REVIEW_BODY_LIMIT,
+  REVIEW_DRAFTS_LIMIT,
+  type ReviewSubmission,
+  type ReviewVerdict,
+} from '@shared/pullReview';
+import {
   REVIEW_COMMENT_TEXT_LIMIT,
   REVIEW_LINE_LIMIT,
   REVIEW_SNIPPET_LIMIT,
@@ -235,6 +241,40 @@ const hunkRevert = (value: unknown): HunkRevert => {
     newStart: start,
     before: hunkLines(v.before),
     after: hunkLines(v.after),
+  };
+};
+const VERDICTS: readonly ReviewVerdict[] = ['COMMENT', 'APPROVE', 'REQUEST_CHANGES'];
+const submission = (value: unknown): ReviewSubmission => {
+  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  if (!VERDICTS.includes(v.verdict as ReviewVerdict)) {
+    throw new UserError('error.invalidArgument', { name: { key: 'arg.choice' } });
+  }
+  const list = Array.isArray(v.comments) ? v.comments : [];
+  if (list.length > REVIEW_DRAFTS_LIMIT) {
+    throw new UserError('error.invalidArgument', { name: { key: 'arg.text' } });
+  }
+  const comments = list.map((item) => {
+    const c = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
+    const at = c.line;
+    if (typeof at !== 'number' || !Number.isInteger(at) || at < 1) {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.line' } });
+    }
+    return {
+      path: str(c.path, 'file'),
+      line: at,
+      ...(c.oldSide === true ? { oldSide: true } : {}),
+      body: str(c.body, 'text', REVIEW_BODY_LIMIT),
+    };
+  });
+  const body = str(v.body ?? '', 'text', REVIEW_BODY_LIMIT);
+  if (comments.length === 0 && !body.trim() && v.verdict !== 'APPROVE') {
+    throw new UserError('error.pullReview.empty');
+  }
+  return {
+    verdict: v.verdict as ReviewVerdict,
+    body,
+    comments,
+    headSha: str(v.headSha ?? '', 'text', 100),
   };
 };
 const base = (value: unknown): DiffBase =>
@@ -1065,6 +1105,17 @@ export function registerIpc(context: IpcContext): void {
     const pipeline = await context.pulls.failureText(pull.key);
     if (!pipeline) throw new UserError('error.pulls.nothingFailed');
     return { pr: pullSummary(pull), pipeline, sessions: await sessionsForPull(manager, pull) };
+  });
+  handle('pulls:review', (key) => context.pulls.review(str(key, 'pull', 300)));
+  handle('pulls:submitReview', (key, value) =>
+    context.pulls.submitReview(str(key, 'pull', 300), submission(value)),
+  );
+  handle('pulls:merge', (key, options) => {
+    const o = (options && typeof options === 'object' ? options : {}) as Record<string, unknown>;
+    return context.pulls.merge(str(key, 'pull', 300), {
+      squash: o.squash !== false,
+      deleteBranch: o.deleteBranch === true,
+    });
   });
   handle('pulls:guard', () => context.guard.get());
   handle('pulls:setGuard', (key, on) => {
