@@ -4022,3 +4022,18 @@ textarea.associations {
 .branch-update-result {
   margin-top: 6px;
 }
+
+/* The ports the processes of a session listen on: a dev server, opened with a click. */
+.session-ports {
+  display: inline-flex;
+  gap: 4px;
+}
+.port-chip {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  background: transparent;
+}

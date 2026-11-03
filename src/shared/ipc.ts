@@ -107,6 +107,8 @@ export interface WorktreesInfo {
   /** The setting itself: empty for the default. */
   configuredFolder: string;
   setup: string;
+  /** Files of the repository copied into each new copy, one pattern per line. */
+  copy: string;
   copies: WorktreeCopy[];
 }
 
@@ -134,6 +136,8 @@ export interface SessionMetrics {
   /** Resident memory in bytes, summed over the session's process tree. */
   memory: number;
   processes: number;
+  /** TCP ports the process tree listens on (a dev server), read every few samples. */
+  ports?: number[];
 }
 
 /** Renderer → main, request/response. */
@@ -253,7 +257,11 @@ export interface IpcCommands {
   'worktrees:status': (sessionId: string) => FileChange[];
   /** The copies the app made, with their size and the sessions in each. */
   'worktrees:list': () => WorktreesInfo;
-  'worktrees:configure': (settings: { folder: string; setup: string }) => WorktreesInfo;
+  'worktrees:configure': (settings: {
+    folder: string;
+    setup: string;
+    copy?: string;
+  }) => WorktreesInfo;
   /** Removes a copy no session works in, when nothing in it is uncommitted. */
   'worktrees:remove': (folder: string) => WorktreesInfo;
 

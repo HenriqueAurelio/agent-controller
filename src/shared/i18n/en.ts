@@ -1455,4 +1455,9 @@ export const en: Record<keyof typeof ptBR, string> = {
   'notice.resuming': 'Resuming the previous conversation.',
   'notice.resumeFailed': 'The conversation could not be resumed. Enter starts a new one.',
   'command.newConversation': 'New conversation in “{name}”',
+  'worktrees.copy': 'Files copied into each new copy',
+  'worktrees.copyHint':
+    'One per line, from the root of the repository; * stands for any part of a name (.env.*). The ones in the repository and missing in the copy (git does not bring them) are copied, before the setup command. Empty: nothing is copied.',
+  'app.ports': 'Ports opened by the processes of this session. Click to open in the browser.',
+  'app.port': 'Open localhost:{port} in the browser',
 };

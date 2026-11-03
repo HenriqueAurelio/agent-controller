@@ -1456,4 +1456,9 @@ export const ptBR = {
   'notice.resuming': 'Retomando a conversa anterior.',
   'notice.resumeFailed': 'Não foi possível retomar a conversa. Enter inicia uma nova.',
   'command.newConversation': 'Nova conversa em “{name}”',
+  'worktrees.copy': 'Arquivos copiados para cada cópia nova',
+  'worktrees.copyHint':
+    'Um por linha, a partir da raiz do repositório; * vale qualquer trecho do nome (.env.*). São copiados os que existem no repositório e faltam na cópia (o git não os leva), antes do comando de preparo. Vazio: nada é copiado.',
+  'app.ports': 'Portas abertas pelos processos desta sessão. Clique para abrir no navegador.',
+  'app.port': 'Abrir localhost:{port} no navegador',
 } as const;

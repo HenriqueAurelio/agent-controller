@@ -48,6 +48,7 @@ import {
 } from '@core/store/prefsFile';
 import { folderKey, rememberFolder } from '@core/store/recentFolders';
 import { sanitizeWorktreeSettings } from '@core/store/appStore';
+import { parseCopyPatterns } from '@core/git/copyIntoWorktree';
 import { AGENT_COMMAND_LIMIT, sanitizeAgentCommand, type AgentAvailability } from '@shared/agents';
 import { CHECKS_LIMIT, sanitizeChecks, type ChecksInfo } from '@shared/checks';
 import { CODE_THEME_MAX_BYTES } from '@shared/codeThemes';
@@ -571,6 +572,7 @@ export function registerIpc(context: IpcContext): void {
     const created = await manager.createInWorktree(clean, {
       parent: worktreesFolder(),
       setup: context.data.worktrees.setup,
+      copy: parseCopyPatterns(context.data.worktrees.copy),
     });
     remember(clean.cwd);
     return created;
@@ -751,6 +753,7 @@ export function registerIpc(context: IpcContext): void {
       defaultFolder: defaultWorktreesFolder(),
       configuredFolder: context.data.worktrees.folder,
       setup: context.data.worktrees.setup,
+      copy: context.data.worktrees.copy,
       copies: copies
         .filter((c): c is WorktreeCopy => c !== null)
         .sort((a, b) => b.modifiedAt - a.modifiedAt),
@@ -776,7 +779,10 @@ export function registerIpc(context: IpcContext): void {
     if (folder.trim() && !path.isAbsolute(folder.trim())) {
       throw new UserError('error.worktree.folderNotAbsolute', { folder });
     }
-    context.data.worktrees = sanitizeWorktreeSettings({ folder, setup });
+    // Absent (an older caller): the list there was stays.
+    const copy =
+      settings?.copy === undefined ? context.data.worktrees.copy : str(settings.copy, 'text', 4000);
+    context.data.worktrees = sanitizeWorktreeSettings({ folder, setup, copy });
     manager.flushPersist();
     return worktreesInfo();
   });

@@ -210,6 +210,8 @@ Dois agentes na mesma pasta pisam um no outro. Para cada um trabalhar sem atrapa
 Depois disso:
 
 - O topo da sessão mostra a branch, com o ícone **⑂**.
+- **O `.env` vai junto:** o git não leva para a cópia o que ele ignora, e o projeto sem o `.env` não sobe. Por isso o app copia, do repositório para cada cópia nova, os arquivos de **Preferências → Sessões → Arquivos copiados para cada cópia nova** (`.env` e `.env.*` de fábrica; um padrão por linha, `*` vale qualquer trecho do nome). Só o que falta na cópia é copiado, antes do comando de preparo; nada nela é sobrescrito.
+- **Portas:** o que a sessão abre (um `npm run dev`) aparece no topo como `:3000`, e o clique abre `http://localhost:3000` no navegador. Assim fica claro qual cópia está em qual porta. O app lê as portas a cada 15 s, junto com o CPU e a memória (`netstat` no Windows, `ss` no Linux).
 - O painel de mudanças mostra só o que aconteceu na cópia. Em **Comparar com**, a opção **A base da branch** mostra tudo o que a branch mudou desde que saiu da base: os commits dela e o que ainda não tem commit.
 - **Duplicar** uma sessão em cópia abre a nova na mesma cópia. Enquanto as duas existirem, uma faixa avisa que elas mexem nos mesmos arquivos.
 - **Ao fechar**, o app pergunta o que fazer com a cópia. **Manter** (o padrão) deixa a pasta e a branch; dá para abrir outra sessão nela depois. **Remover a cópia** apaga a pasta, e só é possível quando nada nela está sem commit e nenhuma outra sessão a usa; com mudanças, o app diz quais e não remove. A **branch nunca é apagada**.

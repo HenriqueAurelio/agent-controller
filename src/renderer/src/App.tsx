@@ -142,6 +142,7 @@ export function App() {
   const [sonarGroupId, setSonarGroupId] = useState<string | null>(null);
   const sonarGroup = groups.find((g) => g.id === sonarGroupId);
   const sonarRuns = useSonarRuns();
+  const metrics = useAppState((s) => s.metrics);
   const [sonarError, setSonarError] = useState<string | null>(null);
   const runSonar = useCallback((sessionId: string) => {
     setSonarError(null);
@@ -1130,6 +1131,22 @@ export function App() {
               <span className="sr-only">{t('app.checks')}</span>
               {selected.checks && <ChecksBadge summary={selected.checks} />}
             </button>
+            {(metrics[selected.id]?.ports ?? []).length > 0 && (
+              <span className="session-ports" title={t('app.ports')} data-testid="session-ports">
+                {metrics[selected.id]!.ports!.slice(0, 4).map((port) => (
+                  <button
+                    key={port}
+                    className="port-chip"
+                    title={t('app.port', { port })}
+                    onClick={() =>
+                      void window.api.invoke('shell:openExternal', `http://localhost:${port}`)
+                    }
+                  >
+                    :{port}
+                  </button>
+                ))}
+              </span>
+            )}
             {selected.worktree && (
               <button
                 className="branch-button session-action"
