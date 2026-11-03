@@ -31,6 +31,7 @@ import type { AvailableRepos, Forge, GhAccounts, GuardState, PullsState } from '
 import type { BackgroundState } from './background';
 import type { NewReviewComment, ReviewComment } from './review';
 import type { MergeOptions, PullReviewData, ReviewSubmission } from './pullReview';
+import type { SonarConfig, SonarGroupInfo, SonarRun, SonarTestResult } from './sonar';
 import type {
   PromptValues,
   QueueCondition,
@@ -385,6 +386,24 @@ export interface IpcCommands {
   /** Publishes the comments and the verdict written in the app (ADR 0028). */
   'pulls:submitReview': (key: string, submission: ReviewSubmission) => void;
   'pulls:merge': (key: string, options: MergeOptions) => void;
+  /** The Sonar setup of a group, whether it has a token, and whether one can be kept. */
+  'sonar:group': (groupId: string) => SonarGroupInfo;
+  /**
+   * Saves the setup of a group (null removes it). `token`: a new one; null removes it; absent
+   * keeps the one saved.
+   */
+  'sonar:configure': (
+    groupId: string,
+    config: SonarConfig | null,
+    token?: string | null,
+  ) => SonarGroupInfo;
+  /** Asks the server whether the token and the project work, before saving. */
+  'sonar:test': (groupId: string, config: SonarConfig, token?: string) => SonarTestResult;
+  /** Analyses one session now, or every session of a group. */
+  'sonar:run': (sessionId: string) => void;
+  'sonar:runGroup': (groupId: string) => void;
+  /** The latest analysis of each session. */
+  'sonar:runs': () => Record<string, SonarRun>;
   /** The guard of each guarded pull request. */
   'pulls:guard': () => GuardState;
   /** Turns the guard of one of my pull requests on or off. */
@@ -433,6 +452,8 @@ export interface IpcEvents {
   'background:focus': (id: string) => void;
   /** A notice of a pull request was clicked: the panel opens on it. */
   'pulls:focus': (key: string) => void;
+  /** The analysis of Sonar of a session changed; null: it has none any more. */
+  'sonar:changed': (sessionId: string, run: SonarRun | null) => void;
   /** A guard changed: it sent a fix, gave up, or was turned on or off. */
   'pulls:guardChanged': (state: GuardState) => void;
   /** The comments of the review of a session changed. */
@@ -562,6 +583,12 @@ export const COMMAND_CHANNELS = [
   'pulls:guard',
   'pulls:setGuard',
   'pulls:review',
+  'sonar:group',
+  'sonar:configure',
+  'sonar:test',
+  'sonar:run',
+  'sonar:runGroup',
+  'sonar:runs',
   'pulls:submitReview',
   'pulls:merge',
   'review:list',
@@ -592,6 +619,7 @@ export const EVENT_CHANNELS = [
   'pulls:changed',
   'pulls:focus',
   'pulls:guardChanged',
+  'sonar:changed',
   'background:changed',
   'background:data',
   'background:focus',

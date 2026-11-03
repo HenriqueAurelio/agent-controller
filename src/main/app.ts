@@ -33,6 +33,10 @@ import { PullWatcher, type PullNotice } from '@core/forges/PullWatcher';
 import { PullGuard } from '@core/forges/PullGuard';
 import { BackgroundService } from '@core/background/BackgroundService';
 import { ReviewStore } from '@core/review/ReviewStore';
+import { SonarService } from '@core/sonar/SonarService';
+import { SonarConfigStore } from '@core/sonar/SonarConfigStore';
+import { currentBranch } from '@core/git/GitService';
+import { SonarTokens } from './sonarTokens';
 import { defaultWorktreesFolder } from '@core/git/WorktreeService';
 import { PromptQueue } from '@core/prompts/PromptQueue';
 import { PtyManager } from '@core/pty/PtyManager';
@@ -822,6 +826,34 @@ export async function startApp(): Promise<void> {
   const review = new ReviewStore({ file: path.join(userData, 'review.json') });
   review.on('changed', (sessionId, comments) => send('review:changed', sessionId, comments));
   manager.on('removed', (id) => review.forget(id));
+
+  // Sonar (docs/planos/sonar-por-grupo-e-worktree.md): set up per group, analysed per session.
+  const sonarService = new SonarService({
+    workDirectory: path.join(userData, 'sonar-work'),
+    describeError: (err) => errorText(data.prefs.language, err),
+  });
+  const sonarConfigs = new SonarConfigStore(path.join(userData, 'sonar.json'));
+  const sonarTokens = new SonarTokens(path.join(userData, 'sonar-tokens.json'));
+  sonarService.on('changed', (sessionId, run) => send('sonar:changed', sessionId, run));
+  const startSonar = async (sessionId: string) => {
+    const s = manager.get(sessionId);
+    const config = s?.groupId ? sonarConfigs.get(s.groupId) : null;
+    if (!s || !s.groupId || !config || !config.enabled) {
+      throw new UserError('error.sonar.notConfigured');
+    }
+    const token = sonarTokens.get(s.groupId);
+    if (!token) throw new UserError('error.sonar.noToken');
+    const branch = await currentBranch(s.cwd).catch(() => null);
+    sonarService.start({ sessionId, repoKey: s.groupId, cwd: s.cwd, branch, config, token });
+  };
+  manager.on('removed', (id) => sonarService.forget(id));
+  manager.on('transition', ({ session, previous }) => {
+    const edge = turnEdge(session.status, previous);
+    if (edge === 'started') sonarService.cancel(session.id);
+    if (edge !== 'ended' || !session.groupId) return;
+    const config = sonarConfigs.get(session.groupId);
+    if (config?.enabled && config.onTurnEnd) void startSonar(session.id).catch(() => {});
+  });
   background.on('data', (id, chunk) => send('background:data', id, chunk));
   background.on('notice', ({ command, exitCode }) => {
     showNotice(
@@ -857,6 +889,12 @@ export async function startApp(): Promise<void> {
     guard,
     background,
     review,
+    sonar: {
+      service: sonarService,
+      configs: sonarConfigs,
+      tokens: sonarTokens,
+      start: startSonar,
+    },
     data,
     discardDir,
     codeThemes: new CodeThemeStore(path.join(userData, 'themes')),
@@ -915,6 +953,7 @@ export async function startApp(): Promise<void> {
     tails.dispose();
     changes.dispose();
     overlaps.dispose();
+    sonarService.dispose();
     reviewer.dispose();
     flows.dispose();
     tasks.dispose();

@@ -6,6 +6,8 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from 'react';
+import { sonarSummary } from '@shared/sonar';
+import { useSonarRuns } from '../lib/sonar';
 import { isHorizontal } from '@shared/layout';
 import { statusLabel, type SessionGroup, type SessionView } from '@shared/session';
 import { formatCpu, formatMemory, hint, PROFILE_LABEL } from '../lib/format';
@@ -27,6 +29,8 @@ interface Props {
   /** Opens the comparison of the attempts of an experiment. */
   onCompare(experimentId: string): void;
   onFlow(group: SessionGroup): void;
+  /** "Repository validations → Sonar" of a group. */
+  onSonar(group: SessionGroup): void;
   /** The keyboard goes back to the terminal after an action in the list. */
   onDone(): void;
   /** Sessions picked with Ctrl+click, to send a prompt to all of them. */
@@ -97,6 +101,7 @@ export function Sidebar({
   onNewExperiment,
   onCompare,
   onFlow,
+  onSonar,
   onDone,
   marked,
   onMarkedChange,
@@ -110,6 +115,7 @@ export function Sidebar({
   onBackground,
   backgroundOpen,
 }: Props) {
+  const sonarRuns = useSonarRuns();
   const sessions = useAppState((s) => s.sessions);
   const groups = useAppState((s) => s.groups);
   const selectedId = useAppState((s) => s.selectedId);
@@ -531,7 +537,44 @@ export function Sidebar({
           {group.collapsed && unread && (
             <span className="badge group-badge" aria-label={t('group.unread')} />
           )}
+          {(() => {
+            const summary = sonarSummary(members.map((m) => sonarRuns[m.id]));
+            if (summary.passed + summary.failed + summary.running === 0) return null;
+            return (
+              <span
+                className="group-sonar"
+                data-testid="group-sonar-summary"
+                data-passed={summary.passed}
+                data-failed={summary.failed}
+                data-running={summary.running}
+                title={[
+                  t('sonar.summaryHint'),
+                  summary.passed > 0 && t('sonar.summary.passed', { count: summary.passed }),
+                  summary.failed > 0 && t('sonar.summary.failed', { count: summary.failed }),
+                  summary.running > 0 && t('sonar.summary.running', { count: summary.running }),
+                ]
+                  .filter(Boolean)
+                  .join('\n')}
+              >
+                {summary.passed > 0 && <span className="sonar-ok">{summary.passed}✓</span>}
+                {summary.failed > 0 && <span className="sonar-bad">{summary.failed}✗</span>}
+                {summary.running > 0 && <span className="sonar-run">{summary.running}…</span>}
+              </span>
+            );
+          })()}
           <span className="spacer" />
+          <button
+            className="icon-button item-button sonar-button"
+            title={t('sonar.buttonHint', { name: group.name })}
+            aria-label={t('sonar.title', { name: group.name })}
+            data-testid="sonar-button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSonar(group);
+            }}
+          >
+            ◈
+          </button>
           <button
             className="icon-button item-button"
             title={t('group.newSession', { name: group.name })}

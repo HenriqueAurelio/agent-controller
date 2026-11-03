@@ -3914,3 +3914,49 @@ textarea.associations {
   border-color: var(--waiting);
   color: var(--waiting);
 }
+
+/* Sonar: the summary of a group and the result of a session. */
+.group-sonar {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.sonar-chip {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.sonar-chip.status-passed {
+  border-color: var(--done);
+  color: var(--done);
+}
+.sonar-chip.status-failed,
+.sonar-chip.status-error {
+  border-color: var(--error);
+  color: var(--error);
+}
+.sonar-chip.status-queued,
+.sonar-chip.status-running,
+.sonar-chip.status-processing {
+  border-color: var(--working);
+  color: var(--working);
+}
+.sonar-test.ok {
+  color: var(--done);
+}
+.group-sonar {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.group-sonar .sonar-ok {
+  color: var(--done);
+}
+.group-sonar .sonar-bad {
+  color: var(--error);
+}
+.group-sonar .sonar-run {
+  color: var(--working);
+}

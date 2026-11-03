@@ -20,6 +20,7 @@ import { useAppState } from '../lib/store';
 import { useReview } from '../lib/review';
 import { useProblems } from '../lib/useProblems';
 import type { ReviewComment } from '@shared/review';
+import type { SonarRun } from '@shared/sonar';
 import { DiffView } from './DiffView';
 import { FileTree } from './FileTree';
 import { MultiDiffView } from './MultiDiffView';
@@ -56,6 +57,8 @@ interface Props {
   onSendProblems(problems: Problem[]): void;
   /** "Send to the agent" on the review: the prompt dialog opens with its comments. */
   onSendReview(): void;
+  /** The latest Sonar analysis of the session: its issues join the problems of the checks. */
+  sonarRun?: SonarRun;
   /** A base asked for from outside (the timeline); a new nonce applies it again. */
   requestedBase?: { base: DiffBase; nonce: number } | null;
   /** A file to open, asked for from another session that also changed it. */
@@ -144,6 +147,7 @@ export function ChangesPanel({
   onSendSelection,
   onSendProblems,
   onSendReview,
+  sonarRun,
   requestedBase,
   requestedFile,
   requestedLocation,
@@ -306,7 +310,19 @@ export function ChangesPanel({
   const [openComment, setOpenComment] = useState<string | null>(null);
   /** The file in the editor. */
   const current = browsing ? browsed : selected;
-  const found = useProblems(session.id);
+  const checksFound = useProblems(session.id);
+  const found = useMemo(
+    () =>
+      sonarRun && sonarRun.problems.length > 0
+        ? {
+            ...checksFound,
+            problems: [...checksFound.problems, ...sonarRun.problems],
+            more: checksFound.more + sonarRun.more,
+            ran: true,
+          }
+        : checksFound,
+    [checksFound, sonarRun],
+  );
   const [openProblem, setOpenProblem] = useState<Problem | null>(null);
   /** The lines of the open file that the checks complained about. */
   const markers = useMemo<FrameMarker[]>(

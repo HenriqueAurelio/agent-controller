@@ -29,13 +29,15 @@ import { BackgroundCommands } from './components/BackgroundCommands';
 import { PreferencesDialog } from './components/PreferencesDialog';
 import { PromptDialog, type PromptContext } from './components/PromptDialog';
 import { FlowDialog } from './components/FlowDialog';
+import { SonarDialog } from './components/SonarDialog';
+import { useSonarRuns } from './lib/sonar';
 import { ReviewerDialog } from './components/ReviewerDialog';
 import { QueueDialog, sendQueueFailure, skipQueueItem } from './components/QueueDialog';
 import { TimelineDialog } from './components/TimelineDialog';
 import { Sidebar } from './components/Sidebar';
 import { TerminalArea, type TerminalAreaHandle } from './components/TerminalArea';
 import { useCheckpoints } from './lib/checkpoints';
-import { hint, PROFILE_LABEL } from './lib/format';
+import { errorMessage, hint, PROFILE_LABEL } from './lib/format';
 import { rich, useT } from './lib/i18n';
 import { shortcutRecording } from './lib/shortcuts';
 import { store, useAppState } from './lib/store';
@@ -63,6 +65,7 @@ type Overlay =
   | 'compare'
   | 'reviewer'
   | 'flow'
+  | 'sonar'
   | null;
 
 interface PromptRequest {
@@ -134,6 +137,14 @@ export function App() {
   const [comparing, setComparing] = useState<string | null>(null);
   const [flowGroupId, setFlowGroupId] = useState<string | null>(null);
   const flowGroup = groups.find((g) => g.id === flowGroupId);
+  const [sonarGroupId, setSonarGroupId] = useState<string | null>(null);
+  const sonarGroup = groups.find((g) => g.id === sonarGroupId);
+  const sonarRuns = useSonarRuns();
+  const [sonarError, setSonarError] = useState<string | null>(null);
+  const runSonar = useCallback((sessionId: string) => {
+    setSonarError(null);
+    window.api.invoke('sonar:run', sessionId).catch((err) => setSonarError(errorMessage(err)));
+  }, []);
   const terminals = useRef<TerminalAreaHandle>(null);
   // `Ctrl+click` on a path in a terminal: the changes panel opens on all files, at that line.
   useEffect(
@@ -716,6 +727,11 @@ export function App() {
           run: () => showPanel('all'),
         },
         {
+          id: 'sonar-run',
+          title: t('command.sonarRun', { name: selected.name }),
+          run: () => runSonar(selected.id),
+        },
+        {
           id: 'show-review',
           title: t('command.review'),
           run: () => showPanel('review'),
@@ -858,6 +874,7 @@ export function App() {
     theme,
     customThemes,
     t,
+    runSonar,
   ]);
 
   // Global shortcuts are taken in the capture phase, before the terminal sees the key.
@@ -927,6 +944,10 @@ export function App() {
         onFlow={(group) => {
           setFlowGroupId(group.id);
           setOverlay('flow');
+        }}
+        onSonar={(group) => {
+          setSonarGroupId(group.id);
+          setOverlay('sonar');
         }}
         onPreferences={() => runAction('preferences')}
         onClose={requestClose}
@@ -1092,7 +1113,31 @@ export function App() {
               <span className="sr-only">{t('app.checks')}</span>
               {selected.checks && <ChecksBadge summary={selected.checks} />}
             </button>
+            {sonarRuns[selected.id] && (
+              <button
+                className={`sonar-chip session-action status-${sonarRuns[selected.id]!.status}`}
+                data-testid="sonar-chip"
+                data-status={sonarRuns[selected.id]!.status}
+                title={
+                  sonarRuns[selected.id]!.error ??
+                  t('sonar.chipHint', {
+                    status: t(`sonar.status.${sonarRuns[selected.id]!.status}`),
+                  })
+                }
+                onClick={() => runSonar(selected.id)}
+              >
+                {t('sonar.chip', { status: t(`sonar.status.${sonarRuns[selected.id]!.status}`) })}
+              </button>
+            )}
           </header>
+        )}
+        {sonarError && (
+          <div className="banner error" role="alert" data-testid="sonar-error">
+            <span>{sonarError}</span>
+            <button className="icon-button" onClick={() => setSonarError(null)}>
+              ×
+            </button>
+          </div>
         )}
         {sharing && (
           <div className="banner" role="status">
@@ -1151,6 +1196,7 @@ export function App() {
               onSendSelection={(file, selection) => openPrompt(undefined, { file, selection })}
               onSendProblems={sendProblems}
               onSendReview={() => void sendReview(selected.id).catch(() => {})}
+              sonarRun={sonarRuns[selected.id]}
               requestedBase={panelBase}
               requestedFile={panelFileRequest?.sessionId === selected.id ? panelFileRequest : null}
               requestedLocation={panelLocation?.sessionId === selected.id ? panelLocation : null}
@@ -1230,6 +1276,9 @@ export function App() {
       )}
       {overlay === 'flow' && flowGroup && (
         <FlowDialog key={flowGroup.id} group={flowGroup} onClose={closeOverlay} />
+      )}
+      {overlay === 'sonar' && sonarGroup && (
+        <SonarDialog key={sonarGroup.id} group={sonarGroup} onClose={closeOverlay} />
       )}
       {overlay === 'group' && (
         <GroupDialog
