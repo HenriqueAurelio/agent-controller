@@ -30,6 +30,7 @@ import { PreferencesDialog } from './components/PreferencesDialog';
 import { PromptDialog, type PromptContext } from './components/PromptDialog';
 import { FlowDialog } from './components/FlowDialog';
 import { SonarDialog } from './components/SonarDialog';
+import { BranchDialog } from './components/BranchDialog';
 import { useSonarRuns } from './lib/sonar';
 import { ReviewerDialog } from './components/ReviewerDialog';
 import { QueueDialog, sendQueueFailure, skipQueueItem } from './components/QueueDialog';
@@ -66,6 +67,7 @@ type Overlay =
   | 'reviewer'
   | 'flow'
   | 'sonar'
+  | 'branch'
   | null;
 
 interface PromptRequest {
@@ -726,6 +728,15 @@ export function App() {
           title: t('command.all'),
           run: () => showPanel('all'),
         },
+        ...(selected.worktree
+          ? [
+              {
+                id: 'branch-pull',
+                title: t('command.branchPull', { name: selected.name }),
+                run: () => setOverlay('branch'),
+              },
+            ]
+          : []),
         {
           id: 'sonar-run',
           title: t('command.sonarRun', { name: selected.name }),
@@ -1113,6 +1124,16 @@ export function App() {
               <span className="sr-only">{t('app.checks')}</span>
               {selected.checks && <ChecksBadge summary={selected.checks} />}
             </button>
+            {selected.worktree && (
+              <button
+                className="branch-button session-action"
+                data-testid="branch-button"
+                onClick={() => setOverlay('branch')}
+                title={t('branch.buttonHint')}
+              >
+                {t('branch.button')}
+              </button>
+            )}
             {sonarRuns[selected.id] && (
               <button
                 className={`sonar-chip session-action status-${sonarRuns[selected.id]!.status}`}
@@ -1276,6 +1297,14 @@ export function App() {
       )}
       {overlay === 'flow' && flowGroup && (
         <FlowDialog key={flowGroup.id} group={flowGroup} onClose={closeOverlay} />
+      )}
+      {overlay === 'branch' && selected?.worktree && (
+        <BranchDialog
+          key={selected.id}
+          session={selected}
+          onClose={closeOverlay}
+          onSendConflict={(text) => openPrompt(undefined, {}, [selected.id], text)}
+        />
       )}
       {overlay === 'sonar' && sonarGroup && (
         <SonarDialog key={sonarGroup.id} group={sonarGroup} onClose={closeOverlay} />

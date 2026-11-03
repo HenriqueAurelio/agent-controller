@@ -319,6 +319,15 @@ export class TaskBoard extends EventEmitter<TaskBoardEvents> {
   }
 
   /** Removes the card. The session it became, if any, is left as it is. */
+  /** The card a session was started from, in the boards read so far. */
+  findBySession(sessionId: string): Task | null {
+    for (const board of this.boards.values()) {
+      const found = board.data.tasks.find((t) => t.sessionId === sessionId);
+      if (found) return found;
+    }
+    return null;
+  }
+
   remove(id: string): TaskBoardState {
     const { board, task } = this.find(id);
     board.data.tasks = board.data.tasks.filter((t) => t !== task);

@@ -13,11 +13,13 @@ import type {
 import { eachRepo, ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
 import { ANSI, tailLines } from './log';
 import { parsePatch } from './patch';
-import type { ForgeReview, IssueClient, ReviewClient } from './review';
+import type { ForgeReview, IssueClient, PullCreator, ReviewClient } from './review';
 import {
   PULL_FILES_LIMIT,
   type MergeOptions,
   type MergeState,
+  type NewPull,
+  type OpenedPull,
   type PullFile,
   type PullFileStatus,
   type PullThread,
@@ -431,7 +433,7 @@ export function parseIssues(list: unknown): ForgeIssue[] {
     }));
 }
 
-export class GitHubClient implements ForgeClient, ReviewClient, IssueClient {
+export class GitHubClient implements ForgeClient, ReviewClient, IssueClient, PullCreator {
   private readonly apiUrl: string;
   private readonly fetch: Fetch;
   private readonly runToken: (account: string) => Promise<string>;
@@ -505,6 +507,25 @@ export class GitHubClient implements ForgeClient, ReviewClient, IssueClient {
     // GitHub answers with a redirect to the file; fetch follows it, without the token.
     if (!response.ok) return '';
     return logTail(await response.text());
+  }
+
+  async createPull(repo: string, pull: NewPull): Promise<OpenedPull> {
+    const created = obj(
+      await this.json(`/repos/${repo}/pulls`, {
+        method: 'POST',
+        body: JSON.stringify({
+          title: pull.title,
+          body: pull.body,
+          head: pull.head,
+          base: pull.base,
+          draft: pull.draft,
+        }),
+      }),
+    );
+    return {
+      number: typeof created.number === 'number' ? created.number : 0,
+      url: text(created.html_url),
+    };
   }
 
   async issues(repo: string): Promise<ForgeIssue[]> {

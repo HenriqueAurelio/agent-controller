@@ -15,9 +15,15 @@ import {
   type PullsState,
 } from '@shared/pulls';
 import { ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
-import { isIssueClient, isReviewClient, type ReviewClient } from './review';
+import { isIssueClient, isPullCreator, isReviewClient, type ReviewClient } from './review';
 import { UserError } from '@shared/i18n';
-import type { MergeOptions, PullReviewData, ReviewSubmission } from '@shared/pullReview';
+import type {
+  MergeOptions,
+  NewPull,
+  OpenedPull,
+  PullReviewData,
+  ReviewSubmission,
+} from '@shared/pullReview';
 
 /** The share of the interval each watched repository takes, at most. */
 const REPO_GAP_MS = 4000;
@@ -194,6 +200,15 @@ export class PullWatcher extends EventEmitter<Events> {
     const client = this.clients[pull.forge];
     if (!isReviewClient(client)) throw new UserError('error.pulls.notFound');
     return { pull, client };
+  }
+
+  /** Opens a pull request on the service of the repository; the next look shows it. */
+  async createPull(repo: string, pull: NewPull): Promise<OpenedPull> {
+    const client = this.clients[forgeOf(repo)];
+    if (!isPullCreator(client)) throw new UserError('error.pulls.notFound');
+    const opened = await client.createPull(repo, pull);
+    void this.refresh();
+    return opened;
   }
 
   /** The open issues of a repository, read now, from the service it lives on. */

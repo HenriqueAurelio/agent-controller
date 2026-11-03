@@ -3981,3 +3981,44 @@ textarea.associations {
   width: 100%;
   box-sizing: border-box;
 }
+
+/* The branch of a copy on its way to a pull request. */
+.branch-button {
+  padding: 1px 8px;
+  font-size: 12px;
+}
+.branch-dialog {
+  width: min(640px, 92vw);
+}
+.branch-dialog textarea,
+.branch-dialog input:not([type='checkbox']) {
+  width: 100%;
+  box-sizing: border-box;
+}
+.branch-commits,
+.branch-conflicts {
+  margin: 0;
+  padding-left: 18px;
+  font-family: Consolas, 'DejaVu Sans Mono', monospace;
+  font-size: 12px;
+}
+.branch-warning {
+  color: var(--waiting);
+}
+.branch-opened {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--done);
+}
+.branch-update {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.branch-update h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+.branch-update-result {
+  margin-top: 6px;
+}

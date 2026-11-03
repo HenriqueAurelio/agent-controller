@@ -153,6 +153,26 @@ export async function startFakeGitHub(
         );
         return;
       }
+      // A new pull request: recorded, and listed from then on.
+      const created = /^\/repos\/([^/]+\/[^/]+)\/pulls$/.exec(req.url ?? '');
+      if (created && req.method === 'POST') {
+        const repo = created[1]!;
+        const input = JSON.parse(body) as { title: string; head: string; base: string };
+        fake.writes.push({ method: 'POST', path: req.url!, body: JSON.parse(body) });
+        const list = (fake.repos[repo] ??= []);
+        const number = 100 + list.length;
+        list.push({
+          number,
+          title: input.title,
+          author: fake.login,
+          branch: input.head,
+          base: input.base,
+          jobs: [],
+        });
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ number, html_url: `https://github.com/${repo}/pull/${number}` }));
+        return;
+      }
       const rest =
         /^\/repos\/([^/]+\/[^/]+)\/(pulls\/(\d+)(?:\/(files|comments|reviews|merge))?|git\/refs\/heads\/.+)(?:\?.*)?$/.exec(
           req.url ?? '',

@@ -1414,4 +1414,42 @@ export const en: Record<keyof typeof ptBR, string> = {
   'task.issues.none': 'No open issues in {repo}.',
   'task.issues.noRemote': 'The folder has no remote on GitHub or GitLab.',
   'task.issues.picked': '{count} issues picked: each one becomes a card.',
+  'command.branchPull': 'Open the PR of the copy of “{name}”',
+  'branch.button': 'PR',
+  'branch.buttonHint':
+    'Push the branch of this copy and open the pull request, or update the copy with the base',
+  'branch.title': 'Pull request of the copy of “{name}”',
+  'branch.summary': '{branch} → {base}: {count} commits the base does not have',
+  'branch.dirty':
+    '{count} files changed and not committed stay out of the push. Commit them first, in the changes panel.',
+  'branch.noRepo':
+    'The repository has no remote on GitHub or GitLab: there is nowhere to open the PR.',
+  'branch.pullTitle': 'Title',
+  'branch.pullBody': 'Description',
+  'branch.draft': 'Open as a draft',
+  'branch.openPull': 'Push and open the PR',
+  'branch.pushing': 'Pushing…',
+  'branch.nothingToPush': 'The branch has no commits the base does not have.',
+  'branch.opened': 'PR #{number} opened. It shows in the pull requests panel.',
+  'branch.openSite': 'Open on the site',
+  'branch.updateTitle': 'Update with the base',
+  'branch.updateHint':
+    'Brings into the copy what got into the base after it was made (a merge, without rewriting the branch). A conflict stays in the copy, for the agent to resolve.',
+  'branch.update': 'Bring {base} into the copy',
+  'branch.update.current': 'The copy already has everything of {from}.',
+  'branch.update.merged': '{from} came into the copy, with no conflict.',
+  'branch.update.conflict': 'The merge of {from} stopped on {count} files with conflicts:',
+  'branch.sendConflict': 'Send the conflict to the agent',
+  'branch.conflictPrompt':
+    'I merged {from} into this branch and it stopped with conflicts in these files:\n\n{files}\n\nResolve each conflict keeping what both versions mean to do, run the tests and finish the merge with a commit.',
+  'error.branch.notCopy': 'Only a session in an isolated copy has a PR to open from here.',
+  'error.branch.detached': 'The copy is not on a branch (detached HEAD).',
+  'error.branch.noRemote': 'The repository has no remote on GitHub or GitLab.',
+  'error.branch.noTitle': 'Write the title of the PR.',
+  'error.branch.nothingToPush': 'The branch has no commits the base does not have.',
+  'error.branch.pushTimeout': 'The push did not finish in 2 minutes.',
+  'error.branch.pushFailed': 'The push failed:\n{output}',
+  'error.branch.dirty':
+    'The copy has uncommitted changes. Commit (or discard) them before bringing the base in.',
+  'error.branch.mergeFailed': 'The merge failed:\n{output}',
 };

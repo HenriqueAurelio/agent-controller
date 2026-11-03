@@ -14,11 +14,13 @@ import {
 import { eachRepo, ForgeError, type FailedJob, type ForgeClient, type ForgePulls } from './forge';
 import { ANSI, tailLines } from './log';
 import { parsePatch } from './patch';
-import type { ForgeReview, IssueClient, ReviewClient } from './review';
+import type { ForgeReview, IssueClient, PullCreator, ReviewClient } from './review';
 import {
   PULL_FILES_LIMIT,
   type MergeOptions,
   type MergeState,
+  type NewPull,
+  type OpenedPull,
   type PullFile,
   type PullThread,
   type ReviewSubmission,
@@ -464,7 +466,7 @@ export function parseGitLabIssues(list: unknown): ForgeIssue[] {
     }));
 }
 
-export class GitLabClient implements ForgeClient, ReviewClient, IssueClient {
+export class GitLabClient implements ForgeClient, ReviewClient, IssueClient, PullCreator {
   constructor(private readonly transport: GitLabTransport = glabTransport) {}
 
   /** glab has one login per server: there is no account to pick. */
@@ -519,6 +521,31 @@ export class GitLabClient implements ForgeClient, ReviewClient, IssueClient {
     // anywhere) is worth saying, not an empty list.
     if (failures.length === hosts.size) throw failures[0];
     return lists.flat();
+  }
+
+  async createPull(repo: string, pull: NewPull): Promise<OpenedPull> {
+    const { host, path } = splitRepo(repo);
+    const created = obj(
+      JSON.parse(
+        await this.transport.send(
+          host,
+          'POST',
+          `projects/${encodeURIComponent(path)}/merge_requests`,
+          {
+            source_branch: pull.head,
+            target_branch: pull.base,
+            // A draft is a title that starts with "Draft:" on every version of GitLab.
+            title: pull.draft && !/^draft:/i.test(pull.title) ? `Draft: ${pull.title}` : pull.title,
+            description: pull.body,
+            remove_source_branch: true,
+          },
+        ),
+      ) as unknown,
+    );
+    return {
+      number: typeof created.iid === 'number' ? created.iid : 0,
+      url: text(created.web_url),
+    };
   }
 
   async issues(repo: string): Promise<ForgeIssue[]> {
