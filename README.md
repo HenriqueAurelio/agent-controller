@@ -591,6 +591,28 @@ Também dá para arrastar sessões e grupos com o mouse.
 
 Cada prompt guardado pode ter o seu atalho, em **Preferências → Prompts**, com as mesmas regras.
 
+### Controlar pela linha de comando e por MCP
+
+Com o app aberto, o comando `aurelium` abre sessões, manda prompts e espera por elas. Ele serve a um script seu ou a um agente que quer delegar parte do trabalho a outra sessão. O app instala o comando ao abrir:
+
+- Windows: `%USERPROFILE%\.agent-controller\bin\aurelium.cmd`
+- Linux: `~/.agent-controller/bin/aurelium`
+
+Ponha essa pasta no `PATH` para chamar só `aurelium`.
+
+```sh
+aurelium list                                   # id, nome, estado, agente e pasta de cada sessão
+aurelium new ~/projetos/api --name API --prompt "rode os testes e corrija o que falhar"
+aurelium send API "agora atualize o README"     # vai quando o agente terminar o turno
+aurelium wait API --timeout 900                 # espera o turno acabar (código 2 se o tempo esgotar)
+aurelium read API --lines 40                    # as últimas linhas do terminal
+```
+
+- A sessão é o id ou o nome. `--json` mostra a resposta inteira, para scripts.
+- `aurelium mcp` oferece os mesmos comandos como servidor MCP. No Claude Code, registre com `claude mcp add aurelium -- ~/.agent-controller/bin/aurelium mcp`, ou com o caminho do `aurelium.cmd` no Windows. No Codex, use `[mcp_servers.aurelium]` com `command` igual a esse caminho e `args = ["mcp"]`.
+- Só o seu usuário fala com o app. A cada abertura, ele cria um token novo e o grava num arquivo que só você lê ([ADR 0034](adr/0034-controle-pela-linha-de-comando.md)).
+- Com o app fechado, o comando avisa e sai com o código 1.
+
 ## Codex: o passo de confiança dos hooks
 
 O app avisa do Codex por três caminhos: o título da janela do Codex (trabalhando, pedindo permissão, parado), o aviso de fim de turno e, opcionalmente, **hooks**.

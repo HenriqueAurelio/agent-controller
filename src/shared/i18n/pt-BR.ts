@@ -1541,4 +1541,14 @@ export const ptBR = {
   'phone.testTitle': 'Aurelium',
   'phone.testBody': 'Teste: os avisos chegam aqui.',
   'error.phone.badToken': 'Isso não parece o token de um bot do Telegram (número:letras).',
+  'cli.usage':
+    'Uso: aurelium <comando>\n\n  list                          as sessões abertas: id, nome, estado, agente e pasta\n  status <sessão>               uma sessão\n  new <pasta> [--name N] [--agent claude-code|codex] [--prompt T]\n                                abre uma sessão e mostra o id dela\n  send <sessão> <texto>         manda um prompt (com - lê o texto da entrada)\n  wait <sessão> [--timeout S]   espera o agente terminar o turno (código 2 se o tempo acabar)\n  read <sessão> [--lines N]     as últimas linhas do terminal\n  mcp                           os mesmos comandos como servidor MCP\n\n<sessão> é o id ou o nome. --json mostra a resposta inteira em JSON.',
+  'cli.notRunning': 'O Aurelium não está aberto.',
+  'cli.refused': 'O Aurelium recusou o pedido: o token não confere. Abra o app de novo.',
+  'cli.sent': 'Enviado.',
+  'cli.queued': 'Na espera: vai quando o agente terminar o turno.',
+  'cli.timedOut': 'O tempo acabou; a sessão está em "{state}".',
+  'error.control.ambiguous': 'Mais de uma sessão se chama "{name}": use o id.',
+  'error.control.noFolder': 'A pasta não existe: {folder}',
+  'arg.number': 'número',
 } as const;

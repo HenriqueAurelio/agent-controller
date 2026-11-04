@@ -37,6 +37,7 @@ Registro das decisões de arquitetura do agent-controller. Cada arquivo traz o c
 | [0031](0031-previa-embutida-de-localhost.md) | Prévia de páginas locais dentro do app, numa WebContentsView isolada; prints marcados vão ao agente como arquivo | Aceita |
 | [0032](0032-busca-por-git-grep.md) | Busca no projeto pelo git grep (-P, com -E de reserva), e leitura simples fora do git; sem empacotar o ripgrep | Aceita |
 | [0033](0033-aviso-no-celular.md) | Aviso no celular pelo ntfy ou por um bot do Telegram da própria pessoa; só título e frase, token no cofre | Aceita |
+| [0034](0034-controle-pela-linha-de-comando.md) | Controle pela linha de comando (`aurelium`) e por MCP, com um socket local e um token por execução | Aceita |
 
 ## Status
 

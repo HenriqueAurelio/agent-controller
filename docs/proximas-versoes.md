@@ -71,7 +71,7 @@ O **11** é o que mais muda o fluxo. O **13** é o que mais pesa na memória: pe
 | 15 | [Core em processo próprio](v2/core-em-processo-proprio/README.md) (proposta, ADR 0026) | As sessões continuam vivas com a janela fechada. É a base do resto desta versão | CompozyOS, Maestro (herdr) | G |
 | 16 | Aviso no celular (**feita**, [ADR 0033](../adr/0033-aviso-no-celular.md)) | "Aguardando você" chega pelo ntfy ou pelo Telegram, com o endpoint da própria pessoa | [futuras](funcionalidades/futuras/README.md) | P |
 | 17 | Painel pela rede | Uma página web servida pelo core: estado das sessões, responder permissões, mandar um prompt e ver o diff. Fica na rede local ou atrás de um túnel da própria pessoa | Paseo, Happy, Orca | G |
-| 18 | Controle por CLI ou MCP | `aurelium new-session`, `aurelium send`; um agente pode abrir outra sessão e esperar por ela | CompozyOS, Superset, cmux | M |
+| 18 | Controle por CLI ou MCP (**feita**, [ADR 0034](../adr/0034-controle-pela-linha-de-comando.md): `aurelium` e `aurelium mcp`) | `aurelium new-session`, `aurelium send`; um agente pode abrir outra sessão e esperar por ela | CompozyOS, Superset, cmux | M |
 
 O **16** é pequeno e pode entrar antes, em qualquer versão. O **17** pede uma ADR de segurança e privacidade.
 
