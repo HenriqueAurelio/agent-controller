@@ -233,8 +233,14 @@ export async function startApp(): Promise<void> {
       void overlaps.touch(sessionId);
     },
   });
-  // Snapshots of a previous run are useless: sessions always come back stopped.
-  fs.rmSync(path.join(userData, 'snapshots'), { recursive: true, force: true });
+  // Snapshots of a previous run are useless: sessions always come back stopped. A git of that
+  // run may still hold a file there on Windows; what is left is harmless, so it must not stop
+  // the app from opening.
+  try {
+    fs.rmSync(path.join(userData, 'snapshots'), { recursive: true, force: true });
+  } catch (err) {
+    console.error('Falha ao limpar os snapshots da execução anterior:', err);
+  }
   // Copies of what the panel discarded, kept a month for "undo". The tests keep theirs apart.
   const discardDir = TEST_SHELL
     ? path.join(userData, 'descartados')
