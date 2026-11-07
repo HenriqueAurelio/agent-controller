@@ -15,7 +15,7 @@ import type { OverlapService } from '@core/git/OverlapService';
 import type { PromptQueue } from '@core/prompts/PromptQueue';
 import type { TailFeed } from '@core/sessions/TailFeed';
 import { locateFiles, MAX_CANDIDATES } from '@core/git/FileLocator';
-import { currentBranch, runGit } from '@core/git/GitService';
+import { currentBranch, headCommit, runGit } from '@core/git/GitService';
 import { branchState, pushBranch, updateFromBase } from '@core/git/BranchFlow';
 import { blameLine, commitDiff, fileLog } from '@core/git/history';
 import { pullBody, type BranchInfo } from '@shared/branch';
@@ -965,8 +965,11 @@ export function registerIpc(context: IpcContext): void {
     const { s, state, repo } = await copyBranch(id);
     const card = tasks.findBySession(s.id);
     const issue = card?.issue ?? null;
+    const sonar = s.groupId ? context.sonar.configs.get(s.groupId) : null;
     return {
       branch: state.branch,
+      head: (await headCommit(s.cwd).catch(() => null)) ?? '',
+      sonarBeforePull: Boolean(sonar?.enabled && sonar.beforePull),
       base: state.base,
       ahead: state.ahead,
       subjects: state.subjects,

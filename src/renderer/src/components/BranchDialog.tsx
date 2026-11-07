@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { BranchInfo } from '@shared/branch';
 import type { BaseUpdate } from '@shared/branchUpdate';
 import type { OpenedPull } from '@shared/pullReview';
 import { PULL_TITLE_LIMIT } from '@shared/pullReview';
+import type { Problem } from '@shared/checks';
 import type { SessionView } from '@shared/session';
+import type { SonarStatus } from '@shared/sonar';
 import { errorMessage } from '../lib/format';
 import { useT } from '../lib/i18n';
+import { useSonarRuns } from '../lib/sonar';
 import { Dialog } from './Dialog';
 
 interface Props {
@@ -13,12 +16,16 @@ interface Props {
   onClose(): void;
   /** Sends the conflicts of the update to the agent of the session, through the prompt dialog. */
   onSendConflict(text: string): void;
+  /** Sends the problems Sonar found to the agent, through the prompt "Fix problems". */
+  onSendProblems(problems: Problem[]): void;
 }
+
+const ACTIVE: readonly SonarStatus[] = ['queued', 'running', 'processing'];
 
 const openSite = (url: string) => void window.api.invoke('shell:openExternal', url);
 
 /** The branch of a copy on its way to a pull request: push and open it, or bring the base in. */
-export function BranchDialog({ session, onClose, onSendConflict }: Props) {
+export function BranchDialog({ session, onClose, onSendConflict, onSendProblems }: Props) {
   const t = useT();
   const [info, setInfo] = useState<BranchInfo | null>(null);
   const [title, setTitle] = useState('');
@@ -29,6 +36,14 @@ export function BranchDialog({ session, onClose, onSendConflict }: Props) {
   const [opened, setOpened] = useState<OpenedPull | null>(null);
   const [update, setUpdate] = useState<BaseUpdate | null>(null);
   const [reloads, setReloads] = useState(0);
+  // Sonar before the pull request: when the opening was asked for, it waits for an analysis that
+  // started after that moment and is about the commit that goes out.
+  const sonarRuns = useSonarRuns();
+  const [askedAt, setAskedAt] = useState<number | null>(null);
+  const latest = sonarRuns[session.id];
+  const sonar = latest && info && latest.commit === info.head ? latest : null;
+  const gated = Boolean(info?.sonarBeforePull);
+  const analysing = askedAt !== null;
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +72,32 @@ export function BranchDialog({ session, onClose, onSendConflict }: Props) {
       setBusy(false);
     }
   };
+  const openPull = () =>
+    void run(async () => {
+      setOpened(await window.api.invoke('branch:openPull', session.id, { title, body, draft }));
+    });
+  // The effect below opens with the fields as they are when the analysis ends.
+  const openLater = useRef(openPull);
+  openLater.current = openPull;
+  const submit = () => {
+    if (!gated || sonar?.status === 'passed') return openPull();
+    setError(null);
+    setAskedAt(Date.now());
+    if (sonar && ACTIVE.includes(sonar.status)) return;
+    window.api.invoke('sonar:run', session.id).catch((err) => {
+      setAskedAt(null);
+      setError(errorMessage(err));
+    });
+  };
+  // The analysis asked for ended: a pass opens the pull request, anything else stops and says why.
+  // A second of slack: the run is stamped by the main process, a moment after the click.
+  const askedStatus =
+    sonar && askedAt !== null && sonar.startedAt >= askedAt - 1000 ? sonar.status : null;
+  useEffect(() => {
+    if (!askedStatus || ACTIVE.includes(askedStatus)) return;
+    setAskedAt(null);
+    if (askedStatus === 'passed') openLater.current();
+  }, [askedStatus]);
 
   return (
     <Dialog
@@ -85,6 +126,48 @@ export function BranchDialog({ session, onClose, onSendConflict }: Props) {
         )}
         {info && !info.repo && <p className="form-error">{t('branch.noRepo')}</p>}
 
+        {gated && (
+          <div
+            className="branch-sonar"
+            role="status"
+            data-testid="branch-sonar"
+            data-status={analysing ? 'running' : (sonar?.status ?? 'pending')}
+          >
+            <p>
+              {analysing
+                ? t('branch.sonar.running')
+                : sonar?.status === 'passed'
+                  ? t('branch.sonar.passed')
+                  : sonar?.status === 'failed'
+                    ? t('branch.sonar.failed', { count: sonar.problems.length + sonar.more })
+                    : sonar?.status === 'error'
+                      ? t('branch.sonar.error', { error: sonar.error ?? '' })
+                      : t('branch.sonar.pending')}
+            </p>
+            {info && info.dirty > 0 && <p className="muted">{t('branch.sonar.dirty')}</p>}
+            {!analysing && (sonar?.status === 'failed' || sonar?.status === 'error') && (
+              <div className="dialog-actions">
+                {sonar.problems.length > 0 && (
+                  <button
+                    type="button"
+                    data-testid="branch-sonar-send"
+                    onClick={() => onSendProblems(sonar.problems)}
+                  >
+                    {t('branch.sonar.send')}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  data-testid="branch-sonar-anyway"
+                  disabled={busy || !info?.repo || !info.ahead || !title.trim()}
+                  onClick={openPull}
+                >
+                  {t('branch.sonar.openAnyway')}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         {opened ? (
           <div className="branch-opened" role="status" data-testid="branch-opened">
             <span>{t('branch.opened', { number: opened.number })}</span>
@@ -97,11 +180,7 @@ export function BranchDialog({ session, onClose, onSendConflict }: Props) {
             className="form"
             onSubmit={(e) => {
               e.preventDefault();
-              void run(async () => {
-                setOpened(
-                  await window.api.invoke('branch:openPull', session.id, { title, body, draft }),
-                );
-              });
+              submit();
             }}
           >
             <label className="field">
@@ -132,10 +211,16 @@ export function BranchDialog({ session, onClose, onSendConflict }: Props) {
                 type="submit"
                 className="primary"
                 data-testid="branch-open-pull"
-                disabled={busy || !info?.repo || !info.ahead || !title.trim()}
+                disabled={busy || analysing || !info?.repo || !info.ahead || !title.trim()}
                 title={info && info.ahead === 0 ? t('branch.nothingToPush') : undefined}
               >
-                {busy ? t('branch.pushing') : t('branch.openPull')}
+                {busy
+                  ? t('branch.pushing')
+                  : analysing
+                    ? t('branch.sonar.running')
+                    : gated && sonar?.status !== 'passed'
+                      ? t('branch.sonar.analyseAndOpen')
+                      : t('branch.openPull')}
               </button>
             </div>
           </form>

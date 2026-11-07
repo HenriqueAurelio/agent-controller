@@ -30,6 +30,7 @@ export function SonarDialog({ group, onClose }: Props) {
   const [enabled, setEnabled] = useState(true);
   const [branches, setBranches] = useState(true);
   const [onTurnEnd, setOnTurnEnd] = useState(false);
+  const [beforePull, setBeforePull] = useState(true);
   const [test, setTest] = useState<{ ok: boolean; text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -47,6 +48,7 @@ export function SonarDialog({ group, onClose }: Props) {
       setEnabled(c.enabled);
       setBranches(c.branches);
       setOnTurnEnd(c.onTurnEnd);
+      setBeforePull(c.beforePull);
     });
   }, [group.id]);
 
@@ -59,6 +61,7 @@ export function SonarDialog({ group, onClose }: Props) {
     enabled,
     branches,
     onTurnEnd,
+    beforePull,
   });
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -174,6 +177,15 @@ export function SonarDialog({ group, onClose }: Props) {
             onChange={(e) => setOnTurnEnd(e.target.checked)}
           />
           {t('sonar.onTurnEnd')}
+        </label>
+        <label className="check" title={t('sonar.beforePullHint')}>
+          <input
+            type="checkbox"
+            data-testid="sonar-before-pull"
+            checked={beforePull}
+            onChange={(e) => setBeforePull(e.target.checked)}
+          />
+          {t('sonar.beforePull')}
         </label>
         {test && (
           <p
