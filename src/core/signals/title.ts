@@ -16,10 +16,17 @@ export interface TitleRules {
 
 const INDICATOR = /^\s*(\[\s*[^\]\s]?\s*\]|[^\p{L}\p{N}\s[\]"'(/\\.~-]+)\s*(.*)$/su;
 
+/**
+ * What Windows puts before the title of an elevated console ("Administrator: ", in the language of
+ * the system). It is not the agent's: an elevated `cmd.exe` writes it before any title it sets.
+ */
+const ELEVATED = /^\s*(?:administrator|administrador|administrateur)\s*:\s*/i;
+
 /** Splits the activity indicator from the text. */
 export function parseTitle(raw: string): ParsedTitle {
-  const match = INDICATOR.exec(raw);
-  if (!match) return { indicator: '', text: raw.trim() };
+  const title = raw.replace(ELEVATED, '');
+  const match = INDICATOR.exec(title);
+  if (!match) return { indicator: '', text: title.trim() };
   return { indicator: match[1]!.trim(), text: match[2]!.trim() };
 }
 

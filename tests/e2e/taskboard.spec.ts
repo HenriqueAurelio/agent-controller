@@ -152,7 +152,13 @@ test('three pasted lines become cards; started ones move by themselves; done ask
     );
 
     // The only drags: between "to do" and "done".
-    await card(page, 'Limpar testes').dragTo(column(page, 'done'));
+    // The events of the drag, sent to the card and the column: the Windows runner of the CI has
+    // no desktop of its own, and there the system never starts a drag from the mouse.
+    const transfer = await page.evaluateHandle(() => new DataTransfer());
+    await card(page, 'Limpar testes').dispatchEvent('dragstart', { dataTransfer: transfer });
+    await expect(column(page, 'done')).toHaveClass(/droppable/);
+    await column(page, 'done').dispatchEvent('dragover', { dataTransfer: transfer });
+    await column(page, 'done').dispatchEvent('drop', { dataTransfer: transfer });
     await expect(card(page, 'Limpar testes')).toHaveAttribute('data-column', 'done');
     await card(page, 'Limpar testes').getByTestId('board-reopen').click();
     await expect(card(page, 'Limpar testes')).toHaveAttribute('data-column', 'todo');
