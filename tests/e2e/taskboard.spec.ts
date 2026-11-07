@@ -152,7 +152,14 @@ test('three pasted lines become cards; started ones move by themselves; done ask
     );
 
     // The only drags: between "to do" and "done".
-    await card(page, 'Limpar testes').dragTo(column(page, 'done'));
+    // Moved in steps: a jump from one point to the other is not always taken for a drag.
+    const from = (await card(page, 'Limpar testes').boundingBox())!;
+    const to = (await column(page, 'done').boundingBox())!;
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + from.width / 2 + 10, from.y + from.height / 2, { steps: 5 });
+    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 20 });
+    await page.mouse.up();
     await expect(card(page, 'Limpar testes')).toHaveAttribute('data-column', 'done');
     await card(page, 'Limpar testes').getByTestId('board-reopen').click();
     await expect(card(page, 'Limpar testes')).toHaveAttribute('data-column', 'todo');
