@@ -1580,4 +1580,14 @@ export const es: Record<keyof typeof ptBR, string> = {
   'phone.testTitle': 'Aurelium',
   'phone.testBody': 'Prueba: los avisos llegan aquí.',
   'error.phone.badToken': 'Eso no parece el token de un bot de Telegram (número:letras).',
+  'cli.usage':
+    'Uso: aurelium <comando>\n\n  list                          las sesiones abiertas: id, nombre, estado, agente y carpeta\n  status <sesión>               una sesión\n  new <carpeta> [--name N] [--agent claude-code|codex] [--prompt T]\n                                abre una sesión y muestra su id\n  send <sesión> <texto>         envía un prompt (con - lee el texto de la entrada)\n  wait <sesión> [--timeout S]   espera que el agente termine su turno (código 2 si se acaba el tiempo)\n  read <sesión> [--lines N]     las últimas líneas de la terminal\n  mcp                           los mismos comandos como servidor MCP\n\n<sesión> es el id o el nombre. --json muestra la respuesta entera en JSON.',
+  'cli.notRunning': 'Aurelium no está abierto.',
+  'cli.refused': 'Aurelium rechazó el pedido: el token no coincide. Abre la app de nuevo.',
+  'cli.sent': 'Enviado.',
+  'cli.queued': 'En espera: va cuando el agente termine su turno.',
+  'cli.timedOut': 'Se acabó el tiempo; la sesión está en "{state}".',
+  'error.control.ambiguous': 'Más de una sesión se llama "{name}": usa el id.',
+  'error.control.noFolder': 'La carpeta no existe: {folder}',
+  'arg.number': 'número',
 };
