@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PullGuard } from '@core/forges/PullGuard';
+import { openThreadsText } from '@core/forges/review';
+import type { PullReviewData } from '@shared/pullReview';
 import {
   EMPTY_PULLS_STATE,
   sanitizePullsSettings,
@@ -42,6 +44,7 @@ function watch(guard: PullGuard) {
   const events: string[] = [];
   guard.on('fix', (p) => events.push(`fix:${p.pipeline.sha}`));
   guard.on('gaveUp', (p) => events.push(`gaveUp:${p.pipeline.sha}`));
+  guard.on('comments', (p) => events.push(`comments:${p.comments}`));
   return events;
 }
 
@@ -99,6 +102,68 @@ describe('PullGuard', () => {
 });
 
 describe('the guarded list in the preferences', () => {
+  it('sends new comments of a guarded pull request once, without spending attempts', () => {
+    const guard = new PullGuard(1);
+    const events = watch(guard);
+    const commented = (count: number) => ({ ...pull('a', 'success'), comments: count });
+    // Not guarded: nothing.
+    guard.notice({ kind: 'comment', pull: commented(1) });
+    guard.configure(['acme/api#7']);
+    guard.notice({ kind: 'comment', pull: commented(1) });
+    guard.notice({ kind: 'comment', pull: commented(1) });
+    guard.notice({ kind: 'comment', pull: commented(3) });
+    expect(events).toEqual(['comments:1', 'comments:3']);
+    // The pipeline still has its one attempt.
+    guard.notice({ kind: 'failed', pull: pull('b') });
+    expect(events.at(-1)).toBe('fix:b');
+  });
+
+  it('lists the conversations still open that someone else is in', () => {
+    const data = {
+      threads: [
+        {
+          id: '1',
+          path: 'src/a.ts',
+          line: 12,
+          resolved: false,
+          comments: [
+            { author: 'bia', body: 'Trate o erro aqui.', createdAt: '' },
+            { author: 'Ana', body: 'Vou ver.\nAmanhã.', createdAt: '' },
+          ],
+        },
+        {
+          id: '2',
+          path: 'src/b.ts',
+          line: 3,
+          resolved: true,
+          comments: [{ author: 'bia', body: 'Já resolvido.', createdAt: '' }],
+        },
+        {
+          id: '3',
+          path: null,
+          line: null,
+          resolved: false,
+          comments: [{ author: 'ana', body: 'Nota minha.', createdAt: '' }],
+        },
+        {
+          id: '4',
+          path: null,
+          line: null,
+          resolved: false,
+          comments: [{ author: 'caio', body: 'Falta o README.', createdAt: '' }],
+        },
+      ],
+    } as unknown as PullReviewData;
+    expect(openThreadsText(data, 'ana')).toBe(
+      [
+        '- src/a.ts:12 — bia: Trate o erro aqui.',
+        '  - Ana: Vou ver.',
+        '    Amanhã.',
+        '- caio: Falta o README.',
+      ].join('\n'),
+    );
+  });
+
   it('keeps keys of pull requests only, without repetition', () => {
     const settings = sanitizePullsSettings({
       repos: ['acme/api'],

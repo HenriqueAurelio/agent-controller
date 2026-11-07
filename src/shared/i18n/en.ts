@@ -1119,8 +1119,12 @@ export const en: Record<keyof typeof ptBR, string> = {
   'shortcut.pulls': 'Pull requests: the PRs and pipelines of the watched repositories',
   'shortcut.background': 'Background commands: proxies, tunnels and servers outside the sessions',
   'arg.pull': 'pull request',
+  'error.pulls.noRebase': "GitLab's merge does not rebase: pick squash or a merge commit.",
   'error.pulls.notFound': 'That pull request is no longer open.',
   'error.pulls.nothingFailed': 'No job of that pipeline failed.',
+  'prompts.factory.fixPullReview.name': 'Answer the PR review',
+  'prompts.factory.fixPullReview.text':
+    'Review comments came in on this pull request:\n{pr}\n\nThe conversations still open:\n\n{revisao}\n\nOn the branch {branch}, do what each comment asks. If you disagree with one, leave the code as it is and say why at the end. Run the tests of what changed, commit and push, and say in one line what you did for each item.',
   'prompts.factory.fixPipeline.name': 'Fix the pipeline',
   'prompts.factory.fixPipeline.text':
     'The pipeline of this pull request failed:\n{pr}\n\nThe jobs that failed and the end of the log of each one:\n\n{pipeline}\n\nFind the cause, fix it on the branch {branch} and run what failed locally to confirm. Then commit and push.',
@@ -1309,7 +1313,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'error.hunk.notRevertible': 'This block cannot be undone here.',
   'pulls.guard.toggle': 'Guard',
   'pulls.guard.hint':
-    'When the pipeline of this PR fails, the prompt "Fix the pipeline" goes into the queue of the session on this branch by itself and is sent when the turn ends. Stops after {limit} failures in a row; a green pipeline resets the count.',
+    'When the pipeline of this PR fails, the prompt "Fix the pipeline" goes into the queue of the session on this branch by itself and is sent when the turn ends. Stops after {limit} failures in a row; a green pipeline resets the count. When someone comments, the open conversations go the same way, with "Answer the PR review".',
   'pulls.guard.watching': 'guarding the pipeline',
   'pulls.guard.sent': 'sent to the agent ({attempt} of {limit})',
   'pulls.guard.noSession': 'failed, no session on the branch',
@@ -1318,6 +1322,8 @@ export const en: Record<keyof typeof ptBR, string> = {
   'pulls.guard.notice.sentBody':
     'In the queue of {session}, for the end of the turn (attempt {attempt} of {limit}).',
   'pulls.guard.notice.noSession': '{pull}: the pipeline failed and no session is on the branch',
+  'pulls.guard.notice.comments': '{pull}: the guard sent the comments to the agent',
+  'pulls.guard.notice.commentsBody': 'The open conversations went into the queue of “{session}”.',
   'pulls.guard.notice.gaveUp': '{pull}: the guard stopped',
   'pulls.guard.notice.gaveUpBody':
     'The pipeline failed again after {limit} attempts. See what is going on before turning the guard on again.',
@@ -1354,8 +1360,12 @@ export const en: Record<keyof typeof ptBR, string> = {
   'pullReview.merge.state.unknown': 'the service is still checking the merge',
   'pullReview.merge.state.merged': 'already merged',
   'pullReview.merge.deleteBranch': 'Delete the branch afterwards',
-  'pullReview.merge.button': 'Merge (squash)',
-  'pullReview.merge.confirm': 'Merge "{title}", squashing its commits into one?',
+  'pullReview.merge.button': 'Merge',
+  'pullReview.merge.confirm': 'Merge "{title}" ({method})?',
+  'pullReview.merge.method': 'How the commits reach the base',
+  'pullReview.merge.method.squash': 'squash: a single commit',
+  'pullReview.merge.method.merge': 'merge commit',
+  'pullReview.merge.method.rebase': 'rebase: the commits on top of the base',
   'pullReview.merge.done': 'Merged.',
   'error.pullReview.empty': 'Write a comment, on a line or in general, before publishing.',
   'pullReview.draftOne': '1 comment on a line',

@@ -97,6 +97,28 @@ test('a guarded pull request sends its failed pipeline to the session of its bra
       timeout: 15_000,
     });
 
+    // Someone comments: the open conversations go to the same queue, with no attempt spent.
+    mine.comments = 1;
+    mine.reviewComments = [
+      {
+        id: 5,
+        path: 'src/relatorio.ts',
+        line: 3,
+        side: 'RIGHT',
+        body: 'Faltou o teste da última página.',
+        user: { login: 'bruno' },
+      },
+    ];
+    await expect
+      .poll(async () => (await queued()).find((i) => i.values.review)?.values.review, {
+        timeout: 20_000,
+      })
+      .toContain('src/relatorio.ts:3 — bruno: Faltou o teste da última página.');
+    const answer = (await queued()).find((i) => i.values.review)!;
+    expect(answer.condition).toBe('turnEnd');
+    expect(answer.text).toContain('{revisao}');
+    await expect(row.getByTestId('pull-guard-status')).toHaveText('vigiando o pipeline');
+
     // Off: nothing more is sent.
     await row.getByTestId('pull-guard').click();
     await expect(row.getByTestId('pull-guard-status')).toHaveCount(0);

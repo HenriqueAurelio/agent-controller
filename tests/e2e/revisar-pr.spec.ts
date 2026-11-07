@@ -61,12 +61,17 @@ test('a pull request is reviewed in the app: line comments, a verdict and the me
     ]);
     await expect(review.getByTestId('pull-draft')).toHaveCount(0);
 
-    // The merge asks first, squashes and deletes the branch.
+    // The merge is squash unless chosen otherwise; GitHub also rebases. It asks first, merges the
+    // way chosen and deletes the branch.
+    const method = review.getByTestId('pull-review-merge-method');
+    await expect(method).toHaveValue('squash');
+    await expect(method.locator('option')).toHaveCount(3);
+    await method.selectOption('rebase');
     page.once('dialog', (d) => void d.accept());
     await review.getByTestId('pull-review-merge').click();
     await expect(review.getByTestId('pull-review-notice')).toHaveText('Merge feito.');
     expect(fake.writes.slice(1)).toEqual([
-      { method: 'PUT', path: '/repos/acme/api/pulls/8/merge', body: { merge_method: 'squash' } },
+      { method: 'PUT', path: '/repos/acme/api/pulls/8/merge', body: { merge_method: 'rebase' } },
       { method: 'DELETE', path: '/repos/acme/api/git/refs/heads/pagina-20', body: null },
     ]);
 

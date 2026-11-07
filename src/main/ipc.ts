@@ -91,6 +91,7 @@ import {
   type IssueList,
 } from '@shared/pulls';
 import {
+  MERGE_METHODS,
   PULL_TITLE_LIMIT,
   REVIEW_BODY_LIMIT,
   REVIEW_DRAFTS_LIMIT,
@@ -1306,8 +1307,9 @@ export function registerIpc(context: IpcContext): void {
   );
   handle('pulls:merge', (key, options) => {
     const o = (options && typeof options === 'object' ? options : {}) as Record<string, unknown>;
+    const method = MERGE_METHODS.find((m) => m === o.method) ?? 'squash';
     return context.pulls.merge(str(key, 'pull', 300), {
-      squash: o.squash !== false,
+      method,
       deleteBranch: o.deleteBranch === true,
     });
   });
