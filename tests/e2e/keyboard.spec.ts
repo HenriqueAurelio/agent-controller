@@ -140,7 +140,12 @@ test('the changes panel: mark, discard, edit and commit from the keyboard', asyn
   await page.keyboard.press('Space');
   await expect(item('editado.ts')).toHaveAttribute('data-staged', 'all');
 
-  // Enter goes into the editor; F6 walks list → editor → commit message → list.
+  // Enter goes into the editor; F6 walks list → editor → commit message → list. The editor must
+  // have the file first: an Enter that comes before it has nowhere to go.
+  await page
+    .frameLocator('[data-testid="diff-frame"]')
+    .locator('body[data-path="editado.ts"]')
+    .waitFor();
   await page.keyboard.press('Enter');
   await expect.poll(focused).toBe('editor');
   await page.keyboard.press('F6');

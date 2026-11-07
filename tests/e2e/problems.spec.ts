@@ -118,12 +118,14 @@ test('the Problems tab lists what the checks printed, opens it on its line, and 
     await expect(dialog.getByTestId('prompt-preview')).toContainText('src/soma.ts:12:7 error');
     await dialog.getByRole('button', { name: 'Enviar', exact: true }).click();
     await expect(dialog).toBeHidden();
+    // The terminal wraps long lines, even in the middle of a path: compare without the breaks.
+    // With the panel beside it the terminal is narrow, and the start of the prompt may scroll out
+    // of sight: the preview above already showed the whole text, here only its end must arrive
+    // (the message of the second problem ticked).
     await expect
-      .poll(() => screenText(page, id), { timeout: 15_000 })
-      .toContain('src/soma.ts:12:7');
-    // The terminal wraps long lines: compare without the breaks.
+      .poll(async () => (await screenText(page, id)).replace(/\s+/g, ''), { timeout: 15_000 })
+      .toContain("Cannotfindname'maiuscula'");
     const screen = (await screenText(page, id)).replace(/\s+/g, '');
-    expect(screen).toContain('src/texto.ts:5:3');
     expect(screen).not.toContain('src/soma.ts:20:1');
     expect(screen).not.toContain('src/texto.ts:9:2');
   } finally {
