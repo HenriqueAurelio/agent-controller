@@ -1,5 +1,5 @@
 // The guard of a pull request: when its pipeline fails, the fix goes to the agent of its branch
-// by itself, a few times at most. Decides only when to send and when to stop; who gets it and
+// by itself, a few times at most; when someone comments on it, the comments go there too. Decides only when to send and when to stop; who gets it and
 // how it is sent belong to whoever listens.
 import { EventEmitter } from 'node:events';
 import {
@@ -17,12 +17,16 @@ interface Events {
   fix: [PullRequestView];
   /** It failed again after the last attempt: the guard stops and says so. */
   gaveUp: [PullRequestView];
+  /** Someone else commented on a guarded pull request: send the open comments to the agent. */
+  comments: [PullRequestView];
 }
 
 export class PullGuard extends EventEmitter<Events> {
   private entries = new Map<string, GuardEntry>();
   /** The commit of the failure each guard last acted on: the same failure is not sent twice. */
   private handled = new Map<string, string>();
+  /** The count of comments each guard last sent: the same comments are not sent twice. */
+  private commentsSent = new Map<string, number>();
 
   constructor(private readonly limit = GUARD_ATTEMPTS) {
     super();
@@ -38,6 +42,7 @@ export class PullGuard extends EventEmitter<Events> {
     for (const key of keys)
       next.set(key, this.entries.get(key) ?? { attempts: 0, status: 'watching' });
     for (const key of this.handled.keys()) if (!next.has(key)) this.handled.delete(key);
+    for (const key of this.commentsSent.keys()) if (!next.has(key)) this.commentsSent.delete(key);
     const changed =
       next.size !== this.entries.size || [...next.keys()].some((key) => !this.entries.has(key));
     this.entries = next;
@@ -51,7 +56,14 @@ export class PullGuard extends EventEmitter<Events> {
 
   /** The news of the latest look of the services. */
   notice(notice: PullNotice): void {
-    if (notice.kind === 'failed' && this.entries.has(notice.pull.key)) this.failed(notice.pull);
+    if (!this.entries.has(notice.pull.key)) return;
+    if (notice.kind === 'failed') this.failed(notice.pull);
+    if (notice.kind === 'comment') {
+      // Comments are not failures: they take no attempt and never make the guard give up.
+      if (this.commentsSent.get(notice.pull.key) === notice.pull.comments) return;
+      this.commentsSent.set(notice.pull.key, notice.pull.comments);
+      this.emit('comments', notice.pull);
+    }
   }
 
   /** The latest look: a pipeline that passed again gives the guard all its attempts back. */

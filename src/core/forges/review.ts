@@ -40,3 +40,27 @@ export const isReviewClient = (client: unknown): client is ReviewClient =>
   typeof (client as ReviewClient).review === 'function' &&
   typeof (client as ReviewClient).submitReview === 'function' &&
   typeof (client as ReviewClient).merge === 'function';
+
+/**
+ * The conversations still open on a pull request that someone other than `me` took part in, as a
+ * list for the agent: where, who and what. Resolved ones are done; one only the user wrote in is
+ * a note of theirs, not a request.
+ */
+export function openThreadsText(data: PullReviewData, me: string): string {
+  const self = me.toLowerCase();
+  const lines: string[] = [];
+  for (const thread of data.threads) {
+    if (thread.resolved || thread.comments.length === 0) continue;
+    if (!thread.comments.some((c) => c.author.toLowerCase() !== self)) continue;
+    const where = thread.path ? `${thread.path}${thread.line ? `:${thread.line}` : ''}` : '';
+    thread.comments.forEach((comment, index) => {
+      const body = comment.body.trim().replace(/\r?\n/g, '\n    ');
+      lines.push(
+        index === 0
+          ? `- ${where ? `${where} — ` : ''}${comment.author}: ${body}`
+          : `  - ${comment.author}: ${body}`,
+      );
+    });
+  }
+  return lines.join('\n');
+}

@@ -2,6 +2,7 @@
 // login, renews it when it expires and knows the company's own servers: the app keeps no token
 // and never sees one.
 import { spawn } from 'node:child_process';
+import { UserError } from '@shared/i18n';
 import { resolveCli } from './cli';
 import {
   ISSUES_LIMIT,
@@ -628,12 +629,13 @@ export class GitLabClient implements ForgeClient, ReviewClient, IssueClient, Pul
   }
 
   async merge(repo: string, number: number, _branch: string, options: MergeOptions): Promise<void> {
+    if (options.method === 'rebase') throw new UserError('error.pulls.noRebase');
     const { host, path } = splitRepo(repo);
     await this.transport.send(
       host,
       'PUT',
       `projects/${encodeURIComponent(path)}/merge_requests/${number}/merge`,
-      { squash: options.squash, should_remove_source_branch: options.deleteBranch },
+      { squash: options.method === 'squash', should_remove_source_branch: options.deleteBranch },
     );
   }
 

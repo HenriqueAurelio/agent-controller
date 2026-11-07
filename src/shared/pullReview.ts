@@ -74,9 +74,15 @@ export interface ReviewSubmission {
   headSha: string;
 }
 
+/**
+ * How the commits of the pull request reach the base: one commit (`squash`), a merge commit, or
+ * the commits replayed on top (`rebase`, GitHub only: GitLab's merge has no such choice).
+ */
+export type MergeMethod = 'squash' | 'merge' | 'rebase';
+export const MERGE_METHODS: readonly MergeMethod[] = ['squash', 'merge', 'rebase'];
+
 export interface MergeOptions {
-  /** Squash the commits into one, as the Maestro does. */
-  squash: boolean;
+  method: MergeMethod;
   deleteBranch: boolean;
 }
 

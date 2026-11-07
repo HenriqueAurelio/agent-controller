@@ -1120,8 +1120,12 @@ export const ptBR = {
   'shortcut.pulls': 'Pull requests: os PRs e pipelines dos repositórios observados',
   'shortcut.background': 'Comandos em segundo plano: proxies, túneis e servidores fora das sessões',
   'arg.pull': 'pull request',
+  'error.pulls.noRebase': 'O merge do GitLab não faz rebase: escolha squash ou commit de merge.',
   'error.pulls.notFound': 'Esse pull request não está mais aberto.',
   'error.pulls.nothingFailed': 'Nenhum job desse pipeline falhou.',
+  'prompts.factory.fixPullReview.name': 'Responder à revisão do PR',
+  'prompts.factory.fixPullReview.text':
+    'Chegaram comentários de revisão neste pull request:\n{pr}\n\nAs conversas ainda abertas:\n\n{revisao}\n\nNa branch {branch}, faça o que cada comentário pede. Se discordar de algum, não mude o código: explique por quê no fim. Rode os testes do que mudou, faça commit e push, e diga em uma linha o que fez em cada item.',
   'prompts.factory.fixPipeline.name': 'Corrigir pipeline',
   'prompts.factory.fixPipeline.text':
     'O pipeline deste pull request falhou:\n{pr}\n\nOs jobs que falharam e o fim do log de cada um:\n\n{pipeline}\n\nDescubra a causa, corrija na branch {branch} e rode localmente o que falhou para confirmar. Depois faça commit e push.',
@@ -1311,7 +1315,7 @@ export const ptBR = {
   'error.hunk.notRevertible': 'Este trecho não pode ser desfeito aqui.',
   'pulls.guard.toggle': 'Vigiar',
   'pulls.guard.hint':
-    'Quando o pipeline deste PR falhar, o prompt "Corrigir pipeline" entra sozinho na fila da sessão desta branch e sai no fim do turno. Para depois de {limit} falhas seguidas; um pipeline verde zera a contagem.',
+    'Quando o pipeline deste PR falhar, o prompt "Corrigir pipeline" entra sozinho na fila da sessão desta branch e sai no fim do turno. Para depois de {limit} falhas seguidas; um pipeline verde zera a contagem. Quando alguém comentar, as conversas abertas vão do mesmo jeito, com "Responder à revisão do PR".',
   'pulls.guard.watching': 'vigiando o pipeline',
   'pulls.guard.sent': 'mandado ao agente ({attempt} de {limit})',
   'pulls.guard.noSession': 'falhou, sem sessão na branch',
@@ -1320,6 +1324,8 @@ export const ptBR = {
   'pulls.guard.notice.sentBody':
     'Na fila de {session}, para o fim do turno (tentativa {attempt} de {limit}).',
   'pulls.guard.notice.noSession': '{pull}: o pipeline falhou e nenhuma sessão está na branch',
+  'pulls.guard.notice.comments': '{pull}: o vigia mandou os comentários ao agente',
+  'pulls.guard.notice.commentsBody': 'As conversas abertas foram para a fila de “{session}”.',
   'pulls.guard.notice.gaveUp': '{pull}: o vigia parou',
   'pulls.guard.notice.gaveUpBody':
     'O pipeline falhou de novo depois de {limit} tentativas. Veja o que está acontecendo antes de ligar o vigia de novo.',
@@ -1356,8 +1362,12 @@ export const ptBR = {
   'pullReview.merge.state.unknown': 'o serviço ainda está conferindo o merge',
   'pullReview.merge.state.merged': 'já foi feito o merge',
   'pullReview.merge.deleteBranch': 'Apagar a branch depois',
-  'pullReview.merge.button': 'Fazer merge (squash)',
-  'pullReview.merge.confirm': 'Fazer o merge de "{title}", juntando os commits num só (squash)?',
+  'pullReview.merge.button': 'Fazer merge',
+  'pullReview.merge.confirm': 'Fazer o merge de "{title}" ({method})?',
+  'pullReview.merge.method': 'Como os commits entram na base',
+  'pullReview.merge.method.squash': 'squash: um commit só',
+  'pullReview.merge.method.merge': 'commit de merge',
+  'pullReview.merge.method.rebase': 'rebase: os commits por cima da base',
   'pullReview.merge.done': 'Merge feito.',
   'error.pullReview.empty': 'Escreva um comentário, numa linha ou no geral, antes de publicar.',
   'pullReview.draftOne': '1 comentário numa linha',

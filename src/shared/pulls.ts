@@ -157,6 +157,8 @@ export const PULLS_REPOS_LIMIT = 40;
 export const PULLS_INTERVAL_MS = 60_000;
 /** The id of the prompt that sends a failed pipeline to an agent. */
 export const FIX_PIPELINE_PROMPT_ID = 'fix-pipeline';
+/** The factory prompt the guard sends with the open comments of a review: `{revisao}`. */
+export const FIX_PULL_REVIEW_PROMPT_ID = 'fix-pull-review';
 /** `{pipeline}` is cut here: the end of the log of each failed job, a few of them. */
 export const PIPELINE_TEXT_LIMIT = 20_000;
 
