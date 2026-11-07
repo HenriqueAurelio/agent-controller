@@ -372,6 +372,9 @@ test('unsaved edits are not lost by the shortcuts, by switching session or by cl
   // Saving clears the warning: the next question on close is only about the running agents.
   await focusSide(modified);
   await saveWith('keyboard');
+  // The panel tells the main process after it saves: closing before that still finds the edit.
+  await expect(unsaved()).toBeHidden();
+  await page.waitForTimeout(300);
   await running!.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.close());
   await page.waitForTimeout(500);
   const after = await running!.app.evaluate(
