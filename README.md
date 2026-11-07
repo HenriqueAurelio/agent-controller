@@ -437,8 +437,10 @@ O Sonar (SonarQube ou SonarCloud) entra como mais uma validação. A conexão se
 - **Token:** fica no cofre do sistema (no Windows, o do usuário; no Linux, o chaveiro, como o GNOME Keyring ou o KWallet). Não vai para as preferências, para a exportação nem para o terminal do agente. Sem cofre, o diálogo avisa e o token não é salvo.
 - **Scanner:** o comando que roda a análise, `sonar-scanner` por padrão (instale o [SonarScanner CLI](https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/sonarscanner/)); `npx @sonar/scan` também serve. Ele roda na pasta de cada sessão (a cópia isolada, se tiver), no seu shell.
 - **Analisar cada branch à parte:** manda a branch da sessão. É preciso SonarCloud ou uma edição paga do SonarQube; com a Community Edition, desligue.
-- **Quando roda:** **Analisar as sessões agora** (no mesmo diálogo), "Sonar: analisar … agora" na paleta, a etiqueta **Sonar: …** no topo da sessão (clique para de novo) ou, com **Analisar ao fim de cada turno**, sozinho. Se o agente volta a trabalhar, a análise daquela sessão é cancelada.
+- **Quando roda:** **Analisar as sessões agora** (no mesmo diálogo), "Sonar: analisar … agora" na paleta, a etiqueta **Sonar: …** no topo da sessão (clique para de novo) ou, com **Analisar ao fim de cada turno** (desligado por padrão), sozinho. Se o agente volta a trabalhar, a análise daquela sessão é cancelada.
 - **Resultado:** a etiqueta da sessão diz "passou" ou "com problemas" (pelo quality gate), e as issues abertas entram na aba **Problemas**, marcadas "Sonar", junto com as das verificações. O cabeçalho do grupo resume quantas sessões passaram (`✓`) e quantas têm problemas (`✗`).
+- **Antes de abrir o PR** (ligado por padrão): numa cópia isolada, o botão do diálogo de PR vira **Analisar no Sonar e abrir o PR**. O app analisa o commit que vai subir e só faz o push e abre o PR se o quality gate passar. Se reprovar, o PR não é aberto: o diálogo diz quantos problemas há e oferece **Mandar os problemas ao agente** ou **Abrir o PR mesmo assim**. Um resultado vale só para o commit analisado: depois de um commit novo, o Sonar roda de novo. Mudanças sem commit entram na análise, mas não no push, e o diálogo avisa.
+- **Na lista de PRs:** o PR cujo último commit o app analisou mostra **Sonar ✓** ou **Sonar ✗**.
 
 #### Aba Problemas
 

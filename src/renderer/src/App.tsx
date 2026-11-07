@@ -1368,6 +1368,7 @@ export function App() {
           session={selected}
           onClose={closeOverlay}
           onSendConflict={(text) => openPrompt(undefined, {}, [selected.id], text)}
+          onSendProblems={sendProblems}
         />
       )}
       {overlay === 'sonar' && sonarGroup && (

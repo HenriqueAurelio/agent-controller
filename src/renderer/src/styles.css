@@ -3306,6 +3306,14 @@ textarea.associations {
   border-color: var(--waiting);
   color: var(--waiting);
 }
+.pull-tag.sonar-passed {
+  border-color: var(--done);
+  color: var(--done);
+}
+.pull-tag.sonar-failed {
+  border-color: var(--error);
+  color: var(--error);
+}
 .pull-meta {
   display: flex;
   flex-wrap: wrap;
@@ -4004,6 +4012,21 @@ textarea.associations {
 }
 .branch-warning {
   color: var(--waiting);
+}
+.branch-sonar {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.branch-sonar p {
+  margin: 0;
+}
+.branch-sonar[data-status='passed'] {
+  border-color: var(--done);
+}
+.branch-sonar[data-status='failed'],
+.branch-sonar[data-status='error'] {
+  border-color: var(--error);
 }
 .branch-opened {
   display: flex;
