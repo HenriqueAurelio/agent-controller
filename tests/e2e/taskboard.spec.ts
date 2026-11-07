@@ -152,14 +152,13 @@ test('three pasted lines become cards; started ones move by themselves; done ask
     );
 
     // The only drags: between "to do" and "done".
-    // Moved in steps: a jump from one point to the other is not always taken for a drag.
-    const from = (await card(page, 'Limpar testes').boundingBox())!;
-    const to = (await column(page, 'done').boundingBox())!;
-    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(from.x + from.width / 2 + 10, from.y + from.height / 2, { steps: 5 });
-    await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 20 });
-    await page.mouse.up();
+    // The events of the drag, sent to the card and the column: the Windows runner of the CI has
+    // no desktop of its own, and there the system never starts a drag from the mouse.
+    const transfer = await page.evaluateHandle(() => new DataTransfer());
+    await card(page, 'Limpar testes').dispatchEvent('dragstart', { dataTransfer: transfer });
+    await expect(column(page, 'done')).toHaveClass(/droppable/);
+    await column(page, 'done').dispatchEvent('dragover', { dataTransfer: transfer });
+    await column(page, 'done').dispatchEvent('drop', { dataTransfer: transfer });
     await expect(card(page, 'Limpar testes')).toHaveAttribute('data-column', 'done');
     await card(page, 'Limpar testes').getByTestId('board-reopen').click();
     await expect(card(page, 'Limpar testes')).toHaveAttribute('data-column', 'todo');
