@@ -31,13 +31,14 @@ import { GitHubClient } from '@core/forges/github';
 import { fetchTransport, GitLabClient } from '@core/forges/gitlab';
 import { PullWatcher, type PullNotice } from '@core/forges/PullWatcher';
 import { PullGuard } from '@core/forges/PullGuard';
+import { openThreadsText } from '@core/forges/review';
 import { BackgroundService } from '@core/background/BackgroundService';
 import { ReviewStore } from '@core/review/ReviewStore';
 import { parseCopyPatterns } from '@core/git/copyIntoWorktree';
 import { listeningPorts } from '@core/metrics/ports';
 import { SonarService } from '@core/sonar/SonarService';
 import { SonarConfigStore } from '@core/sonar/SonarConfigStore';
-import { currentBranch } from '@core/git/GitService';
+import { currentBranch, headCommit } from '@core/git/GitService';
 import { SonarTokens } from './sonarTokens';
 import { Preview } from './preview';
 import { sendToPhone } from '@core/notify/phonePush';
@@ -63,6 +64,7 @@ import { summarizeRun } from '@shared/checks';
 import { factoryPrompts } from '@shared/prompts';
 import {
   FIX_PIPELINE_PROMPT_ID,
+  FIX_PULL_REVIEW_PROMPT_ID,
   GUARD_ATTEMPTS,
   pullRef,
   pullSummary,
@@ -239,8 +241,14 @@ export async function startApp(): Promise<void> {
       void overlaps.touch(sessionId);
     },
   });
-  // Snapshots of a previous run are useless: sessions always come back stopped.
-  fs.rmSync(path.join(userData, 'snapshots'), { recursive: true, force: true });
+  // Snapshots of a previous run are useless: sessions always come back stopped. A git of that
+  // run may still hold a file there on Windows; what is left is harmless, so it must not stop
+  // the app from opening.
+  try {
+    fs.rmSync(path.join(userData, 'snapshots'), { recursive: true, force: true });
+  } catch (err) {
+    console.error('Falha ao limpar os snapshots da execução anterior:', err);
+  }
   // Copies of what the panel discarded, kept a month for "undo". The tests keep theirs apart.
   const discardDir = TEST_SHELL
     ? path.join(userData, 'descartados')
@@ -848,6 +856,30 @@ export async function startApp(): Promise<void> {
       );
     })().catch(() => guard.sent(pull.key, null));
   });
+  guard.on('comments', (pull) => {
+    void (async () => {
+      const ids = await sessionsForPull(manager, pull);
+      const target = ids.find((id) => manager.isRunning(id)) ?? ids[0];
+      if (!target) return;
+      const me = pulls.get().logins[pull.forge] ?? '';
+      const review = openThreadsText(await pulls.review(pull.key), me);
+      // Only resolved conversations, or the user's own notes: nothing for the agent to do.
+      if (!review) return;
+      const prompt =
+        data.prefs.prompts.find((p) => p.id === FIX_PULL_REVIEW_PROMPT_ID) ??
+        factoryPrompts(data.prefs.language).find((p) => p.id === FIX_PULL_REVIEW_PROMPT_ID)!;
+      queue.add(target, {
+        text: prompt.text,
+        values: { pr: pullSummary(pull), review },
+        condition: 'turnEnd',
+      });
+      guardNotice(
+        pull,
+        t('pulls.guard.notice.comments', { pull: pullRef(pull) }),
+        t('pulls.guard.notice.commentsBody', { session: manager.get(target)?.name ?? '' }),
+      );
+    })().catch(() => {});
+  });
   guard.on('gaveUp', (pull) =>
     guardNotice(
       pull,
@@ -887,8 +919,19 @@ export async function startApp(): Promise<void> {
     }
     const token = sonarTokens.get(s.groupId);
     if (!token) throw new UserError('error.sonar.noToken');
-    const branch = await currentBranch(s.cwd).catch(() => null);
-    sonarService.start({ sessionId, repoKey: s.groupId, cwd: s.cwd, branch, config, token });
+    const [branch, commit] = await Promise.all([
+      currentBranch(s.cwd).catch(() => null),
+      headCommit(s.cwd).catch(() => null),
+    ]);
+    sonarService.start({
+      sessionId,
+      repoKey: s.groupId,
+      cwd: s.cwd,
+      branch,
+      commit,
+      config,
+      token,
+    });
   };
   manager.on('removed', (id) => sonarService.forget(id));
   manager.on('transition', ({ session, previous }) => {

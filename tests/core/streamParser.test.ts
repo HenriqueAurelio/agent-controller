@@ -80,6 +80,18 @@ describe('title', () => {
     expect(parseTitle('~/projetos/app')).toEqual({ indicator: '', text: '~/projetos/app' });
   });
 
+  it('reads past the prefix of an elevated console on Windows', () => {
+    expect(parseTitle('Administrator: ◐ turno 1')).toEqual({ indicator: '◐', text: 'turno 1' });
+    expect(parseTitle('Administrador: ✳ pronto')).toEqual({ indicator: '✳', text: 'pronto' });
+    expect(parseTitle('Administrator:  C:\\Windows\\system32\\cmd.exe')).toEqual({
+      indicator: '',
+      text: 'C:\\Windows\\system32\\cmd.exe',
+    });
+    expect(classifyTitle(CLAUDE_CODE.signals.title, 'Administrator: ⠋ agent-controller')).toBe(
+      'working',
+    );
+  });
+
   // Titles as recorded in the sessions of 2026-10-12 (ADR 0011).
   it.each([
     ['⠋ agent-controller', 'working'],

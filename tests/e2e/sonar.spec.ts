@@ -31,6 +31,12 @@ test('Sonar is set up once for the group, and each session gets its own result',
     await dialog.getByTestId('sonar-url').fill(sonar.url);
     await dialog.getByTestId('sonar-project').fill(sonar.projectKey);
     await dialog.getByTestId('sonar-scanner').fill(scanner);
+    // A Linux with no keyring (the CI runner) has nowhere safe for the token: the app says so and
+    // keeps the field off. Windows always has the vault, so there the whole flow runs.
+    if (process.platform === 'linux' && (await dialog.getByTestId('sonar-token').isDisabled())) {
+      await expect(dialog.getByRole('alert')).toContainText('cofre');
+      test.skip(true, 'sem cofre de senhas do sistema nesta máquina');
+    }
     await dialog.getByTestId('sonar-token').fill('errado');
     await dialog.getByTestId('sonar-test').click();
     await expect(dialog.getByTestId('sonar-test-result')).toHaveText('O servidor recusou o token.');

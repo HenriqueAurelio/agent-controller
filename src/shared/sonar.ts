@@ -23,6 +23,11 @@ export interface SonarConfig {
   branches: boolean;
   /** Analyse each session of the group when its agent ends a turn. */
   onTurnEnd: boolean;
+  /**
+   * Analyse a copy before its pull request is opened, and hold the opening when the quality gate
+   * fails. The moment that counts: what goes to the service, not every turn on the way.
+   */
+  beforePull: boolean;
 }
 
 export const SONARCLOUD_URL = 'https://sonarcloud.io';
@@ -45,6 +50,11 @@ export interface SonarRun {
   finishedAt?: number;
   /** The branch analysed; null when the session is not on one. */
   branch: string | null;
+  /**
+   * The commit checked out when the analysis started: a result is about this code, and a pull
+   * request or a push of another commit needs another analysis.
+   */
+  commit?: string;
   /** The quality gate of the analysis, when the server has one. */
   gate?: 'OK' | 'WARN' | 'ERROR' | null;
   /** The open issues of this session's code, as the problems list shows them. */
@@ -110,6 +120,7 @@ export function sanitizeSonarConfig(value: unknown): SonarConfig | null {
     enabled: v.enabled !== false,
     branches: v.branches !== false,
     onTurnEnd: v.onTurnEnd === true,
+    beforePull: v.beforePull !== false,
   };
 }
 

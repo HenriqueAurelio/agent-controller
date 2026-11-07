@@ -1,12 +1,14 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import type { HunkLine } from '@shared/git';
-import type {
-  MergeState,
-  PullFile,
-  PullReviewData,
-  PullThread,
-  ReviewDraftComment,
-  ReviewVerdict,
+import {
+  MERGE_METHODS,
+  type MergeMethod,
+  type MergeState,
+  type PullFile,
+  type PullReviewData,
+  type PullThread,
+  type ReviewDraftComment,
+  type ReviewVerdict,
 } from '@shared/pullReview';
 import type { Forge } from '@shared/pulls';
 import { errorMessage } from '../lib/format';
@@ -54,6 +56,9 @@ export function PullReview({ pullKey, forge, onBack }: Props) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [deleteBranch, setDeleteBranch] = useState(true);
+  const [method, setMethod] = useState<MergeMethod>('squash');
+  // GitLab's merge only squashes or not: the replay of the commits is GitHub's.
+  const methods = MERGE_METHODS.filter((m) => m !== 'rebase' || !pullKey.includes('!'));
 
   useEffect(() => {
     let cancelled = false;
@@ -129,9 +134,11 @@ export function PullReview({ pullKey, forge, onBack }: Props) {
   };
 
   const merge = async () => {
-    if (!data || !window.confirm(t('pullReview.merge.confirm', { title: data.title }))) return;
+    const how = t(`pullReview.merge.method.${method}`);
+    if (!data || !window.confirm(t('pullReview.merge.confirm', { title: data.title, method: how })))
+      return;
     const ok = await run(
-      () => window.api.invoke('pulls:merge', pullKey, { squash: true, deleteBranch }),
+      () => window.api.invoke('pulls:merge', pullKey, { method, deleteBranch }),
       t('pullReview.merge.done'),
     );
     if (ok) setReloads((n) => n + 1);
@@ -398,6 +405,19 @@ export function PullReview({ pullKey, forge, onBack }: Props) {
                 />
                 {t('pullReview.merge.deleteBranch')}
               </label>
+              <select
+                data-testid="pull-review-merge-method"
+                aria-label={t('pullReview.merge.method')}
+                title={t('pullReview.merge.method')}
+                value={method}
+                onChange={(e) => setMethod(e.target.value as MergeMethod)}
+              >
+                {methods.map((m) => (
+                  <option key={m} value={m}>
+                    {t(`pullReview.merge.method.${m}`)}
+                  </option>
+                ))}
+              </select>
               <button
                 className="danger"
                 data-testid="pull-review-merge"

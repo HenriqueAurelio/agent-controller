@@ -4,7 +4,7 @@ import { app, clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'elec
 import type { CheckService } from '@core/checks/CheckService';
 import { failureReport } from '@core/checks/report';
 import { suggestChecks } from '@core/checks/suggest';
-import type { ChangesService, CheckpointTrees } from '@core/git/ChangesService';
+import type { ChangesService } from '@core/git/ChangesService';
 import type { CheckpointService } from '@core/git/CheckpointService';
 import type { ExperimentService } from '@core/experiments/ExperimentService';
 import type { TaskBoard } from '@core/tasks/TaskBoard';
@@ -14,25 +14,17 @@ import type { ReviewerService } from '@core/handoff/ReviewerService';
 import type { OverlapService } from '@core/git/OverlapService';
 import type { PromptQueue } from '@core/prompts/PromptQueue';
 import type { TailFeed } from '@core/sessions/TailFeed';
-import { locateFiles, MAX_CANDIDATES } from '@core/git/FileLocator';
 import { currentBranch, runGit } from '@core/git/GitService';
-import { branchState, pushBranch, updateFromBase } from '@core/git/BranchFlow';
-import { blameLine, commitDiff, fileLog } from '@core/git/history';
-import { pullBody, type BranchInfo } from '@shared/branch';
 import { searchProject } from '@core/search/searchProject';
-import { SEARCH_TEXT_LIMIT, type SearchQuery } from '@shared/search';
 import type { PullWatcher } from '@core/forges/PullWatcher';
 import type { PullGuard } from '@core/forges/PullGuard';
-import { sessionsForPull } from './pullSessions';
 import type { BackgroundService } from '@core/background/BackgroundService';
 import type { ReviewStore } from '@core/review/ReviewStore';
 import type { SonarService } from '@core/sonar/SonarService';
 import type { SonarConfigStore } from '@core/sonar/SonarConfigStore';
-import { SonarApi } from '@core/sonar/SonarApi';
-import { sanitizeSonarConfig, SONAR_TOKEN_LIMIT, type SonarGroupInfo } from '@shared/sonar';
 import type { SonarTokens } from './sonarTokens';
 import { saveShot, type Preview } from './preview';
-import { isLocalUrl, SHOT_LIMIT, type PreviewBounds } from '@shared/preview';
+import { isLocalUrl, SHOT_LIMIT } from '@shared/preview';
 import { buildReviewText } from '@core/review/reviewText';
 import { expandPrompt, promptVariables } from '@core/prompts/expand';
 import {
@@ -54,11 +46,10 @@ import {
 import { folderKey, rememberFolder } from '@core/store/recentFolders';
 import { sanitizeWorktreeSettings } from '@core/store/appStore';
 import { parseCopyPatterns } from '@core/git/copyIntoWorktree';
-import { AGENT_COMMAND_LIMIT, sanitizeAgentCommand, type AgentAvailability } from '@shared/agents';
+import { type AgentAvailability } from '@shared/agents';
 import { CHECKS_LIMIT, sanitizeChecks, type ChecksInfo } from '@shared/checks';
 import { CODE_THEME_MAX_BYTES } from '@shared/codeThemes';
 import { errorText, translate, UserError, type MessageKey } from '@shared/i18n';
-import { parseCheckpointBase, type CheckpointUsage } from '@shared/checkpoints';
 import {
   ATTEMPTS_MAX,
   EXPERIMENT_NAME_LIMIT,
@@ -72,7 +63,6 @@ import {
   TASKS_PER_PASTE_LIMIT,
   type NewTasksInput,
 } from '@shared/tasks';
-import type { DiffBase, HunkRevert } from '@shared/git';
 import type {
   CommandChannel,
   EventChannel,
@@ -83,38 +73,14 @@ import type {
   WorktreesInfo,
 } from '@shared/ipc';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
-import {
-  FORGES,
-  normalizeRepo,
-  PIPELINE_TEXT_LIMIT,
-  pullSummary,
-  type IssueList,
-} from '@shared/pulls';
-import {
-  PULL_TITLE_LIMIT,
-  REVIEW_BODY_LIMIT,
-  REVIEW_DRAFTS_LIMIT,
-  type ReviewSubmission,
-  type ReviewVerdict,
-} from '@shared/pullReview';
-import {
-  REVIEW_COMMENT_TEXT_LIMIT,
-  REVIEW_LINE_LIMIT,
-  REVIEW_SNIPPET_LIMIT,
-  REVIEW_TEXT_LIMIT,
-  type NewReviewComment,
-} from '@shared/review';
+import { normalizeRepo, type IssueList } from '@shared/pulls';
+import { REVIEW_COMMENT_TEXT_LIMIT } from '@shared/review';
 import {
   PROMPT_TEXT_LIMIT,
-  QUEUE_CONDITIONS,
   QUEUE_LIMIT,
-  PROBLEMS_TEXT_LIMIT,
-  SELECTION_LIMIT,
   SEND_TARGETS_LIMIT,
   SEND_TEXT_LIMIT,
   type PromptValues,
-  type QueueCondition,
-  type QueueItemUpdate,
   type SendOutcome,
 } from '@shared/prompts';
 import {
@@ -122,10 +88,25 @@ import {
   GROUP_NAME_LIMIT,
   PERMISSION_CHOICES,
   type AgentProfileId,
-  type GroupUpdate,
   type PermissionChoice,
-  type TerminalSize,
 } from '@shared/session';
+import { registerGitIpc } from './ipc/git';
+import { registerPullsIpc } from './ipc/pulls';
+import type { Handler, IpcKit } from './ipc/kit';
+import {
+  str,
+  terminalData,
+  command,
+  size,
+  promptValues,
+  newComment,
+  bounds,
+  searchQuery,
+  ids,
+  groupUpdate,
+  condition,
+  queueUpdate,
+} from './ipc/args';
 
 export interface IpcContext {
   manager: SessionManager;
@@ -171,209 +152,6 @@ export interface IpcContext {
   savePrefs(prefs: Preferences): void;
   setUnsaved(file: string | null): void;
 }
-
-type Handler<K extends CommandChannel> = (
-  ...args: Parameters<IpcCommands[K]>
-) => ReturnType<IpcCommands[K]> | Promise<ReturnType<IpcCommands[K]>>;
-
-type ArgumentName = Extract<MessageKey, `arg.${string}`> extends `arg.${infer Name}` ? Name : never;
-
-// Arguments come from the renderer: checked here, never trusted.
-const str = (value: unknown, name: ArgumentName, max = 4096): string => {
-  if (typeof value !== 'string' || value.length > max) {
-    throw new UserError('error.invalidArgument', { name: { key: `arg.${name}` } });
-  }
-  return value;
-};
-/**
- * Terminal input is a byte stream, not a saved prompt. The terminal and the agent decide how
- * much of a paste they accept; imposing a second, arbitrary cap here makes Ctrl+V differ from
- * using Claude Code in a regular terminal.
- */
-const terminalData = (value: unknown): string => {
-  if (typeof value !== 'string') {
-    throw new UserError('error.invalidArgument', { name: { key: 'arg.data' } });
-  }
-  return value;
-};
-/** A command to run in place of the agent's own: one line, or it is refused. */
-const command = (value: unknown): string => {
-  const text = str(value, 'command', AGENT_COMMAND_LIMIT);
-  if (text.trim() && !sanitizeAgentCommand(text)) {
-    throw new UserError('error.invalidArgument', { name: { key: 'arg.command' } });
-  }
-  return text;
-};
-const size = (value: unknown): TerminalSize => {
-  const v = value as Partial<TerminalSize> | null;
-  const ok = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
-  if (!v || !ok(v.cols) || !ok(v.rows)) throw new UserError('error.terminalSize');
-  return {
-    cols: Math.min(1000, Math.max(2, Math.floor(v.cols))),
-    rows: Math.min(500, Math.max(1, Math.floor(v.rows))),
-  };
-};
-const promptValues = (value: unknown): PromptValues => {
-  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
-  const answers: Record<string, string> = {};
-  const given = v.answers && typeof v.answers === 'object' ? Object.entries(v.answers) : [];
-  if (given.length > 50)
-    throw new UserError('error.invalidArgument', { name: { key: 'arg.text' } });
-  for (const [question, answer] of given) answers[question] = str(answer, 'text', 8000);
-  if (typeof v.selection === 'string' && v.selection.length > SELECTION_LIMIT) {
-    throw new UserError('error.prompt.selectionTooLarge', { limit: SELECTION_LIMIT });
-  }
-  return {
-    file: v.file === undefined ? undefined : str(v.file, 'file'),
-    selection: v.selection === undefined ? undefined : str(v.selection, 'text', SELECTION_LIMIT),
-    problems: v.problems === undefined ? undefined : str(v.problems, 'text', PROBLEMS_TEXT_LIMIT),
-    pr: v.pr === undefined ? undefined : str(v.pr, 'text', 2000),
-    pipeline: v.pipeline === undefined ? undefined : str(v.pipeline, 'text', PIPELINE_TEXT_LIMIT),
-    review: v.review === undefined ? undefined : str(v.review, 'text', REVIEW_TEXT_LIMIT),
-    answers,
-  };
-};
-const line = (value: unknown): number => {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
-    throw new UserError('error.review.badLines');
-  }
-  return Math.min(value, REVIEW_LINE_LIMIT);
-};
-const newComment = (value: unknown): NewReviewComment => {
-  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
-  const startLine = line(v.startLine);
-  const endLine = line(v.endLine);
-  if (endLine < startLine) throw new UserError('error.review.badLines');
-  return {
-    file: str(v.file, 'file'),
-    startLine,
-    endLine,
-    // A longer snippet is cut, not refused: the lines still say where the comment is.
-    snippet: str(v.snippet ?? '', 'text', 1024 * 1024).slice(0, REVIEW_SNIPPET_LIMIT),
-    text: str(v.text, 'text', REVIEW_COMMENT_TEXT_LIMIT),
-  };
-};
-/** Lines of a block, each one line of text. */
-const hunkLines = (value: unknown): string[] => {
-  if (!Array.isArray(value) || value.length > 50_000) {
-    throw new UserError('error.invalidArgument', { name: { key: 'arg.text' } });
-  }
-  return value.map((line) => {
-    const text = str(line, 'text', 100_000);
-    if (text.includes('\n')) {
-      throw new UserError('error.invalidArgument', { name: { key: 'arg.text' } });
-    }
-    return text;
-  });
-};
-const hunkRevert = (value: unknown): HunkRevert => {
-  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
-  const start = v.newStart;
-  if (typeof start !== 'number' || !Number.isInteger(start) || start < 1) {
-    throw new UserError('error.invalidArgument', { name: { key: 'arg.line' } });
-  }
-  return {
-    file: str(v.file, 'file'),
-    newStart: start,
-    before: hunkLines(v.before),
-    after: hunkLines(v.after),
-  };
-};
-const VERDICTS: readonly ReviewVerdict[] = ['COMMENT', 'APPROVE', 'REQUEST_CHANGES'];
-const submission = (value: unknown): ReviewSubmission => {
-  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
-  if (!VERDICTS.includes(v.verdict as ReviewVerdict)) {
-    throw new UserError('error.invalidArgument', { name: { key: 'arg.choice' } });
-  }
-  const list = Array.isArray(v.comments) ? v.comments : [];
-  if (list.length > REVIEW_DRAFTS_LIMIT) {
-    throw new UserError('error.invalidArgument', { name: { key: 'arg.text' } });
-  }
-  const comments = list.map((item) => {
-    const c = (item && typeof item === 'object' ? item : {}) as Record<string, unknown>;
-    const at = c.line;
-    if (typeof at !== 'number' || !Number.isInteger(at) || at < 1) {
-      throw new UserError('error.invalidArgument', { name: { key: 'arg.line' } });
-    }
-    return {
-      path: str(c.path, 'file'),
-      line: at,
-      ...(c.oldSide === true ? { oldSide: true } : {}),
-      body: str(c.body, 'text', REVIEW_BODY_LIMIT),
-    };
-  });
-  const body = str(v.body ?? '', 'text', REVIEW_BODY_LIMIT);
-  if (comments.length === 0 && !body.trim() && v.verdict !== 'APPROVE') {
-    throw new UserError('error.pullReview.empty');
-  }
-  return {
-    verdict: v.verdict as ReviewVerdict,
-    body,
-    comments,
-    headSha: str(v.headSha ?? '', 'text', 100),
-  };
-};
-const bounds = (value: unknown): PreviewBounds => {
-  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
-  const n = (x: unknown) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
-  return { x: n(v.x), y: n(v.y), width: n(v.width), height: n(v.height) };
-};
-const patterns = (value: unknown): string[] =>
-  (Array.isArray(value) ? value : [])
-    .slice(0, 20)
-    .map((p) => str(p, 'text', 200).trim())
-    .filter((p) => p && !p.split(/[\\/]/).includes('..'));
-const searchQuery = (value: unknown): SearchQuery => {
-  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
-  return {
-    text: str(v.text, 'text', SEARCH_TEXT_LIMIT),
-    caseSensitive: v.caseSensitive === true,
-    wholeWord: v.wholeWord === true,
-    regex: v.regex === true,
-    include: patterns(v.include),
-    exclude: patterns(v.exclude),
-    changedOnly: v.changedOnly === true,
-  };
-};
-const base = (value: unknown): DiffBase =>
-  value === 'session' || value === 'branchBase' || value === 'previousTurn'
-    ? value
-    : typeof value === 'string' && parseCheckpointBase(value)
-      ? (value as DiffBase)
-      : 'head';
-/** Ids of sessions or groups: whatever is not one is left out, and the manager skips unknown ones. */
-const ids = (value: unknown): string[] => {
-  if (!Array.isArray(value) || value.length > 1000) throw new UserError('error.invalidOrder');
-  return value.filter((id): id is string => typeof id === 'string' && id.length <= 64);
-};
-const groupUpdate = (value: unknown): GroupUpdate => {
-  const v = value as Record<string, unknown> | null;
-  if (!v || typeof v !== 'object') {
-    throw new UserError('error.invalidArgument', { name: { key: 'arg.group' } });
-  }
-  return {
-    ...(v.name !== undefined && { name: str(v.name, 'name', GROUP_NAME_LIMIT * 4) }),
-    ...(v.collapsed !== undefined && { collapsed: v.collapsed === true }),
-    ...(v.sessionIds !== undefined && { sessionIds: ids(v.sessionIds) }),
-  };
-};
-
-const condition = (value: unknown): QueueCondition => {
-  if (!QUEUE_CONDITIONS.includes(value as QueueCondition)) {
-    throw new UserError('error.invalidArgument', { name: { key: 'arg.condition' } });
-  }
-  return value as QueueCondition;
-};
-const queueUpdate = (value: unknown): QueueItemUpdate => {
-  const v = value as Record<string, unknown> | null;
-  if (!v || typeof v !== 'object') {
-    throw new UserError('error.invalidArgument', { name: { key: 'arg.item' } });
-  }
-  return {
-    ...(v.text !== undefined && { text: str(v.text, 'text', PROMPT_TEXT_LIMIT) }),
-    ...(v.condition !== undefined && { condition: condition(v.condition) }),
-  };
-};
 
 /**
  * A prompt as it reaches one session: its name, folder and branch, and what the user gave. Filled
@@ -476,16 +254,13 @@ export function registerIpc(context: IpcContext): void {
     testMode: context.testMode,
     gpuMode: context.gpuMode,
   }));
-
   handle('app:setUnsaved', (file) => context.setUnsaved(file === null ? null : str(file, 'file')));
-
   handle('prefs:get', () => context.data.prefs);
   handle('prefs:set', (patch) => {
     const prefs = sanitizePreferences({ ...context.data.prefs, ...(patch ?? {}) });
     context.savePrefs(prefs);
     return prefs;
   });
-
   // In test mode nobody can answer a native dialog: the file comes from the environment.
   const testFile = () =>
     context.testMode ? (process.env.AGENT_CONTROLLER_TEST_PREFS_FILE ?? null) : undefined;
@@ -525,7 +300,6 @@ export function registerIpc(context: IpcContext): void {
     context.savePrefs(imported);
     return imported;
   });
-
   handle('themes:list', () => context.codeThemes.list());
   handle('themes:get', (id) => context.codeThemes.get(str(id, 'theme', 100)));
   handle('themes:remove', (id) => context.codeThemes.remove(str(id, 'theme', 100)));
@@ -548,9 +322,7 @@ export function registerIpc(context: IpcContext): void {
     if (size > CODE_THEME_MAX_BYTES) throw new UserError('error.theme.tooLarge');
     return context.codeThemes.import(await fs.promises.readFile(file, 'utf8'));
   });
-
   handle('agents:detect', (refresh) => context.detectAgents(refresh === true));
-
   handle('dialog:pickFolder', async (defaultPath) => {
     const window = context.getWindow();
     if (!window) return null;
@@ -572,7 +344,6 @@ export function registerIpc(context: IpcContext): void {
     const parent = path.dirname(target);
     return fs.existsSync(target) && (await isFolder(parent)) ? parent : null;
   });
-
   handle('clipboard:read', () => clipboard.readText());
   handle('clipboard:write', (text) => clipboard.writeText(str(text, 'text', 10 * 1024 * 1024)));
   handle('shell:openExternal', async (url) => {
@@ -580,7 +351,6 @@ export function registerIpc(context: IpcContext): void {
     if (!/^https?:\/\//i.test(str(url, 'url'))) throw new UserError('error.onlyHttp');
     await shell.openExternal(url);
   });
-
   handle('sessions:list', () => snapshotOf(manager));
   handle('sessions:create', async (input) => {
     const profile = input?.profile;
@@ -639,7 +409,6 @@ export function registerIpc(context: IpcContext): void {
   handle('sessions:setGroup', (list, groupId) =>
     manager.setGroup(ids(list), groupId === null ? null : str(groupId, 'group', 64)),
   );
-
   handle('groups:create', (name, sessionIds) =>
     manager.createGroup(str(name, 'name', GROUP_NAME_LIMIT * 4), ids(sessionIds ?? [])),
   );
@@ -664,7 +433,6 @@ export function registerIpc(context: IpcContext): void {
     }
     return manager.answerPermission(session(id).id, str(askId, 'request', 64), choice);
   });
-
   handle('terminal:attach', (id, terminalSize) => manager.attach(terminal(id), size(terminalSize)));
   handle('terminal:detach', (id) => manager.detach(str(id, 'session', 64)));
   handle('terminal:setVisible', (id, visible) =>
@@ -680,7 +448,6 @@ export function registerIpc(context: IpcContext): void {
   handle('terminal:screenText', (id) => manager.screenText(terminal(id)));
   handle('aux:open', (id, terminalSize) => manager.openAux(session(id).id, size(terminalSize)));
   handle('aux:close', (id) => manager.closeAux(session(id).id));
-
   const expandFor = (sessionId: string, text: string, values: PromptValues) =>
     expandForSession(manager, session(sessionId).id, text, values);
   handle('prompts:preview', (id, text, values) =>
@@ -705,7 +472,6 @@ export function registerIpc(context: IpcContext): void {
     return outcomes;
   });
   handle('terminal:cancelSend', (id) => manager.cancelPending(session(id).id));
-
   handle('queue:get', (id) => queue.get(session(id).id));
   handle('queue:add', async (ids, prompt) => {
     if (!Array.isArray(ids) || ids.length === 0 || ids.length > SEND_TARGETS_LIMIT) {
@@ -747,7 +513,6 @@ export function registerIpc(context: IpcContext): void {
     if (!manager.isRunning(s.id)) throw new UserError('error.session.notRunning');
     return queue.sendNext(s.id);
   });
-
   const worktreesFolder = () => context.data.worktrees.folder || defaultWorktreesFolder();
   const worktreesInfo = async (): Promise<WorktreesInfo> => {
     const parent = worktreesFolder();
@@ -834,38 +599,6 @@ export function registerIpc(context: IpcContext): void {
     await removeWorktree(copy.folder);
     return worktreesInfo();
   });
-
-  /** The base a session in a copy compares with: the one its branch started from. */
-  const branchBase = (sessionId: string) => manager.get(sessionId)?.worktree?.base;
-  /**
-   * The trees a checkpoint base compares. The ids come from the renderer: only the checkpoints of
-   * that session are taken, from its own repository.
-   */
-  const checkpointTrees = async (
-    sessionId: string,
-    diffBase: DiffBase,
-  ): Promise<CheckpointTrees | undefined> => {
-    if (diffBase === 'previousTurn') {
-      const previous = await checkpoints.previous(sessionId);
-      return previous ? { from: previous.checkpoint.tree } : undefined;
-    }
-    const parsed = parseCheckpointBase(diffBase);
-    if (!parsed) return undefined;
-    const from = (await checkpoints.get(sessionId, parsed.from)).checkpoint.tree;
-    const to = parsed.to
-      ? (await checkpoints.get(sessionId, parsed.to)).checkpoint.tree
-      : undefined;
-    return { from, ...(to && { to }) };
-  };
-  const overview = async (id: unknown, diffBase: unknown, watch: boolean) => {
-    const s = session(id);
-    const b = base(diffBase);
-    return changes.overview(s.id, s.cwd, b, {
-      watch,
-      branchBase: branchBase(s.id),
-      checkpoint: await checkpointTrees(s.id, b),
-    });
-  };
   const experimentInput = (value: unknown): NewExperimentInput => {
     const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
     if (!Array.isArray(v.attempts) || v.attempts.length > ATTEMPTS_MAX) {
@@ -902,7 +635,6 @@ export function registerIpc(context: IpcContext): void {
   handle('experiments:keep', (id, sessionId) =>
     experiments.keep(str(id, 'session', 64), session(sessionId).id),
   );
-
   const taskInput = (value: unknown): NewTasksInput => {
     const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
     if (!AGENT_PROFILE_IDS.includes(v.profile as never))
@@ -953,68 +685,6 @@ export function registerIpc(context: IpcContext): void {
     }
     return searchProject(root, query, { inGit, changed });
   });
-  /** A session in a copy, its branch and how it stands; anything else has no pull request here. */
-  const copyBranch = async (id: unknown) => {
-    const s = session(id);
-    if (!s.worktree) throw new UserError('error.branch.notCopy');
-    const state = await branchState(s.cwd, s.worktree.base);
-    const repo = state.remoteUrl ? normalizeRepo(state.remoteUrl) : null;
-    return { s, state, repo };
-  };
-  handle('branch:info', async (id): Promise<BranchInfo> => {
-    const { s, state, repo } = await copyBranch(id);
-    const card = tasks.findBySession(s.id);
-    const issue = card?.issue ?? null;
-    return {
-      branch: state.branch,
-      base: state.base,
-      ahead: state.ahead,
-      subjects: state.subjects,
-      dirty: state.dirty,
-      behind: state.behind,
-      stackedOn:
-        manager.list().find((other) => other.id !== s.id && other.worktree?.branch === state.base)
-          ?.name ?? null,
-      remote: state.remote,
-      repo,
-      title: (card?.title ?? state.subjects[0] ?? state.branch).slice(0, PULL_TITLE_LIMIT),
-      body: pullBody(state.subjects, issue),
-      issue,
-    };
-  });
-  handle('branch:openPull', async (id, input) => {
-    const v = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
-    const title = str(v.title, 'name', PULL_TITLE_LIMIT).trim();
-    if (!title) throw new UserError('error.branch.noTitle');
-    const body = str(v.body ?? '', 'text', REVIEW_BODY_LIMIT);
-    const { s, state, repo } = await copyBranch(id);
-    if (!state.remote || !repo) throw new UserError('error.branch.noRemote');
-    if (state.ahead === 0) throw new UserError('error.branch.nothingToPush');
-    await pushBranch(s.cwd, state.remote, state.branch);
-    const opened = await context.pulls.createPull(repo, {
-      title,
-      body,
-      head: state.branch,
-      base: state.base,
-      draft: v.draft === true,
-    });
-    // The pull request shows in the panel from now on, and can be guarded.
-    const prefs = context.data.prefs;
-    if (!prefs.pulls.repos.some((r) => r.toLowerCase() === repo.toLowerCase())) {
-      context.savePrefs(
-        sanitizePreferences({
-          ...prefs,
-          pulls: { ...prefs.pulls, repos: [...prefs.pulls.repos, repo] },
-        }),
-      );
-    }
-    return opened;
-  });
-  handle('branch:updateFromBase', async (id) => {
-    const { s, state } = await copyBranch(id);
-    const result = await updateFromBase(s.cwd, state.base, state.remote);
-    return result;
-  });
   handle('tasks:issues', async (folder): Promise<IssueList> => {
     const cwd = str(folder, 'folder');
     const remotes = await runGit(cwd, ['remote', '-v']).catch(() => null);
@@ -1050,7 +720,6 @@ export function registerIpc(context: IpcContext): void {
   handle('tasks:reorder', (repo, taskIds) => tasks.reorder(str(repo, 'folder'), ids(taskIds)));
   handle('tasks:start', (taskIds) => tasks.start(ids(taskIds)));
   handle('tasks:done', (id, done) => tasks.done(str(id, 'task', 64), done === true));
-
   const reviewerInput = (value: unknown): ReviewerSetInput => {
     const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
     const trigger = REVIEW_TRIGGERS.find((t) => t === v.trigger);
@@ -1084,7 +753,6 @@ export function registerIpc(context: IpcContext): void {
   handle('reviewer:set', (input) => reviewer.set(reviewerInput(input)));
   handle('reviewer:runNow', (id) => reviewer.runNow(session(id).id));
   handle('reviewer:result', (id) => reviewer.result(session(id).id));
-
   handle('flows:get', (id) => flows.get(str(id, 'group', 64)));
   handle('flows:set', (id, rules) => flows.set(str(id, 'group', 64), rules));
   handle('flows:pause', (id, paused) => {
@@ -1099,126 +767,6 @@ export function registerIpc(context: IpcContext): void {
   handle('flows:discard', (id, pendingId) =>
     flows.discard(str(id, 'group', 64), str(pendingId, 'flow', 64)),
   );
-
-  handle('git:open', (id, diffBase) => {
-    // A panel that opens shows what is in common as of now, not as of the latest turn.
-    void overlaps.touch(session(id).id);
-    return overview(id, diffBase, true);
-  });
-  handle('git:refresh', (id, diffBase) => overview(id, diffBase, false));
-  handle('git:overlaps', (id) => overlaps.detail(session(id).id));
-  handle('git:close', (id) => changes.close(str(id, 'session', 64)));
-  handle('git:diff', async (id, file, diffBase) => {
-    const s = session(id);
-    const b = base(diffBase);
-    return changes.diff(s.id, str(file, 'file'), b, await checkpointTrees(s.id, b));
-  });
-  handle('git:hunks', async (id, diffBase) => {
-    const s = session(id);
-    const b = base(diffBase);
-    return changes.hunks(s.id, b, await checkpointTrees(s.id, b));
-  });
-  handle('git:revertHunk', async (id, diffBase, revert) => {
-    const s = session(id);
-    const b = base(diffBase);
-    await changes.revertHunk(s.id, b, hunkRevert(revert), await checkpointTrees(s.id, b));
-  });
-  handle('git:log', (id, file) => {
-    const { root, inside } = changes.locate(session(id).id, str(file, 'file'));
-    return fileLog(root, inside);
-  });
-  handle('git:commitDiff', (id, file, sha) => {
-    const { root, inside } = changes.locate(session(id).id, str(file, 'file'));
-    return commitDiff(root, inside, str(sha, 'text', 64));
-  });
-  handle('git:blameLine', async (id, file, at) => {
-    const s = session(id);
-    const path0 = str(file, 'file');
-    const { root, inside } = changes.locate(s.id, path0);
-    const lineNo = typeof at === 'number' && Number.isInteger(at) && at >= 1 ? at : 1;
-    // The file as it is on disk, so an edit not committed yet reads as such.
-    const diff = await changes.diff(s.id, path0, 'head');
-    const contents = diff.modified.kind === 'text' ? diff.modified.text : '';
-    return blameLine(root, inside, lineNo, contents);
-  });
-  handle('git:save', async (id, file, content, expected) => {
-    const result = await changes.save(
-      session(id).id,
-      str(file, 'file'),
-      str(content, 'content', 4 * 1024 * 1024),
-      expected === null ? null : str(expected, 'expected', 4 * 1024 * 1024),
-    );
-    return { saved: result.saved };
-  });
-  const files = (value: unknown) => {
-    if (!Array.isArray(value) || value.length === 0 || value.length > 1000) {
-      throw new UserError('error.invalidArgument', { name: { key: 'arg.file' } });
-    }
-    return value.map((file) => str(file, 'file'));
-  };
-  handle('git:stage', (id, list) => changes.stage(session(id).id, files(list)));
-  handle('git:unstage', (id, list) => changes.unstage(session(id).id, files(list)));
-  handle('git:commit', async (id, repo, message) => {
-    const result = await changes.commit(
-      session(id).id,
-      str(repo, 'path'),
-      str(message, 'message', 64 * 1024),
-    );
-    return { commit: result.commit };
-  });
-  handle('git:discard', async (id, file) => {
-    const record = await changes.discard(session(id).id, str(file, 'file'), context.discardDir);
-    return { id: record.id };
-  });
-  handle('git:undoDiscard', (id, discardId) =>
-    changes.undoDiscard(session(id).id, str(discardId, 'text', 64), context.discardDir),
-  );
-  handle('git:count', (id) => {
-    const s = session(id);
-    return changes.count(s.id, s.cwd);
-  });
-  handle('files:list', (id, dir, showHidden) => {
-    const s = session(id);
-    return changes.list(s.id, s.cwd, str(dir, 'folder'), showHidden === true);
-  });
-  handle('files:index', (id, showHidden) => {
-    const s = session(id);
-    return changes.index(s.id, s.cwd, showHidden === true);
-  });
-  handle('files:locate', (id, candidates) => {
-    if (!Array.isArray(candidates) || candidates.length > MAX_CANDIDATES) {
-      throw new UserError('error.invalidArgument', { name: { key: 'arg.file' } });
-    }
-    return locateFiles(
-      session(id).cwd,
-      candidates.map((candidate) => str(candidate, 'file', 1024)),
-    );
-  });
-
-  const checkpointId = (value: unknown) => {
-    const id = str(value, 'checkpoint', 16);
-    if (!/^\d{1,9}$/.test(id)) {
-      throw new UserError('error.invalidArgument', { name: { key: 'arg.checkpoint' } });
-    }
-    return id;
-  };
-  handle('checkpoints:list', (id) => checkpoints.list(session(id).id));
-  handle('checkpoints:restore', (id, checkpoint) =>
-    checkpoints.restore(session(id).id, checkpointId(checkpoint)),
-  );
-  handle('checkpoints:prune', (id) => checkpoints.prune(session(id).id));
-  handle('checkpoints:usage', async () => {
-    const usage = await Promise.all(
-      manager.list().map(async (s): Promise<CheckpointUsage> => ({
-        sessionId: s.id,
-        name: s.name,
-        folder: s.cwd,
-        ...(await checkpoints.usage(s.id).catch(() => ({ count: 0, bytes: 0 }))),
-      })),
-    );
-    return usage.filter((u) => u.count > 0);
-  });
-
   handle('overview:watch', (watching) => context.tails.watch(watching === true));
   handle('overview:git', async (id) => {
     const s = session(id);
@@ -1228,7 +776,6 @@ export function registerIpc(context: IpcContext): void {
     ]);
     return { branch, changes: count };
   });
-
   const checksInfo = (sessionId: string): ChecksInfo => {
     const s = session(sessionId);
     const configured = context.data.checks[folderKey(s.cwd)] ?? [];
@@ -1266,18 +813,6 @@ export function registerIpc(context: IpcContext): void {
     if (!report) throw new UserError('error.checks.nothingFailed');
     manager.paste(s.id, report);
   });
-
-  handle('pulls:get', () => context.pulls.get());
-  handle('pulls:refresh', async () => {
-    await context.pulls.refresh();
-    return context.pulls.get();
-  });
-  handle('pulls:available', (forge) => {
-    if (!FORGES.includes(forge)) {
-      throw new UserError('error.invalidArgument', { name: { key: 'arg.forge' } });
-    }
-    return context.pulls.available(forge);
-  });
   handle('background:get', () => context.background.get());
   handle('background:output', (id) => context.background.outputOf(str(id, 'item', 64)));
   handle('background:restart', (id) => context.background.restart(str(id, 'item', 64)));
@@ -1288,89 +823,6 @@ export function registerIpc(context: IpcContext): void {
     const { cols, rows } = size(terminalSize);
     context.background.resize(cols, rows);
   });
-  handle('pulls:accounts', () => context.pulls.ghAccounts());
-  handle('pulls:fixPipeline', async (key) => {
-    const value = str(key, 'pull', 300);
-    const pull = context.pulls.find(value);
-    if (!pull) throw new UserError('error.pulls.notFound');
-    const pipeline = await context.pulls.failureText(pull.key);
-    if (!pipeline) throw new UserError('error.pulls.nothingFailed');
-    return { pr: pullSummary(pull), pipeline, sessions: await sessionsForPull(manager, pull) };
-  });
-  handle('pulls:review', (key) => context.pulls.review(str(key, 'pull', 300)));
-  handle('pulls:submitReview', (key, value) =>
-    context.pulls.submitReview(str(key, 'pull', 300), submission(value)),
-  );
-  handle('pulls:merge', (key, options) => {
-    const o = (options && typeof options === 'object' ? options : {}) as Record<string, unknown>;
-    return context.pulls.merge(str(key, 'pull', 300), {
-      squash: o.squash !== false,
-      deleteBranch: o.deleteBranch === true,
-    });
-  });
-  const sonarGroup = (groupId: string): SonarGroupInfo => ({
-    config: context.sonar.configs.get(groupId),
-    hasToken: context.sonar.tokens.has(groupId),
-    secureStorage: context.sonar.tokens.available(),
-  });
-  const knownGroup = (id: unknown) => {
-    const groupId = str(id, 'group', 64);
-    if (!manager.listGroups().some((g) => g.id === groupId)) {
-      throw new UserError('error.invalidArgument', { name: { key: 'arg.group' } });
-    }
-    return groupId;
-  };
-  const sonarConfig = (value: unknown) => {
-    const config = sanitizeSonarConfig(value);
-    if (!config) throw new UserError('error.sonar.badConfig');
-    return config;
-  };
-  handle('sonar:group', (id) => sonarGroup(knownGroup(id)));
-  handle('sonar:configure', (id, config, token) => {
-    const groupId = knownGroup(id);
-    context.sonar.configs.set(groupId, config === null ? null : sonarConfig(config));
-    if (token === null || config === null) {
-      if (context.sonar.tokens.has(groupId)) context.sonar.tokens.set(groupId, null);
-    } else if (token !== undefined) {
-      const value = str(token, 'text', SONAR_TOKEN_LIMIT).trim();
-      if (value) {
-        if (!context.sonar.tokens.available()) throw new UserError('error.sonar.noVault');
-        context.sonar.tokens.set(groupId, value);
-      }
-    }
-    return sonarGroup(groupId);
-  });
-  handle('sonar:test', async (id, config, token) => {
-    const groupId = knownGroup(id);
-    const given = token === undefined ? '' : str(token, 'text', SONAR_TOKEN_LIMIT).trim();
-    const value = given || context.sonar.tokens.get(groupId);
-    if (!value) return { ok: false, error: t('error.sonar.noToken') };
-    try {
-      await new SonarApi(sonarConfig(config), value).test();
-      return { ok: true };
-    } catch (err) {
-      const status = (err as { status?: number | null }).status;
-      return {
-        ok: false,
-        error:
-          status === 401
-            ? t('error.sonar.badToken')
-            : status === 404
-              ? t('error.sonar.noProject')
-              : err instanceof Error
-                ? err.message
-                : String(err),
-      };
-    }
-  });
-  handle('sonar:run', (id) => context.sonar.start(session(id).id));
-  handle('sonar:runGroup', async (id) => {
-    const groupId = knownGroup(id);
-    for (const s of manager.list().filter((s) => s.groupId === groupId)) {
-      await context.sonar.start(s.id);
-    }
-  });
-  handle('sonar:runs', () => context.sonar.service.all());
   handle('preview:open', (url, where) => {
     const address = str(url, 'url', 2000);
     if (!isLocalUrl(address)) throw new UserError('error.preview.notLocal');
@@ -1386,36 +838,6 @@ export function registerIpc(context: IpcContext): void {
   handle('preview:saveShot', (id, png) =>
     saveShot(context.shotsDir, session(id).id, str(png, 'data', SHOT_LIMIT)),
   );
-  const phoneInfo = () => ({
-    hasToken: context.phone.tokens.has('telegram'),
-    secureStorage: context.phone.tokens.available(),
-  });
-  handle('phone:info', phoneInfo);
-  handle('phone:setToken', (token) => {
-    if (token === null) {
-      if (context.phone.tokens.has('telegram')) context.phone.tokens.set('telegram', null);
-    } else {
-      const value = str(token, 'text', 200).trim();
-      if (!/^\d+:[\w-]{20,}$/.test(value)) throw new UserError('error.phone.badToken');
-      if (!context.phone.tokens.available()) throw new UserError('error.sonar.noVault');
-      context.phone.tokens.set('telegram', value);
-    }
-    return phoneInfo();
-  });
-  handle('phone:test', () => context.phone.send(t('phone.testTitle'), t('phone.testBody')));
-  handle('pulls:guard', () => context.guard.get());
-  handle('pulls:setGuard', (key, on) => {
-    const value = str(key, 'pull', 300);
-    const prefs = context.data.prefs;
-    const guarded = new Set(prefs.pulls.guarded ?? []);
-    if (on === true) guarded.add(value);
-    else guarded.delete(value);
-    context.savePrefs(
-      sanitizePreferences({ ...prefs, pulls: { ...prefs.pulls, guarded: [...guarded] } }),
-    );
-    if (on === true) context.guard.started(context.pulls.find(value));
-  });
-
   handle('review:list', (id) => context.review.list(session(id).id));
   handle('review:add', (id, comment) => context.review.add(session(id).id, newComment(comment)));
   handle('review:update', (id, commentId, text) =>
@@ -1436,4 +858,27 @@ export function registerIpc(context: IpcContext): void {
     if (comments.length === 0) throw new UserError('error.review.nothing');
     return { text: buildReviewText(comments), ids: comments.map((c) => c.id) };
   });
+
+  const kit: IpcKit = {
+    context,
+    manager,
+    changes,
+    checks,
+    checkpoints,
+    overlaps,
+    queue,
+    experiments,
+    tasks,
+    reviewer,
+    flows,
+    handle,
+    session,
+    terminal,
+    t,
+    language,
+    isFolder,
+    remember,
+  };
+  registerPullsIpc(kit);
+  registerGitIpc(kit);
 }

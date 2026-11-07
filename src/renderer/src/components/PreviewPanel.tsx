@@ -159,6 +159,9 @@ export function PreviewPanel({ url, ports, covered, onClose, onShot, sessionId }
   const [state, setState] = useState<PreviewState | null>(null);
   const [shot, setShot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // While the address field has the focus, a page that finishes loading must not write over it:
+  // the person may be about to type, with the old text selected.
+  const typing = useRef(false);
   const hidden = covered || shot !== null;
 
   const where = () => {
@@ -186,7 +189,7 @@ export function PreviewPanel({ url, ports, covered, onClose, onShot, sessionId }
   useEffect(() => {
     const off = window.api.on('preview:changed', (next) => {
       setState(next);
-      if (next?.url) setAddress(next.url);
+      if (next?.url && !typing.current) setAddress(next.url);
     });
     return () => {
       off();
@@ -195,6 +198,8 @@ export function PreviewPanel({ url, ports, covered, onClose, onShot, sessionId }
   }, []);
 
   const go = (input: string) => {
+    // Sent: from now on the field shows where the page really went.
+    typing.current = false;
     const next = previewAddress(input);
     if (!next) {
       setError(t('error.preview.notLocal'));
@@ -244,7 +249,12 @@ export function PreviewPanel({ url, ports, covered, onClose, onShot, sessionId }
             aria-label={t('preview.address')}
             value={address}
             spellCheck={false}
-            onChange={(e) => setAddress(e.target.value)}
+            onFocus={() => (typing.current = true)}
+            onBlur={() => (typing.current = false)}
+            onChange={(e) => {
+              typing.current = true;
+              setAddress(e.target.value);
+            }}
           />
         </form>
         {ports.map((port) => (

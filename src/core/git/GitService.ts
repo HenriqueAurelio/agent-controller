@@ -326,6 +326,12 @@ export async function currentBranch(root: string): Promise<string | null> {
   return result.code === 0 ? result.stdout.toString('utf8').trim() || null : null;
 }
 
+/** The commit checked out; null before the first commit or outside a repository. */
+export async function headCommit(root: string): Promise<string | null> {
+  const result = await runGit(root, ['rev-parse', '--verify', '-q', 'HEAD']);
+  return result.code === 0 ? result.stdout.toString('utf8').trim() || null : null;
+}
+
 /** Where HEAD and `base` last met: the commit a branch left `base` from. Null when they never met. */
 export async function mergeBase(root: string, base: string): Promise<string | null> {
   if (base.startsWith('-')) return null;

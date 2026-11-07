@@ -20,6 +20,8 @@ export interface SonarJob {
   repoKey: string;
   cwd: string;
   branch: string | null;
+  /** The commit checked out, when known: the result says which code it is about. */
+  commit?: string | null;
   config: SonarConfig;
   token: string;
 }
@@ -101,6 +103,7 @@ export class SonarService extends EventEmitter<Events> {
       status: 'queued',
       startedAt: this.options.now(),
       branch: job.branch,
+      ...(job.commit ? { commit: job.commit } : {}),
       problems: [],
       more: 0,
     });

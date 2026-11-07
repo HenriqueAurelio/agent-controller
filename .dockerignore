@@ -7,3 +7,5 @@ playwright-report
 *.log
 *.stackdump
 tools/agent-probe/sandbox
+dist-linux
+evidences

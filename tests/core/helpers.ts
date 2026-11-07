@@ -11,7 +11,9 @@ export function tempDir(prefix = 'agent-controller-'): string {
 }
 
 export function removeDir(dir: string): void {
-  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  // On Windows a terminal that just ended may hold its folder for a few seconds more: about five
+  // and a half in all, at 100 ms more on each try.
+  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 }
 
 export async function waitFor<T>(

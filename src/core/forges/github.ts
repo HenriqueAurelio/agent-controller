@@ -585,7 +585,7 @@ export class GitHubClient implements ForgeClient, ReviewClient, IssueClient, Pul
   async merge(repo: string, number: number, branch: string, options: MergeOptions): Promise<void> {
     await this.json(`/repos/${repo}/pulls/${number}/merge`, {
       method: 'PUT',
-      body: JSON.stringify({ merge_method: options.squash ? 'squash' : 'merge' }),
+      body: JSON.stringify({ merge_method: options.method }),
     });
     if (!options.deleteBranch || !branch) return;
     // A branch of a fork is not in this repository: GitHub answers 422, and that is fine.

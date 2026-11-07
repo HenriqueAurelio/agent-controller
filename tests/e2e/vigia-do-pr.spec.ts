@@ -1,7 +1,7 @@
 // The guard of a pull request: its failed pipeline goes to the agent of its branch by itself.
 import { expect, test } from '@playwright/test';
 import { fakeGitHubEnv, startFakeGitHub, type FakePull } from './fake-github';
-import { createSession, git, launch, makeRepo, removeDir, tempDir } from './harness';
+import { createSession, git, launch, makeRepo, removeDir, setTitle, tempDir } from './harness';
 
 const LOG =
   '2026-11-03T09:00:00Z FAIL relatorio.test.ts\n' +
@@ -27,6 +27,14 @@ test('a guarded pull request sends its failed pipeline to the session of its bra
   const { page } = running;
   try {
     const id = await createSession(page, 'Relatório', repo);
+    // The agent is in the middle of a turn: what the guard sends waits in the queue for its end.
+    // An agent at its prompt would get it at once.
+    await setTitle(page, '◐ trabalhando');
+    await expect(page.locator(`.session-item[data-session-id="${id}"]`)).toHaveAttribute(
+      'data-state',
+      'trabalhando',
+      { timeout: 15_000 },
+    );
     await page.evaluate(() =>
       window.api.invoke('prefs:set', {
         pulls: {
@@ -88,6 +96,28 @@ test('a guarded pull request sends its failed pipeline to the session of its bra
     await expect(row.getByTestId('pull-guard-status')).toHaveText('vigiando o pipeline', {
       timeout: 15_000,
     });
+
+    // Someone comments: the open conversations go to the same queue, with no attempt spent.
+    mine.comments = 1;
+    mine.reviewComments = [
+      {
+        id: 5,
+        path: 'src/relatorio.ts',
+        line: 3,
+        side: 'RIGHT',
+        body: 'Faltou o teste da última página.',
+        user: { login: 'bruno' },
+      },
+    ];
+    await expect
+      .poll(async () => (await queued()).find((i) => i.values.review)?.values.review, {
+        timeout: 20_000,
+      })
+      .toContain('src/relatorio.ts:3 — bruno: Faltou o teste da última página.');
+    const answer = (await queued()).find((i) => i.values.review)!;
+    expect(answer.condition).toBe('turnEnd');
+    expect(answer.text).toContain('{revisao}');
+    await expect(row.getByTestId('pull-guard-status')).toHaveText('vigiando o pipeline');
 
     // Off: nothing more is sent.
     await row.getByTestId('pull-guard').click();

@@ -23,7 +23,9 @@ export async function printLine(
   terminalId: string,
   text: string,
 ): Promise<{ row: number }> {
-  await page.keyboard.type(`${CLEAR} && echo ${text}`);
+  // bash reads `(` as syntax, cmd prints quotes as text: each shell gets the form it echoes as is.
+  const echoed = process.platform === 'win32' ? text : `'${text}'`;
+  await page.keyboard.type(`${CLEAR} && echo ${echoed}`);
   await page.keyboard.press('Enter');
   let row = -1;
   await expect
