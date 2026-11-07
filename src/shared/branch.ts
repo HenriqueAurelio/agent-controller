@@ -3,6 +3,10 @@ import type { TaskIssue } from './tasks';
 
 export interface BranchInfo {
   branch: string;
+  /** The commit checked out: what a push sends, and what an analysis of Sonar must be about. */
+  head: string;
+  /** The group of the session asks Sonar to pass before a pull request is opened. */
+  sonarBeforePull: boolean;
   base: string;
   /** Commits of the branch the base does not have, and their subjects, the oldest first. */
   ahead: number;

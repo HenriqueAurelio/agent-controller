@@ -18,6 +18,7 @@ import {
 import { errorMessage } from '../lib/format';
 import { PullReview } from './PullReview';
 import { useT } from '../lib/i18n';
+import { useSonarRuns } from '../lib/sonar';
 import { useAppState } from '../lib/store';
 import { duration, useNow } from './Overview';
 
@@ -67,6 +68,20 @@ export function PullRequests({ onClose, focusKey, onFix }: Props) {
   const state = useAppState((s) => s.pulls);
   const settings = useAppState((s) => s.prefs.pulls);
   const now = useNow(10_000);
+  const sessions = useAppState((s) => s.sessions);
+  const sonarRuns = useSonarRuns();
+  // The analysis of Sonar the app ran on the head commit of a pull request, in any session.
+  const sonarOf = (pull: PullRequestView): PullSonar | undefined => {
+    if (!pull.pipeline.sha) return undefined;
+    for (const session of sessions) {
+      const run = sonarRuns[session.id];
+      if (run?.commit !== pull.pipeline.sha) continue;
+      if (run.status === 'passed' || run.status === 'failed') {
+        return { status: run.status, session: session.name };
+      }
+    }
+    return undefined;
+  };
   const [tab, setTab] = useState<Tab>(() => (state.pulls.some((p) => p.mine) ? 'mine' : 'all'));
   const [editing, setEditing] = useState(settings.repos.length === 0);
   const [fixing, setFixing] = useState<string | null>(null);
@@ -280,6 +295,7 @@ export function PullRequests({ onClose, focusKey, onFix }: Props) {
                   fixing={fixing === pull.key}
                   onFix={() => void fix(pull)}
                   guard={guard[pull.key]}
+                  sonar={sonarOf(pull)}
                   onReview={() => setReviewing(pull)}
                   onGuard={(on) =>
                     void window.api
@@ -296,6 +312,12 @@ export function PullRequests({ onClose, focusKey, onFix }: Props) {
   );
 }
 
+interface PullSonar {
+  status: 'passed' | 'failed';
+  /** The session whose analysis it was. */
+  session: string;
+}
+
 function PullRow({
   pull,
   now,
@@ -305,8 +327,11 @@ function PullRow({
   guard,
   onGuard,
   onReview,
+  sonar,
 }: {
   pull: PullRequestView;
+  /** What Sonar said of the head commit, when the app analysed it. */
+  sonar: PullSonar | undefined;
   now: number;
   focused: boolean;
   fixing: boolean;
@@ -359,6 +384,16 @@ function PullRow({
         )}
         {pull.reviewRequested && (
           <span className="pull-tag review-me">{t('pulls.reviewRequested')}</span>
+        )}
+        {sonar && (
+          <span
+            className={`pull-tag sonar-${sonar.status}`}
+            data-testid="pull-sonar"
+            data-status={sonar.status}
+            title={t('pulls.sonar.hint', { name: sonar.session })}
+          >
+            {t(`pulls.sonar.${sonar.status}`)}
+          </span>
         )}
         <span className="spacer" />
         <button

@@ -17,6 +17,7 @@ const CONFIG: SonarConfig = {
   enabled: true,
   branches: true,
   onTurnEnd: false,
+  beforePull: true,
 };
 
 describe('the setup of Sonar', () => {
@@ -28,6 +29,10 @@ describe('the setup of Sonar', () => {
       sanitizeSonarConfig({ provider: 'sonarcloud', projectKey: 'a_b', organization: 'acme' }),
     ).toMatchObject({ url: 'https://sonarcloud.io', organization: 'acme' });
     expect(sanitizeSonarConfig({ provider: 'sonarcloud', projectKey: 'a' })).toBeNull();
+    // Before the pull request is on unless turned off: a setup saved before it existed gets it.
+    expect(
+      sanitizeSonarConfig({ projectKey: 'a', url: 'http://x', beforePull: false })?.beforePull,
+    ).toBe(false);
     expect(sanitizeSonarConfig({ projectKey: 'a', url: 'ftp://x' })).toBeNull();
     expect(sanitizeSonarConfig({ projectKey: 'a b', url: 'http://x' })).toBeNull();
     expect(
@@ -191,10 +196,12 @@ describe('SonarService', () => {
         },
       }),
     });
-    service.start(job());
+    service.start(job({ commit: 'aaa111' }));
     service.start(job({ sessionId: 's2', branch: 'feature/b', cwd: path.join(dir, 'b') }));
     await waitFor(() => service.get('s2')?.status === 'passed');
-    expect(service.get('s1')).toMatchObject({ status: 'failed', gate: 'ERROR' });
+    // Each result says which commit it is about, when the commit was known.
+    expect(service.get('s1')).toMatchObject({ status: 'failed', gate: 'ERROR', commit: 'aaa111' });
+    expect(service.get('s2')!.commit).toBeUndefined();
     expect(service.get('s1')!.problems).toHaveLength(1);
     expect(service.get('s2')!.problems).toHaveLength(0);
     expect(branchesAsked.sort()).toEqual(['feature/a', 'feature/b']);

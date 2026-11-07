@@ -37,7 +37,7 @@ import { parseCopyPatterns } from '@core/git/copyIntoWorktree';
 import { listeningPorts } from '@core/metrics/ports';
 import { SonarService } from '@core/sonar/SonarService';
 import { SonarConfigStore } from '@core/sonar/SonarConfigStore';
-import { currentBranch } from '@core/git/GitService';
+import { currentBranch, headCommit } from '@core/git/GitService';
 import { SonarTokens } from './sonarTokens';
 import { Preview } from './preview';
 import { sendToPhone } from '@core/notify/phonePush';
@@ -887,8 +887,19 @@ export async function startApp(): Promise<void> {
     }
     const token = sonarTokens.get(s.groupId);
     if (!token) throw new UserError('error.sonar.noToken');
-    const branch = await currentBranch(s.cwd).catch(() => null);
-    sonarService.start({ sessionId, repoKey: s.groupId, cwd: s.cwd, branch, config, token });
+    const [branch, commit] = await Promise.all([
+      currentBranch(s.cwd).catch(() => null),
+      headCommit(s.cwd).catch(() => null),
+    ]);
+    sonarService.start({
+      sessionId,
+      repoKey: s.groupId,
+      cwd: s.cwd,
+      branch,
+      commit,
+      config,
+      token,
+    });
   };
   manager.on('removed', (id) => sonarService.forget(id));
   manager.on('transition', ({ session, previous }) => {

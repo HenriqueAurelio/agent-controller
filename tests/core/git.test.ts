@@ -6,6 +6,7 @@ import { ChangesService } from '@core/git/ChangesService';
 import {
   fileDiff,
   gitVersion,
+  headCommit,
   MAX_TEXT_BYTES,
   parseNameStatus,
   parseStatus,
@@ -72,6 +73,15 @@ describe('GitService', () => {
     } finally {
       removeDir(plain);
     }
+  });
+
+  it('names the commit checked out, and none before the first one', async () => {
+    expect(await headCommit(root)).toBeNull();
+    write('a.txt', 'a\n');
+    git('add', '-A');
+    git('commit', '-q', '-m', 'primeiro');
+    expect(await headCommit(root)).toBe(git('rev-parse', 'HEAD').trim());
+    expect(await headCommit(work)).toBeNull();
   });
 
   it('lists every kind of change', async () => {
