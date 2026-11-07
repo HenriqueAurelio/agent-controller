@@ -53,6 +53,24 @@ test('the history of a file lists its commits and says who changed the line of t
     await expect(dialog.getByTestId('history-diff')).toContainText('const total = 10;');
     await dialog.getByTestId('history-commit').first().click();
     await expect(dialog.getByTestId('history-commit').first()).toHaveClass(/current/);
+    // What the main process gives for that commit, apart from the dialog: when the two disagree,
+    // the message says which side is wrong, with what git itself says.
+    const head = git(repo, 'rev-parse', 'HEAD').trim();
+    const sessionId = await page
+      .locator('.session-item[aria-selected="true"]')
+      .getAttribute('data-session-id');
+    const fromMain = await page.evaluate(
+      ([id, sha]) => window.api.invoke('git:commitDiff', id!, 'src/app.ts', sha!),
+      [sessionId, head],
+    );
+    const added = fromMain.flatMap((h) =>
+      h.lines.filter((l) => l.kind === 'add').map((l) => l.text),
+    );
+    expect(
+      added,
+      `git:commitDiff(${head}): ${JSON.stringify(fromMain)}\n` +
+        git(repo, 'log', '--follow', '-p', '--format=%H %s', '-1', head, '--', 'src/app.ts'),
+    ).toContain('const total = 20;');
     await expect(dialog.getByTestId('history-diff').locator('.line-add')).toContainText(
       'const total = 20;',
     );
