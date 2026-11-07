@@ -48,8 +48,11 @@ test('the history of a file lists its commits and says who changed the line of t
     await expect(dialog.getByTestId('history-blame')).toContainText('Linha 2: E2E');
     await expect(dialog.getByTestId('history-blame')).toContainText('Total de dez');
     // The commit of the line is picked, with what it changed in the file.
-    await expect(dialog.getByTestId('history-diff')).toContainText('console.log(total);');
+    // Its diff loaded (it adds both lines) before the click: while it loads the list may move.
+    await expect(dialog.getByTestId('history-diff').locator('.line-add')).toHaveCount(2);
+    await expect(dialog.getByTestId('history-diff')).toContainText('const total = 10;');
     await dialog.getByTestId('history-commit').first().click();
+    await expect(dialog.getByTestId('history-commit').first()).toHaveClass(/current/);
     await expect(dialog.getByTestId('history-diff').locator('.line-add')).toContainText(
       'const total = 20;',
     );
