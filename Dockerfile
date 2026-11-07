@@ -7,8 +7,12 @@
 # The `e2e` stage adds what Electron needs to open a window on a virtual display:
 #
 #   docker build --target e2e -t agent-controller-e2e .
-#   docker run --rm --ipc=host agent-controller-e2e      packages the app and runs the e2e tests on it
+#   docker run --rm --init --ipc=host agent-controller-e2e  packages the app and runs the e2e tests on it
 FROM node:22-bookworm AS core
+
+# The image has no locale: bash would mangle the non-ASCII the tests type (titles like "✳ pronto").
+# The GitHub runner has C.UTF-8, and so does this image.
+ENV LANG=C.UTF-8
 
 # node-pty has no prebuilt binary for Linux: it is compiled by `npm ci`.
 RUN apt-get update \
@@ -37,4 +41,4 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 USER dev
 
-CMD ["bash", "-c", "npm run build && npx electron-builder --linux --dir && AGENT_CONTROLLER_EXE=$PWD/dist/linux-unpacked/agent-controller xvfb-run -a npm run test:e2e"]
+CMD ["bash", "-c", "npm run build && npx electron-builder --linux --dir && AGENT_CONTROLLER_EXE=$PWD/dist/linux-unpacked/aurelium xvfb-run -a npm run test:e2e"]

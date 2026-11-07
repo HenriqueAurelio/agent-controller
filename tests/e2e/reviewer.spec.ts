@@ -82,7 +82,7 @@ test('a reviewer reads the diff of a turn, writes observations and two go back t
     // The reviewer writes its file; the main session says the review is ready.
     fs.writeFileSync(path.join(handoff, 'revisao.md'), REVIEW);
     const button = page.getByTestId('reviewer-button');
-    await expect(button).toHaveText('Revisão pronta (4)', { timeout: 30_000 });
+    await expect(button).toHaveAccessibleName('Revisão pronta (4)', { timeout: 30_000 });
     await expect(row(page, main).getByTestId('review-badge')).toContainText('4');
 
     await button.click();

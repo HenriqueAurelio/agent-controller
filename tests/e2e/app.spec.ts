@@ -396,15 +396,15 @@ test('"aguardando você" stands out in the sidebar, in the header and in the win
   expect(await style(header, 'background-color')).toBe(await style(label, 'background-color'));
 
   // The count reaches the taskbar through the window title.
-  await expect(page).toHaveTitle('(1 aguardando) Agent Controller');
+  await expect(page).toHaveTitle('(1 aguardando) Aurelium');
   expect(
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.getTitle()),
-  ).toBe('(1 aguardando) Agent Controller');
+  ).toBe('(1 aguardando) Aurelium');
 
   // Once the agent is stopped, the emphasis is gone.
   await stop(page, 'Esperando');
   await expect(waiting).toHaveAttribute('data-state', 'parada');
-  await expect(page).toHaveTitle('Agent Controller');
+  await expect(page).toHaveTitle('Aurelium');
   expect(await style(waiting.locator('.session-state'), 'background-color')).toBe(transparent);
 });
 

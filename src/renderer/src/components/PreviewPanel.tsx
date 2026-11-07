@@ -159,6 +159,8 @@ export function PreviewPanel({ url, ports, covered, onClose, onShot, sessionId }
   const [state, setState] = useState<PreviewState | null>(null);
   const [shot, setShot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // While the person types an address, a page that finishes loading must not write over it.
+  const typing = useRef(false);
   const hidden = covered || shot !== null;
 
   const where = () => {
@@ -186,7 +188,7 @@ export function PreviewPanel({ url, ports, covered, onClose, onShot, sessionId }
   useEffect(() => {
     const off = window.api.on('preview:changed', (next) => {
       setState(next);
-      if (next?.url) setAddress(next.url);
+      if (next?.url && !typing.current) setAddress(next.url);
     });
     return () => {
       off();
@@ -195,6 +197,7 @@ export function PreviewPanel({ url, ports, covered, onClose, onShot, sessionId }
   }, []);
 
   const go = (input: string) => {
+    typing.current = false;
     const next = previewAddress(input);
     if (!next) {
       setError(t('error.preview.notLocal'));
@@ -244,7 +247,10 @@ export function PreviewPanel({ url, ports, covered, onClose, onShot, sessionId }
             aria-label={t('preview.address')}
             value={address}
             spellCheck={false}
-            onChange={(e) => setAddress(e.target.value)}
+            onChange={(e) => {
+              typing.current = true;
+              setAddress(e.target.value);
+            }}
           />
         </form>
         {ports.map((port) => (
