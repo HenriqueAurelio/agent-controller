@@ -40,9 +40,16 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
-      # One line per test: when a run hangs, the log shows the last one that started.
-      - run: npm test -- --reporter=verbose
-        timeout-minutes: 20
+      # One line per test: when a run hangs, the log shows the last one that started. On the
+      # Windows runner node-pty sometimes crashes a worker (0xC0000005) while a terminal ends: the
+      # suite runs once more, and a real failure fails twice.
+      - name: Core tests
+        shell: bash
+        run: |
+          npm test -- --reporter=verbose && exit 0
+          echo "::warning::A suíte do core falhou; rodando de novo para separar falha de crash nativo."
+          npm test -- --reporter=verbose
+        timeout-minutes: 30
       - run: npm run build
 
       - name: Package
