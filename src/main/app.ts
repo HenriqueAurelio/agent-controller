@@ -20,18 +20,12 @@ import { OverlapService } from '@core/git/OverlapService';
 import { repositoryRoot } from '@core/git/GitService';
 import { cleanDiscarded } from '@core/git/GitWriteService';
 import { MetricsSampler } from '@core/metrics/MetricsSampler';
-import { FailureScanner } from '@core/sessions/FailureScanner';
 import { TailFeed } from '@core/sessions/TailFeed';
 import { ExperimentService } from '@core/experiments/ExperimentService';
 import { TaskBoard } from '@core/tasks/TaskBoard';
 import { HandoffService } from '@core/handoff/HandoffService';
 import { FlowEngine } from '@core/handoff/FlowEngine';
 import { ReviewerService } from '@core/handoff/ReviewerService';
-import { GitHubClient } from '@core/forges/github';
-import { fetchTransport, GitLabClient } from '@core/forges/gitlab';
-import { PullWatcher, type PullNotice } from '@core/forges/PullWatcher';
-import { PullGuard } from '@core/forges/PullGuard';
-import { openThreadsText } from '@core/forges/review';
 import { BackgroundService } from '@core/background/BackgroundService';
 import { ReviewStore } from '@core/review/ReviewStore';
 import { parseCopyPatterns } from '@core/git/copyIntoWorktree';
@@ -62,20 +56,13 @@ import {
 import type { AgentAvailability } from '@shared/agents';
 import { summarizeRun } from '@shared/checks';
 import { factoryPrompts } from '@shared/prompts';
-import {
-  FIX_PIPELINE_PROMPT_ID,
-  FIX_PULL_REVIEW_PROMPT_ID,
-  GUARD_ATTEMPTS,
-  pullRef,
-  pullSummary,
-  type PullRequestView,
-} from '@shared/pulls';
 import { REVIEW_PROMPT_ID } from '@shared/reviewer';
 import { errorText, translate, UserError, type MessageKey, type MessageParams } from '@shared/i18n';
 import { STATUS_DETAIL, type Session, type SessionGroup } from '@shared/session';
 import { expandForSession, registerIpc, snapshotOf, type IpcContext } from './ipc';
 import { showNotice, showNotification } from './notifications';
-import { sessionsForPull } from './pullSessions';
+import { startFallback } from './fallback';
+import { startPullWatch } from './pullWatch';
 import { createMainWindow, saveWindowState } from './window';
 
 const TEST_SHELL = process.env.AGENT_CONTROLLER_TEST_SHELL === '1';
@@ -530,137 +517,16 @@ export async function startApp(): Promise<void> {
     pollMs: TEST_SHELL ? 100 : undefined,
   });
   void handoff.cleanOld();
-  // Fallback is intentionally owned by the app layer: SessionManager stays a small PTY primitive.
-  // An exhausted agent may reject one final request, so the package comes from local evidence.
-  const fallbackSeen = new Set<string>();
-  const lastPrompt = new Map<string, string>();
-  const terminalLine = new Map<string, string>();
-  const failures = new FailureScanner();
-  const runFallback = async (sourceId: string, reason: 'usage' | 'provider' | 'unexpected') => {
-    if (fallbackSeen.has(sourceId)) return;
-    const policy = data.prefs.fallback;
-    if (!policy.enabled || !policy.triggers[reason]) return;
-    const source = manager.get(sourceId);
-    if (!source) return;
-    const index = policy.chain.findIndex((target) => target.profile === source.profile);
-    const target = policy.chain.slice(index < 0 ? 0 : index + 1)[0];
-    if (!target) return;
-    fallbackSeen.add(sourceId);
-    const [tailLines, overview] = await Promise.all([
-      manager.tail(sourceId, 80),
-      changes.overview(sourceId, source.cwd, 'session').catch(() => null),
-    ]);
-    const tail = tailLines.join('\n');
-    const changedFiles =
-      overview?.ok && overview.changes.length
-        ? overview.changes.map((change) => `- ${change.path}`).join('\n')
-        : 'No changed files could be determined.';
-    const id = `${Date.now()}-${sourceId}`;
-    const folder = path.join(userData, 'fallback-handoffs', id);
-    const handoffText = [
-      '# Agent fallback handoff',
-      '',
-      `Reason: ${reason}`,
-      `Source: ${source.profile}`,
-      `Destination: ${target.profile}`,
-      '',
-      '## Original request',
-      lastPrompt.get(sourceId) || 'Not available: the request was typed directly in the terminal.',
-      '',
-      '## Where work stopped',
-      tail || 'No terminal output was retained.',
-      '',
-      '## Changed files',
-      changedFiles,
-      '',
-      '## Decisions and next step',
-      'Inspect the repository state and git diff, then continue the original task. Verify what is complete before editing.',
-    ].join('\n');
-    await fs.promises.mkdir(folder, { recursive: true });
-    const handoffFile = path.join(folder, 'handoff.md');
-    await fs.promises.writeFile(handoffFile, handoffText, 'utf8');
-    if (policy.mode === 'confirm' && !TEST_SHELL) {
-      const choice = await dialog.showMessageBox(window!, {
-        type: 'warning',
-        buttons: [t('fallback.continue'), t('common.cancel')],
-        defaultId: 0,
-        cancelId: 1,
-        title: t('fallback.title'),
-        message: t('fallback.confirm', {
-          name: source.name,
-          agent: getProfile(target.profile).displayName,
-        }),
-        detail: handoffText.slice(0, 3500),
-      });
-      if (choice.response !== 0) return;
-    }
-    const next = manager.create({
-      name: `${source.name} (fallback)`,
-      cwd: source.cwd,
-      profile: target.profile,
-      ...(source.groupId && { groupId: source.groupId }),
-      model: target.model,
-      reasoning: target.reasoning,
-      keepSelection: false,
-    });
-    manager.start(next.id);
-    manager.sendText(
-      next.id,
-      `Continue the work described below. The original session stopped and may be incomplete. Read ${handoffFile}, inspect the repository and git diff, then continue from the next step.\n\n${handoffText}`,
-      { submit: true },
-    );
-  };
-  const rememberPrompt = (id: string, text: string) => {
-    const prompt = text
-      .replaceAll('\x1b[200~', '')
-      .replaceAll('\x1b[201~', '')
-      .replace(/\s+/g, ' ')
-      .trim();
-    if (prompt && !lastPrompt.has(id)) lastPrompt.set(id, prompt);
-  };
-  manager.on('sentText', rememberPrompt);
-  manager.on('input', (id, data) => {
-    if (lastPrompt.has(id)) return;
-    const session = manager.list().find((item) => item.id === id);
-    // Only retain the first line submitted at the agent's normal prompt. This excludes answers
-    // to permission menus and later interactive replies while still allowing normal terminal use.
-    if (
-      !session ||
-      session.status.state !== 'aguardando' ||
-      !session.status.confirmed ||
-      (session.status.detail !== STATUS_DETAIL.ready &&
-        session.status.detail !== STATUS_DETAIL.idle)
-    ) {
-      return;
-    }
-    const before = terminalLine.get(id) ?? '';
-    const combined = `${before}${data}`;
-    const breakAt = combined.search(/[\r\n]/);
-    if (breakAt < 0) {
-      terminalLine.set(id, combined.slice(0, 60_000));
-      return;
-    }
-    terminalLine.delete(id);
-    rememberPrompt(id, combined.slice(0, breakAt));
+  // An agent that ran out passes the work to the next one of the chain (src/main/fallback.ts).
+  startFallback({
+    data,
+    manager,
+    changes,
+    userData,
+    testMode: TEST_SHELL,
+    getWindow: () => window,
   });
-  manager.on('output', (id, chunk) => {
-    // The fallback is off by default: then, and once a session already fell back, nothing is
-    // read. Output arrives in thousands of chunks a second while agents draw.
-    const { enabled, triggers } = data.prefs.fallback;
-    if (!enabled || (!triggers.usage && !triggers.provider) || fallbackSeen.has(id)) {
-      failures.forget(id);
-      return;
-    }
-    const reason = failures.feed(id, chunk);
-    if (reason && triggers[reason])
-      void runFallback(id, reason).catch((err) => console.error('Fallback failed:', err));
-  });
-  manager.on('transition', ({ session, previous }) => {
-    if (previous.state === 'trabalhando' && session.status.state === 'erro')
-      void runFallback(session.id, 'unexpected').catch((err) =>
-        console.error('Fallback failed:', err),
-      );
-  });
+
   const reviewer = new ReviewerService({
     manager,
     checkpoints,
@@ -706,181 +572,16 @@ export async function startApp(): Promise<void> {
     flows.checksFinished(sessionId, summarizeRun(run).state === 'passed' ? 'passed' : 'failed');
   });
 
-  // The pull requests of the watched repositories (docs/v2/acompanhar-prs). The tests point the
-  // clients at a fake GitHub and a fake GitLab of their own; only in test mode, or the token of
-  // `gh` could be sent to whatever address the environment names.
-  // A test without a fake GitLab gets an address that refuses, never the user's own glab.
-  const fakeGitLab = TEST_SHELL
-    ? process.env.AGENT_CONTROLLER_GITLAB_API || 'http://127.0.0.1:1'
-    : undefined;
-  const pulls = new PullWatcher({
-    clients: {
-      github: new GitHubClient(
-        TEST_SHELL
-          ? {
-              apiUrl: process.env.AGENT_CONTROLLER_GITHUB_API || undefined,
-              token: process.env.AGENT_CONTROLLER_GITHUB_TOKEN || undefined,
-              runAccounts: async () => {
-                // "ana*,bruno": the starred one is the active.
-                const names = (process.env.AGENT_CONTROLLER_GH_ACCOUNTS ?? '')
-                  .split(',')
-                  .filter(Boolean);
-                return {
-                  accounts: names.map((n) => n.replace(/\*$/, '')),
-                  active: names.find((n) => n.endsWith('*'))?.replace(/\*$/, '') ?? '',
-                };
-              },
-            }
-          : {},
-      ),
-      gitlab: new GitLabClient(
-        fakeGitLab
-          ? fetchTransport(fakeGitLab, process.env.AGENT_CONTROLLER_GITLAB_TOKEN ?? '')
-          : undefined,
-      ),
-    },
-    intervalMs:
-      TEST_SHELL && process.env.AGENT_CONTROLLER_PULLS_MS
-        ? Number(process.env.AGENT_CONTROLLER_PULLS_MS)
-        : undefined,
-    describeError: (err) => errorText(data.prefs.language, err),
+  // The pull requests of the watched repositories and the guard of mine (src/main/pullWatch.ts).
+  const { pulls, guard } = startPullWatch({
+    data,
+    testMode: TEST_SHELL,
+    send,
+    pushPhone,
+    getWindow: () => window,
+    manager,
+    queue,
   });
-  pulls.configure(data.prefs.pulls);
-  pulls.on('changed', (state) => send('pulls:changed', state));
-  const pullNotice = ({ kind, pull }: PullNotice) => {
-    const settings = data.prefs.pulls;
-    const wanted =
-      kind === 'failed'
-        ? settings.notifyFailed
-        : kind === 'comment'
-          ? settings.notifyComments
-          : settings.notifyReview;
-    if (!wanted) return;
-    const where = pullRef(pull);
-    const failed = pull.pipeline.jobs.filter((j) => j.state === 'failure').map((j) => j.name);
-    showNotice(
-      `pull:${pull.key}`,
-      {
-        title:
-          kind === 'failed'
-            ? t('pulls.notice.failed', { pull: where })
-            : kind === 'comment'
-              ? t('pulls.notice.comment', { pull: where, author: pull.lastCommentBy ?? '' })
-              : t('pulls.notice.review', { pull: where, author: pull.author }),
-        body:
-          kind === 'failed' && failed.length > 0
-            ? `${pull.title}\n${failed.slice(0, 3).join(', ')}`
-            : pull.title,
-        silent: !data.prefs.notifySound,
-      },
-      () => {
-        if (!window || window.isDestroyed()) return;
-        if (window.isMinimized()) window.restore();
-        window.show();
-        window.focus();
-        send('pulls:focus', pull.key);
-      },
-    );
-  };
-  pulls.on('notice', pullNotice);
-
-  // The guard of my pull requests: a failed pipeline goes to the agent of its branch by itself.
-  const guard = new PullGuard();
-  guard.configure(data.prefs.pulls.guarded ?? []);
-  pulls.on('notice', (notice) => guard.notice(notice));
-  pulls.on('changed', (state) => guard.update(state));
-  guard.on('changed', (state) => send('pulls:guardChanged', state));
-  const openPull = (pull: PullRequestView) => () => {
-    if (!window || window.isDestroyed()) return;
-    if (window.isMinimized()) window.restore();
-    window.show();
-    window.focus();
-    send('pulls:focus', pull.key);
-  };
-  const guardNotice = (pull: PullRequestView, title: string, body: string) => {
-    pushPhone(title, body);
-    showNotice(
-      `guard:${pull.key}`,
-      { title, body, silent: !data.prefs.notifySound },
-      openPull(pull),
-    );
-  };
-  /** The fix each guard put in a queue: a newer failure replaces it while it has not gone. */
-  const guardItems = new Map<string, { session: string; item: string }>();
-  guard.on('fix', (pull) => {
-    void (async () => {
-      const ids = await sessionsForPull(manager, pull);
-      const target = ids.find((id) => manager.isRunning(id)) ?? ids[0];
-      const where = pullRef(pull);
-      if (!target) {
-        guard.sent(pull.key, null);
-        guardNotice(pull, t('pulls.guard.notice.noSession', { pull: where }), pull.branch);
-        return;
-      }
-      const pipeline = await pulls.failureText(pull.key);
-      // A user who deleted or never had the factory prompt still gets its text.
-      const prompt =
-        data.prefs.prompts.find((p) => p.id === FIX_PIPELINE_PROMPT_ID) ??
-        factoryPrompts(data.prefs.language).find((p) => p.id === FIX_PIPELINE_PROMPT_ID)!;
-      const previous = guardItems.get(pull.key);
-      if (previous && queue.get(previous.session).items.some((i) => i.id === previous.item)) {
-        queue.remove(previous.session, previous.item);
-      }
-      try {
-        const item = queue.add(target, {
-          text: prompt.text,
-          values: { pr: pullSummary(pull), pipeline },
-          condition: 'turnEnd',
-        });
-        guardItems.set(pull.key, { session: target, item: item.id });
-      } catch {
-        guard.sent(pull.key, null);
-        return;
-      }
-      guard.sent(pull.key, target);
-      const attempts = guard.get()[pull.key]?.attempts ?? 1;
-      guardNotice(
-        pull,
-        t('pulls.guard.notice.sent', { pull: where }),
-        t('pulls.guard.notice.sentBody', {
-          session: manager.get(target)?.name ?? '',
-          attempt: attempts,
-          limit: GUARD_ATTEMPTS,
-        }),
-      );
-    })().catch(() => guard.sent(pull.key, null));
-  });
-  guard.on('comments', (pull) => {
-    void (async () => {
-      const ids = await sessionsForPull(manager, pull);
-      const target = ids.find((id) => manager.isRunning(id)) ?? ids[0];
-      if (!target) return;
-      const me = pulls.get().logins[pull.forge] ?? '';
-      const review = openThreadsText(await pulls.review(pull.key), me);
-      // Only resolved conversations, or the user's own notes: nothing for the agent to do.
-      if (!review) return;
-      const prompt =
-        data.prefs.prompts.find((p) => p.id === FIX_PULL_REVIEW_PROMPT_ID) ??
-        factoryPrompts(data.prefs.language).find((p) => p.id === FIX_PULL_REVIEW_PROMPT_ID)!;
-      queue.add(target, {
-        text: prompt.text,
-        values: { pr: pullSummary(pull), review },
-        condition: 'turnEnd',
-      });
-      guardNotice(
-        pull,
-        t('pulls.guard.notice.comments', { pull: pullRef(pull) }),
-        t('pulls.guard.notice.commentsBody', { session: manager.get(target)?.name ?? '' }),
-      );
-    })().catch(() => {});
-  });
-  guard.on('gaveUp', (pull) =>
-    guardNotice(
-      pull,
-      t('pulls.guard.notice.gaveUp', { pull: pullRef(pull) }),
-      t('pulls.guard.notice.gaveUpBody', { limit: GUARD_ATTEMPTS }),
-    ),
-  );
 
   // Commands in the background, apart from the sessions (docs/v2/comandos-em-segundo-plano).
   // In test mode the shell starts without the user's profile.
