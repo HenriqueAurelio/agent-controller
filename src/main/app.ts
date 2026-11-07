@@ -77,6 +77,10 @@ import { expandForSession, registerIpc, snapshotOf, type IpcContext } from './ip
 import { showNotice, showNotification } from './notifications';
 import { sessionsForPull } from './pullSessions';
 import { createMainWindow, saveWindowState } from './window';
+import { installCli, writeDiscovery } from '@core/control/cliInstall';
+import { ControlServer } from '@core/control/ControlServer';
+import { ControlService } from '@core/control/ControlService';
+import { rememberFolder } from '@core/store/recentFolders';
 
 const TEST_SHELL = process.env.AGENT_CONTROLLER_TEST_SHELL === '1';
 
@@ -201,6 +205,8 @@ export async function startApp(): Promise<void> {
   });
   hookServer.on('message', (message) => manager.handleHook(message));
   await hookServer.listen();
+  // Set once the command line is ready, further down; the language of its words follows the app.
+  let writeCliDiscovery = () => {};
 
   let window: BrowserWindow | null = null;
   const send: IpcContext['send'] = (channel, ...args) => {
@@ -1000,6 +1006,7 @@ export async function startApp(): Promise<void> {
       background.configure(prefs.background);
       manager.flushPersist();
       send('prefs:changed', prefs);
+      writeCliDiscovery();
     },
   });
 
@@ -1008,6 +1015,49 @@ export async function startApp(): Promise<void> {
   let unsavedFile: string | null = null;
   const t = (key: MessageKey, params?: MessageParams) =>
     translate(data.prefs.language, key, params);
+
+  // The `aurelium` command line (ADR 0034): it finds the app through a file beside agentctl.
+  installCli({
+    sourceScript: resourcesPath('agentctl', 'aurelium.cjs'),
+    directory: agentctl.directory,
+    runtime: process.execPath,
+  });
+  const control = new ControlService({
+    sessions: manager,
+    create: async ({ name, cwd, profile }) => {
+      const folder = path.resolve(cwd);
+      const isFolder = await fs.promises.stat(folder).then(
+        (stat) => stat.isDirectory(),
+        () => false,
+      );
+      if (!isFolder) throw new UserError('error.control.noFolder', { folder });
+      const created = manager.create({ name, cwd: folder, profile });
+      data.recentFolders = rememberFolder(data.recentFolders, created.cwd);
+      return created;
+    },
+  });
+  const controlServer = new ControlServer({
+    socketPath: createSocketPath('control'),
+    handle: (request, signal) => control.handle(request, signal),
+    describeError: (err) => errorText(data.prefs.language, err),
+  });
+  await controlServer.listen();
+  const CLI_MESSAGES: MessageKey[] = [
+    'cli.usage',
+    'cli.notRunning',
+    'cli.refused',
+    'cli.sent',
+    'cli.queued',
+    'cli.timedOut',
+  ];
+  writeCliDiscovery = () =>
+    writeDiscovery(agentctl.directory, {
+      socket: controlServer.socketPath,
+      token: controlServer.token,
+      version: app.getVersion(),
+      messages: Object.fromEntries(CLI_MESSAGES.map((key) => [key, t(key)])),
+    });
+  writeCliDiscovery();
 
   /**
    * A yes/no question before closing. In test mode there is nobody to answer a native dialog:
@@ -1049,6 +1099,7 @@ export async function startApp(): Promise<void> {
     // Every agent, and whatever it started, ends with the app (ADR 0006).
     await manager.dispose();
     await hookServer.close();
+    await controlServer.close();
     try {
       store.save(data);
     } catch {

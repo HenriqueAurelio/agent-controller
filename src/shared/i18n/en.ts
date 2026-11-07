@@ -1565,4 +1565,14 @@ export const en: Record<keyof typeof ptBR, string> = {
   'phone.testTitle': 'Aurelium',
   'phone.testBody': 'Test: the notices arrive here.',
   'error.phone.badToken': 'That does not look like the token of a Telegram bot (number:letters).',
+  'cli.usage':
+    'Usage: aurelium <command>\n\n  list                          the open sessions: id, name, state, agent and folder\n  status <session>              one session\n  new <folder> [--name N] [--agent claude-code|codex] [--prompt T]\n                                opens a session and prints its id\n  send <session> <text>         sends a prompt (with - it reads the text from the input)\n  wait <session> [--timeout S]  waits for the agent to end its turn (code 2 if time runs out)\n  read <session> [--lines N]    the last lines of the terminal\n  mcp                           the same commands as an MCP server\n\n<session> is the id or the name. --json prints the whole answer as JSON.',
+  'cli.notRunning': 'Aurelium is not open.',
+  'cli.refused': 'Aurelium refused the request: the token does not match. Open the app again.',
+  'cli.sent': 'Sent.',
+  'cli.queued': 'Waiting: it goes when the agent ends its turn.',
+  'cli.timedOut': 'Time ran out; the session is "{state}".',
+  'error.control.ambiguous': 'More than one session is called "{name}": use the id.',
+  'error.control.noFolder': 'The folder does not exist: {folder}',
+  'arg.number': 'number',
 };

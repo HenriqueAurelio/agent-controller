@@ -23,19 +23,21 @@ const CONNECTION_TIMEOUT_MS = 3000;
 
 /**
  * Endpoint for the hook server, reachable only by the current user. The name is random per run:
- * sessions learn it through `AGENTCTL_SOCKET`.
+ * sessions learn it through `AGENTCTL_SOCKET`. The `control` kind is the one of the command line
+ * (ADR 0034), found through its discovery file.
  */
-export function createSocketPath(): string {
+export function createSocketPath(kind: 'hooks' | 'control' = 'hooks'): string {
   const token = randomBytes(8).toString('hex');
   if (process.platform === 'win32') {
     // Pipes created by Node grant write access only to the owner, SYSTEM and administrators.
-    return `\\\\.\\pipe\\agent-controller-${token}`;
+    const name = kind === 'hooks' ? token : `${kind}-${token}`;
+    return `\\\\.\\pipe\\agent-controller-${name}`;
   }
   const base = process.env.XDG_RUNTIME_DIR || os.tmpdir();
   const dir = path.join(base, `agent-controller-${os.userInfo().uid}`);
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   fs.chmodSync(dir, 0o700);
-  return path.join(dir, `hooks-${token}.sock`);
+  return path.join(dir, `${kind}-${token}.sock`);
 }
 
 export function parseHookMessage(text: string): HookMessage | null {

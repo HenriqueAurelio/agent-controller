@@ -51,7 +51,7 @@ function writeIfChanged(file: string, content: string | Buffer, mode?: number): 
 }
 
 /** 8.3 form of a Windows path, or null when the volume does not generate short names. */
-function windowsShortPath(file: string): string | null {
+export function windowsShortPath(file: string): string | null {
   try {
     const result = spawnSync('cmd.exe', ['/d', '/c', `for %I in ("${file}") do @echo %~sI`], {
       encoding: 'utf8',
