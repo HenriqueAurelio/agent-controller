@@ -159,7 +159,8 @@ export function PreviewPanel({ url, ports, covered, onClose, onShot, sessionId }
   const [state, setState] = useState<PreviewState | null>(null);
   const [shot, setShot] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // While the person types an address, a page that finishes loading must not write over it.
+  // While the address field has the focus, a page that finishes loading must not write over it:
+  // the person may be about to type, with the old text selected.
   const typing = useRef(false);
   const hidden = covered || shot !== null;
 
@@ -197,6 +198,7 @@ export function PreviewPanel({ url, ports, covered, onClose, onShot, sessionId }
   }, []);
 
   const go = (input: string) => {
+    // Sent: from now on the field shows where the page really went.
     typing.current = false;
     const next = previewAddress(input);
     if (!next) {
@@ -247,6 +249,8 @@ export function PreviewPanel({ url, ports, covered, onClose, onShot, sessionId }
             aria-label={t('preview.address')}
             value={address}
             spellCheck={false}
+            onFocus={() => (typing.current = true)}
+            onBlur={() => (typing.current = false)}
             onChange={(e) => {
               typing.current = true;
               setAddress(e.target.value);
