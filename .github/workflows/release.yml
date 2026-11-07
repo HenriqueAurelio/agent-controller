@@ -5,7 +5,7 @@ name: Distribuição temporária
 on:
   workflow_dispatch:
     inputs:
-      ação:
+      acao:
         description: Publicar os instaladores ou despublicar a página temporária
         required: true
         type: choice
@@ -21,8 +21,8 @@ permissions:
   id-token: write
 
 jobs:
-  validar-publicação:
-    if: inputs.ação == 'publicar'
+  validar-publicacao:
+    if: inputs.acao == 'publicar'
     runs-on: ubuntu-latest
     steps:
       - name: Exigir uma tag de versão
@@ -33,8 +33,8 @@ jobs:
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
 
   instaladores:
-    needs: validar-publicação
-    if: inputs.ação == 'publicar'
+    needs: validar-publicacao
+    if: inputs.acao == 'publicar'
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -96,7 +96,7 @@ jobs:
 
   publicar:
     needs: instaladores
-    if: inputs.ação == 'publicar'
+    if: inputs.acao == 'publicar'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -149,7 +149,7 @@ jobs:
         uses: actions/deploy-pages@v4
 
   despublicar:
-    if: inputs.ação == 'despublicar'
+    if: inputs.acao == 'despublicar'
     runs-on: ubuntu-latest
     steps:
       - name: Remover a página pública temporária

@@ -143,6 +143,8 @@ test('one click on × closes the side terminal at once, and it opens again right
     // Opened right after a close, it is a working shell.
     await page.keyboard.press('Control+Shift+Quote');
     await expect(pane).toBeVisible();
+    // On Linux the pane shows before the new shell reads: keys typed earlier are lost.
+    await expect.poll(() => screenText(page, auxId(id)), { timeout: 20_000 }).toMatch(/[>$]/);
     await page.keyboard.type('echo depois-de-fechar');
     await page.keyboard.press('Enter');
     await expect

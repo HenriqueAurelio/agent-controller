@@ -86,7 +86,10 @@ export async function createSession(
   await expect(item).toHaveAttribute('aria-selected', 'true');
   // In test mode the "agent" is a shell, which sets no title: it stays in "iniciando" while alive.
   await expect(item).not.toHaveAttribute('data-state', 'parada');
-  return (await item.getAttribute('data-session-id'))!;
+  const id = (await item.getAttribute('data-session-id'))!;
+  // Keys typed before the shell shows its prompt are lost on Linux: wait for it.
+  await expect.poll(() => screenText(page, id), { timeout: 20_000 }).toMatch(/[>$#]/);
+  return id;
 }
 
 /** Stops the agent of a session the way the user does: there is no button, only the palette. */

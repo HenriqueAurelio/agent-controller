@@ -54,8 +54,9 @@ test('ntfy is set up in the preferences and the test notice reaches the server',
     await expect(server).toHaveValue(ntfy.url);
     await page.keyboard.press('Tab');
     await phone.getByRole('button', { name: 'Gerar outro' }).click();
+    // The topic is filled after the click, not with it: wait for it instead of reading at once.
+    await expect(phone.getByTestId('phone-topic')).toHaveValue(/^aurelium-[a-z2-9]{20}$/);
     const topic = await phone.getByTestId('phone-topic').inputValue();
-    expect(topic).toMatch(/^aurelium-[a-z2-9]{20}$/);
 
     await phone.getByTestId('phone-test').click();
     await expect(phone.getByTestId('phone-test-result')).toHaveText('Enviado. Confira o celular.');

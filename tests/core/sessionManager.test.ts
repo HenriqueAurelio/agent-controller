@@ -322,7 +322,10 @@ describe('SessionManager', () => {
 
       manager.start(s.id, SIZE);
       await until(s.id, 'aguardando');
-      expect(manager.pidOf(s.id)).not.toBe(pid);
+      // Not "a different pid": Windows hands a freed pid out again at once. The old process is
+      // known dead above, so a live one now is the new process.
+      expect(manager.isRunning(s.id)).toBe(true);
+      expect(isAlive(manager.pidOf(s.id)!)).toBe(true);
     });
 
     it('an agent that left says how to start it again, and Enter does it', async () => {
