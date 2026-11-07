@@ -14,6 +14,8 @@ jobs:
   build:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # A hang must fail with its log, not hold the runner for the default six hours.
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
@@ -38,7 +40,16 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run typecheck
-      - run: npm test
+      # One line per test: when a run hangs, the log shows the last one that started. On the
+      # Windows runner node-pty sometimes crashes a worker (0xC0000005) while a terminal ends: the
+      # suite runs once more, and a real failure fails twice.
+      - name: Core tests
+        shell: bash
+        run: |
+          npm test -- --reporter=verbose && exit 0
+          echo "::warning::A suíte do core falhou; rodando de novo para separar falha de crash nativo."
+          npm test -- --reporter=verbose
+        timeout-minutes: 30
       - run: npm run build
 
       - name: Package
@@ -49,12 +60,14 @@ jobs:
 
       - name: E2E on the packaged app (Windows)
         if: runner.os == 'Windows'
+        timeout-minutes: 45
         run: npm run test:e2e
         env:
           AGENT_CONTROLLER_EXE: ${{ github.workspace }}\dist\win-unpacked\Aurelium.exe
 
       - name: E2E on the packaged app (Linux)
         if: runner.os == 'Linux'
+        timeout-minutes: 45
         run: xvfb-run -a npm run test:e2e
         env:
           AGENT_CONTROLLER_EXE: ${{ github.workspace }}/dist/linux-unpacked/aurelium

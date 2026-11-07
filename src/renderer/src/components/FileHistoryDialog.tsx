@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { DiffHunk } from '@shared/git';
 import type { FileCommit, LineBlame } from '@shared/history';
 import { errorMessage } from '../lib/format';
@@ -23,6 +23,9 @@ export function FileHistoryDialog({ sessionId, path, line, onClose }: Props) {
   const [chosen, setChosen] = useState<string | null>(null);
   const [hunks, setHunks] = useState<DiffHunk[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The commit of the line is only a starting point: once the person picks one, a late answer of
+  // the blame (or a new one, when the line changes) does not take it away.
+  const picked = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,7 +43,7 @@ export function FileHistoryDialog({ sessionId, path, line, onClose }: Props) {
         .then((found) => {
           if (cancelled) return;
           setBlame(found);
-          if (found && !found.uncommitted) setChosen(found.sha);
+          if (found && !found.uncommitted && !picked.current) setChosen(found.sha);
         })
         .catch(() => {});
     }
@@ -89,7 +92,10 @@ export function FileHistoryDialog({ sessionId, path, line, onClose }: Props) {
               <button
                 className={`history-commit ${c.sha === chosen ? 'current' : ''}`}
                 data-testid="history-commit"
-                onClick={() => setChosen(c.sha)}
+                onClick={() => {
+                  picked.current = true;
+                  setChosen(c.sha);
+                }}
               >
                 <span className="history-subject">{c.subject}</span>
                 <span className="muted">
