@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -62,8 +62,24 @@ export async function launch(
     app,
     page,
     close: async () => {
-      const exited = new Promise<void>((resolve) => app.process().once('exit', () => resolve()));
-      await app.close().catch(() => {});
+      const child = app.process();
+      const exited = new Promise<void>((resolve) => {
+        if (child.exitCode !== null || child.signalCode !== null) resolve();
+        else child.once('exit', () => resolve());
+      });
+      const closed = Promise.all([app.close().catch(() => {}), exited]);
+      // An app that does not end (on the Windows runner a terminal may hold it) is ended by force,
+      // with its tree, so the next test is not left waiting for it.
+      const late = await Promise.race([
+        closed.then(() => false),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 15_000)),
+      ]);
+      if (!late || child.pid === undefined) return;
+      if (process.platform === 'win32') {
+        spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+      } else {
+        child.kill('SIGKILL');
+      }
       await exited;
     },
   };
