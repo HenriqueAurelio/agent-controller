@@ -31,6 +31,7 @@ import { GitHubClient } from '@core/forges/github';
 import { fetchTransport, GitLabClient } from '@core/forges/gitlab';
 import { PullWatcher, type PullNotice } from '@core/forges/PullWatcher';
 import { PullGuard } from '@core/forges/PullGuard';
+import { openThreadsText } from '@core/forges/review';
 import { BackgroundService } from '@core/background/BackgroundService';
 import { ReviewStore } from '@core/review/ReviewStore';
 import { parseCopyPatterns } from '@core/git/copyIntoWorktree';
@@ -63,6 +64,7 @@ import { summarizeRun } from '@shared/checks';
 import { factoryPrompts } from '@shared/prompts';
 import {
   FIX_PIPELINE_PROMPT_ID,
+  FIX_PULL_REVIEW_PROMPT_ID,
   GUARD_ATTEMPTS,
   pullRef,
   pullSummary,
@@ -847,6 +849,30 @@ export async function startApp(): Promise<void> {
         }),
       );
     })().catch(() => guard.sent(pull.key, null));
+  });
+  guard.on('comments', (pull) => {
+    void (async () => {
+      const ids = await sessionsForPull(manager, pull);
+      const target = ids.find((id) => manager.isRunning(id)) ?? ids[0];
+      if (!target) return;
+      const me = pulls.get().logins[pull.forge] ?? '';
+      const review = openThreadsText(await pulls.review(pull.key), me);
+      // Only resolved conversations, or the user's own notes: nothing for the agent to do.
+      if (!review) return;
+      const prompt =
+        data.prefs.prompts.find((p) => p.id === FIX_PULL_REVIEW_PROMPT_ID) ??
+        factoryPrompts(data.prefs.language).find((p) => p.id === FIX_PULL_REVIEW_PROMPT_ID)!;
+      queue.add(target, {
+        text: prompt.text,
+        values: { pr: pullSummary(pull), review },
+        condition: 'turnEnd',
+      });
+      guardNotice(
+        pull,
+        t('pulls.guard.notice.comments', { pull: pullRef(pull) }),
+        t('pulls.guard.notice.commentsBody', { session: manager.get(target)?.name ?? '' }),
+      );
+    })().catch(() => {});
   });
   guard.on('gaveUp', (pull) =>
     guardNotice(

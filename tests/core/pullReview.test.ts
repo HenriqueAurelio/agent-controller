@@ -157,10 +157,13 @@ describe('reading a pull request of GitHub', () => {
       ],
     });
 
-    await client.merge('acme/api', 7, 'paginar', { squash: true, deleteBranch: true });
+    await client.merge('acme/api', 7, 'paginar', { method: 'squash', deleteBranch: true });
     expect(calls.find((c) => c.url.endsWith('/merge'))!.body).toEqual({ merge_method: 'squash' });
     expect(calls.at(-1)).toMatchObject({ method: 'DELETE' });
     expect(calls.at(-1)!.url).toMatch(/\/git\/refs\/heads\/paginar$/);
+    // The method chosen goes as it is; keeping the branch sends no delete.
+    await client.merge('acme/api', 8, 'outra', { method: 'rebase', deleteBranch: false });
+    expect(calls.at(-1)!.body).toEqual({ merge_method: 'rebase' });
   });
 
   it('says what GitHub refused', async () => {
@@ -283,7 +286,13 @@ describe('reviewing a merge request of GitLab', () => {
       old_line: 2,
     });
 
-    await client.merge('gitlab.com/acme/web', 3, 'estoque', { squash: true, deleteBranch: true });
+    await expect(
+      client.merge('gitlab.com/acme/web', 3, 'estoque', { method: 'rebase', deleteBranch: true }),
+    ).rejects.toThrow();
+    await client.merge('gitlab.com/acme/web', 3, 'estoque', {
+      method: 'squash',
+      deleteBranch: true,
+    });
     expect(transport.sent.at(-1)).toEqual({
       method: 'PUT',
       path: `${MR}/merge`,
