@@ -2,20 +2,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { app, clipboard, dialog, ipcMain, shell, type BrowserWindow } from 'electron';
 import type { CheckService } from '@core/checks/CheckService';
-import { failureReport } from '@core/checks/report';
-import { suggestChecks } from '@core/checks/suggest';
 import type { ChangesService } from '@core/git/ChangesService';
 import type { CheckpointService } from '@core/git/CheckpointService';
 import type { ExperimentService } from '@core/experiments/ExperimentService';
 import type { TaskBoard } from '@core/tasks/TaskBoard';
 import type { FlowEngine } from '@core/handoff/FlowEngine';
-import { REVIEW_TRIGGERS, type ReviewerSetInput } from '@shared/reviewer';
 import type { ReviewerService } from '@core/handoff/ReviewerService';
 import type { OverlapService } from '@core/git/OverlapService';
 import type { PromptQueue } from '@core/prompts/PromptQueue';
 import type { TailFeed } from '@core/sessions/TailFeed';
-import { currentBranch, runGit } from '@core/git/GitService';
-import { searchProject } from '@core/search/searchProject';
+import { currentBranch } from '@core/git/GitService';
 import type { PullWatcher } from '@core/forges/PullWatcher';
 import type { PullGuard } from '@core/forges/PullGuard';
 import type { BackgroundService } from '@core/background/BackgroundService';
@@ -23,18 +19,8 @@ import type { ReviewStore } from '@core/review/ReviewStore';
 import type { SonarService } from '@core/sonar/SonarService';
 import type { SonarConfigStore } from '@core/sonar/SonarConfigStore';
 import type { SonarTokens } from './sonarTokens';
-import { saveShot, type Preview } from './preview';
-import { isLocalUrl, SHOT_LIMIT } from '@shared/preview';
-import { buildReviewText } from '@core/review/reviewText';
+import { type Preview } from './preview';
 import { expandPrompt, promptVariables } from '@core/prompts/expand';
-import {
-  defaultWorktreesFolder,
-  folderSize,
-  localBranches,
-  removeWorktree,
-  worktreeOwner,
-  worktreeStatus,
-} from '@core/git/WorktreeService';
 import type { SessionManager } from '@core/sessions/SessionManager';
 import type { AppData } from '@core/store/appStore';
 import type { CodeThemeStore } from '@core/store/codeThemeStore';
@@ -43,38 +29,19 @@ import {
   PREFS_FILE_MAX_BYTES,
   serializePreferences,
 } from '@core/store/prefsFile';
-import { folderKey, rememberFolder } from '@core/store/recentFolders';
-import { sanitizeWorktreeSettings } from '@core/store/appStore';
+import { rememberFolder } from '@core/store/recentFolders';
 import { parseCopyPatterns } from '@core/git/copyIntoWorktree';
 import { type AgentAvailability } from '@shared/agents';
-import { CHECKS_LIMIT, sanitizeChecks, type ChecksInfo } from '@shared/checks';
 import { CODE_THEME_MAX_BYTES } from '@shared/codeThemes';
 import { errorText, translate, UserError, type MessageKey } from '@shared/i18n';
-import {
-  ATTEMPTS_MAX,
-  EXPERIMENT_NAME_LIMIT,
-  EXPERIMENT_PROMPT_LIMIT,
-  type AttemptSpec,
-  type NewExperimentInput,
-} from '@shared/experiments';
-import {
-  TASK_DESCRIPTION_LIMIT,
-  TASK_TITLE_LIMIT,
-  TASKS_PER_PASTE_LIMIT,
-  type NewTasksInput,
-} from '@shared/tasks';
 import type {
   CommandChannel,
   EventChannel,
   IpcCommands,
   IpcEvents,
   SessionsSnapshot,
-  WorktreeCopy,
-  WorktreesInfo,
 } from '@shared/ipc';
 import { sanitizePreferences, type Preferences } from '@shared/prefs';
-import { normalizeRepo, type IssueList } from '@shared/pulls';
-import { REVIEW_COMMENT_TEXT_LIMIT } from '@shared/review';
 import {
   PROMPT_TEXT_LIMIT,
   QUEUE_LIMIT,
@@ -87,11 +54,14 @@ import {
   AGENT_PROFILE_IDS,
   GROUP_NAME_LIMIT,
   PERMISSION_CHOICES,
-  type AgentProfileId,
   type PermissionChoice,
 } from '@shared/session';
 import { registerGitIpc } from './ipc/git';
 import { registerPullsIpc } from './ipc/pulls';
+import { registerReviewIpc } from './ipc/review';
+import { registerTasksIpc } from './ipc/tasks';
+import { registerToolsIpc } from './ipc/tools';
+import { registerWorktreesIpc, worktreesFolder } from './ipc/worktrees';
 import type { Handler, IpcKit } from './ipc/kit';
 import {
   str,
@@ -99,9 +69,6 @@ import {
   command,
   size,
   promptValues,
-  newComment,
-  bounds,
-  searchQuery,
   ids,
   groupUpdate,
   condition,
@@ -376,7 +343,7 @@ export function registerIpc(context: IpcContext): void {
     }
     // The folder asked for is the repository; the session gets the copy.
     const created = await manager.createInWorktree(clean, {
-      parent: worktreesFolder(),
+      parent: worktreesFolder(context.data),
       setup: context.data.worktrees.setup,
       copy: parseCopyPatterns(context.data.worktrees.copy),
     });
@@ -513,351 +480,6 @@ export function registerIpc(context: IpcContext): void {
     if (!manager.isRunning(s.id)) throw new UserError('error.session.notRunning');
     return queue.sendNext(s.id);
   });
-  const worktreesFolder = () => context.data.worktrees.folder || defaultWorktreesFolder();
-  const worktreesInfo = async (): Promise<WorktreesInfo> => {
-    const parent = worktreesFolder();
-    const sessions = manager.list();
-    const found = new Map<string, string>();
-    const add = (folder: string) => found.set(folderKey(folder), folder);
-    for (const s of sessions) if (s.worktree) add(s.cwd);
-    // What is in the folder of the copies: one folder per repository, one per copy in it.
-    const children = async (dir: string) =>
-      (await fs.promises.readdir(dir, { withFileTypes: true }).catch(() => []))
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => path.join(dir, entry.name));
-    for (const repoDir of await children(parent))
-      for (const copy of await children(repoDir)) add(copy);
-    const copies = await Promise.all(
-      [...found.values()].map(async (folder): Promise<WorktreeCopy | null> => {
-        const repoRoot = await worktreeOwner(folder);
-        if (!repoRoot) return null;
-        const [branch, size, stat] = await Promise.all([
-          currentBranch(folder).catch(() => null),
-          folderSize(folder),
-          fs.promises.stat(folder),
-        ]);
-        return {
-          folder,
-          repoRoot,
-          branch,
-          size: size.bytes,
-          sizeComplete: size.complete,
-          modifiedAt: stat.mtimeMs,
-          sessions: sessions
-            .filter((s) => folderKey(s.cwd) === folderKey(folder))
-            .map((s) => s.name),
-        };
-      }),
-    );
-    return {
-      folder: parent,
-      defaultFolder: defaultWorktreesFolder(),
-      configuredFolder: context.data.worktrees.folder,
-      setup: context.data.worktrees.setup,
-      copy: context.data.worktrees.copy,
-      copies: copies
-        .filter((c): c is WorktreeCopy => c !== null)
-        .sort((a, b) => b.modifiedAt - a.modifiedAt),
-    };
-  };
-  handle('worktrees:inspect', async (folder) => {
-    const target = str(folder, 'folder');
-    if (!(await isFolder(target))) return { repo: false, current: null, branches: [] };
-    const branches = await localBranches(target).catch(() => null);
-    return branches
-      ? { repo: true, current: branches.current, branches: branches.all }
-      : { repo: false, current: null, branches: [] };
-  });
-  handle('worktrees:status', (id) => {
-    const s = session(id);
-    if (!s.worktree) throw new UserError('error.worktree.notWorktree', { folder: s.cwd });
-    return worktreeStatus(s.cwd);
-  });
-  handle('worktrees:list', () => worktreesInfo());
-  handle('worktrees:configure', (settings) => {
-    const folder = str(settings?.folder, 'folder');
-    const setup = command(str(settings?.setup, 'command'));
-    if (folder.trim() && !path.isAbsolute(folder.trim())) {
-      throw new UserError('error.worktree.folderNotAbsolute', { folder });
-    }
-    // Absent (an older caller): the list there was stays.
-    const copy =
-      settings?.copy === undefined ? context.data.worktrees.copy : str(settings.copy, 'text', 4000);
-    context.data.worktrees = sanitizeWorktreeSettings({ folder, setup, copy });
-    manager.flushPersist();
-    return worktreesInfo();
-  });
-  handle('worktrees:remove', async (folder) => {
-    const target = str(folder, 'folder');
-    // Only a copy of the list: never any folder the renderer names.
-    const copy = (await worktreesInfo()).copies.find(
-      (c) => folderKey(c.folder) === folderKey(target),
-    );
-    if (!copy) throw new UserError('error.worktree.notWorktree', { folder: target });
-    if (copy.sessions.length > 0)
-      throw new UserError('error.worktree.inUse', { name: copy.sessions[0]! });
-    await removeWorktree(copy.folder);
-    return worktreesInfo();
-  });
-  const experimentInput = (value: unknown): NewExperimentInput => {
-    const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
-    if (!Array.isArray(v.attempts) || v.attempts.length > ATTEMPTS_MAX) {
-      throw new UserError('error.experiment.attempts', { min: 1, max: ATTEMPTS_MAX });
-    }
-    const attempts = v.attempts.map((raw: unknown): AttemptSpec => {
-      const a = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-      if (!AGENT_PROFILE_IDS.includes(a.profile as never)) {
-        throw new UserError('error.unknownProfile');
-      }
-      return {
-        profile: a.profile as AttemptSpec['profile'],
-        ...(typeof a.command === 'string' && a.command.trim() && { command: command(a.command) }),
-      };
-    });
-    return {
-      name: str(v.name, 'name', EXPERIMENT_NAME_LIMIT * 4),
-      cwd: str(v.cwd, 'folder'),
-      prompt: str(v.prompt, 'text', EXPERIMENT_PROMPT_LIMIT),
-      base: str(v.base, 'branch', 200),
-      attempts,
-    };
-  };
-  handle('experiments:create', async (input) => {
-    const clean = experimentInput(input);
-    const created = await experiments.create(clean);
-    remember(clean.cwd);
-    return created;
-  });
-  handle('experiments:compare', (id) => experiments.compare(str(id, 'session', 64)));
-  handle('experiments:diff', (id, file) =>
-    experiments.diff(str(id, 'session', 64), str(file, 'file')),
-  );
-  handle('experiments:keep', (id, sessionId) =>
-    experiments.keep(str(id, 'session', 64), session(sessionId).id),
-  );
-  const taskInput = (value: unknown): NewTasksInput => {
-    const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
-    if (!AGENT_PROFILE_IDS.includes(v.profile as never))
-      throw new UserError('error.unknownProfile');
-    if (!Array.isArray(v.drafts) || v.drafts.length > TASKS_PER_PASTE_LIMIT) {
-      throw new UserError('error.task.tooManyPaste', { max: TASKS_PER_PASTE_LIMIT });
-    }
-    const drafts = v.drafts.map((raw: unknown) => {
-      const d = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-      const issue =
-        d.issue && typeof d.issue === 'object' ? (d.issue as Record<string, unknown>) : null;
-      const url = issue ? str(issue.url, 'url', 2000) : '';
-      if (issue && !/^https?:\/\//.test(url)) {
-        throw new UserError('error.invalidArgument', { name: { key: 'arg.url' } });
-      }
-      return {
-        title: str(d.title, 'name', TASK_TITLE_LIMIT * 4),
-        description: str(d.description ?? '', 'text', TASK_DESCRIPTION_LIMIT),
-        ...(issue && { issue: { ref: str(issue.ref, 'name', 40), url } }),
-      };
-    });
-    return {
-      cwd: str(v.cwd, 'folder'),
-      profile: v.profile as NewTasksInput['profile'],
-      ...(typeof v.command === 'string' && v.command.trim() && { command: command(v.command) }),
-      isolated: v.isolated !== false,
-      base: str(v.base, 'branch', 200),
-      ...(v.groupId != null && { groupId: str(v.groupId, 'group', 64) }),
-      drafts,
-    };
-  };
-  handle('tasks:list', (folder) => tasks.list(str(folder, 'folder')));
-  handle('search:run', async (id, value) => {
-    const s = session(id);
-    const query = searchQuery(value);
-    // The root the panel shows paths from, so a click opens the right file.
-    const root = changes.rootFor(s.id) ?? s.cwd;
-    const repo = await runGit(root, ['rev-parse', '--is-inside-work-tree']).catch(() => null);
-    const inGit = repo?.code === 0 && repo.stdout.toString('utf8').trim() === 'true';
-    let changed: string[] = [];
-    if (inGit && query.changedOnly) {
-      const listed = await runGit(root, ['status', '--porcelain', '-z', '--untracked-files=all']);
-      changed = listed.stdout
-        .toString('utf8')
-        .split('\0')
-        .filter((entry) => entry.length > 3)
-        .map((entry) => entry.slice(3));
-    }
-    return searchProject(root, query, { inGit, changed });
-  });
-  handle('tasks:issues', async (folder): Promise<IssueList> => {
-    const cwd = str(folder, 'folder');
-    const remotes = await runGit(cwd, ['remote', '-v']).catch(() => null);
-    // The first remote whose address names a repository of GitHub or GitLab.
-    const repo =
-      (remotes?.stdout.toString('utf8') ?? '')
-        .split(/\s+/)
-        .map((word) => normalizeRepo(word))
-        .find((name): name is string => !!name) ?? null;
-    if (!repo) return { repo: null, issues: [] };
-    try {
-      return { repo, issues: await context.pulls.issues(repo) };
-    } catch (err) {
-      return { repo, issues: [], error: errorText(language(), err) };
-    }
-  });
-  handle('tasks:create', async (input) => {
-    const clean = taskInput(input);
-    const state = await tasks.create(clean);
-    remember(clean.cwd);
-    return state;
-  });
-  handle('tasks:update', (id, patch) => {
-    const p = (patch && typeof patch === 'object' ? patch : {}) as Record<string, unknown>;
-    return tasks.update(str(id, 'task', 64), {
-      ...(p.title !== undefined && { title: str(p.title, 'name', TASK_TITLE_LIMIT * 4) }),
-      ...(p.description !== undefined && {
-        description: str(p.description, 'text', TASK_DESCRIPTION_LIMIT),
-      }),
-    });
-  });
-  handle('tasks:remove', (id) => tasks.remove(str(id, 'task', 64)));
-  handle('tasks:reorder', (repo, taskIds) => tasks.reorder(str(repo, 'folder'), ids(taskIds)));
-  handle('tasks:start', (taskIds) => tasks.start(ids(taskIds)));
-  handle('tasks:done', (id, done) => tasks.done(str(id, 'task', 64), done === true));
-  const reviewerInput = (value: unknown): ReviewerSetInput => {
-    const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
-    const trigger = REVIEW_TRIGGERS.find((t) => t === v.trigger);
-    if (!trigger) throw new UserError('error.invalidArgument', { name: { key: 'arg.trigger' } });
-    const sessionId = session(v.sessionId).id;
-    if (v.reviewer === null) return { sessionId, trigger, reviewer: null };
-    const r = (v.reviewer && typeof v.reviewer === 'object' ? v.reviewer : {}) as Record<
-      string,
-      unknown
-    >;
-    if (r.kind === 'existing') {
-      return {
-        sessionId,
-        trigger,
-        reviewer: { kind: 'existing', sessionId: session(r.sessionId).id },
-      };
-    }
-    if (r.kind !== 'new' || !AGENT_PROFILE_IDS.includes(r.profile as never)) {
-      throw new UserError('error.unknownProfile');
-    }
-    return {
-      sessionId,
-      trigger,
-      reviewer: {
-        kind: 'new',
-        profile: r.profile as AgentProfileId,
-        ...(typeof r.command === 'string' && r.command.trim() && { command: command(r.command) }),
-      },
-    };
-  };
-  handle('reviewer:set', (input) => reviewer.set(reviewerInput(input)));
-  handle('reviewer:runNow', (id) => reviewer.runNow(session(id).id));
-  handle('reviewer:result', (id) => reviewer.result(session(id).id));
-  handle('flows:get', (id) => flows.get(str(id, 'group', 64)));
-  handle('flows:set', (id, rules) => flows.set(str(id, 'group', 64), rules));
-  handle('flows:pause', (id, paused) => {
-    if (typeof paused !== 'boolean') {
-      throw new UserError('error.invalidArgument', { name: { key: 'arg.paused' } });
-    }
-    return flows.pause(str(id, 'group', 64), paused);
-  });
-  handle('flows:approve', (id, pendingId) =>
-    flows.approve(str(id, 'group', 64), str(pendingId, 'flow', 64)),
-  );
-  handle('flows:discard', (id, pendingId) =>
-    flows.discard(str(id, 'group', 64), str(pendingId, 'flow', 64)),
-  );
-  handle('overview:watch', (watching) => context.tails.watch(watching === true));
-  handle('overview:git', async (id) => {
-    const s = session(id);
-    const [branch, count] = await Promise.all([
-      currentBranch(s.cwd).catch(() => null),
-      changes.count(s.id, s.cwd),
-    ]);
-    return { branch, changes: count };
-  });
-  const checksInfo = (sessionId: string): ChecksInfo => {
-    const s = session(sessionId);
-    const configured = context.data.checks[folderKey(s.cwd)] ?? [];
-    const commands = new Set(configured.map((check) => check.command));
-    return {
-      folder: s.cwd,
-      checks: configured,
-      suggestions: suggestChecks(s.cwd).filter((check) => !commands.has(check.command)),
-      run: checks.get(s.id),
-    };
-  };
-  handle('checks:get', (id) => checksInfo(str(id, 'session', 64)));
-  handle('checks:configure', (id, list) => {
-    const s = session(id);
-    // Commands the app will run: each one goes through the same check as an agent's command.
-    if (!Array.isArray(list) || list.length > CHECKS_LIMIT) {
-      throw new UserError('error.invalidArgument', { name: { key: 'arg.checks' } });
-    }
-    const clean = sanitizeChecks(list);
-    if (clean.length !== list.length) {
-      throw new UserError('error.invalidArgument', { name: { key: 'arg.checks' } });
-    }
-    const key = folderKey(s.cwd);
-    if (clean.length) context.data.checks[key] = clean;
-    else delete context.data.checks[key];
-    manager.flushPersist();
-    return checksInfo(s.id);
-  });
-  handle('checks:run', (id) => checks.runNow(session(id).id));
-  handle('checks:cancel', (id) => checks.cancel(session(id).id));
-  handle('checks:sendFailure', (id) => {
-    const s = session(id);
-    const run = checks.get(s.id);
-    const report = run && failureReport(run, language());
-    if (!report) throw new UserError('error.checks.nothingFailed');
-    manager.paste(s.id, report);
-  });
-  handle('background:get', () => context.background.get());
-  handle('background:output', (id) => context.background.outputOf(str(id, 'item', 64)));
-  handle('background:restart', (id) => context.background.restart(str(id, 'item', 64)));
-  handle('background:input', (id, data) =>
-    context.background.input(str(id, 'item', 64), terminalData(data)),
-  );
-  handle('background:resize', (terminalSize) => {
-    const { cols, rows } = size(terminalSize);
-    context.background.resize(cols, rows);
-  });
-  handle('preview:open', (url, where) => {
-    const address = str(url, 'url', 2000);
-    if (!isLocalUrl(address)) throw new UserError('error.preview.notLocal');
-    context.preview.open(address, bounds(where));
-  });
-  handle('preview:bounds', (where) => context.preview.setBounds(bounds(where)));
-  handle('preview:hide', () => context.preview.hide());
-  handle('preview:reload', () => context.preview.reload());
-  handle('preview:back', () => context.preview.back());
-  handle('preview:close', () => context.preview.close());
-  handle('preview:state', () => context.preview.state());
-  handle('preview:capture', () => context.preview.capture());
-  handle('preview:saveShot', (id, png) =>
-    saveShot(context.shotsDir, session(id).id, str(png, 'data', SHOT_LIMIT)),
-  );
-  handle('review:list', (id) => context.review.list(session(id).id));
-  handle('review:add', (id, comment) => context.review.add(session(id).id, newComment(comment)));
-  handle('review:update', (id, commentId, text) =>
-    context.review.update(
-      session(id).id,
-      str(commentId, 'item', 64),
-      str(text, 'text', REVIEW_COMMENT_TEXT_LIMIT),
-    ),
-  );
-  handle('review:remove', (id, commentId) =>
-    context.review.remove(session(id).id, str(commentId, 'item', 64)),
-  );
-  handle('review:clear', (id, commentIds) =>
-    context.review.clear(session(id).id, commentIds === undefined ? undefined : ids(commentIds)),
-  );
-  handle('review:text', (id) => {
-    const comments = context.review.list(session(id).id);
-    if (comments.length === 0) throw new UserError('error.review.nothing');
-    return { text: buildReviewText(comments), ids: comments.map((c) => c.id) };
-  });
 
   const kit: IpcKit = {
     context,
@@ -881,4 +503,8 @@ export function registerIpc(context: IpcContext): void {
   };
   registerPullsIpc(kit);
   registerGitIpc(kit);
+  registerWorktreesIpc(kit);
+  registerTasksIpc(kit);
+  registerReviewIpc(kit);
+  registerToolsIpc(kit);
 }
