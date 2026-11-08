@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { app } from 'electron';
+import { detachFromTerminal } from './linuxDesktop';
 
 // `<app> --agentctl <source> <payload>`: the app acting as agentctl, for callers that pass the
 // payload as an argument and cannot go through the .cmd launcher (Codex `notify` on Windows).
@@ -17,6 +18,9 @@ if (agentctlIndex !== -1) {
   } catch {
     app.exit(0);
   }
+} else if (detachFromTerminal()) {
+  // The copy started on its own is the app now; this one only held the terminal.
+  app.exit(0);
 } else {
   void import('./app').then(({ startApp }) => startApp());
 }
