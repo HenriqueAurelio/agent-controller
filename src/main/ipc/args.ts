@@ -2,6 +2,19 @@
 import { SEARCH_TEXT_LIMIT, type SearchQuery } from '@shared/search';
 import type { PreviewBounds } from '@shared/preview';
 import { AGENT_COMMAND_LIMIT, sanitizeAgentCommand } from '@shared/agents';
+import {
+  ATTEMPTS_MAX,
+  EXPERIMENT_NAME_LIMIT,
+  EXPERIMENT_PROMPT_LIMIT,
+  type AttemptSpec,
+  type NewExperimentInput,
+} from '@shared/experiments';
+import {
+  TASK_DESCRIPTION_LIMIT,
+  TASK_TITLE_LIMIT,
+  TASKS_PER_PASTE_LIMIT,
+  type NewTasksInput,
+} from '@shared/tasks';
 import { UserError, type MessageKey } from '@shared/i18n';
 import { parseCheckpointBase } from '@shared/checkpoints';
 import type { DiffBase, HunkRevert } from '@shared/git';
@@ -28,7 +41,12 @@ import {
   type QueueCondition,
   type QueueItemUpdate,
 } from '@shared/prompts';
-import { GROUP_NAME_LIMIT, type GroupUpdate, type TerminalSize } from '@shared/session';
+import {
+  AGENT_PROFILE_IDS,
+  GROUP_NAME_LIMIT,
+  type GroupUpdate,
+  type TerminalSize,
+} from '@shared/session';
 
 export type ArgumentName =
   Extract<MessageKey, `arg.${string}`> extends `arg.${infer Name}` ? Name : never;
@@ -228,3 +246,58 @@ export const queueUpdate = (value: unknown): QueueItemUpdate => {
     ...(v.condition !== undefined && { condition: condition(v.condition) }),
   };
 };
+
+export function experimentInput(value: unknown): NewExperimentInput {
+  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  if (!Array.isArray(v.attempts) || v.attempts.length > ATTEMPTS_MAX) {
+    throw new UserError('error.experiment.attempts', { min: 1, max: ATTEMPTS_MAX });
+  }
+  const attempts = v.attempts.map((raw: unknown): AttemptSpec => {
+    const a = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+    if (!AGENT_PROFILE_IDS.includes(a.profile as never)) {
+      throw new UserError('error.unknownProfile');
+    }
+    return {
+      profile: a.profile as AttemptSpec['profile'],
+      ...(typeof a.command === 'string' && a.command.trim() && { command: command(a.command) }),
+    };
+  });
+  return {
+    name: str(v.name, 'name', EXPERIMENT_NAME_LIMIT * 4),
+    cwd: str(v.cwd, 'folder'),
+    prompt: str(v.prompt, 'text', EXPERIMENT_PROMPT_LIMIT),
+    base: str(v.base, 'branch', 200),
+    attempts,
+  };
+}
+
+export function taskInput(value: unknown): NewTasksInput {
+  const v = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  if (!AGENT_PROFILE_IDS.includes(v.profile as never)) throw new UserError('error.unknownProfile');
+  if (!Array.isArray(v.drafts) || v.drafts.length > TASKS_PER_PASTE_LIMIT) {
+    throw new UserError('error.task.tooManyPaste', { max: TASKS_PER_PASTE_LIMIT });
+  }
+  const drafts = v.drafts.map((raw: unknown) => {
+    const d = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+    const issue =
+      d.issue && typeof d.issue === 'object' ? (d.issue as Record<string, unknown>) : null;
+    const url = issue ? str(issue.url, 'url', 2000) : '';
+    if (issue && !/^https?:\/\//.test(url)) {
+      throw new UserError('error.invalidArgument', { name: { key: 'arg.url' } });
+    }
+    return {
+      title: str(d.title, 'name', TASK_TITLE_LIMIT * 4),
+      description: str(d.description ?? '', 'text', TASK_DESCRIPTION_LIMIT),
+      ...(issue && { issue: { ref: str(issue.ref, 'name', 40), url } }),
+    };
+  });
+  return {
+    cwd: str(v.cwd, 'folder'),
+    profile: v.profile as NewTasksInput['profile'],
+    ...(typeof v.command === 'string' && v.command.trim() && { command: command(v.command) }),
+    isolated: v.isolated !== false,
+    base: str(v.base, 'branch', 200),
+    ...(v.groupId != null && { groupId: str(v.groupId, 'group', 64) }),
+    drafts,
+  };
+}

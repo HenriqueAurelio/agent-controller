@@ -5,8 +5,10 @@ import { blameLine, commitDiff, fileLog } from '@core/git/history';
 import { UserError } from '@shared/i18n';
 import { parseCheckpointBase, type CheckpointUsage } from '@shared/checkpoints';
 import type { DiffBase } from '@shared/git';
+import { runGit } from '@core/git/GitService';
+import { searchProject } from '@core/search/searchProject';
 import type { IpcKit } from './kit';
-import { str, hunkRevert, base } from './args';
+import { str, hunkRevert, base, searchQuery } from './args';
 
 export function registerGitIpc(kit: IpcKit): void {
   const { context, handle, session, manager, changes, checkpoints, overlaps } = kit;
@@ -157,5 +159,23 @@ export function registerGitIpc(kit: IpcKit): void {
       })),
     );
     return usage.filter((u) => u.count > 0);
+  });
+  handle('search:run', async (id, value) => {
+    const s = session(id);
+    const query = searchQuery(value);
+    // The root the panel shows paths from, so a click opens the right file.
+    const root = changes.rootFor(s.id) ?? s.cwd;
+    const repo = await runGit(root, ['rev-parse', '--is-inside-work-tree']).catch(() => null);
+    const inGit = repo?.code === 0 && repo.stdout.toString('utf8').trim() === 'true';
+    let changed: string[] = [];
+    if (inGit && query.changedOnly) {
+      const listed = await runGit(root, ['status', '--porcelain', '-z', '--untracked-files=all']);
+      changed = listed.stdout
+        .toString('utf8')
+        .split('\0')
+        .filter((entry) => entry.length > 3)
+        .map((entry) => entry.slice(3));
+    }
+    return searchProject(root, query, { inGit, changed });
   });
 }

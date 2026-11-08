@@ -58,7 +58,7 @@ src/
 - `src/core` não importa Electron nem nada de `main`, `renderer` ou `preload`.
 - O renderer não acessa Node nem o core: fala só por `window.api`.
 - Cada agente é um perfil (dados) mais um adaptador; nada fora de `src/core/agents` sabe qual agente está rodando.
-- O contrato de IPC fica em `src/shared/ipc.ts`. Canal novo entra no tipo, na lista de canais e no handler, juntos. O handler fica em `src/main/ipc.ts` ou, se o assunto já tem módulo, em `src/main/ipc/` (`pulls.ts`, `git.ts`); a validação dos argumentos, em `src/main/ipc/args.ts`. Argumentos vindos do renderer são validados no main, nunca confiados.
+- O contrato de IPC fica em `src/shared/ipc.ts`. Canal novo entra no tipo, na lista de canais e no handler, juntos. O handler fica em `src/main/ipc.ts` ou, se o assunto já tem módulo, em `src/main/ipc/` (`pulls.ts`, `git.ts`, `worktrees.ts`, `tasks.ts`, `review.ts`, `tools.ts`); a validação dos argumentos, em `src/main/ipc/args.ts`. Argumentos vindos do renderer são validados no main, nunca confiados.
 - O preload expõe o mínimo. Ampliar essa superfície exige justificativa no PR.
 
 O lint cobra as três primeiras regras (`eslint.config.mjs`, conferido por `tests/core/architecture.test.ts`). Não desligue uma regra nem use `eslint-disable` para contorná-la: se a regra atrapalha, a mudança está no lugar errado. Uma decisão que mude a arquitetura pede uma ADR nova em `adr/`.
