@@ -114,6 +114,8 @@ chmod +x ./dist/Aurelium-0.1.0.AppImage
 
 Substitua `0.1.0` pela versão gerada. Algumas distribuições exigem FUSE para executar AppImages; em Debian/Ubuntu, instale `libfuse2` quando o sistema indicar essa dependência.
 
+Depois de instalado, abra o **Aurelium** pelo menu de aplicativos. O AppImage entra no menu na primeira vez que é aberto. Aberto pelo terminal, o app devolve o terminal na hora e continua aberto quando ele é fechado; `aurelium --foreground` mantém o app preso ao terminal, com a saída dele ali, para investigar um problema.
+
 Para atualizar, feche o Aurelium, gere um novo pacote e instale o `.deb` por cima ou substitua o AppImage pelo arquivo novo.
 
 ## Ciclo recomendado para aprimorar o próprio aplicativo

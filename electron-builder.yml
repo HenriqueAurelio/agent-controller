@@ -54,6 +54,9 @@ linux:
   icon: build/icons
   category: Development
   executableName: aurelium
+  # The window is tied to the entry of the menu through desktopName (package.json): without it
+  # the dock showed a window with no icon, apart from the launcher.
+  syncDesktopName: true
   maintainer: Henrique <HenriqueAurelio@users.noreply.github.com>
   synopsis: Sessões de Claude Code e Codex em uma janela só
   artifactName: Aurelium-${version}.${ext}

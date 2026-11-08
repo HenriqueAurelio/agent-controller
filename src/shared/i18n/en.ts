@@ -32,6 +32,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   'common.unsavedConfirm': 'There are unsaved edits in {file}. Discard them?',
 
   'app.title': 'Aurelium',
+  'desktop.comment': 'Claude Code and Codex sessions in a single window',
   'app.titleWaiting': '({count} waiting) Aurelium',
   'app.changeFolder': 'Change the session folder',
   'app.changeFolderHint': 'Click to change the session folder',

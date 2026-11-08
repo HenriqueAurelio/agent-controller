@@ -33,6 +33,7 @@ export const ptBR = {
   'common.unsavedConfirm': 'Há edições não salvas em {file}. Descartar?',
 
   'app.title': 'Aurelium',
+  'desktop.comment': 'Sessões de Claude Code e Codex em uma janela só',
   'app.titleWaiting': '({count} aguardando) Aurelium',
   'app.changeFolder': 'Trocar a pasta da sessão',
   'app.changeFolderHint': 'Clique para trocar a pasta da sessão',

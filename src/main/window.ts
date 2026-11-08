@@ -30,7 +30,7 @@ function isAppUrl(url: string): boolean {
 // Packaged, the logo is inside app.asar (`files` in electron-builder.yml), not in resources/:
 // read from there, the window had no icon. Windows took it from the executable anyway; Linux
 // has only this one.
-function applicationIcon(): string {
+export function applicationIcon(): string {
   return path.join(app.getAppPath(), 'assets', 'aurelium_logo.png');
 }
 

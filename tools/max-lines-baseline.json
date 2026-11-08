@@ -9,7 +9,7 @@
     "src/core/git/OverlapService.ts": 503,
     "src/core/sessions/SessionManager.ts": 1520,
     "src/core/tasks/TaskBoard.ts": 526,
-    "src/main/app.ts": 892,
+    "src/main/app.ts": 873,
     "src/main/ipc.ts": 510,
     "src/renderer/src/App.tsx": 1112,
     "src/renderer/src/components/ChangesPanel.tsx": 753,

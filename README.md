@@ -76,6 +76,12 @@ chmod +x Aurelium-<versão>.AppImage
 ./Aurelium-<versão>.AppImage
 ```
 
+No Linux, o Aurelium funciona como um aplicativo instalado, não como um comando de terminal:
+
+- **Pelo menu.** Ele aparece nos aplicativos do sistema como **Aurelium**, com o ícone. O `.deb` cria a entrada ao instalar. O AppImage se coloca no menu na primeira vez que é aberto (em `~/.local/share/applications`); se você mover o arquivo, a entrada passa a apontar para o lugar novo quando ele for aberto de lá, e se apagar, ela some do menu.
+- **Pelo terminal.** `aurelium` (ou `./Aurelium-<versão>.AppImage`) abre o app e devolve o terminal na hora. O app não depende mais daquele terminal: fechá-lo não fecha o Aurelium nem as sessões. Para ver o que o app escreve no terminal ao investigar um problema, abra com `aurelium --foreground`.
+- **Na dock.** A janela aberta fica no mesmo ícone do atalho do menu.
+
 Não há atualização automática no v1: para atualizar, instale a versão nova por cima.
 
 ## Como usar

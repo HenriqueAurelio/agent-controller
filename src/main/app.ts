@@ -63,38 +63,18 @@ import { expandForSession, registerIpc, snapshotOf, type IpcContext } from './ip
 import { showNotice, showNotification } from './notifications';
 import { startFallback } from './fallback';
 import { startPullWatch } from './pullWatch';
-import { createMainWindow, saveWindowState } from './window';
+import { applicationIcon, createMainWindow, saveWindowState } from './window';
+import { registerAppImage } from './linuxDesktop';
+import { TEST_SHELL, testAuxShell, testShell } from './testShell';
 import { installCli, writeDiscovery } from '@core/control/cliInstall';
 import { ControlServer } from '@core/control/ControlServer';
 import { ControlService } from '@core/control/ControlService';
 import { rememberFolder } from '@core/store/recentFolders';
 
-const TEST_SHELL = process.env.AGENT_CONTROLLER_TEST_SHELL === '1';
-
 function resourcesPath(...parts: string[]): string {
   return app.isPackaged
     ? path.join(process.resourcesPath, ...parts)
     : path.join(app.getAppPath(), 'resources', ...parts);
-}
-
-/**
- * In test mode every session runs a plain shell: no account, no credits, same plumbing. A command
- * asked for runs as it would outside the tests, in the shell of the user.
- */
-function testShell(session: Session, socketPath: string, command: string): LaunchCommand {
-  const env = { AGENTCTL_SESSION_ID: session.id, AGENTCTL_SOCKET: socketPath };
-  if (command) return wrapInShell({ file: '', args: [], env }, command);
-  if (process.platform === 'win32') {
-    return { file: process.env.ComSpec || 'cmd.exe', args: [], env };
-  }
-  return { file: 'bash', args: ['--noprofile', '--norc'], env: { ...env, PS1: '$ ' } };
-}
-
-/** In test mode the shell beside the agent is the same plain one, for the same reasons. */
-function testAuxShell(): LaunchCommand {
-  if (process.platform === 'win32')
-    return { file: process.env.ComSpec || 'cmd.exe', args: [], env: {} };
-  return { file: 'bash', args: ['--noprofile', '--norc'], env: { PS1: '$ ' } };
 }
 
 export async function startApp(): Promise<void> {
@@ -129,6 +109,7 @@ export async function startApp(): Promise<void> {
   const userData = app.getPath('userData');
   const store = createAppStore(userData);
   const data: AppData = store.load();
+  registerAppImage(applicationIcon(), data.prefs.language);
 
   const agentctl = installAgentctl({
     sourceScript: resourcesPath('agentctl', 'agentctl.cjs'),
