@@ -5,7 +5,7 @@ import type { DiffBase } from '@shared/git';
 import { factoryPrompts, PROBLEMS_TEXT_LIMIT } from '@shared/prompts';
 import { FIX_PIPELINE_PROMPT_ID } from '@shared/pulls';
 import type { PipelineFix } from '@shared/ipc';
-import { statusDetail, statusLabel, type SessionGroup, type SessionView } from '@shared/session';
+import { statusDetail, type SessionGroup, type SessionView } from '@shared/session';
 import {
   bindingFromEvent,
   bindingIndex,
@@ -14,13 +14,13 @@ import {
 } from '@shared/shortcuts';
 import { ChangeFolderDialog } from './components/ChangeFolderDialog';
 import { ChangesPanel, type PanelMode } from './components/ChangesPanel';
-import { ChecksBadge, ChecksDialog } from './components/ChecksDialog';
+import { ChecksDialog } from './components/ChecksDialog';
 import { CloseSessionDialog } from './components/CloseSessionDialog';
 import { CommandPalette, type Command } from './components/CommandPalette';
 import { ExperimentCompare } from './components/ExperimentCompare';
 import { ExperimentDialog } from './components/ExperimentDialog';
 import { GroupDialog } from './components/GroupDialog';
-import { codeThemeName, themesOfKind, useCustomThemes } from './lib/codeThemes';
+import { useCustomThemes } from './lib/codeThemes';
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { Overview } from './components/Overview';
 import { TaskBoard } from './components/TaskBoard';
@@ -39,9 +39,11 @@ import { TimelineDialog } from './components/TimelineDialog';
 import { Sidebar } from './components/Sidebar';
 import { TerminalArea, type TerminalAreaHandle } from './components/TerminalArea';
 import { useCheckpoints } from './lib/checkpoints';
-import { errorMessage, hint, PROFILE_LABEL } from './lib/format';
+import { errorMessage } from './lib/format';
 import { rich, useT } from './lib/i18n';
 import { shortcutRecording } from './lib/shortcuts';
+import { buildCommands } from './lib/paletteCommands';
+import { SessionHeader } from './components/SessionHeader';
 import { store, useAppState } from './lib/store';
 import { onOpenLocation, requestOpenLocation } from './lib/terminalLinks';
 import { recentFiles } from './lib/recentFiles';
@@ -677,237 +679,56 @@ export function App() {
     ],
   );
 
-  const commands = useMemo<Command[]>(() => {
-    const action = (id: ShortcutAction, title?: string, run?: () => void): Command => ({
-      id,
-      title: title ?? t(`shortcut.${id}`),
-      shortcut: shortcuts[id][0],
-      run: run ?? (() => runAction(id)),
-    });
-    const list: Command[] = [
-      action('newSession'),
-      action('nextSession'),
-      action('prevSession'),
-      action('nextWaiting'),
-      action('overview'),
-      action('board'),
-      action('pulls'),
-      action('background'),
-      {
-        id: 'new-task',
-        title: t('command.newTask'),
-        run: () => {
+  const commands = useMemo<Command[]>(
+    () =>
+      buildCommands({
+        t,
+        sessions,
+        groups,
+        selected,
+        shortcuts,
+        prompts,
+        theme,
+        customThemes,
+        metrics,
+        runAction,
+        showPanel,
+        requestClose,
+        changeFolder,
+        duplicate,
+        openPrompt,
+        editGroup,
+        runSonar,
+        openOverlay: setOverlay,
+        openNewTask: () => {
           setOverlay(null);
           setOverviewOpen(false);
           setBoardOpen(true);
           setBoardNewCard((n) => n + 1);
         },
-      },
-      action('focusSidebar'),
-      action('preferences'),
-      action('newGroup', t('command.newGroup')),
-      {
-        id: 'new-experiment',
-        title: t('command.newExperiment'),
-        run: () => setOverlay('experiment'),
-      },
-    ];
-    for (const group of groups) {
-      list.push({
-        id: `edit-group-${group.id}`,
-        title: t('command.editGroup', { name: group.name }),
-        run: () => editGroup(group),
-      });
-    }
-    if (selected) {
-      list.unshift(
-        action('toggleChanges', t('command.seeChanges'), () => showPanel('changes')),
-        action('toggleFiles', t('command.files'), () => showPanel('files')),
-        action('search', t('command.search'), () => showPanel('search')),
-        {
-          id: 'show-problems',
-          title: t('command.problems'),
-          run: () => showPanel('problems'),
-        },
-        {
-          id: 'show-all',
-          title: t('command.all'),
-          run: () => showPanel('all'),
-        },
-        ...(selected.worktree
-          ? [
-              {
-                id: 'branch-pull',
-                title: t('command.branchPull', { name: selected.name }),
-                run: () => setOverlay('branch'),
-              },
-            ]
-          : []),
-        {
-          id: 'new-conversation',
-          title: t('command.newConversation', { name: selected.name }),
-          run: () =>
-            void window.api.invoke('sessions:newConversation', selected.id).catch(() => {}),
-        },
-        {
-          id: 'preview-open',
-          title: t('command.preview'),
-          run: () => {
-            const port = metrics[selected.id]?.ports?.[0];
-            setPreviewUrl(`http://localhost:${port ?? 3000}`);
-          },
-        },
-        {
-          id: 'sonar-run',
-          title: t('command.sonarRun', { name: selected.name }),
-          run: () => runSonar(selected.id),
-        },
-        {
-          id: 'show-review',
-          title: t('command.review'),
-          run: () => showPanel('review'),
-        },
-        action('quickOpen', t('command.quickOpen')),
-        action('toggleHidden', t('command.toggleHidden')),
-        action(
-          'toggleAux',
-          t(selected.auxOpen ? 'command.closeAux' : 'command.openAux', { name: selected.name }),
-        ),
-      );
-      if (selected.permission && selected.running) {
-        list.unshift(action('allowPermission'), action('denyPermission'));
-      }
-      if (selected.auxOpen) {
-        list.push(
-          {
-            id: 'aux-grow',
-            title: t('command.auxGrow'),
-            run: () => terminals.current?.resizeAux(1),
-          },
-          {
-            id: 'aux-shrink',
-            title: t('command.auxShrink'),
-            run: () => terminals.current?.resizeAux(-1),
-          },
-        );
-      }
-      list.push(
-        selected.running
-          ? {
-              id: 'stop',
-              title: t('command.stop', { name: selected.name }),
-              run: () => void window.api.invoke('sessions:stop', selected.id),
-            }
-          : {
-              id: 'start',
-              title: t('command.start', { name: selected.name }),
-              run: () => terminals.current?.start(selected.id),
-            },
-        {
-          id: 'folder',
-          title: t('command.changeFolder', { name: selected.name }),
-          run: changeFolder,
-        },
-        {
-          id: 'checks',
-          title: t('command.checks', { name: selected.name }),
-          run: () => setOverlay('checks'),
-        },
-        {
-          id: 'run-checks',
-          title: t('command.runChecks', { name: selected.name }),
-          run: () => void window.api.invoke('checks:run', selected.id),
-        },
-        {
-          id: 'reviewer',
-          title: t('command.reviewer', { name: selected.name }),
-          run: () => setOverlay('reviewer'),
-        },
-        {
-          id: 'queue',
-          title: t('command.queue', { name: selected.name }),
-          run: () => setOverlay('queue'),
-        },
-        {
-          id: 'timeline',
-          title: t('command.timeline', { name: selected.name }),
-          run: () => setOverlay('timeline'),
-        },
-        {
-          id: 'duplicate',
-          title: t('command.duplicate', { name: selected.name }),
-          run: () => duplicate(selected),
-        },
-        {
-          id: 'close',
-          title: t('command.close', { name: selected.name }),
-          run: () => requestClose(selected),
-        },
-      );
-      for (const group of groups) {
-        if (group.id === selected.groupId) {
-          list.push({
-            id: `leave-group-${group.id}`,
-            title: t('command.leaveGroup', { name: selected.name, group: group.name }),
-            run: () => void store.moveToGroup(selected.id, null),
-          });
-        } else {
-          list.push({
-            id: `move-to-group-${group.id}`,
-            title: t('command.moveToGroup', { name: selected.name, group: group.name }),
-            run: () => void store.moveToGroup(selected.id, group.id),
-          });
-        }
-      }
-    }
-    if (prompts.length > 0) list.push(action('sendPrompt'));
-    for (const prompt of prompts) {
-      list.push({
-        id: `prompt-${prompt.id}`,
-        title: t('command.prompt', { name: prompt.name }),
-        shortcut: prompt.shortcut,
-        run: () => openPrompt(prompt.id),
-      });
-    }
-    // The code themes of the current kind, to switch from the keyboard.
-    for (const codeTheme of themesOfKind(theme, customThemes)) {
-      list.push({
-        id: `code-theme-${codeTheme.id}`,
-        title: t('command.codeTheme', { name: codeThemeName(t, codeTheme) }),
-        run: () =>
-          void window.api.invoke('prefs:set', {
-            [theme === 'light' ? 'codeThemeLight' : 'codeThemeDark']: codeTheme.id,
-          }),
-      });
-    }
-    sessions.forEach((s, i) =>
-      list.push({
-        id: `go-${s.id}`,
-        title: t('command.goTo', { name: s.name }),
-        shortcut: i < 9 ? `Ctrl+${i + 1}` : undefined,
-        run: () => store.select(s.id),
+        openPreview: setPreviewUrl,
+        terminals: () => terminals.current,
       }),
-    );
-    return list;
-  }, [
-    sessions,
-    groups,
-    selected,
-    shortcuts,
-    runAction,
-    showPanel,
-    requestClose,
-    changeFolder,
-    duplicate,
-    prompts,
-    openPrompt,
-    editGroup,
-    theme,
-    customThemes,
-    t,
-    runSonar,
-    metrics,
-  ]);
+    [
+      sessions,
+      groups,
+      selected,
+      shortcuts,
+      runAction,
+      showPanel,
+      requestClose,
+      changeFolder,
+      duplicate,
+      prompts,
+      openPrompt,
+      editGroup,
+      theme,
+      customThemes,
+      t,
+      runSonar,
+      metrics,
+    ],
+  );
 
   // Global shortcuts are taken in the capture phase, before the terminal sees the key.
   const bindings = useMemo(() => bindingIndex(shortcuts), [shortcuts]);
@@ -1040,180 +861,30 @@ export function App() {
           />
         )}
         {selected && (
-          <header className="session-header">
-            <span
-              className={`state-dot state-${selected.status.state} ${selected.status.confirmed ? '' : 'inferred'}`}
-            />
-            <div className="session-header-text">
-              <strong>{selected.name}</strong>
-              <span className="muted">
-                {PROFILE_LABEL[selected.profile]}
-                {agentCommand && <span className="command"> · {agentCommand}</span>}
-              </span>
-              {selected.worktree && (
-                <span
-                  className="worktree-tag"
-                  data-testid="session-worktree"
-                  title={t('app.worktreeHint', {
-                    repo: selected.worktree.repoRoot,
-                    branch: selected.worktree.branch,
-                    base: selected.worktree.base,
-                  })}
-                >
-                  <span aria-hidden="true">⑂</span> {selected.worktree.branch}
-                </span>
-              )}
-              <span
-                data-testid="session-status"
-                className={`state-label state-label-${selected.status.state} ${selected.status.confirmed ? '' : 'inferred'}`}
-              >
-                {statusLabel(t, selected.status)}
-                {detail && selected.status.state !== 'terminou' ? ` (${detail})` : ''}
-              </span>
-              <button
-                className="muted path"
-                title={`${selected.cwd}\n${t('app.changeFolderHint')}`}
-                aria-label={t('app.changeFolder')}
-                onClick={changeFolder}
-              >
-                {selected.cwd}
-              </button>
-            </div>
-            <span className="spacer" />
-            <button
-              className={`session-action icon-button ${changesOpen && panelMode === 'changes' ? 'active' : ''}`}
-              onClick={() => togglePanel('changes')}
-              title={hint(t('app.seeChanges'), shortcuts.toggleChanges[0])}
-              aria-label={t('app.seeChanges')}
-            >
-              <span aria-hidden="true">&#8781;</span>
-              <span className="sr-only">{t('app.seeChanges')}</span>
-              {changeCount !== null && changeCount > 0 && (
-                <span className="count">{changeCount}</span>
-              )}
-            </button>
-            <button
-              className={`session-action icon-button ${changesOpen && panelMode === 'files' ? 'active' : ''}`}
-              onClick={() => togglePanel('files')}
-              title={hint(t('app.allFilesHint'), shortcuts.toggleFiles[0])}
-              aria-label={t('common.files')}
-            >
-              <span aria-hidden="true">&#128193;</span>
-              <span className="sr-only">{t('common.files')}</span>
-            </button>
-            <button
-              className={`session-action icon-button ${selected.auxOpen ? 'active' : ''}`}
-              aria-pressed={selected.auxOpen === true}
-              onClick={() => runAction('toggleAux')}
-              title={hint(t('app.auxHint'), shortcuts.toggleAux[0])}
-              aria-label={t('app.aux')}
-            >
-              <span aria-hidden="true">&gt;_</span>
-              <span className="sr-only">{t('app.aux')}</span>
-            </button>
-            {timeline?.available && (
-              <button
-                className="timeline-button session-action icon-button"
-                onClick={() => setOverlay('timeline')}
-                title={t('app.timelineHint')}
-                aria-label={t('app.timeline')}
-              >
-                <span aria-hidden="true">&#128339;</span>
-                <span className="sr-only">{t('app.timeline')}</span>
-                {timeline.items.length > 0 && (
-                  <span className="count">{timeline.items.length}</span>
-                )}
-              </button>
-            )}
-            <button
-              className={`reviewer-button session-action icon-button ${selected.reviewer?.state === 'ready' ? 'ready' : ''}`}
-              data-testid="reviewer-button"
-              onClick={() => setOverlay('reviewer')}
-              title={t('app.reviewerHint')}
-              aria-label={
-                selected.reviewer?.state === 'ready'
-                  ? t('app.reviewerReady', { count: selected.reviewer.count ?? 0 })
-                  : t('app.reviewer')
-              }
-            >
-              <span aria-hidden="true">&#128269;</span>
-              <span className="sr-only">
-                {selected.reviewer?.state === 'ready'
-                  ? t('app.reviewerReady', { count: selected.reviewer.count ?? 0 })
-                  : t('app.reviewer')}
-              </span>
-            </button>
-            <button
-              className="queue-button session-action icon-button"
-              onClick={() => setOverlay('queue')}
-              title={t('app.queueHint')}
-              aria-label={t('app.queue')}
-            >
-              <span aria-hidden="true">&#9776;</span>
-              <span className="sr-only">{t('app.queue')}</span>
-              {selected.queue && (
-                <span className={`count ${selected.queue.paused ? 'paused' : ''}`}>
-                  {selected.queue.items}
-                </span>
-              )}
-            </button>
-            <button
-              className="checks-button session-action icon-button"
-              onClick={() => setOverlay('checks')}
-              title={t('app.checksHint')}
-              aria-label={t('app.checks')}
-            >
-              <span aria-hidden="true">&#10003;</span>
-              <span className="sr-only">{t('app.checks')}</span>
-              {selected.checks && <ChecksBadge summary={selected.checks} />}
-            </button>
-            {(metrics[selected.id]?.ports ?? []).length > 0 && (
-              <span className="session-ports" title={t('app.ports')} data-testid="session-ports">
-                {metrics[selected.id]!.ports!.slice(0, 4).map((port) => (
-                  <button
-                    key={port}
-                    className="port-chip"
-                    title={t('app.port', { port })}
-                    onClick={() => {
-                      setOverviewOpen(false);
-                      setBoardOpen(false);
-                      setPullsOpen(false);
-                      setBackgroundOpen(false);
-                      setPreviewUrl(`http://localhost:${port}`);
-                    }}
-                  >
-                    :{port}
-                  </button>
-                ))}
-              </span>
-            )}
-            {selected.worktree && (
-              <button
-                className="branch-button session-action"
-                data-testid="branch-button"
-                onClick={() => setOverlay('branch')}
-                title={t('branch.buttonHint')}
-              >
-                {t('branch.button')}
-              </button>
-            )}
-            {sonarRuns[selected.id] && (
-              <button
-                className={`sonar-chip session-action status-${sonarRuns[selected.id]!.status}`}
-                data-testid="sonar-chip"
-                data-status={sonarRuns[selected.id]!.status}
-                title={
-                  sonarRuns[selected.id]!.error ??
-                  t('sonar.chipHint', {
-                    status: t(`sonar.status.${sonarRuns[selected.id]!.status}`),
-                  })
-                }
-                onClick={() => runSonar(selected.id)}
-              >
-                {t('sonar.chip', { status: t(`sonar.status.${sonarRuns[selected.id]!.status}`) })}
-              </button>
-            )}
-          </header>
+          <SessionHeader
+            session={selected}
+            agentCommand={agentCommand || undefined}
+            detail={detail || null}
+            changesOpen={changesOpen}
+            panelMode={panelMode}
+            changeCount={changeCount}
+            timeline={timeline}
+            shortcuts={shortcuts}
+            ports={metrics[selected.id]?.ports ?? []}
+            sonar={sonarRuns[selected.id]}
+            onChangeFolder={changeFolder}
+            onTogglePanel={togglePanel}
+            onToggleAux={() => runAction('toggleAux')}
+            onOpen={setOverlay}
+            onOpenPort={(port) => {
+              setOverviewOpen(false);
+              setBoardOpen(false);
+              setPullsOpen(false);
+              setBackgroundOpen(false);
+              setPreviewUrl(`http://localhost:${port}`);
+            }}
+            onRunSonar={() => runSonar(selected.id)}
+          />
         )}
         {sonarError && (
           <div className="banner error" role="alert" data-testid="sonar-error">
