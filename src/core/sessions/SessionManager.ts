@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { copyIntoWorktree } from '../git/copyIntoWorktree';
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import { sanitizeAgentCommand } from '@shared/agents';
@@ -43,13 +42,7 @@ import {
   type AgentAdapter,
   type LaunchCommand,
 } from '../agents';
-import { repositoryRoot } from '../git/GitService';
-import {
-  checkBranchName,
-  createWorktree,
-  removeWorktree,
-  suggestWorktreeFolder,
-} from '../git/WorktreeService';
+import { removeWorktree } from '../git/WorktreeService';
 import { ScreenHistory } from '../history/ScreenHistory';
 import { UsageTracker } from './UsageTracker';
 import type { PtyManager } from '../pty/PtyManager';
@@ -58,8 +51,35 @@ import type { HookMessage } from '../signals/HookServer';
 import { SilenceDetector } from '../signals/SilenceDetector';
 import { folderKey } from '../store/recentFolders';
 import { StreamParser } from '../signals/StreamParser';
-import { runInShell, type RunResult } from '../tools/ToolRunner';
+import type { RunResult } from '../tools/ToolRunner';
 import { SignalAggregator } from './SignalAggregator';
+import {
+  ECHO_MAX_CHARS,
+  ECHO_WINDOW_MS,
+  flushDelay,
+  FLUSH_NOW_CHARS,
+  FOREGROUND_FLUSH_MS,
+  HIGH_WATER,
+  LOW_WATER,
+  MENU_CHECK_MS,
+  SUBMIT_DELAY_MS,
+  type FlushTiming,
+} from './streamFlow';
+import { prepareWorktreeCopy, type WorktreeCreation } from './worktreeCopy';
+
+// Kept here too: what was always imported from the SessionManager still is.
+export {
+  ECHO_MAX_CHARS,
+  ECHO_WINDOW_MS,
+  flushDelay,
+  FOREGROUND_FLUSH_MS,
+  HIGH_WATER,
+  LOW_WATER,
+  MENU_CHECK_MS,
+  SUBMIT_DELAY_MS,
+};
+export type { FlushTiming, WorktreeCreation };
+export { SETUP_TIMEOUT_MS } from './worktreeCopy';
 
 export interface TerminalSnapshotData {
   data: string;
@@ -109,24 +129,6 @@ export interface SessionManagerOptions {
   runSetup?: (command: string, cwd: string) => Promise<RunResult>;
   now?: () => number;
 }
-
-/** How a session in a copy of its repository is made. */
-export interface WorktreeCreation {
-  /** The folder the copies of every repository go into. */
-  parent: string;
-  /** Run once in the new copy, in the user's shell, before the session exists (`npm ci`). */
-  setup?: string;
-  /** Files of the repository copied into the new copy (`.env*`), as patterns. */
-  copy?: string[];
-}
-
-export const SETUP_TIMEOUT_MS = 15 * 60 * 1000;
-/** Lines of the output of a setup that failed that the error carries. */
-const SETUP_ERROR_LINES = 15;
-
-const defaultSetup = (command: string, cwd: string): Promise<RunResult> =>
-  // Tools print less color and no prompts when they know nobody is at the keyboard.
-  runInShell(command, { cwd, env: { ...process.env, CI: '1' }, timeoutMs: SETUP_TIMEOUT_MS });
 
 /** A process in a PTY as the renderer sees it: its screen, and what is on the way to it. */
 interface Stream {
@@ -209,52 +211,10 @@ interface Entry {
 }
 
 const DEFAULT_SIZE: TerminalSize = { cols: 100, rows: 30 };
-// The terminal in sight is fed once per frame at most. Mounted terminals out of sight are not
-// fed at all: they catch up from the history when shown again.
-export const FOREGROUND_FLUSH_MS = 8;
-const FLUSH_NOW_CHARS = 128 * 1024;
-/** Output up to this size, soon after a key, is taken for its echo. */
-export const ECHO_MAX_CHARS = 1024;
-/** How soon after a key its echo is expected. */
-export const ECHO_WINDOW_MS = 100;
-
-/** When output arrives on a stream, and how much is waiting. */
-export interface FlushTiming {
-  now: number;
-  lastFlushAt: number;
-  lastInputAt: number;
-  pendingChars: number;
-}
-
-/**
- * How long new output waits before it is sent to the terminal on screen. A small piece right
- * after a key (its echo, most of the time) goes at once. Anything else waits for the batch: an
- * agent's spinner sent piece by piece would cost a draw each, measured at 4% of a core more with
- * 6 busy sessions.
- */
-export function flushDelay(t: FlushTiming): number {
-  const echo =
-    t.now - t.lastInputAt <= ECHO_WINDOW_MS &&
-    t.now - t.lastFlushAt >= FOREGROUND_FLUSH_MS &&
-    t.pendingChars <= ECHO_MAX_CHARS;
-  return echo ? 0 : FOREGROUND_FLUSH_MS;
-}
-
 /** Whether the history, rather than a terminal on screen, answers the program's queries. */
 function answersQueries(stream: Stream): boolean {
   return stream.attached === 'no' || stream.attached === 'parked';
 }
-
-/**
- * Between a paste and the Enter that sends it. Where ConPTY drops the paste markers, an Enter in
- * the same burst of keys reads as a line break inside the paste.
- */
-export const SUBMIT_DELAY_MS = 200;
-/** After output, how long to wait before reading the screen for the menu of a permission. */
-export const MENU_CHECK_MS = 80;
-// Backpressure thresholds, in characters waiting on the renderer plus the history.
-export const HIGH_WATER = 256 * 1024;
-export const LOW_WATER = 32 * 1024;
 
 /**
  * Owns the sessions: their list, their processes and their state. Knows nothing about Electron;
@@ -484,32 +444,7 @@ export class SessionManager extends EventEmitter<ManagerEvents> {
     const wanted = input.worktree;
     if (!wanted) return this.create(input);
     const { cwd } = this.checkInput(input);
-    const repoRoot = await repositoryRoot(cwd);
-    if (!repoRoot) throw new UserError('error.worktree.notRepo', { folder: cwd });
-    const branch = await checkBranchName(repoRoot, wanted.branch);
-    const created = await createWorktree({
-      repo: repoRoot,
-      branch,
-      base: wanted.base,
-      folder: suggestWorktreeFolder(creation.parent, repoRoot, branch),
-    });
-    // What git leaves out (`.env`), before the setup that may need it.
-    if (creation.copy?.length) {
-      await copyIntoWorktree(repoRoot, created.folder, creation.copy).catch(() => []);
-    }
-    const setup = creation.setup?.trim();
-    if (setup) {
-      const result = await (this.options.runSetup ?? defaultSetup)(setup, created.folder);
-      if (result.exitCode !== 0 || result.timedOut || result.error !== undefined) {
-        const output = (result.error ?? result.output).trimEnd().split('\n');
-        // The copy and its branch stay: nothing is deleted without being asked.
-        throw new UserError('error.worktree.setupFailed', {
-          command: setup,
-          folder: created.folder,
-          output: output.slice(-SETUP_ERROR_LINES).join('\n'),
-        });
-      }
-    }
+    const created = await prepareWorktreeCopy(cwd, wanted, creation, this.options.runSetup);
     const view = this.create({ ...input, cwd: created.folder, worktree: undefined });
     const entry = this.entries.get(view.id)!;
     entry.session = {
