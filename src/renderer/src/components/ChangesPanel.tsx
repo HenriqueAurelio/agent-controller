@@ -1,26 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { parseCheckpointBase } from '@shared/checkpoints';
 import type { Problem } from '@shared/checks';
-import {
-  CHANGE_LETTER,
-  isCheckpointBase,
-  type DiffBase,
-  type FileChange,
-  type GitOverview,
-  type RepoInfo,
-} from '@shared/git';
-import type { OverlapFile } from '@shared/overlaps';
+import { isCheckpointBase, type DiffBase, type FileChange, type GitOverview } from '@shared/git';
 import type { SessionView } from '@shared/session';
 import type { FrameMarker, ParentMessage } from '../lib/diffProtocol';
 import { checkpointLabel, useCheckpoints } from '../lib/checkpoints';
 import { errorMessage } from '../lib/format';
 import { rich, useT } from '../lib/i18n';
-import { sessionNames, useOverlaps } from '../lib/overlaps';
+import { groupChanges } from '../lib/changeGroups';
+import { useOverlaps } from '../lib/overlaps';
 import { useAppState } from '../lib/store';
 import { useReview } from '../lib/review';
 import { useProblems } from '../lib/useProblems';
 import type { ReviewComment } from '@shared/review';
 import type { SonarRun } from '@shared/sonar';
+import { ChangeList } from './ChangeList';
+import { ChangesHeader } from './ChangesHeader';
+import { CommitBar } from './CommitBar';
 import { DiffView } from './DiffView';
 import { FileTree } from './FileTree';
 import { MultiDiffView } from './MultiDiffView';
@@ -74,44 +70,6 @@ interface Props {
   onOpenInSession(sessionId: string, file: string): void;
 }
 
-interface Group {
-  key: string;
-  /** Set on the first group of a section of the list (staged, not staged), when there are two. */
-  section?: 'staged' | 'unstaged';
-  /** Set on the first group of a repository, when the session has more than one. */
-  repo?: RepoInfo;
-  /** Folder of the files, relative to their repository. */
-  folder: string;
-  files: FileChange[];
-}
-
-function groupByFolder(changes: FileChange[], repos: RepoInfo[]): Group[] {
-  // With a single repository the list is by folder only, as it always was.
-  const sections = repos.length > 1 ? repos.filter((r) => r.count > 0) : [undefined];
-  return sections.flatMap((repo) => {
-    const skip = repo?.path ? repo.path.length + 1 : 0;
-    const folders = new Map<string, FileChange[]>();
-    for (const change of changes) {
-      if (repo && (change.repo ?? '') !== repo.path) continue;
-      const slash = change.path.lastIndexOf('/');
-      const folder = slash < skip ? '' : change.path.slice(skip, slash);
-      const list = folders.get(folder);
-      if (list) list.push(change);
-      else folders.set(folder, [change]);
-    }
-    return [...folders.entries()]
-      .sort(([x], [y]) => x.localeCompare(y))
-      .map(([folder, files], index) => ({
-        key: `${repo?.path ?? ''}:${folder}`,
-        repo: index === 0 ? repo : undefined,
-        folder,
-        files,
-      }));
-  });
-}
-
-const fileName = (path: string) => path.slice(path.lastIndexOf('/') + 1);
-
 function Unavailable({ overview }: { overview: Extract<GitOverview, { ok: false }> }) {
   const t = useT();
   if (overview.reason === 'git-missing') {
@@ -161,7 +119,6 @@ export function ChangesPanel({
 }: Props) {
   const t = useT();
   const prefs = useAppState((s) => s.prefs);
-  const sessions = useAppState((s) => s.sessions);
   const overlapFiles = useOverlaps(session.id, session.overlaps);
   const overlapOf = useMemo(
     () => new Map(overlapFiles.map((file) => [file.path, file] as const)),
@@ -279,26 +236,10 @@ export function ChangesPanel({
     () => (operable ? changes.filter((c) => c.staged) : []),
     [operable, changes],
   );
-  // What is staged first, the rest after: what goes into the commit is the reviewed part.
-  const groups = useMemo(() => {
-    if (stagedChanges.length === 0) return groupByFolder(changes, repos);
-    const mark = (list: Group[], section: Group['section']) =>
-      list.map((group, index) => ({
-        ...group,
-        key: `${section}:${group.key}`,
-        ...(index === 0 && { section }),
-      }));
-    return [
-      ...mark(groupByFolder(stagedChanges, repos), 'staged'),
-      ...mark(
-        groupByFolder(
-          changes.filter((c) => !c.staged),
-          repos,
-        ),
-        'unstaged',
-      ),
-    ];
-  }, [changes, stagedChanges, repos]);
+  const groups = useMemo(
+    () => groupChanges(changes, stagedChanges, repos),
+    [changes, stagedChanges, repos],
+  );
   const untouched = repos.length > 1 ? repos.filter((r) => r.count === 0) : [];
   const flat = useMemo(() => groups.flatMap((g) => g.files), [groups]);
   const kinds = useMemo(() => new Map(changes.map((c) => [c.path, c.kind])), [changes]);
@@ -534,34 +475,6 @@ export function ChangesPanel({
     document.getElementById(`change-${flat.indexOf(next)}`)?.scrollIntoView({ block: 'nearest' });
   };
 
-  /** The ⚠ of a file another session also changed: it opens the file over there. */
-  const renderOverlap = (overlap: OverlapFile) => {
-    const names = sessionNames(
-      t,
-      overlap.others.map((o) => o.sessionId),
-      sessions,
-    );
-    const target = overlap.others.find((o) => o.likely) ?? overlap.others[0]!;
-    const targetName = sessions.find((s) => s.id === target.sessionId)?.name ?? '';
-    return (
-      <button
-        type="button"
-        className={`overlap-mark ${overlap.likely ? 'likely' : ''}`}
-        data-testid="overlap-mark"
-        data-likely={overlap.likely}
-        title={t(overlap.likely ? 'overlap.fileLikely' : 'overlap.fileSame', { names })}
-        aria-label={t('overlap.openIn', { file: overlap.path, name: targetName })}
-        onClick={(e) => {
-          e.stopPropagation();
-          // Leaving this session asks about unsaved edits by itself.
-          onOpenInSession(target.sessionId, target.path);
-        }}
-      >
-        ⚠
-      </button>
-    );
-  };
-
   return (
     <section
       ref={panelRef}
@@ -580,115 +493,23 @@ export function ChangesPanel({
         }
       }}
     >
-      <header className="changes-header">
-        <h2>
-          {t('changes.title')} <span className="count">{overview?.ok ? changes.length : ''}</span>
-        </h2>
-        <button
-          className={files ? 'active' : ''}
-          aria-pressed={files}
-          onClick={() => switchMode(files ? 'changes' : 'files')}
-          title={t('changes.allFilesHint')}
-        >
-          {t('changes.allFiles')}
-        </button>
-        <button
-          className={allMode ? 'active' : ''}
-          aria-pressed={allMode}
-          data-testid="all-tab"
-          onClick={() => switchMode(allMode ? 'changes' : 'all')}
-          title={t('all.tabHint')}
-        >
-          {t('all.tab')}
-        </button>
-        <button
-          className={problemsMode ? 'active' : ''}
-          aria-pressed={problemsMode}
-          data-testid="problems-tab"
-          onClick={() => switchMode(problemsMode ? 'changes' : 'problems')}
-          title={t('problems.tabHint')}
-        >
-          {found.problems.length > 0
-            ? `${t('problems.tab')} (${found.problems.length}${found.more > 0 ? '+' : ''})`
-            : t('problems.tab')}
-        </button>
-        <button
-          className={searchMode ? 'active' : ''}
-          aria-pressed={searchMode}
-          data-testid="search-tab"
-          onClick={() => switchMode(searchMode ? 'changes' : 'search')}
-          title={t('search.tabHint')}
-        >
-          {t('search.tab')}
-        </button>
-        <button
-          className={reviewMode ? 'active' : ''}
-          aria-pressed={reviewMode}
-          data-testid="review-tab"
-          onClick={() => switchMode(reviewMode ? 'changes' : 'review')}
-          title={t('review.tabHint')}
-        >
-          {comments.length > 0 ? `${t('review.tab')} (${comments.length})` : t('review.tab')}
-        </button>
-        {files && (
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={prefs.showHiddenFiles}
-              onChange={(e) =>
-                void window.api.invoke('prefs:set', { showHiddenFiles: e.target.checked })
-              }
-            />
-            {t('changes.hidden')}
-          </label>
-        )}
-        <span className="readonly-tag" title={t('changes.editableHint')}>
-          {t('changes.editable')}
-        </span>
-        <span className="spacer" />
-        {overview?.ok && (
-          <>
-            <label className="field-inline">
-              <span>{t('changes.compareWith')}</span>
-              <select
-                aria-label={t('changes.compareWith')}
-                value={overview.base}
-                onChange={(e) => {
-                  const next = e.target.value as DiffBase;
-                  if (mayLeave()) setBase(next);
-                }}
-              >
-                <option value="head">{t('changes.base.head')}</option>
-                <option value="session" disabled={!overview.hasSessionBase}>
-                  {t('changes.base.session')}
-                </option>
-                {session.worktree && (
-                  <option value="branchBase" disabled={!overview.hasBranchBase}>
-                    {t('changes.base.branchBase', { base: session.worktree.base })}
-                  </option>
-                )}
-                {timeline?.available && (
-                  <option value="previousTurn" disabled={timeline.items.length === 0}>
-                    {t('changes.base.previousTurn')}
-                  </option>
-                )}
-                {checkpointName && <option value={overview.base}>{checkpointName}</option>}
-              </select>
-            </label>
-            <button
-              className={inline ? 'active' : ''}
-              aria-pressed={inline}
-              onClick={() => setInline((v) => !v)}
-              title={t('changes.viewHint')}
-            >
-              {inline ? t('changes.inline') : t('changes.sideBySide')}
-            </button>
-          </>
-        )}
-        <button onClick={close} title={t('changes.closeHint')} aria-label={t('changes.close')}>
-          ×
-        </button>
-      </header>
+      <ChangesHeader
+        mode={mode}
+        problems={{ count: found.problems.length, more: found.more > 0 }}
+        commentCount={comments.length}
+        showHidden={prefs.showHiddenFiles}
+        overview={overview}
+        worktreeBase={session.worktree?.base}
+        timeline={timeline}
+        checkpointName={checkpointName}
+        inline={inline}
+        onToggleInline={() => setInline((v) => !v)}
+        onSwitchMode={switchMode}
+        onBase={(next) => {
+          if (mayLeave()) setBase(next);
+        }}
+        onClose={close}
+      />
 
       {!browsing && error && (
         <div className="panel-message error">{t('changes.loadError', { error })}</div>
@@ -805,133 +626,26 @@ export function ChangesPanel({
 
       {!browsing && !allMode && !error && overview?.ok && changes.length > 0 && (
         <div className="changes-body">
-          <ul
-            ref={listRef}
-            className="changes-list"
-            role="listbox"
-            tabIndex={0}
-            aria-label={t('changes.modifiedFiles')}
-            aria-activedescendant={
-              selected ? `change-${flat.findIndex((c) => c.path === selected)}` : undefined
-            }
-            onKeyDown={(e) => {
-              if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                e.preventDefault();
-                moveSelection(e.key === 'ArrowDown' ? 1 : -1);
-              } else if (e.key === 'Home' || e.key === 'End') {
-                e.preventDefault();
-                moveSelection(e.key === 'Home' ? -flat.length : flat.length);
-              } else if (e.key === 'Enter' && e.ctrlKey) {
-                // Straight to the message of the commit, when something is marked for it.
-                e.preventDefault();
-                commitRef.current?.focus();
-              } else if (e.key === 'Enter') {
-                e.preventDefault();
-                focusEditor();
-              } else if (operable && !operating && (e.key === ' ' || e.key === 'Delete')) {
-                const change = changes.find((c) => c.path === selected);
-                if (!change) return;
-                e.preventDefault();
-                if (e.key === ' ') toggleStaged(change);
-                else if (change.kind !== 'conflict') discardFile(change);
-              }
-            }}
-          >
-            {groups.map((group) => (
-              <li key={group.key} role="presentation">
-                {group.section && (
-                  <div className={`changes-section section-${group.section}`}>
-                    {group.section === 'staged'
-                      ? t('changes.section.staged', { count: stagedChanges.length })
-                      : t('changes.section.unstaged', {
-                          count: changes.length - stagedChanges.length,
-                        })}
-                  </div>
-                )}
-                {group.repo && (
-                  <div
-                    className="changes-repo"
-                    data-repo={group.repo.path}
-                    title={t('changes.repo', { name: group.repo.name })}
-                  >
-                    <span className="changes-repo-name">{group.repo.name}</span>
-                    {group.repo.branch && <span className="muted">{group.repo.branch}</span>}
-                    <span className="spacer" />
-                    <span className="count">{group.repo.count}</span>
-                  </div>
-                )}
-                <div className="changes-folder">{group.folder || t('changes.root')}</div>
-                <ul role="presentation">
-                  {group.files.map((change) => (
-                    <li
-                      key={change.path}
-                      id={`change-${flat.indexOf(change)}`}
-                      role="option"
-                      aria-selected={change.path === selected}
-                      data-path={change.path}
-                      data-kind={change.kind}
-                      className={`change-item ${change.path === selected ? 'selected' : ''}`}
-                      title={
-                        change.origPath
-                          ? `${t(`change.${change.kind}`)}: ${change.origPath} → ${change.path}`
-                          : `${t(`change.${change.kind}`)}: ${change.path}`
-                      }
-                      data-staged={change.staged ?? 'none'}
-                      onClick={() => select(change.path)}
-                    >
-                      {operable && (
-                        <input
-                          type="checkbox"
-                          className="stage-box"
-                          aria-label={t('changes.stageOf', { file: change.path })}
-                          title={t(
-                            change.staged === 'partial'
-                              ? 'changes.stagePartial'
-                              : 'changes.stageHint',
-                          )}
-                          checked={marking[change.path] ?? change.staged === 'all'}
-                          ref={(box) => {
-                            if (box) {
-                              box.indeterminate =
-                                marking[change.path] === undefined && change.staged === 'partial';
-                            }
-                          }}
-                          disabled={operating}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={() => toggleStaged(change)}
-                        />
-                      )}
-                      <span className="change-name">{fileName(change.path)}</span>
-                      {overlapOf.has(change.path) && renderOverlap(overlapOf.get(change.path)!)}
-                      {operable && change.kind !== 'conflict' && (
-                        <button
-                          type="button"
-                          className="discard-button"
-                          aria-label={t('changes.discardOf', { file: change.path })}
-                          title={t('changes.discardHint')}
-                          disabled={operating}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            discardFile(change);
-                          }}
-                        >
-                          ↺
-                        </button>
-                      )}
-                      <span className={`change-kind kind-${change.kind}`}>
-                        {CHANGE_LETTER[change.kind]}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-            {untouched.length > 0 && (
-              <li role="presentation" className="changes-untouched">
-                {t('changes.untouched', { names: untouched.map((r) => r.name).join(', ') })}
-              </li>
-            )}
-          </ul>
+          <ChangeList
+            listRef={listRef}
+            groups={groups}
+            flat={flat}
+            changes={changes}
+            stagedCount={stagedChanges.length}
+            untouched={untouched}
+            selected={selected}
+            operable={operable}
+            operating={operating}
+            marking={marking}
+            overlapOf={overlapOf}
+            onSelect={select}
+            onMove={moveSelection}
+            onFocusCommit={() => commitRef.current?.focus()}
+            onFocusEditor={focusEditor}
+            onToggleStaged={toggleStaged}
+            onDiscard={discardFile}
+            onOpenInSession={onOpenInSession}
+          />
           {selected && (
             <DiffView
               sessionId={sessionId}
@@ -1021,53 +735,18 @@ export function ChangesPanel({
       )}
 
       {!browsing && !allMode && operable && stagedChanges.length > 0 && (
-        <footer className="commit-bar" role="group" aria-label={t('changes.commitArea')}>
-          <div className="commit-going-in" data-testid="commit-going-in">
-            {t('changes.goingIn', {
-              count: goingIn.length,
-              files: goingIn.map((c) => fileName(c.path)).join(', '),
-            })}
-          </div>
-          <div className="commit-row">
-            {stagedRepos.length > 1 && (
-              <select
-                aria-label={t('changes.commitRepo')}
-                value={repoToCommit}
-                onChange={(e) => setCommitRepo(e.target.value)}
-              >
-                {stagedRepos.map((repo) => (
-                  <option key={repo} value={repo}>
-                    {repos.find((r) => r.path === repo)?.name ?? repo}
-                  </option>
-                ))}
-              </select>
-            )}
-            <textarea
-              ref={commitRef}
-              aria-label={t('changes.commitMessage')}
-              placeholder={t('changes.commitMessage')}
-              value={message}
-              rows={2}
-              spellCheck={false}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.ctrlKey && message.trim()) {
-                  e.preventDefault();
-                  commitStaged();
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="primary"
-              disabled={operating || !message.trim()}
-              title={t('changes.commitHint')}
-              onClick={commitStaged}
-            >
-              {t('changes.commit')}
-            </button>
-          </div>
-        </footer>
+        <CommitBar
+          commitRef={commitRef}
+          goingIn={goingIn}
+          stagedRepos={stagedRepos}
+          repoToCommit={repoToCommit}
+          repos={repos}
+          message={message}
+          operating={operating}
+          onRepo={setCommitRepo}
+          onMessage={setMessage}
+          onCommit={commitStaged}
+        />
       )}
     </section>
   );
