@@ -91,5 +91,7 @@ npm run build && npm run test:e2e     # interface (Playwright), com um shell no 
 - Commits e documentação em **português**; comentários e nomes no código em **inglês**.
 - Nenhum texto que o usuário lê fica escrito no código: ele é uma chave de `src/shared/i18n`, com o texto em **todos** os idiomas (`pt-BR.ts` é a referência; `tests/core/i18n.test.ts` cobra que os outros tenham as mesmas chaves e os mesmos `{valores}`). Na interface, `useT()`; no main, `translate` com o idioma das preferências. O core não sabe o idioma: lança `UserError` com a chave, e o texto é montado na borda do IPC.
 - Comentário explica o porquê, não o que a linha faz.
+- **Um assunto por arquivo, no máximo 500 linhas** em `src/` (os textos de `src/shared/i18n` ficam de fora). Passou disso, divida por assunto, não por tamanho: componente filho, hook ou função pura em `lib/`, um módulo por assunto em `src/main/ipc/`, uma peça do serviço no core. Arquivo com nome genérico (`utils`, `helpers`, `misc`) não resolve: ele vira o próximo arquivo grande.
+- Os arquivos que já passavam do limite estão em `tools/max-lines-baseline.json`, com o tamanho de hoje. O lint recusa que cresçam. Quando um deles encolhe, `tests/core/maxLines.test.ts` pede para baixar o número, e o arquivo sai da lista quando chega a 500. Não aumente um número da lista nem acrescente um arquivo a ela: divida o arquivo.
 - Comportamento novo vem com teste: core em `tests/core`, interface em `tests/e2e`.
 - Mudou o que o usuário vê ou faz? Atualize o `README.md` no mesmo PR.

@@ -3,6 +3,7 @@ import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
+import lineBaseline from './tools/max-lines-baseline.json' with { type: 'json' };
 
 export default tseslint.config(
   {
@@ -86,5 +87,17 @@ export default tseslint.config(
     files: ['tests/**'],
     rules: { 'no-control-regex': 'off' },
   },
+  // One subject per file: past the limit, a file is split by subject. The files that were already
+  // past it are listed with their size, which may only go down (tests/core/maxLines.test.ts).
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    // The texts of each language are one dictionary per language, not code to split.
+    ignores: ['src/shared/i18n/**'],
+    rules: { 'max-lines': ['error', { max: lineBaseline.limit }] },
+  },
+  ...Object.entries(lineBaseline.files).map(([file, max]) => ({
+    files: [file],
+    rules: { 'max-lines': ['error', { max }] },
+  })),
   prettier,
 );
