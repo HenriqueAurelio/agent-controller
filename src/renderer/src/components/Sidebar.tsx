@@ -1,19 +1,10 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type DragEvent,
-  type KeyboardEvent,
-  type MouseEvent,
-} from 'react';
-import { sonarSummary } from '@shared/sonar';
+import { useEffect, useState, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react';
 import { useSonarRuns } from '../lib/sonar';
 import { isHorizontal } from '@shared/layout';
 import { statusLabel, type SessionGroup, type SessionView } from '@shared/session';
-import { formatCpu, formatMemory, hint, PROFILE_LABEL } from '../lib/format';
-import { ChecksBadge } from './ChecksDialog';
-import { FlowBadge, OverlapBadge, PermissionAsk, QueueBadge, ReviewBadge } from './SessionMarks';
-import { UsageBadge } from './UsageBadge';
+import { hint } from '../lib/format';
+import { GroupActions, GroupSonar, RenameInput, SessionItemContent } from './SidebarItems';
+import { SidebarToolbar } from './SidebarToolbar';
 import { useT } from '../lib/i18n';
 import { store, useAppState } from '../lib/store';
 
@@ -54,44 +45,6 @@ interface Props {
 type Dragging = { kind: 'session'; id: string } | { kind: 'group'; id: string };
 type SessionContextMenu = { session: SessionView; x: number; y: number };
 
-function RenameInput({
-  value: initial,
-  label,
-  onCommit,
-  onEnd,
-}: {
-  value: string;
-  label: string;
-  onCommit(value: string): void;
-  onEnd(): void;
-}) {
-  const [value, setValue] = useState(initial);
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => ref.current?.select(), []);
-  const commit = () => {
-    if (value.trim()) onCommit(value);
-    onEnd();
-  };
-  return (
-    <input
-      ref={ref}
-      className="rename-input"
-      data-keeps-focus
-      aria-label={label}
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-      onBlur={commit}
-      onClick={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => {
-        e.stopPropagation();
-        if (e.key === 'Enter') commit();
-        if (e.key === 'Escape') onEnd();
-      }}
-    />
-  );
-}
-
 export function Sidebar({
   onNew,
   onPreferences,
@@ -122,20 +75,6 @@ export function Sidebar({
   const metrics = useAppState((s) => s.metrics);
   const t = useT();
   const shortcuts = useAppState((s) => s.prefs.shortcuts);
-  const permissionStale = useAppState((s) => s.permissionStale);
-  // My pull requests whose pipeline failed: the button of the panel shows how many.
-  // Background commands: how many run, and how many fell by themselves.
-  const backgroundRunning = useAppState(
-    (s) => Object.values(s.background.runs).filter((r) => r.status === 'running').length,
-  );
-  const backgroundFell = useAppState(
-    (s) =>
-      Object.values(s.background.runs).filter((r) => r.status === 'exited' || r.status === 'failed')
-        .length,
-  );
-  const failingPulls = useAppState(
-    (s) => s.pulls.pulls.filter((p) => p.mine && p.pipeline.state === 'failure').length,
-  );
   // On top or at the bottom the list runs sideways, and so do the arrows.
   const horizontal = useAppState((s) => isHorizontal(s.prefs.layout.sessions));
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -375,95 +314,19 @@ export function Sidebar({
         }}
         onKeyDown={(e) => onKeyDown(e, session)}
       >
-        <span
-          className={`state-dot state-${session.status.state} ${session.status.confirmed ? '' : 'inferred'}`}
-          title={label}
-          aria-label={label}
+        <SessionItemContent
+          session={session}
+          label={label}
+          renaming={renaming === session.id}
+          metrics={m}
+          heaviest={showHeaviest && heaviest === session.id}
+          onRenameEnd={() => {
+            setRenaming(null);
+            onDone();
+          }}
+          onDuplicate={() => onDuplicate(session)}
+          onClose={() => onClose(session)}
         />
-        <div className="session-text">
-          {renaming === session.id ? (
-            <RenameInput
-              value={session.name}
-              label={t('sidebar.sessionName')}
-              onCommit={(name) => void window.api.invoke('sessions:rename', session.id, name)}
-              onEnd={() => {
-                setRenaming(null);
-                onDone();
-              }}
-            />
-          ) : (
-            <span className="session-name">{session.name}</span>
-          )}
-          <span className="session-meta">
-            {/* First: the end of the line is cut when the list is narrow. */}
-            <FlowBadge session={session} />
-            <ReviewBadge session={session} />
-            <OverlapBadge session={session} />
-            <QueueBadge session={session} />
-            <span className={`profile-tag profile-${session.profile}`}>
-              {PROFILE_LABEL[session.profile]}
-            </span>
-            <UsageBadge session={session} />
-            <span
-              className={`session-state state-label state-label-${session.status.state} ${session.status.confirmed ? '' : 'inferred'}`}
-            >
-              {label}
-            </span>
-            {session.checks && <ChecksBadge summary={session.checks} />}
-          </span>
-          <PermissionAsk session={session} />
-          {permissionStale === session.id && (
-            <span className="permission-stale" role="status" data-testid="permission-stale">
-              {t('permission.stale')}
-            </span>
-          )}
-          {session.pendingSends ? (
-            <span className="pending-send" data-testid="pending-send">
-              {t('sidebar.pendingSend', { count: session.pendingSends })}
-              <button
-                className="link-button"
-                aria-label={t('sidebar.cancelSend', { name: session.name })}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void window.api.invoke('terminal:cancelSend', session.id);
-                }}
-              >
-                {t('common.cancel')}
-              </button>
-            </span>
-          ) : null}
-          {m && (
-            <span
-              className={`session-metrics ${showHeaviest && heaviest === session.id ? 'heaviest' : ''}`}
-              title={t('sidebar.processes', { count: m.processes })}
-            >
-              CPU {formatCpu(m.cpu)} · RAM {formatMemory(m.memory)}
-            </span>
-          )}
-        </div>
-        {session.unread && <span className="badge" aria-label={t('sidebar.unread')} />}
-        <button
-          className="icon-button item-button"
-          title={t('sidebar.duplicateHint')}
-          aria-label={t('sidebar.duplicate', { name: session.name })}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDuplicate(session);
-          }}
-        >
-          ⧉
-        </button>
-        <button
-          className="icon-button item-button close-button"
-          title={t('app.closeSession.title')}
-          aria-label={t('sidebar.close', { name: session.name })}
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose(session);
-          }}
-        >
-          ×
-        </button>
       </li>
     );
   };
@@ -537,123 +400,16 @@ export function Sidebar({
           {group.collapsed && unread && (
             <span className="badge group-badge" aria-label={t('group.unread')} />
           )}
-          {(() => {
-            const summary = sonarSummary(members.map((m) => sonarRuns[m.id]));
-            if (summary.passed + summary.failed + summary.running === 0) return null;
-            return (
-              <span
-                className="group-sonar"
-                data-testid="group-sonar-summary"
-                data-passed={summary.passed}
-                data-failed={summary.failed}
-                data-running={summary.running}
-                title={[
-                  t('sonar.summaryHint'),
-                  summary.passed > 0 && t('sonar.summary.passed', { count: summary.passed }),
-                  summary.failed > 0 && t('sonar.summary.failed', { count: summary.failed }),
-                  summary.running > 0 && t('sonar.summary.running', { count: summary.running }),
-                ]
-                  .filter(Boolean)
-                  .join('\n')}
-              >
-                {summary.passed > 0 && <span className="sonar-ok">{summary.passed}✓</span>}
-                {summary.failed > 0 && <span className="sonar-bad">{summary.failed}✗</span>}
-                {summary.running > 0 && <span className="sonar-run">{summary.running}…</span>}
-              </span>
-            );
-          })()}
+          <GroupSonar runs={members.map((m) => sonarRuns[m.id])} />
           <span className="spacer" />
-          <button
-            className="icon-button item-button sonar-button"
-            title={t('sonar.buttonHint', { name: group.name })}
-            aria-label={t('sonar.title', { name: group.name })}
-            data-testid="sonar-button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSonar(group);
-            }}
-          >
-            ◈
-          </button>
-          <button
-            className="icon-button item-button"
-            title={t('group.newSession', { name: group.name })}
-            aria-label={t('group.newSession', { name: group.name })}
-            onClick={(e) => {
-              e.stopPropagation();
-              onNew(group.id);
-            }}
-          >
-            +
-          </button>
-          {group.flow && (
-            <button
-              className="icon-button flow-pause-button"
-              title={t(group.flow.paused ? 'flow.resumeLabel' : 'flow.stopLabel', {
-                name: group.name,
-              })}
-              aria-label={t(group.flow.paused ? 'flow.resumeLabel' : 'flow.stopLabel', {
-                name: group.name,
-              })}
-              data-testid="flow-pause-button"
-              onClick={(e) => {
-                e.stopPropagation();
-                void window.api
-                  .invoke('flows:pause', group.id, !group.flow!.paused)
-                  .catch(() => {});
-              }}
-            >
-              {group.flow.paused ? '▶' : '⏸'}
-            </button>
-          )}
-          <button
-            className="icon-button item-button flow-button"
-            title={t('flow.buttonHint')}
-            aria-label={t('flow.title', { name: group.name })}
-            data-testid="flow-button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onFlow(group);
-            }}
-          >
-            ⇢
-          </button>
-          {group.experimentId && (
-            <button
-              className="icon-button item-button compare-button"
-              title={t('group.compare', { name: group.name })}
-              aria-label={t('group.compare', { name: group.name })}
-              data-testid="compare-button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCompare(group.experimentId!);
-              }}
-            >
-              ⇄
-            </button>
-          )}
-          <button
-            className="icon-button item-button"
-            title={t('group.edit', { name: group.name })}
-            aria-label={t('group.edit', { name: group.name })}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEditGroup(group);
-            }}
-          >
-            ✎
-          </button>
-          <button
-            className="icon-button item-button close-button"
-            title={t('group.remove', { name: group.name })}
-            aria-label={t('group.remove', { name: group.name })}
-            onClick={(e) => {
-              e.stopPropagation();
-              void window.api.invoke('groups:remove', group.id);
-            }}
-          >
-            ×
-          </button>
+          <GroupActions
+            group={group}
+            onSonar={() => onSonar(group)}
+            onNew={() => onNew(group.id)}
+            onFlow={() => onFlow(group)}
+            onCompare={onCompare}
+            onEdit={() => onEditGroup(group)}
+          />
         </div>
         <ul className="group-sessions" role="presentation">
           {inSight.map(renderSession)}
@@ -673,93 +429,19 @@ export function Sidebar({
 
   return (
     <aside className="sidebar" aria-label={t('common.sessions')}>
-      <div className="sidebar-header">
-        <span className="sidebar-title">{t('common.sessions')}</span>
-        <span className="spacer" />
-        <button
-          className={`icon-button ${overviewOpen ? 'active' : ''}`}
-          title={hint(t('overview.open'), shortcuts.overview[0])}
-          aria-label={t('overview.open')}
-          aria-pressed={overviewOpen}
-          data-testid="overview-button"
-          onClick={onOverview}
-        >
-          ▦
-        </button>
-        <button
-          className={`icon-button ${boardOpen ? 'active' : ''}`}
-          title={hint(t('board.open'), shortcuts.board[0])}
-          aria-label={t('board.open')}
-          aria-pressed={boardOpen}
-          data-testid="board-button"
-          onClick={onBoard}
-        >
-          ☷
-        </button>
-        <button
-          className={`icon-button pulls-button ${pullsOpen ? 'active' : ''}`}
-          title={hint(t('pulls.open'), shortcuts.pulls[0])}
-          aria-label={t('pulls.open')}
-          aria-pressed={pullsOpen}
-          data-testid="pulls-button"
-          onClick={onPulls}
-        >
-          ⇄
-          {failingPulls > 0 && (
-            <span className="pulls-badge" data-testid="pulls-badge">
-              {failingPulls}
-            </span>
-          )}
-        </button>
-        <button
-          className={`icon-button pulls-button ${backgroundOpen ? 'active' : ''}`}
-          title={hint(
-            backgroundRunning > 0
-              ? t('background.openRunning', { count: backgroundRunning })
-              : t('background.open'),
-            shortcuts.background[0],
-          )}
-          aria-label={t('background.open')}
-          aria-pressed={backgroundOpen}
-          data-testid="background-button"
-          data-running={backgroundRunning}
-          onClick={onBackground}
-        >
-          ▶
-          {backgroundFell > 0 ? (
-            <span className="pulls-badge" data-testid="background-badge">
-              {backgroundFell}
-            </span>
-          ) : (
-            backgroundRunning > 0 && <span className="background-dot" aria-hidden="true" />
-          )}
-        </button>
-        <button
-          className="icon-button group-add-button"
-          title={t('sidebar.newGroup')}
-          aria-label={t('sidebar.newGroup')}
-          data-testid="new-group-button"
-          onClick={() => onEditGroup()}
-        >
-          ⊞
-        </button>
-        <button
-          className="icon-button"
-          title={t('command.newExperiment')}
-          aria-label={t('command.newExperiment')}
-          data-testid="new-experiment-button"
-          onClick={onNewExperiment}
-        >
-          ⑂
-        </button>
-        <button
-          className="icon-button"
-          title={hint(t('shortcut.preferences'), shortcuts.preferences[0])}
-          onClick={onPreferences}
-        >
-          ⚙
-        </button>
-      </div>
+      <SidebarToolbar
+        onOverview={onOverview}
+        overviewOpen={overviewOpen}
+        onBoard={onBoard}
+        boardOpen={boardOpen}
+        onPulls={onPulls}
+        pullsOpen={pullsOpen}
+        onBackground={onBackground}
+        backgroundOpen={backgroundOpen}
+        onNewGroup={() => onEditGroup()}
+        onNewExperiment={onNewExperiment}
+        onPreferences={onPreferences}
+      />
       <ul className="session-list" role="listbox" aria-label={t('sidebar.list')}>
         {canUngroup && (
           <li
